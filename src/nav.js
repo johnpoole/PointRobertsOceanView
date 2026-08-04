@@ -1,35 +1,34 @@
 // Camera navigation. Two modes over the existing OrbitControls:
-//   orbit  - the default look-around, plus smooth tweens to preset viewpoints.
-//   walk   - first person: pointer-lock mouse look, WASD/QE move, camera clamped
-//            to the terrain height so you walk the bluff and town.
+//   orbit - the default look-around, plus smooth tweens to preset viewpoints.
+//   fly   - free flight: pointer-lock mouse look, WASD along the look direction,
+//           Q/E down/up, Shift to go fast. No ground clamp; go anywhere.
 // The render loop calls update(dt); nothing else touches the controls.
 
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 
 const TWEEN_SECONDS = 1.1;
-const EYE = 1.7;        // walking eye height above ground
-const WALK_SPEED = 22;  // m/s
-const RUN_SPEED = 70;
+const FLY_SPEED = 60;   // m/s
+const FAST_SPEED = 260;
 
 function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
 export class Nav {
-  constructor(camera, dom, orbit, opts) {
+  constructor(camera, dom, orbit, opts = {}) {
     this.camera = camera;
     this.orbit = orbit;
-    this.groundAt = opts.groundAt;   // (x,z) -> terrain y, or null
-    this.seaLevel = opts.seaLevel;   // () -> water y
     this.onMode = opts.onMode || (() => {});
     this.mode = "orbit";
     this.tween = null;
     this.keys = {};
+    this._dir = new THREE.Vector3();
+    this._right = new THREE.Vector3();
 
     this.lock = new PointerLockControls(camera, dom);
     this.lock.addEventListener("unlock", () => {
-      if (this.mode === "walk") this._setOrbit();
+      if (this.mode === "fly") this._setOrbit();
     });
 
     window.addEventListener("keydown", (e) => this._key(e, true));
@@ -37,7 +36,7 @@ export class Nav {
   }
 
   goTo(view) {
-    if (this.mode === "walk") { this.lock.unlock(); this._setOrbit(); }
+    if (this.mode === "fly") { if (this.lock.isLocked) this.lock.unlock(); this._setOrbit(); }
     this.orbit.enabled = false;
     this.tween = {
       t: 0,
@@ -46,24 +45,23 @@ export class Nav {
     };
   }
 
-  toggleWalk() {
-    if (this.mode === "walk") {
+  toggleFly() {
+    if (this.mode === "fly") {
       if (this.lock.isLocked) this.lock.unlock(); // unlock event -> orbit
-      else this._setOrbit();                      // pointer lock never engaged
+      else this._setOrbit();
       return;
     }
     this.tween = null;
     this.orbit.enabled = false;
-    this.mode = "walk";
-    this.onMode("walk");
+    this.mode = "fly";
+    this.onMode("fly");
     this.lock.lock();
   }
 
   _setOrbit() {
     // Pivot the orbit around a point ahead of where we are looking.
-    const dir = new THREE.Vector3();
-    this.camera.getWorldDirection(dir);
-    this.orbit.target.copy(this.camera.position).addScaledVector(dir, 300);
+    this.camera.getWorldDirection(this._dir);
+    this.orbit.target.copy(this.camera.position).addScaledVector(this._dir, 300);
     this.orbit.enabled = true;
     this.mode = "orbit";
     this.onMode("orbit");
@@ -72,23 +70,21 @@ export class Nav {
   _key(e, down) {
     this.keys[e.code] = down;
     if (!down) return;
-    if (e.code === "KeyV") this.toggleWalk();
+    if (e.code === "KeyV") this.toggleFly();
     const m = /^Digit([1-9])$/.exec(e.code);
     if (m && this.onPreset) this.onPreset(Number(m[1]) - 1);
   }
 
-  _walkStep(dt) {
-    const speed = (this.keys.ShiftLeft || this.keys.ShiftRight ? RUN_SPEED : WALK_SPEED) * dt;
+  _flyStep(dt) {
+    const speed = (this.keys.ShiftLeft || this.keys.ShiftRight ? FAST_SPEED : FLY_SPEED) * dt;
+    this.camera.getWorldDirection(this._dir);              // includes pitch, so W flies up when looking up
+    this._right.crossVectors(this._dir, this.camera.up).normalize();
     const fwd = (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0);
     const str = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
-    if (fwd) this.lock.moveForward(fwd * speed);
-    if (str) this.lock.moveRight(str * speed);
     const up = (this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0);
-    // Clamp to the ground (or water surface), plus eye height. Q/E nudge eye.
-    const g = this.groundAt(this.camera.position.x, this.camera.position.z);
-    const floor = Math.max(g == null ? 0 : g, this.seaLevel());
-    this._eyeAdjust = Math.min(Math.max((this._eyeAdjust || 0) + up * dt * 3, 0), 40);
-    this.camera.position.y = floor + EYE + this._eyeAdjust;
+    if (fwd) this.camera.position.addScaledVector(this._dir, fwd * speed);
+    if (str) this.camera.position.addScaledVector(this._right, str * speed);
+    if (up) this.camera.position.y += up * speed;
   }
 
   update(dt) {
@@ -101,7 +97,7 @@ export class Nav {
       if (this.tween.t >= 1) { this.tween = null; this.orbit.enabled = true; }
       return;
     }
-    if (this.mode === "walk") { this._walkStep(dt); return; }
+    if (this.mode === "fly") { this._flyStep(dt); return; }
     this.orbit.update();
   }
 }

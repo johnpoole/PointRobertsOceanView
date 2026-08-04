@@ -15,7 +15,7 @@ import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { Nav } from "./nav.js";
-import { toWorld, fromWorld } from "./geo.js";
+import { toWorld } from "./geo.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -87,7 +87,7 @@ const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 let landmarkPicks = [];
-let groundSample = null; // (lat,lon) -> terrain height, for walk mode and presets
+let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
   .then((near) => {
     groundSample = near.sample;
@@ -187,7 +187,7 @@ function resize() {
   renderer.setSize(w, h);
 }
 
-// Navigation: preset viewpoints (tween) and a first-person walk mode.
+// Navigation: preset viewpoints (tween) and a free-fly mode.
 const PRESETS = [
   { name: "Bluff", lat: 48.989009, lon: -123.085318, eye: 20, lookLat: 48.989, lookLon: -123.20 },
   { name: "Lighthouse", lat: 48.9728, lon: -123.0821, eye: 7, lookLat: 48.962, lookLon: -123.11 },
@@ -205,9 +205,7 @@ function toView(p) {
 }
 
 const nav = new Nav(camera, renderer.domElement, controls, {
-  groundAt: (x, z) => { if (!groundSample) return null; const g = fromWorld(x, z); return groundSample(g.lat, g.lon); },
-  seaLevel: () => tideLevel(),
-  onMode: (m) => document.getElementById("walk-hint").classList.toggle("hidden", m !== "walk"),
+  onMode: (m) => document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly"),
 });
 nav.onPreset = (i) => { if (PRESETS[i]) nav.goTo(toView(PRESETS[i])); };
 
@@ -219,7 +217,7 @@ PRESETS.forEach((p, i) => {
   b.addEventListener("click", () => nav.goTo(toView(p)));
   viewBtns.appendChild(b);
 });
-document.getElementById("walk-btn").addEventListener("click", () => nav.toggleWalk());
+document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
 
 const clock = new THREE.Clock();
 function frame() {

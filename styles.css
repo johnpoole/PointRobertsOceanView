@@ -101,9 +101,9 @@ html, body {
   cursor: pointer;
 }
 .view-btn:hover { background: rgba(150, 190, 220, 0.2); }
-.walk-btn { width: 100%; text-align: center; color: var(--warn); }
+.fly-btn { width: 100%; text-align: center; color: var(--warn); }
 
-.walk-hint {
+.fly-hint {
   position: fixed;
   bottom: 14px;
   left: 50%;
