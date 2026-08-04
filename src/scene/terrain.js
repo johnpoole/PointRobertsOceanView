@@ -1,15 +1,14 @@
-// Terrain mesh from the baked GMRT heightmap. Each grid node is a real lat/lon
-// with an elevation in metres above MLLW; we project it to world coords with the
-// shared geo transform, so the bluff, beach, and sea floor sit where they are.
-// The waterline is not drawn here — the ocean plane at the tide height covers
-// every node below it, so raising the tide floods the beach on its own.
+// Terrain mesh from a baked GMRT heightmap. Each grid node is a real lat/lon with
+// an elevation in metres above MLLW, projected to world coords with the shared geo
+// transform. Two tiles are built: a near tile for the tide-driven foreground, and
+// a far tile for the Gulf Islands skyline across the strait. The waterline is not
+// drawn here — the ocean plane at the tide height covers every node below it.
 
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
-import { TERRAIN } from "../config.js";
 
-// Elevation (m MLLW) -> colour. Below the lowest tide it is sea floor and stays
-// hidden under water; above that it climbs beach -> grass -> forest.
+const SKYLINE_HAZE = new THREE.Color(0x8295a8);
+
 function colorForElevation(elev, target) {
   const sand = new THREE.Color(0x9c8f6f);
   const grass = new THREE.Color(0x4f6b3a);
@@ -27,9 +26,14 @@ function colorForElevation(elev, target) {
   return target;
 }
 
-export async function buildTerrain(scene) {
-  const meta = await (await fetch(TERRAIN.meta)).json();
-  const bin = await (await fetch(TERRAIN.heightmap)).arrayBuffer();
+// asset: { heightmap, meta }. opts: { haze 0..1, fog, yOffset }.
+export async function buildTerrain(scene, asset, opts = {}) {
+  const haze = opts.haze || 0;
+  const fog = opts.fog !== false;
+  const yOffset = opts.yOffset || 0;
+
+  const meta = await (await fetch(asset.meta)).json();
+  const bin = await (await fetch(asset.heightmap)).arrayBuffer();
   const Z = new Float32Array(bin);
   const { nrows, ncols, cellsize_deg, north_lat, west_lon } = meta.grid;
 
@@ -49,6 +53,7 @@ export async function buildTerrain(scene) {
       positions[idx + 1] = w.y;
       positions[idx + 2] = w.z;
       colorForElevation(elev, tmp);
+      if (haze > 0) tmp.lerp(SKYLINE_HAZE, haze); // atmospheric perspective for distance
       colors[idx] = tmp.r;
       colors[idx + 1] = tmp.g;
       colors[idx + 2] = tmp.b;
@@ -75,12 +80,10 @@ export async function buildTerrain(scene) {
   geom.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 1,
-    metalness: 0,
+    vertexColors: true, roughness: 1, metalness: 0, fog,
   });
   const mesh = new THREE.Mesh(geom, mat);
-  mesh.receiveShadow = false;
+  mesh.position.y = yOffset;
   scene.add(mesh);
   return { mesh, meta };
 }

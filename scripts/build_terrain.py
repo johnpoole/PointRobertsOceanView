@@ -1,21 +1,21 @@
-"""Bake the Point Roberts terrain heightmap.
+"""Bake the Point Roberts terrain heightmaps.
 
-Source: GMRT (Global Multi-Resolution Topography) GridServer, which serves one
-seamless topobathymetric grid — land elevation and sea-floor depth merged from
-multibeam, lidar, and SRTM — over a bounding box, as an ESRI-ASCII grid. That
-single source removes the land/sea datum seam a two-source (topo + bathy) bake
-would create.
+Two tiles are baked from GMRT (Global Multi-Resolution Topography), one seamless
+topobathymetric grid (land + sea floor) per box:
+
+  near - a small box around the bluff, upsampled fine. Drives the tide-driven
+         shoreline in the foreground.
+  far  - a wide box across the Strait of Georgia, decimated coarse. Gives the
+         Gulf Islands and the far shore as the skyline you actually see west.
 
 Vertical datum: GMRT is referenced to sea level (~local mean sea level). The app
-and the tide feed work in MLLW, so we shift every elevation up by the station's
+and the tide feed work in MLLW, so every elevation is shifted up by the station's
 MSL-above-MLLW offset (Cherry Point 9449424: MSL 11.62 ft, MLLW 6.34 ft ->
-1.61 m). After the shift a value of 0 means the MLLW line, matching the tide
-feed's water_level_m. The offset is uniform and taken at Cherry Point ~14 km
-south, so it is good to a few decimetres, not centimetres.
+1.61 m). After the shift a value of 0 means the MLLW line.
 
 Output (committed as static assets, so the app needs no geo libraries at runtime):
-  assets/terrain/heightmap.bin   float32, row-major, north row first, MLLW metres
-  assets/terrain/meta.json       grid geography + elevation range + provenance
+  assets/terrain/heightmap.bin / meta.json          (near)
+  assets/terrain/heightmap_far.bin / meta_far.json  (far)
 
 Run once:
   .venv/Scripts/python scripts/build_terrain.py
@@ -29,16 +29,17 @@ from pathlib import Path
 
 import numpy as np
 
-# Terrain box around the bluff. Wider to the west, the view direction.
-BOX = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.01}
 ORIGIN = {"lat": 48.989009, "lon": -123.085318}
 
 # GMRT sea-level -> MLLW, from NOAA CO-OPS station 9449424 datums (feet):
 # MSL 11.62, MLLW 6.34 -> (11.62 - 6.34) ft = 1.609 m.
 MLLW_OFFSET_M = 1.609
 
-UPSAMPLE = 3        # bilinear densify so the mesh is not blocky at ~61 m cells
-SMOOTH_PASSES = 1   # light 3x3 box smoothing after upsampling
+# near: fine shoreline around the bluff.
+BOX_NEAR = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.01}
+# far: the strait and the Gulf Islands across it, looking west.
+BOX_FAR = {"min_lon": -123.62, "max_lon": -122.92, "min_lat": 48.66, "max_lat": 49.22}
+MAX_CELLS_FAR = 420000  # decimate below this so the skyline mesh stays light
 
 GMRT_URL = (
     "https://www.gmrt.org/services/GridServer"
@@ -48,10 +49,10 @@ GMRT_URL = (
 )
 
 
-def fetch_grid() -> str:
-    url = GMRT_URL.format(**BOX)
+def fetch_grid(box: dict) -> str:
+    url = GMRT_URL.format(**box)
     print(f"GET {url}")
-    with urllib.request.urlopen(url, timeout=120) as response:
+    with urllib.request.urlopen(url, timeout=180) as response:
         return response.read().decode("utf-8")
 
 
@@ -78,8 +79,7 @@ def parse_esriascii(text: str) -> tuple[dict, np.ndarray]:
 def fill_nan(grid: np.ndarray) -> np.ndarray:
     if not np.isnan(grid).any():
         return grid
-    count = int(np.isnan(grid).sum())
-    print(f"filling {count} nodata cells by iterative neighbour mean")
+    print(f"filling {int(np.isnan(grid).sum())} nodata cells")
     out = grid.copy()
     while np.isnan(out).any():
         nan_mask = np.isnan(out)
@@ -124,74 +124,67 @@ def box_smooth(grid: np.ndarray, passes: int) -> np.ndarray:
             for dx in (-1, 0, 1):
                 if dy == 0 and dx == 0:
                     continue
-                shifted = np.roll(out, shift=(dy, dx), axis=(0, 1))
-                acc += shifted
+                acc += np.roll(out, shift=(dy, dx), axis=(0, 1))
                 weight += 1
         out = acc / weight
     return out
 
 
-def main() -> None:
-    root = Path(__file__).resolve().parents[1]
-    out_dir = root / "assets" / "terrain"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    header, grid = parse_esriascii(fetch_grid())
+def bake(box: dict, upsample: int, smooth_passes: int, max_cells: int | None,
+         out_dir: Path, prefix: str) -> None:
+    header, grid = parse_esriascii(fetch_grid(box))
     grid = fill_nan(grid)
-
     cellsize = header["cellsize"]
     xll, yll = header["xllcorner"], header["yllcorner"]
     nrows, ncols = grid.shape
 
-    grid = bilinear_upsample(grid, UPSAMPLE)
-    grid = box_smooth(grid, SMOOTH_PASSES)
+    # Decimate large tiles so the mesh stays light.
+    stride = 1
+    if max_cells and nrows * ncols > max_cells:
+        stride = int(np.ceil((nrows * ncols / max_cells) ** 0.5))
+        grid = grid[::stride, ::stride]
+        cellsize *= stride
+        nrows, ncols = grid.shape
+        print(f"decimated by {stride} -> {nrows}x{ncols}")
+
+    grid = bilinear_upsample(grid, upsample)
+    grid = box_smooth(grid, smooth_passes)
     up_rows, up_cols = grid.shape
-    up_cell = cellsize * (ncols - 1) / (up_cols - 1)
+    up_cell = cellsize * (ncols - 1) / (up_cols - 1) if up_cols > 1 else cellsize
 
     grid_mllw = (grid + MLLW_OFFSET_M).astype(np.float32)
 
-    # Cell-centre geographic extents after upsampling. ESRI row 0 is the north
-    # row; store north_lat and step south so the client can place each node.
-    north_lat = yll + (nrows - 0.5) * cellsize
-    west_lon = xll + 0.5 * cellsize
+    # ESRI row 0 is the north row; xll/yll are the lower-left corner of the
+    # original grid, so cell-centre extents use the original cellsize.
+    north_lat = yll + (header["nrows"] - 0.5) * header["cellsize"]
+    west_lon = xll + 0.5 * header["cellsize"]
 
-    heightmap = out_dir / "heightmap.bin"
-    grid_mllw.tofile(heightmap)
-
+    (out_dir / f"heightmap{prefix}.bin").write_bytes(grid_mllw.tobytes())
     meta = {
         "source": "GMRT GridServer, format=esriascii, resolution=max",
-        "source_url": GMRT_URL.format(**BOX),
         "vertical_datum": "MLLW",
-        "vertical_note": (
-            "GMRT sea-level elevations shifted up by MLLW_OFFSET_M so 0 = MLLW, "
-            "matching the tide feed water_level_m."
-        ),
         "mllw_offset_m": MLLW_OFFSET_M,
         "origin": ORIGIN,
-        "box": BOX,
+        "box": box,
         "grid": {
-            "nrows": up_rows,
-            "ncols": up_cols,
-            "cellsize_deg": up_cell,
-            "north_lat": north_lat,
-            "west_lon": west_lon,
-            "dtype": "float32",
-            "order": "row-major, north row first",
+            "nrows": up_rows, "ncols": up_cols, "cellsize_deg": up_cell,
+            "north_lat": north_lat, "west_lon": west_lon,
+            "dtype": "float32", "order": "row-major, north row first",
         },
-        "elevation_m_mllw": {
-            "min": float(grid_mllw.min()),
-            "max": float(grid_mllw.max()),
-        },
-        "raw_gmrt": {"nrows": nrows, "ncols": ncols, "cellsize_deg": cellsize},
-        "upsample": UPSAMPLE,
-        "smooth_passes": SMOOTH_PASSES,
+        "elevation_m_mllw": {"min": float(grid_mllw.min()), "max": float(grid_mllw.max())},
+        "decimate_stride": stride, "upsample": upsample,
     }
-    (out_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    (out_dir / f"meta{prefix}.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    print(f"wrote {prefix or 'near'}: {up_rows}x{up_cols}, {grid_mllw.nbytes} bytes, "
+          f"cell ~{up_cell * 111320:.0f} m, elev {meta['elevation_m_mllw']['min']:.0f}"
+          f"..{meta['elevation_m_mllw']['max']:.0f} m MLLW")
 
-    print(f"wrote {heightmap} ({grid_mllw.nbytes} bytes, {up_rows}x{up_cols})")
-    print(f"elevation MLLW: {meta['elevation_m_mllw']['min']:.1f} .. "
-          f"{meta['elevation_m_mllw']['max']:.1f} m")
-    print(f"upsampled cell ~{up_cell * 111320:.0f} m lat")
+
+def main() -> None:
+    out_dir = Path(__file__).resolve().parents[1] / "assets" / "terrain"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    bake(BOX_NEAR, upsample=3, smooth_passes=1, max_cells=None, out_dir=out_dir, prefix="")
+    bake(BOX_FAR, upsample=1, smooth_passes=1, max_cells=MAX_CELLS_FAR, out_dir=out_dir, prefix="_far")
 
 
 if __name__ == "__main__":

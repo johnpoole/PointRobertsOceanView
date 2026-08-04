@@ -26,8 +26,9 @@ export const EYE_HEIGHT_M = 20; // camera eye above sea level
 // from the page location. Never hardcode a port that could drift from the server.
 export const BACKEND_WS = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws/live`;
 
-// Baked terrain heightmap asset. Vertical datum NAVD88, same as the tide feed.
+// Baked terrain heightmaps, MLLW datum (same zero as the tide feed).
+// near: fine shoreline around the bluff. far: the strait and Gulf Islands skyline.
 export const TERRAIN = {
-  heightmap: "assets/terrain/heightmap.bin",
-  meta: "assets/terrain/meta.json",
+  near: { heightmap: "assets/terrain/heightmap.bin", meta: "assets/terrain/meta.json" },
+  far: { heightmap: "assets/terrain/heightmap_far.bin", meta: "assets/terrain/meta_far.json" },
 };

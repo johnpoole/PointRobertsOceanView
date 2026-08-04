@@ -1,0 +1,30 @@
+{
+  "source": "GMRT GridServer, format=esriascii, resolution=max",
+  "vertical_datum": "MLLW",
+  "mllw_offset_m": 1.609,
+  "origin": {
+    "lat": 48.989009,
+    "lon": -123.085318
+  },
+  "box": {
+    "min_lon": -123.62,
+    "max_lon": -122.92,
+    "min_lat": 48.66,
+    "max_lat": 49.22
+  },
+  "grid": {
+    "nrows": 510,
+    "ncols": 638,
+    "cellsize_deg": 0.0010986328125,
+    "north_lat": 49.21979393256852,
+    "west_lon": -123.62008666992188,
+    "dtype": "float32",
+    "order": "row-major, north row first"
+  },
+  "elevation_m_mllw": {
+    "min": -395.912109375,
+    "max": 679.82568359375
+  },
+  "decimate_stride": 2,
+  "upsample": 1
+}
