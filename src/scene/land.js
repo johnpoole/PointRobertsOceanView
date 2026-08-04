@@ -61,25 +61,21 @@ function buildings(list, sample) {
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }
 
-function makeLabel(text) {
-  const font = "500 26px ui-monospace, Menlo, Consolas, monospace";
+// A screen-constant dot marking a landmark. The name shows on hover (main.js),
+// not as an always-on label.
+function makeDot() {
   const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 32;
   const ctx = canvas.getContext("2d");
-  ctx.font = font;
-  const w = Math.ceil(ctx.measureText(text).width) + 14;
-  canvas.width = w; canvas.height = 38;
-  ctx.font = font;
-  ctx.fillStyle = "rgba(8,16,24,0.72)"; ctx.fillRect(0, 0, w, 38);
-  ctx.strokeStyle = "rgba(255,206,84,0.6)"; ctx.strokeRect(0.5, 0.5, w - 1, 37);
-  ctx.fillStyle = "#ffe6a8"; ctx.textBaseline = "middle";
-  ctx.fillText(text, 7, 20);
+  ctx.beginPath(); ctx.arc(16, 16, 9, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,206,84,0.95)"; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = "rgba(8,16,24,0.85)"; ctx.stroke();
   const tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
   const mat = new THREE.SpriteMaterial({ map: tex, sizeAttenuation: false, depthTest: true });
-  const sprite = new THREE.Sprite(mat);
-  const screenH = 0.04;
-  sprite.scale.set(screenH * (w / 38), screenH, 1);
-  return sprite;
+  const s = new THREE.Sprite(mat);
+  s.scale.set(0.014, 0.014, 1);
+  return s;
 }
 
 export async function buildLand(scene, sample) {
@@ -92,17 +88,20 @@ export async function buildLand(scene, sample) {
     if (!byWidth.has(width)) byWidth.set(width, []);
     byWidth.get(width).push(r.coords);
   }
-  const roadMat = new THREE.MeshStandardMaterial({ color: 0x3c3f44, roughness: 1 });
+  // Roads: light ribbons, lifted clear of the terrain and widened so they read
+  // against the land.
+  const roadMat = new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 1, side: THREE.DoubleSide });
   for (const [width, lines] of byWidth) {
-    const mesh = new THREE.Mesh(ribbon(lines, sample, width, 0.4), roadMat);
+    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * 2.4, 9), 2.0), roadMat);
+    mesh.renderOrder = 1;
     scene.add(mesh);
   }
 
   // Coastline.
   if (data.coastline.length) {
     const mesh = new THREE.Mesh(
-      ribbon(data.coastline.map((c) => c.coords), sample, 5, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0xb0a488, roughness: 1 }));
+      ribbon(data.coastline.map((c) => c.coords), sample, 6, 1.0),
+      new THREE.MeshStandardMaterial({ color: 0xcbb98f, roughness: 1, side: THREE.DoubleSide }));
     scene.add(mesh);
   }
 
@@ -113,19 +112,24 @@ export async function buildLand(scene, sample) {
       color: 0xa7a396, roughness: 0.9, metalness: 0 })));
   }
 
-  // Landmarks: a pole plus a screen-constant label.
-  const poleMat = new THREE.LineBasicMaterial({ color: 0xffce54 });
+  // Landmarks: a screen-constant dot; the name shows on hover.
+  const markers = [];
   for (const lm of data.landmarks) {
     const w = toWorld(lm.lat, lm.lon, 0);
     const base = sample(lm.lat, lm.lon);
     const group = new THREE.Group();
-    const pole = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 22, 0)]);
-    group.add(new THREE.Line(pole, poleMat));
-    const label = makeLabel(lm.name);
-    label.position.set(0, 28, 0);
-    group.add(label);
+    const dot = makeDot();
+    dot.position.set(0, 10, 0);
+    group.add(dot);
+    const proxy = new THREE.Mesh(
+      new THREE.BoxGeometry(70, 90, 70),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    proxy.position.y = 25;
+    group.add(proxy);
+    group.userData.landmark = { name: lm.name, kind: lm.kind };
     group.position.set(w.x, base, w.z);
     scene.add(group);
+    markers.push(group);
   }
+  return { landmarks: markers };
 }

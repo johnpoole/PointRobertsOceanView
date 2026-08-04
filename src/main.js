@@ -84,8 +84,11 @@ const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
+let landmarkPicks = [];
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
-  .then((near) => buildLand(scene, near.sample).catch((err) => console.error("land failed:", err)))
+  .then((near) => buildLand(scene, near.sample)
+    .then((land) => { landmarkPicks = land.landmarks; })
+    .catch((err) => console.error("land failed:", err)))
   .catch((err) => console.error("near terrain failed:", err));
 buildTerrain(scene, TERRAIN.far, { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5 })
   .catch((err) => console.error("far terrain failed:", err));
@@ -149,14 +152,22 @@ renderer.domElement.addEventListener("pointerleave", () => {
 function updateHover() {
   if (!pointerInside) return;
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(vessels.pickList(), true);
-  let group = hits.length ? hits[0].object : null;
-  while (group && !group.userData.vessel) group = group.parent;
-  if (!group) { tip.classList.add("hidden"); return; }
-  const rows = Vessels.describe(group.userData.vessel)
+  const targets = vessels.pickList().concat(landmarkPicks);
+  const hits = raycaster.intersectObjects(targets, true);
+  let o = hits.length ? hits[0].object : null;
+  while (o && !o.userData.vessel && !o.userData.landmark) o = o.parent;
+  if (!o) { tip.classList.add("hidden"); return; }
+  let rows, stale = false;
+  if (o.userData.vessel) {
+    rows = Vessels.describe(o.userData.vessel);
+    stale = o.userData.stale;
+  } else {
+    rows = [["place", o.userData.landmark.name], ["type", o.userData.landmark.kind]];
+  }
+  const html = rows
     .map(([k, v]) => `<div class="tip-row"><span class="tip-k">${esc(k)}</span><span class="tip-v">${esc(v)}</span></div>`)
     .join("");
-  tip.innerHTML = rows + (group.userData.stale ? `<div class="tip-stale">stale</div>` : "");
+  tip.innerHTML = html + (stale ? `<div class="tip-stale">stale</div>` : "");
   tip.style.left = (cursorX + 14) + "px";
   tip.style.top = (cursorY + 14) + "px";
   tip.classList.remove("hidden");
