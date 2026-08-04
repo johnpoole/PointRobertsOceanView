@@ -11,8 +11,15 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
 
 const DEFAULT = { length: 30, beam: 8 };
-const VESSEL_SCALE = 4.5;
-const SIZE_REF_M = 2500;
+
+// Ships are drawn larger than life so they read from the bluff, but the boost is
+// size-aware: small craft are lifted to a visibility floor while big ships stay
+// near real size, and the rendered length is capped so tankers don't balloon.
+// Distance adds a modest growth so far traffic stays visible.
+const FLOOR_LEN = 140;   // small vessels scaled up to about this length
+const MAX_LEN = 650;     // no vessel renders longer than this
+const SIZE_REF_M = 2500; // distance growth reference
+const GROWTH_CAP = 2.2;
 
 function classify(type) {
   const t = type == null ? -1 : type;
@@ -162,6 +169,7 @@ function buildVessel(state) {
 
   group.userData.vessel = state;
   group.userData.material = mat;
+  group.userData.length = length;
   group.userData.placed = false;
   group.userData.target = new THREE.Vector3();
   return group;
@@ -204,8 +212,11 @@ export class Vessels {
       group.position.y = tideLevel + bob;
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
-      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), 3);
-      group.scale.setScalar(VESSEL_SCALE * grow);
+      const L = group.userData.length;
+      const boost = Math.max(FLOOR_LEN / L, 1);                    // lift small craft only
+      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), GROWTH_CAP);
+      const s = Math.max(1, Math.min(boost * grow, MAX_LEN / L));  // cap absolute length
+      group.scale.setScalar(s);
 
       // Stale: grey and fade via the material (vertex colours are multiplied).
       const stale = feed.isStale(entry);
