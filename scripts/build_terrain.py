@@ -37,9 +37,10 @@ MLLW_OFFSET_M = 1.609
 
 # near: fine shoreline around the bluff.
 BOX_NEAR = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.01}
-# far: the strait and the Gulf Islands across it, looking west.
-BOX_FAR = {"min_lon": -123.62, "max_lon": -122.92, "min_lat": 48.66, "max_lat": 49.22}
-MAX_CELLS_FAR = 420000  # decimate below this so the skyline mesh stays light
+# far: the strait, the Gulf Islands, and the Vancouver Island mountains behind
+# them — the full skyline west, out to ~90 km.
+BOX_FAR = {"min_lon": -124.35, "max_lon": -122.92, "min_lat": 48.52, "max_lat": 49.25}
+MAX_CELLS_FAR = 500000  # decimate below this so the skyline mesh stays light
 
 GMRT_URL = (
     "https://www.gmrt.org/services/GridServer"

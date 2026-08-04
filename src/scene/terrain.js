@@ -26,9 +26,12 @@ function colorForElevation(elev, target) {
   return target;
 }
 
-// asset: { heightmap, meta }. opts: { haze 0..1, fog, yOffset }.
+// asset: { heightmap, meta }. opts: { haze 0..1, hazeGrade [nearM,farM,nearHaze,
+// farHaze], fog, yOffset }. hazeGrade ramps haze with distance for atmospheric
+// perspective, so nearer islands read crisp and far mountains fade.
 export async function buildTerrain(scene, asset, opts = {}) {
   const haze = opts.haze || 0;
+  const grade = opts.hazeGrade || null;
   const fog = opts.fog !== false;
   const yOffset = opts.yOffset || 0;
 
@@ -53,7 +56,13 @@ export async function buildTerrain(scene, asset, opts = {}) {
       positions[idx + 1] = w.y;
       positions[idx + 2] = w.z;
       colorForElevation(elev, tmp);
-      if (haze > 0) tmp.lerp(SKYLINE_HAZE, haze); // atmospheric perspective for distance
+      let h = haze;
+      if (grade) {
+        const d = Math.hypot(w.x, w.z);
+        const tg = Math.min(Math.max((d - grade[0]) / (grade[1] - grade[0]), 0), 1);
+        h = grade[2] + (grade[3] - grade[2]) * tg;
+      }
+      if (h > 0) tmp.lerp(SKYLINE_HAZE, h); // atmospheric perspective for distance
       colors[idx] = tmp.r;
       colors[idx + 1] = tmp.g;
       colors[idx + 2] = tmp.b;

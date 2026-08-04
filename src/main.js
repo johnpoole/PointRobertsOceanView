@@ -22,8 +22,10 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 
+// Narrower than a phone's wide lens, closer to how the eye frames the vista, so
+// the islands and mountains across the strait read at the height they feel.
 const camera = new THREE.PerspectiveCamera(
-  55, window.innerWidth / window.innerHeight, 1, 150000);
+  40, window.innerWidth / window.innerHeight, 1, 150000);
 camera.position.set(0, EYE_HEIGHT_M, 0);
 
 const controls = new OrbitControls(camera, canvas);
@@ -83,7 +85,7 @@ const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 // skyline across the strait, hazed and unfogged so it reads through the sea haze.
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
   .catch((err) => console.error("near terrain failed:", err));
-buildTerrain(scene, TERRAIN.far, { haze: 0.3, fog: false, yOffset: -0.5 })
+buildTerrain(scene, TERRAIN.far, { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5 })
   .catch((err) => console.error("far terrain failed:", err));
 
 const hud = new Hud();
