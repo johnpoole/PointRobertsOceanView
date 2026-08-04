@@ -94,5 +94,18 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const mesh = new THREE.Mesh(geom, mat);
   mesh.position.y = yOffset;
   scene.add(mesh);
-  return { mesh, meta };
+
+  // Bilinear height lookup (metres MLLW) for draping map features on the ground.
+  // Out-of-tile lat/lon clamp to the nearest edge.
+  const sample = (lat, lon) => {
+    let fi = Math.min(Math.max((north_lat - lat) / cellsize_deg, 0), nrows - 1);
+    let fj = Math.min(Math.max((lon - west_lon) / cellsize_deg, 0), ncols - 1);
+    const i0 = Math.floor(fi), j0 = Math.floor(fj);
+    const i1 = Math.min(i0 + 1, nrows - 1), j1 = Math.min(j0 + 1, ncols - 1);
+    const ti = fi - i0, tj = fj - j0;
+    const top = Z[i0 * ncols + j0] * (1 - tj) + Z[i0 * ncols + j1] * tj;
+    const bot = Z[i1 * ncols + j0] * (1 - tj) + Z[i1 * ncols + j1] * tj;
+    return top * (1 - ti) + bot * ti;
+  };
+  return { mesh, meta, sample };
 }

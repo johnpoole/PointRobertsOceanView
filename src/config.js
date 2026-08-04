@@ -32,3 +32,6 @@ export const TERRAIN = {
   near: { heightmap: "assets/terrain/heightmap.bin", meta: "assets/terrain/meta.json" },
   far: { heightmap: "assets/terrain/heightmap_far.bin", meta: "assets/terrain/meta_far.json" },
 };
+
+// Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
+export const OSM = "assets/osm/features.json";

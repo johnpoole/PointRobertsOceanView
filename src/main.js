@@ -13,6 +13,7 @@ import { Sky } from "./scene/sky.js";
 import { Vessels } from "./scene/vessels.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
+import { buildLand } from "./scene/land.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -81,9 +82,10 @@ const ocean = new Ocean(scene);
 const vessels = new Vessels(scene);
 const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 
-// Near tile: fine, fogged, tide-driven foreground. Far tile: the Gulf Islands
-// skyline across the strait, hazed and unfogged so it reads through the sea haze.
+// Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
+// Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
+  .then((near) => buildLand(scene, near.sample).catch((err) => console.error("land failed:", err)))
   .catch((err) => console.error("near terrain failed:", err));
 buildTerrain(scene, TERRAIN.far, { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5 })
   .catch((err) => console.error("far terrain failed:", err));
