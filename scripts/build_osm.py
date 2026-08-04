@@ -15,6 +15,7 @@ Run once:
 from __future__ import annotations
 
 import json
+import math
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -106,6 +107,24 @@ def main() -> None:
             if pts:
                 c = centroid(pts)
                 landmarks.append({"lat": c[0], "lon": c[1], "name": tags["name"], "kind": "park"})
+
+    # OSM often has the same place twice (e.g. a marina node and a marina resort
+    # way). Drop near-duplicate landmarks of the same kind, keeping the shorter
+    # name.
+    def metres(a: dict, b: dict) -> float:
+        dlat = (a["lat"] - b["lat"]) * 111320
+        dlon = (a["lon"] - b["lon"]) * 111320 * math.cos(math.radians(a["lat"]))
+        return math.hypot(dlat, dlon)
+
+    deduped: list[dict] = []
+    for lm in landmarks:
+        dup = next((x for x in deduped if x["kind"] == lm["kind"] and metres(x, lm) < 500), None)
+        if dup:
+            if len(lm["name"]) < len(dup["name"]):
+                dup["name"] = lm["name"]
+            continue
+        deduped.append(lm)
+    landmarks = deduped
 
     out = {"bbox": BBOX, "roads": roads, "buildings": buildings,
            "coastline": coastline, "landmarks": landmarks}
