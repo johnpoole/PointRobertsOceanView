@@ -232,9 +232,30 @@ def _clean_speed(value):
     return None if value is None or value >= 102.3 else float(value)
 
 
-def apply_position_report(msg: dict) -> str | None:
+def _apply_static_fields(state: dict, src: dict) -> None:
+    name = (src.get("Name") or "").strip()
+    if name:
+        state["name"] = name
+    if src.get("Type") is not None:
+        state["vessel_type"] = src.get("Type")
+    dim = src.get("Dimension") or {}
+    a, b, c, d = dim.get("A"), dim.get("B"), dim.get("C"), dim.get("D")
+    if None not in (a, b, c, d):
+        state["dimensions_m"] = {
+            "length": float(a) + float(b),
+            "beam": float(c) + float(d),
+            "to_bow": float(a),
+            "to_stern": float(b),
+        }
+
+
+# Class A sends PositionReport (msg 1/2/3); small craft send Class B, which
+# AISStream labels StandardClassBPositionReport (18) and
+# ExtendedClassBPositionReport (19). All three carry position, sog, cog, heading;
+# the extended Class B report also carries name/type/dimensions.
+def apply_position_report(msg: dict, kind: str = "PositionReport") -> str | None:
     meta = msg.get("MetaData", {})
-    report = msg.get("Message", {}).get("PositionReport", {})
+    report = msg.get("Message", {}).get(kind, {})
     mmsi = meta.get("MMSI") or report.get("UserID")
     if mmsi is None:
         return None
@@ -249,7 +270,10 @@ def apply_position_report(msg: dict) -> str | None:
     state["speed_over_ground_knots"] = _clean_speed(report.get("Sog"))
     state["course_over_ground_degrees"] = _clean_course(report.get("Cog"))
     state["true_heading_degrees"] = _clean_heading(report.get("TrueHeading"))
-    state["navigation_status"] = report.get("NavigationalStatus")
+    if "NavigationalStatus" in report:
+        state["navigation_status"] = report.get("NavigationalStatus")
+    if kind == "ExtendedClassBPositionReport":
+        _apply_static_fields(state, report)
     name = (meta.get("ShipName") or "").strip()
     if name:
         state["name"] = name
@@ -265,20 +289,11 @@ def apply_static_data(msg: dict) -> str | None:
         return None
     mmsi = str(mmsi)
     state = world.vessels.setdefault(mmsi, {"mmsi": mmsi})
-    name = (static.get("Name") or meta.get("ShipName") or "").strip()
-    if name:
-        state["name"] = name
-    if static.get("Type") is not None:
-        state["vessel_type"] = static.get("Type")
-    dim = static.get("Dimension") or {}
-    a, b, c, d = dim.get("A"), dim.get("B"), dim.get("C"), dim.get("D")
-    if None not in (a, b, c, d):
-        state["dimensions_m"] = {
-            "length": float(a) + float(b),
-            "beam": float(c) + float(d),
-            "to_bow": float(a),
-            "to_stern": float(b),
-        }
+    _apply_static_fields(state, static)
+    if not state.get("name"):
+        name = (meta.get("ShipName") or "").strip()
+        if name:
+            state["name"] = name
     return mmsi
 
 
@@ -299,7 +314,10 @@ async def ais_task() -> None:
             [BBOX["min_lat"], BBOX["min_lon"]],
             [BBOX["max_lat"], BBOX["max_lon"]],
         ]],
-        "FilterMessageTypes": ["PositionReport", "ShipStaticData"],
+        "FilterMessageTypes": [
+            "PositionReport", "StandardClassBPositionReport",
+            "ExtendedClassBPositionReport", "ShipStaticData",
+        ],
     }
     backoff = 2.0
     while True:
@@ -312,8 +330,9 @@ async def ais_task() -> None:
                 async for raw in ws:
                     msg = json.loads(raw)
                     kind = msg.get("MessageType")
-                    if kind == "PositionReport":
-                        mmsi = apply_position_report(msg)
+                    if kind in ("PositionReport", "StandardClassBPositionReport",
+                                "ExtendedClassBPositionReport"):
+                        mmsi = apply_position_report(msg, kind)
                     elif kind == "ShipStaticData":
                         mmsi = apply_static_data(msg)
                     else:
