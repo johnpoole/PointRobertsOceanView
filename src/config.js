@@ -22,8 +22,6 @@ export const STALE_SECONDS = {
 
 export const EYE_HEIGHT_M = 20; // camera eye above sea level
 
-export const NOTICE = "Visualization only; not for navigation or air-traffic use.";
-
 // The proxy serves this page and the feed from one origin, so derive the WS URL
 // from the page location. Never hardcode a port that could drift from the server.
 export const BACKEND_WS = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws/live`;

@@ -5,6 +5,8 @@ __pycache__/
 
 # Secrets
 .env
+.env.txt
+*.env.txt
 
 # Terrain build scratch (raw tiles); the baked asset under assets/ is committed
 scripts/_tiles/

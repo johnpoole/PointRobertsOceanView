@@ -72,18 +72,6 @@ html, body {
 .vane-arrow polygon { fill: var(--warn); }
 .vane-label { margin-top: 2px; color: var(--ink); font-size: 12px; }
 
-.notice {
-  position: fixed;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--dim);
-  font-size: 11px;
-  letter-spacing: 0.03em;
-  pointer-events: none;
-  text-align: center;
-}
-
 .offline {
   position: fixed;
   top: 50%;

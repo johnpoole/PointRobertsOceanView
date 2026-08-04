@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-import { EYE_HEIGHT_M } from "./config.js";
+import { EYE_HEIGHT_M, ORIGIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -34,7 +34,8 @@ controls.maxPolarAngle = Math.PI * 0.52; // don't drop below the sea surface
 controls.minDistance = 20;
 controls.maxDistance = 8000;
 
-// Sun low in the west-southwest, the way you look. Direction points toward it.
+// World direction pointing toward the sun, from a compass azimuth (0=N, cw) and
+// elevation. World axes: +X east, +Y up, +Z south.
 function sunDirection(azDeg, elevDeg) {
   const az = azDeg * Math.PI / 180;
   const el = elevDeg * Math.PI / 180;
@@ -43,15 +44,35 @@ function sunDirection(azDeg, elevDeg) {
   const north = Math.cos(az) * h;
   return new THREE.Vector3(east, Math.sin(el), -north).normalize();
 }
-const SUN = sunDirection(255, 20);
+
+// Solar azimuth and elevation for a time and place (NOAA low-precision method,
+// good to ~0.1°). Longitude east-positive. Returns degrees.
+function solarPosition(date, latDeg, lonDeg) {
+  const rad = Math.PI / 180;
+  const n = date.getTime() / 86400000 + 2440587.5 - 2451545.0; // days since J2000
+  const L = (280.460 + 0.9856474 * n) % 360;
+  const g = (357.528 + 0.9856003 * n) % 360;
+  const lambda = (L + 1.915 * Math.sin(g * rad) + 0.020 * Math.sin(2 * g * rad)) % 360;
+  const eps = 23.439 - 0.0000004 * n;
+  const alpha = Math.atan2(Math.cos(eps * rad) * Math.sin(lambda * rad), Math.cos(lambda * rad)) / rad;
+  const delta = Math.asin(Math.sin(eps * rad) * Math.sin(lambda * rad)) / rad;
+  const gmst = (280.46061837 + 360.98564736629 * n) % 360;
+  let H = (gmst + lonDeg - alpha) % 360;
+  if (H < -180) H += 360;
+  if (H > 180) H -= 360;
+  const latR = latDeg * rad, dR = delta * rad, HR = H * rad;
+  const elev = Math.asin(Math.sin(latR) * Math.sin(dR) +
+    Math.cos(latR) * Math.cos(dR) * Math.cos(HR)) / rad;
+  let az = Math.atan2(-Math.sin(HR),
+    Math.tan(dR) * Math.cos(latR) - Math.sin(latR) * Math.cos(HR)) / rad;
+  az = (az + 360) % 360;
+  return { azimuth: az, elevation: elev };
+}
 
 const sky = new Sky(scene);
-sky.setSun(SUN, new THREE.Color(0xfff2d8));
-
 const ambient = new THREE.AmbientLight(0xffffff, 0.3);
 const hemi = new THREE.HemisphereLight(0xbcd3e6, 0x33404a, 0.5);
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.2);
-sun.position.copy(SUN).multiplyScalar(15000);
 scene.add(ambient, hemi, sun);
 
 const ocean = new Ocean(scene);
@@ -75,6 +96,19 @@ feed.onChange((kind) => {
   hud.update(feed);
   if (feed.weather) weather.apply(feed.weather.data);
 });
+
+// Place the sun where it really is for the current time, and re-place it each
+// minute so the light and sky track the day. Looking west, the morning sun sits
+// behind the camera; only near sunset does it light the water ahead.
+function updateSun() {
+  const { azimuth, elevation } = solarPosition(new Date(), ORIGIN.lat, ORIGIN.lon);
+  sky.setSun(sunDirection(azimuth, elevation), new THREE.Color(0xfff2d8));
+  sun.position.copy(sunDirection(azimuth, elevation)).multiplyScalar(15000);
+  weather.dayFactor = Math.max(0, Math.min((elevation + 6) / 12, 1));
+  weather.apply(feed.weather ? feed.weather.data : {});
+}
+updateSun();
+setInterval(updateSun, 60000);
 
 hud.setConnection(false, "connecting…");
 feed.connect();

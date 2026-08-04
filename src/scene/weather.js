@@ -18,6 +18,9 @@ export class Weather {
     this.hemi = refs.hemi;
     this.ambient = refs.ambient;
 
+    this.dayFactor = 1;   // 1 full daylight, 0 night; set from the sun elevation
+    this._cloud = 0.1;    // last known cloud fraction, so time updates keep it
+
     scene.fog = new THREE.Fog(this.sky.horizonColor().clone(), 800, 22000);
 
     const geom = new THREE.BufferGeometry();
@@ -41,14 +44,18 @@ export class Weather {
   apply(state) {
     if (!state) return;
 
-    const cloud = state.cloud_cover_percent != null
-      ? Math.max(0, Math.min(state.cloud_cover_percent / 100, 1)) : null;
-    if (cloud != null) {
-      this.sky.setCloud(cloud);
-      this.sun.intensity = 1.25 * (1 - 0.85 * cloud);
-      this.hemi.intensity = 0.45 + 0.35 * cloud;
-      this.ambient.intensity = 0.25 + 0.1 * cloud;
+    if (state.cloud_cover_percent != null) {
+      this._cloud = Math.max(0, Math.min(state.cloud_cover_percent / 100, 1));
     }
+    // Lights are cloud dimming times daylight, so both the weather feed and the
+    // sun's motion drive them without fighting.
+    const c = this._cloud;
+    const df = this.dayFactor;
+    this.sky.setCloud(c);
+    this.sky.setDaylight(df);
+    this.sun.intensity = 1.25 * (1 - 0.85 * c) * df;
+    this.hemi.intensity = (0.45 + 0.35 * c) * (0.2 + 0.8 * df);
+    this.ambient.intensity = (0.25 + 0.1 * c) * (0.25 + 0.75 * df);
 
     // Fog colour tracks the (possibly greyed) horizon; distance from visibility.
     this.scene.fog.color.copy(this.sky.horizonColor());

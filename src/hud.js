@@ -2,8 +2,6 @@
 // weather, wind vane, tide, vessel count, and the fixed notice. Shows nothing it
 // was not given: null fields read as "—", and a dropped feed raises the banner.
 
-import { NOTICE } from "./config.js";
-
 const el = (id) => document.getElementById(id);
 
 const CARDINALS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
@@ -20,10 +18,6 @@ function num(value, digits, suffix = "") {
 }
 
 export class Hud {
-  constructor() {
-    el("notice").textContent = NOTICE;
-  }
-
   setConnection(connected, detail) {
     const conn = el("conn");
     conn.textContent = connected ? "online" : (detail || "offline");
