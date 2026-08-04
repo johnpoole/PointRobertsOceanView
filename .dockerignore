@@ -1,0 +1,11 @@
+.venv
+.git
+.gitignore
+.env
+.env.txt
+*.env.txt
+__pycache__
+**/__pycache__
+*.pyc
+scripts/_tiles
+CONTINUE.md

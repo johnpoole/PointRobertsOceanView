@@ -1,0 +1,10 @@
+services:
+  oceanview:
+    build: .
+    image: pointroberts-oceanview:latest
+    container_name: oceanview
+    restart: unless-stopped
+    environment:
+      AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
+    ports:
+      - "8090:8080"
