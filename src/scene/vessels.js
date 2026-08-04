@@ -1,21 +1,19 @@
-// Vessel meshes from the feed. Each vessel is a parametric 3D hull shaped by its
-// AIS ship type and sized by its reported dimensions, oriented by heading, bobbing
-// on the swell. There is no always-on label; the hovered vessel is picked by
-// raycast (see main.js) and its details shown in a DOM tooltip. Stale tracks dim
-// but never drop.
+// Vessel meshes from the feed. Each vessel is a parametric silhouette shaped by
+// its AIS ship type and sized by dimensions_m: a pointed hull with a raised bow,
+// and class-specific topsides — container stacks, tanker manifold, tiered ferry
+// decks, a tug wheelhouse, funnels and masts. All parts are merged into one
+// vertex-coloured mesh so a strait full of ships stays cheap. Oriented by heading,
+// bobbing on the swell; the hovered vessel shows a DOM tooltip (see main.js).
+// Ships are drawn larger than life so they read from the bluff.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
 
 const DEFAULT = { length: 30, beam: 8 };
-
-// Ships are drawn larger than life so they read from the bluff, the way they do
-// to the eye. Relative sizes still follow the AIS dimensions. Size grows with
-// distance so ferries kilometres out stay prominent instead of shrinking to dots.
 const VESSEL_SCALE = 4.5;
 const SIZE_REF_M = 2500;
 
-// AIS ship type (0-99) -> silhouette class + colours.
 function classify(type) {
   const t = type == null ? -1 : type;
   if (t >= 60 && t <= 69) return "passenger";
@@ -27,15 +25,18 @@ function classify(type) {
   return "default";
 }
 
-const PALETTE = {
-  passenger: { hull: 0x264b6b, house: 0xe6ecf0 },
-  cargo:     { hull: 0x6a4a3a, house: 0xccc4b2 },
-  tanker:    { hull: 0x26262c, house: 0xccc4b2 },
-  service:   { hull: 0x7a3230, house: 0xe0e0e0 },
-  fishing:   { hull: 0x4f5f6f, house: 0xcfd6da },
-  small:     { hull: 0x5a6b74, house: 0xd8dee2 },
-  default:   { hull: 0x6b7480, house: 0xc8ced2 },
+const HULL = {
+  passenger: 0x2a3d55, cargo: 0x6a4a3a, tanker: 0x2a2a30,
+  service: 0x7a3230, fishing: 0x445264, small: 0x50606c, default: 0x5c6570,
 };
+const HOUSE = 0xe6e6de;
+const DECK = 0x4a4f55;
+const ACCENT = {
+  passenger: 0xb23838, cargo: 0x8a3b2f, tanker: 0x1a1a1e,
+  service: 0x8a3b2f, fishing: 0x33506a, small: 0x8090a0, default: 0x556070,
+};
+const CONTAINERS = [0x9c4a3a, 0x2f6ea0, 0x4a7a45, 0x9c8a3a, 0x7a4a7a, 0x8a8a8a];
+const DARK = 0x2a2d33;
 
 const NAV_STATUS = {
   0: "under way", 1: "at anchor", 2: "not under command",
@@ -44,7 +45,6 @@ const NAV_STATUS = {
 };
 
 function hullShape(length, beam) {
-  // Plan view in (x=beam, y=fore-aft), bow at +y.
   const b = beam / 2, L = length / 2;
   const s = new THREE.Shape();
   s.moveTo(-b, -L);
@@ -58,63 +58,110 @@ function hullShape(length, beam) {
   return s;
 }
 
-// Build a hull group in local frame: bow at -Z, up +Y, deck near y=0, hull below.
-function buildVessel(state) {
+// Tag a part geometry with a solid colour and place it (bow at -Z, up +Y). All
+// parts are made non-indexed with the same attribute set (position, normal,
+// color) so mergeGeometries can combine the extruded hull with the box/cylinder
+// topsides.
+function part(geom, color, { x = 0, y = 0, z = 0, rx = 0 } = {}) {
+  if (rx) geom.rotateX(rx);
+  geom.translate(x, y, z);
+  geom.deleteAttribute("uv");
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  const c = new THREE.Color(color);
+  const n = g.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
+  g.setAttribute("color", new THREE.BufferAttribute(arr, 3));
+  return g;
+}
+
+function box(w, h, l) { return new THREE.BoxGeometry(w, h, l); }
+function cyl(r, h) { return new THREE.CylinderGeometry(r, r * 1.1, h, 10); }
+
+function buildParts(state) {
   const dim = state.dimensions_m || {};
   const length = Math.max(6, dim.length || DEFAULT.length);
   const beam = Math.max(2, dim.beam || DEFAULT.beam);
   const cls = classify(state.vessel_type);
-  const color = PALETTE[cls];
-
+  const B = beam, L = length;
   const depth = Math.max(4, beam * 0.5);
-  const freeboard = depth * 0.5; // hull band showing above water, with the bow taper
+  const fb = depth * 0.5; // freeboard: deck sits at +fb, hull below
+  const parts = [];
+  const hullColor = HULL[cls];
 
-  const group = new THREE.Group();
-  const mats = [];
+  const hull = new THREE.ExtrudeGeometry(hullShape(L, B), { depth, bevelEnabled: false });
+  hull.rotateX(-Math.PI / 2);
+  hull.translate(0, fb - depth, 0);
+  parts.push(part(hull, hullColor));
 
-  const hullGeom = new THREE.ExtrudeGeometry(hullShape(length, beam), {
-    depth, bevelEnabled: false,
-  });
-  hullGeom.rotateX(-Math.PI / 2);          // footprint into XZ, extrude up in Y
-  hullGeom.translate(0, freeboard - depth, 0); // deck at +freeboard, hull below
-  const hullMat = new THREE.MeshStandardMaterial({ color: color.hull, roughness: 0.75, metalness: 0.1 });
-  mats.push(hullMat);
-  group.add(new THREE.Mesh(hullGeom, hullMat));
+  // Raised bow (forecastle).
+  parts.push(part(box(B * 0.55, depth * 0.5, L * 0.12), hullColor, { z: -L * 0.42, y: fb + depth * 0.2 }));
 
-  // Superstructure, placed by class. Local +Z is aft (stern), -Z is bow.
-  const houseMat = new THREE.MeshStandardMaterial({ color: color.house, roughness: 0.6, metalness: 0.05 });
-  mats.push(houseMat);
-  function house(len, wide, tall, z) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(beam * wide, tall, length * len), houseMat);
-    m.position.set(0, freeboard + tall / 2, z);
-    group.add(m);
-  }
-  if (cls === "passenger") {
-    house(0.5, 0.72, beam * 0.42, length * 0.02); // main deck, inset from hull sides
-    house(0.16, 0.46, beam * 0.28, -length * 0.22); // bridge forward
-  } else if (cls === "cargo") {
-    house(0.15, 0.78, beam * 0.7, length * 0.34); // house aft, open deck forward
+  const funnel = (z, r, h, color) =>
+    parts.push(part(cyl(B * r, B * h), color, { z, y: fb + B * 0.9 }));
+  const mast = (z) =>
+    parts.push(part(cyl(B * 0.03, B * 0.9), DARK, { z, y: fb + B * 0.45 }));
+
+  if (cls === "cargo") {
+    parts.push(part(box(B * 0.8, B, L * 0.14), HOUSE, { z: L * 0.35, y: fb + B * 0.5 }));
+    funnel(L * 0.42, 0.11, 0.5, ACCENT.cargo);
+    // Container stacks over the foredeck: three bays, two tiers, mixed colours.
+    const bays = [-0.32, -0.12, 0.08];
+    let ci = 0;
+    for (const bz of bays) {
+      for (let tier = 0; tier < 2; tier++) {
+        parts.push(part(box(B * 0.72, B * 0.42, L * 0.17), CONTAINERS[ci++ % CONTAINERS.length],
+          { z: bz * L, y: fb + B * 0.21 + tier * B * 0.42 }));
+      }
+    }
+    mast(-L * 0.3);
   } else if (cls === "tanker") {
-    house(0.12, 0.76, beam * 0.55, length * 0.37);
+    parts.push(part(box(B * 0.78, B * 0.9, L * 0.13), HOUSE, { z: L * 0.37, y: fb + B * 0.45 }));
+    funnel(L * 0.43, 0.1, 0.45, ACCENT.tanker);
+    parts.push(part(box(B * 0.07, B * 0.12, L * 0.7), DECK, { y: fb + B * 0.06 })); // manifold catwalk
+    parts.push(part(cyl(B * 0.06, B * 0.2), DECK, { z: -L * 0.12, y: fb + B * 0.1 }));
+    parts.push(part(cyl(B * 0.06, B * 0.2), DECK, { z: L * 0.12, y: fb + B * 0.1 }));
+    mast(-L * 0.32);
+  } else if (cls === "passenger") {
+    parts.push(part(box(B * 0.86, B * 0.5, L * 0.62), HOUSE, { z: L * 0.03, y: fb + B * 0.25 }));
+    parts.push(part(box(B * 0.7, B * 0.35, L * 0.42), HOUSE, { z: L * 0.03, y: fb + B * 0.5 + B * 0.175 }));
+    parts.push(part(box(B * 0.5, B * 0.22, L * 0.12), HOUSE, { z: -L * 0.22, y: fb + B * 0.85 })); // bridge
+    funnel(L * 0.14, 0.1, 0.4, ACCENT.passenger);
   } else if (cls === "service") {
-    house(0.4, 0.7, beam * 0.75, -length * 0.02);
+    parts.push(part(box(B * 0.7, B * 0.8, L * 0.35), HOUSE, { z: -L * 0.06, y: fb + B * 0.4 }));
+    parts.push(part(box(B * 0.82, B * 0.15, L * 0.34), hullColor, { z: L * 0.3, y: fb + B * 0.075 }));
+    funnel(L * 0.06, 0.09, 0.35, ACCENT.service);
+    mast(-L * 0.12);
   } else if (cls === "fishing" || cls === "small") {
-    house(0.28, 0.6, beam * 0.55, length * 0.06);
+    parts.push(part(box(B * 0.62, B * 0.55, L * 0.28), HOUSE, { z: L * 0.16, y: fb + B * 0.28 }));
+    mast(-L * 0.1);
   } else {
-    house(0.24, 0.72, beam * 0.55, length * 0.1);
+    parts.push(part(box(B * 0.74, B * 0.6, L * 0.25), HOUSE, { z: L * 0.2, y: fb + B * 0.3 }));
+    funnel(L * 0.28, 0.09, 0.4, ACCENT.default);
+    mast(-L * 0.25);
   }
 
-  // Invisible but raycastable proxy, enlarged so distant hulls are hoverable.
+  return { parts, length, beam, depth, fb };
+}
+
+function buildVessel(state) {
+  const group = new THREE.Group();
+  const { parts, length, beam, depth, fb } = buildParts(state);
+
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.1 });
+  group.add(new THREE.Mesh(merged, mat));
+
   const proxy = new THREE.Mesh(
     new THREE.BoxGeometry(beam * 1.6, depth + beam, length * 1.15),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
   );
-  proxy.position.y = freeboard;
+  proxy.position.y = fb;
   group.add(proxy);
 
   group.userData.vessel = state;
-  group.userData.mats = mats;
-  group.userData.hullColor = color.hull;
+  group.userData.material = mat;
   group.userData.placed = false;
   group.userData.target = new THREE.Vector3();
   return group;
@@ -123,7 +170,7 @@ function buildVessel(state) {
 export class Vessels {
   constructor(scene) {
     this.scene = scene;
-    this.groups = new Map(); // mmsi -> group
+    this.groups = new Map();
   }
 
   pickList() {
@@ -157,21 +204,18 @@ export class Vessels {
       group.position.y = tideLevel + bob;
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
-      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), 3); // cap so far ships don't balloon
+      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), 3);
       group.scale.setScalar(VESSEL_SCALE * grow);
 
+      // Stale: grey and fade via the material (vertex colours are multiplied).
       const stale = feed.isStale(entry);
-      for (const m of group.userData.mats) {
-        if (stale) {
-          m.transparent = true;
-          m.opacity = 0.5;
-          m.color.setHex(0x6b7480);
-        } else {
-          m.opacity = 1;
-          m.transparent = false;
-        }
+      const mat = group.userData.material;
+      if (stale !== group.userData.stale) {
+        mat.color.setHex(stale ? 0x5a626c : 0xffffff);
+        mat.transparent = stale;
+        mat.opacity = stale ? 0.5 : 1;
+        group.userData.stale = stale;
       }
-      group.userData.stale = stale;
     }
 
     for (const mmsi of this.groups.keys()) {
