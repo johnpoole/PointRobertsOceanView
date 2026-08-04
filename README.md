@@ -13,7 +13,7 @@ level, heading 270°.
 |-----------|-----------------------------------------------------|-------|
 | Vessels   | [AISStream.io](https://aisstream.io) WebSocket      | free API key; bbox-filtered to Point Roberts |
 | Tide      | NOAA CO-OPS station 9449424 (Cherry Point)          | MLLW, metres; sets the water height and shoreline |
-| Weather   | NWS api.weather.gov, station KORS                    | sky tint, fog, wind vane, ripple direction |
+| Weather   | Open-Meteo forecast + marine at the exact coordinates | sky tint, fog, wind vane, and sea state from real wave height |
 | Terrain   | GMRT topobathy, baked to `assets/terrain/`          | real bluff, beach, and sea floor; MLLW datum |
 
 The browser talks only to a local proxy (`server/proxy.py`), which holds the

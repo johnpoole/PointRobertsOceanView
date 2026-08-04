@@ -57,8 +57,9 @@ TIDE_POLL_SECONDS = 300
 RETRY_SECONDS = 20  # after a failed fetch, retry soon instead of the full poll
 COOPS_BASE = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 
-NWS_UA = "PointRobertsOceanView/0.1 (jdpoole@gmail.com)"
-NWS_POINT = (48.989, -123.0853)  # 4 decimals: NWS 301-redirects on more
+POINT = (48.989009, -123.085318)
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 WEATHER_POLL_SECONDS = 300
 
 # ---- .env (only the AIS key; keep dependencies minimal) --------------------
@@ -108,9 +109,10 @@ def parse_time(text: str | None) -> datetime | None:
         return datetime.strptime(text, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
     except ValueError:
         pass
-    # ISO 8601 (NWS)
+    # ISO 8601 (Open-Meteo gives GMT with no offset, e.g. "2026-08-04T16:30")
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except ValueError:
         return None
 
@@ -189,7 +191,7 @@ def snapshot() -> dict:
         for mmsi, state in world.vessels.items()
     ]
     weather = (
-        envelope("weather.state", "api.weather.gov", world.weather_time,
+        envelope("weather.state", "open-meteo.com", world.weather_time,
                  world.weather, None)
         if world.weather else None
     )
@@ -399,112 +401,97 @@ async def tide_task() -> None:
             await asyncio.sleep(TIDE_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
-# ---- NWS weather feed -------------------------------------------------------
+# ---- Open-Meteo weather + marine feed ---------------------------------------
+
+# WMO weather-interpretation codes -> short text for the HUD.
+WMO_CODES = {
+    0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+    45: "Fog", 48: "Rime fog",
+    51: "Light drizzle", 53: "Drizzle", 55: "Dense drizzle",
+    56: "Freezing drizzle", 57: "Freezing drizzle",
+    61: "Light rain", 63: "Rain", 65: "Heavy rain",
+    66: "Freezing rain", 67: "Freezing rain",
+    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
+    80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
+    85: "Snow showers", 86: "Snow showers",
+    95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Thunderstorm with hail",
+}
 
 
-def pick_active(values: list[dict]):
-    """Pick the gridpoint time-series value active now.
+def hour_index(times: list[str], now: datetime) -> int | None:
+    """Index of the hourly sample for the current hour (times are GMT, on the hour)."""
+    stamp = now.strftime("%Y-%m-%dT%H")
+    for i, t in enumerate(times):
+        if t.startswith(stamp):
+            return i
+    return 0 if times else None
 
-    Values are ordered by time; each has an ISO interval like
-    "2026-08-04T14:00:00+00:00/PT1H". The current value is the last one whose
-    start is at or before now. Falls back to the first value.
-    """
-    if not values:
-        return None
+
+async def fetch_weather(client: httpx.AsyncClient) -> dict:
+    forecast = await client.get(FORECAST_URL, params={
+        "latitude": POINT[0], "longitude": POINT[1],
+        "current": "temperature_2m,relative_humidity_2m,cloud_cover,wind_speed_10m,"
+                   "wind_direction_10m,precipitation,weather_code",
+        "hourly": "visibility,precipitation_probability",
+        "wind_speed_unit": "ms", "timezone": "GMT", "forecast_days": 1,
+    })
+    forecast.raise_for_status()
+    data = forecast.json()
+    cur = data["current"]
+    hourly = data.get("hourly", {})
     now = utcnow()
-    chosen = values[0].get("value")
-    for item in values:
-        start = parse_time(item.get("validTime", "").split("/")[0])
-        if start is None:
-            continue
-        if start <= now:
-            chosen = item.get("value")
-        else:
-            break
-    return chosen
+    idx = hour_index(hourly.get("time", []), now)
+    vis = hourly.get("visibility", [None])[idx] if idx is not None else None
+    pprob = hourly.get("precipitation_probability", [None])[idx] if idx is not None else None
 
-
-async def resolve_nws(client: httpx.AsyncClient) -> tuple[str, str]:
-    point = await client.get(
-        f"https://api.weather.gov/points/{NWS_POINT[0]},{NWS_POINT[1]}")
-    point.raise_for_status()
-    props = point.json()["properties"]
-    stations = await client.get(props["observationStations"])
-    stations.raise_for_status()
-    station_id = stations.json()["features"][0]["id"]
-    grid = props["forecastGridData"]
-    return station_id, grid
-
-
-def _mps(speed: dict | None) -> float | None:
-    if not speed or speed.get("value") is None:
-        return None
-    value = float(speed["value"])
-    unit = speed.get("unitCode", "")
-    if unit.endswith("km_h-1"):
-        return round(value / 3.6, 2)
-    return value
-
-
-def _num(field: dict | None) -> float | None:
-    if not field or field.get("value") is None:
-        return None
-    return float(field["value"])
-
-
-async def fetch_weather(client: httpx.AsyncClient, station_id: str, grid: str) -> dict:
-    obs = await client.get(f"{station_id}/observations/latest")
-    obs.raise_for_status()
-    p = obs.json()["properties"]
-
-    cloud = precip = None
+    wave_h = wave_dir = wave_period = None
     try:
-        g = (await client.get(grid)).json()["properties"]
-        cloud = pick_active(g.get("skyCover", {}).get("values", []))
-        precip = pick_active(g.get("probabilityOfPrecipitation", {}).get("values", []))
+        marine = await client.get(MARINE_URL, params={
+            "latitude": POINT[0], "longitude": POINT[1],
+            "current": "wave_height,wave_direction,wave_period",
+        })
+        marine.raise_for_status()
+        m = marine.json().get("current", {})
+        wave_h, wave_dir, wave_period = m.get("wave_height"), m.get("wave_direction"), m.get("wave_period")
     except Exception as exc:
-        log.warning("NWS gridpoint sky/precip unavailable: %s", exc)
+        log.warning("Marine waves unavailable: %s", exc)
 
     return {
         "state": {
-            "station_id": station_id.rsplit("/", 1)[-1],
-            "temperature_c": _num(p.get("temperature")),
-            "wind_speed_mps": _mps(p.get("windSpeed")),
-            "wind_direction_degrees": _num(p.get("windDirection")),
-            "relative_humidity_percent": _num(p.get("relativeHumidity")),
-            "visibility_m": _num(p.get("visibility")),
-            "cloud_cover_percent": cloud,
-            "precipitation_probability_percent": precip,
-            "description": p.get("textDescription") or None,
+            "station_id": "open-meteo",
+            "temperature_c": cur.get("temperature_2m"),
+            "wind_speed_mps": cur.get("wind_speed_10m"),
+            "wind_direction_degrees": cur.get("wind_direction_10m"),
+            "relative_humidity_percent": cur.get("relative_humidity_2m"),
+            "visibility_m": vis,
+            "cloud_cover_percent": cur.get("cloud_cover"),
+            "precipitation_probability_percent": pprob,
+            "description": WMO_CODES.get(cur.get("weather_code")),
+            "wave_height_m": wave_h,
+            "wave_direction_degrees": wave_dir,
+            "wave_period_s": wave_period,
         },
-        "time": parse_time(p.get("timestamp")) or utcnow(),
+        "time": parse_time(cur.get("time")) or now,
     }
 
 
 async def weather_task() -> None:
-    async with httpx.AsyncClient(timeout=30, headers={"User-Agent": NWS_UA}) as client:
-        station_id = grid = None
-        while station_id is None:
-            try:
-                station_id, grid = await resolve_nws(client)
-                log.info("NWS station %s", station_id.rsplit("/", 1)[-1])
-            except Exception as exc:
-                log.error("NWS resolve failed: %s. Retrying in 30s.", exc)
-                await asyncio.sleep(30)
+    async with httpx.AsyncClient(timeout=30) as client:
         while True:
             ok = False
             try:
-                result = await fetch_weather(client, station_id, grid)
+                result = await fetch_weather(client)
                 world.weather = result["state"]
                 world.weather_time = result["time"]
                 world.health["weather"] = "live"
                 await clients.broadcast(envelope(
-                    "weather.state", "api.weather.gov",
+                    "weather.state", "open-meteo.com",
                     world.weather_time, world.weather, None))
-                log.info("Weather %s, wind %s m/s from %s",
+                log.info("Weather %s, wind %s m/s from %s, waves %s m",
                          world.weather["description"],
                          world.weather["wind_speed_mps"],
-                         world.weather["wind_direction_degrees"])
+                         world.weather["wind_direction_degrees"],
+                         world.weather["wave_height_m"])
                 ok = True
             except Exception as exc:
                 world.health["weather"] = "offline"

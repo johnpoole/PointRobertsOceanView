@@ -49,6 +49,9 @@ export class Hud {
     el("wx-cloud").textContent = wx ? num(wx.cloud_cover_percent, 0, " %") : "—";
     el("wx-vis").textContent = wx && wx.visibility_m != null
       ? (wx.visibility_m / 1000).toFixed(1) + " km" : "—";
+    el("wx-sea").textContent = wx && wx.wave_height_m != null
+      ? `${wx.wave_height_m.toFixed(1)} m${wx.wave_direction_degrees != null ? " " + cardinal(wx.wave_direction_degrees) : ""}`
+      : "—";
     el("wx-rh").textContent = wx ? num(wx.relative_humidity_percent, 0, " %") : "—";
     el("wx-precip").textContent = wx ? num(wx.precipitation_probability_percent, 0, " %") : "—";
 

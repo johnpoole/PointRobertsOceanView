@@ -95,6 +95,22 @@ export class Ocean {
     }
   }
 
+  // Real sea state from the marine feed. Amplitude is half the significant wave
+  // height (peak-to-trough). Wavelength from the wave period, clamped to what the
+  // mesh can resolve so short chop does not alias. Direction like wind: FROM.
+  setWaves(heightM, fromDeg, periodS) {
+    if (fromDeg != null) {
+      const toward = (fromDeg + 180) * Math.PI / 180;
+      this.uniforms.uDir.value.set(Math.sin(toward), Math.cos(toward)).normalize();
+    }
+    if (heightM != null) {
+      this.uniforms.uAmp.value = Math.min(Math.max(heightM / 2, 0.05), 2.5);
+    }
+    if (periodS != null) {
+      this.uniforms.uLen.value = Math.max(70, 1.56 * periodS * periodS);
+    }
+  }
+
   setLevel(y) {
     this.mesh.position.y = y;
   }

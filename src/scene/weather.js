@@ -65,7 +65,13 @@ export class Weather {
       this.scene.fog.near = far * 0.04;
     }
 
-    this.ocean.setWind(state.wind_direction_degrees, state.wind_speed_mps);
+    // Prefer real wave height for the sea state; fall back to wind if the marine
+    // feed had no waves.
+    if (state.wave_height_m != null) {
+      this.ocean.setWaves(state.wave_height_m, state.wave_direction_degrees, state.wave_period_s);
+    } else {
+      this.ocean.setWind(state.wind_direction_degrees, state.wind_speed_mps);
+    }
 
     const precip = state.precipitation_probability_percent;
     this.rainOn = precip != null && precip >= 55;
