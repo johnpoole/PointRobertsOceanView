@@ -118,6 +118,41 @@ function tideLevel() {
   return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
 }
 
+// Hover picking: the vessel under the cursor shows a tooltip with its AIS data.
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const tip = document.getElementById("vessel-tip");
+let pointerInside = false, cursorX = 0, cursorY = 0;
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+renderer.domElement.addEventListener("pointermove", (e) => {
+  const r = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  pointer.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+  cursorX = e.clientX; cursorY = e.clientY;
+  pointerInside = true;
+});
+renderer.domElement.addEventListener("pointerleave", () => {
+  pointerInside = false;
+  tip.classList.add("hidden");
+});
+
+function updateHover() {
+  if (!pointerInside) return;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(vessels.pickList(), true);
+  let group = hits.length ? hits[0].object : null;
+  while (group && !group.userData.vessel) group = group.parent;
+  if (!group) { tip.classList.add("hidden"); return; }
+  const rows = Vessels.describe(group.userData.vessel)
+    .map(([k, v]) => `<div class="tip-row"><span class="tip-k">${esc(k)}</span><span class="tip-v">${esc(v)}</span></div>`)
+    .join("");
+  tip.innerHTML = rows + (group.userData.stale ? `<div class="tip-stale">stale</div>` : "");
+  tip.style.left = (cursorX + 14) + "px";
+  tip.style.top = (cursorY + 14) + "px";
+  tip.classList.remove("hidden");
+}
+
 let lastW = 0, lastH = 0;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -138,7 +173,8 @@ function frame() {
   const level = tideLevel();
   ocean.setLevel(level);
   ocean.update(t);
-  vessels.update(feed, level, t);
+  vessels.update(feed, level, t, camera);
+  updateHover();
   weather.update(dt, camera);
 
   controls.update();

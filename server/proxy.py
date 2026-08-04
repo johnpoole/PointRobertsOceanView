@@ -43,7 +43,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # ---- fixed constants (documented, not fetched) -----------------------------
 
-BBOX = {"min_lat": 48.94, "min_lon": -123.25, "max_lat": 49.015, "max_lon": -123.0}
+# Wide enough to cover the traffic visible from the bluff: the Strait of Georgia
+# shipping lane to the west and the Tsawwassen ferry lanes to the north and south.
+BBOX = {"min_lat": 48.80, "min_lon": -123.50, "max_lat": 49.18, "max_lon": -122.95}
 STALE_SECONDS = {"vessels": 300, "aircraft": 120}
 HEARTBEAT_SECONDS = 10.0
 

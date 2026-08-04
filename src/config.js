@@ -8,10 +8,10 @@ export const ORIGIN = { lat: 48.989009, lon: -123.085318 }; // 389 W Bluff Rd, P
 export const VIEW_HEADING_DEG = 270; // due west, true
 
 export const BBOX = {
-  minLat: 48.94,
-  minLon: -123.25,
-  maxLat: 49.015,
-  maxLon: -123.0,
+  minLat: 48.8,
+  minLon: -123.5,
+  maxLat: 49.18,
+  maxLon: -122.95,
 };
 
 // A track is stale when the proxy flags it, or its age exceeds these seconds.
