@@ -23,6 +23,14 @@ export function toWorld(lat, lon, y = 0) {
   return { x: east, y, z: -north };
 }
 
+// Inverse of toWorld's horizontal mapping: world (x, z) -> lat/lon.
+export function fromWorld(x, z) {
+  return {
+    lat: ORIGIN.lat + -z / M_PER_DEG_LAT,
+    lon: ORIGIN.lon + x / (M_PER_DEG_LAT * COS_LAT),
+  };
+}
+
 // Convert a compass heading in degrees (0 = north, 90 = east, clockwise) into a
 // three.js rotation about +Y so a mesh whose nose points -Z (north) turns to face
 // the heading. north(-Z)->east(+X) is a clockwise turn seen from above, which in

@@ -14,6 +14,8 @@ import { Vessels } from "./scene/vessels.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
+import { Nav } from "./nav.js";
+import { toWorld, fromWorld } from "./geo.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -85,11 +87,13 @@ const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 let landmarkPicks = [];
+let groundSample = null; // (lat,lon) -> terrain height, for walk mode and presets
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
-  .then((near) => buildLand(scene, near.sample)
-    .then((land) => { landmarkPicks = land.landmarks; })
-    .catch((err) => console.error("land failed:", err)))
-  .catch((err) => console.error("near terrain failed:", err));
+  .then((near) => {
+    groundSample = near.sample;
+    return buildLand(scene, near.sample).then((land) => { landmarkPicks = land.landmarks; });
+  })
+  .catch((err) => console.error("near terrain / land failed:", err));
 buildTerrain(scene, TERRAIN.far, { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5 })
   .catch((err) => console.error("far terrain failed:", err));
 
@@ -183,6 +187,40 @@ function resize() {
   renderer.setSize(w, h);
 }
 
+// Navigation: preset viewpoints (tween) and a first-person walk mode.
+const PRESETS = [
+  { name: "Bluff", lat: 48.989009, lon: -123.085318, eye: 20, lookLat: 48.989, lookLon: -123.20 },
+  { name: "Lighthouse", lat: 48.9728, lon: -123.0821, eye: 7, lookLat: 48.962, lookLon: -123.11 },
+  { name: "Marina", lat: 48.9773, lon: -123.0633, eye: 9, lookLat: 48.981, lookLon: -123.045 },
+  { name: "Above town", lat: 48.986, lon: -123.073, eye: 750, lookLat: 48.9861, lookLon: -123.0731 },
+  { name: "Shipping lane", lat: 48.992, lon: -123.135, eye: 35, lookLat: 48.99, lookLon: -123.36 },
+];
+function groundY(lat, lon) {
+  return groundSample ? Math.max(groundSample(lat, lon), 0) : 0;
+}
+function toView(p) {
+  const pos = toWorld(p.lat, p.lon, groundY(p.lat, p.lon) + p.eye);
+  const t = toWorld(p.lookLat, p.lookLon, groundY(p.lookLat, p.lookLon));
+  return { position: new THREE.Vector3(pos.x, pos.y, pos.z), target: new THREE.Vector3(t.x, t.y, t.z) };
+}
+
+const nav = new Nav(camera, renderer.domElement, controls, {
+  groundAt: (x, z) => { if (!groundSample) return null; const g = fromWorld(x, z); return groundSample(g.lat, g.lon); },
+  seaLevel: () => tideLevel(),
+  onMode: (m) => document.getElementById("walk-hint").classList.toggle("hidden", m !== "walk"),
+});
+nav.onPreset = (i) => { if (PRESETS[i]) nav.goTo(toView(PRESETS[i])); };
+
+const viewBtns = document.getElementById("view-btns");
+PRESETS.forEach((p, i) => {
+  const b = document.createElement("button");
+  b.className = "view-btn";
+  b.textContent = `${i + 1}  ${p.name}`;
+  b.addEventListener("click", () => nav.goTo(toView(p)));
+  viewBtns.appendChild(b);
+});
+document.getElementById("walk-btn").addEventListener("click", () => nav.toggleWalk());
+
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -197,7 +235,7 @@ function frame() {
   updateHover();
   weather.update(dt, camera);
 
-  controls.update();
+  nav.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
