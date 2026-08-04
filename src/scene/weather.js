@@ -1,0 +1,81 @@
+// Weather applied to the scene: fog from visibility, sky/light dimming from
+// cloud cover, wind into the ocean swell, and light rain when precipitation is
+// likely. Null fields leave the prior look untouched — the feed's "not supplied"
+// is not treated as zero.
+
+import * as THREE from "three";
+
+const RAIN_COUNT = 2500;
+const RAIN_BOX = 1200;   // metres around the camera the rain fills
+const RAIN_TOP = 400;
+
+export class Weather {
+  constructor(scene, refs) {
+    this.scene = scene;
+    this.sky = refs.sky;
+    this.ocean = refs.ocean;
+    this.sun = refs.sun;
+    this.hemi = refs.hemi;
+    this.ambient = refs.ambient;
+
+    scene.fog = new THREE.Fog(this.sky.horizonColor().clone(), 800, 22000);
+
+    const geom = new THREE.BufferGeometry();
+    const pos = new Float32Array(RAIN_COUNT * 3);
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * RAIN_BOX;
+      pos[i * 3 + 1] = Math.random() * RAIN_TOP;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * RAIN_BOX;
+    }
+    geom.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0x9fb4c4, size: 1.4, transparent: true, opacity: 0.5,
+      sizeAttenuation: true, depthWrite: false,
+    });
+    this.rain = new THREE.Points(geom, mat);
+    this.rain.visible = false;
+    this.rainOn = false;
+    scene.add(this.rain);
+  }
+
+  apply(state) {
+    if (!state) return;
+
+    const cloud = state.cloud_cover_percent != null
+      ? Math.max(0, Math.min(state.cloud_cover_percent / 100, 1)) : null;
+    if (cloud != null) {
+      this.sky.setCloud(cloud);
+      this.sun.intensity = 1.25 * (1 - 0.85 * cloud);
+      this.hemi.intensity = 0.45 + 0.35 * cloud;
+      this.ambient.intensity = 0.25 + 0.1 * cloud;
+    }
+
+    // Fog colour tracks the (possibly greyed) horizon; distance from visibility.
+    this.scene.fog.color.copy(this.sky.horizonColor());
+    if (state.visibility_m != null) {
+      const far = Math.max(1200, Math.min(state.visibility_m, 30000));
+      this.scene.fog.far = far;
+      this.scene.fog.near = far * 0.04;
+    }
+
+    this.ocean.setWind(state.wind_direction_degrees, state.wind_speed_mps);
+
+    const precip = state.precipitation_probability_percent;
+    this.rainOn = precip != null && precip >= 55;
+    this.rain.visible = this.rainOn;
+  }
+
+  update(dt, camera) {
+    if (!this.rainOn) return;
+    const pos = this.rain.geometry.attributes.position;
+    const arr = pos.array;
+    const fall = 220 * dt;
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      arr[i * 3 + 1] -= fall;
+      if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] = RAIN_TOP;
+    }
+    pos.needsUpdate = true;
+    // Keep the rain box centred on the camera so it never runs out.
+    this.rain.position.set(camera.position.x, 0, camera.position.z);
+  }
+}

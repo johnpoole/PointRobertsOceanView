@@ -1,0 +1,10 @@
+# Python proxy
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+
+# Terrain build scratch (raw tiles); the baked asset under assets/ is committed
+scripts/_tiles/

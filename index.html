@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Point Roberts — West Bluff</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- Big banner shown only when the feed is not connected. -->
+  <div id="offline" class="offline hidden">
+    <div class="offline-title">feed offline</div>
+    <div class="offline-sub" id="offline-sub">connecting…</div>
+  </div>
+
+  <!-- Top-left: site + connection + provider health -->
+  <div class="hud hud-tl">
+    <div class="site">Point Roberts · West Bluff · looking west</div>
+    <div class="row"><span class="k">feed</span><span id="conn" class="v">connecting…</span></div>
+    <div class="row"><span class="k">weather</span><span id="ph-weather" class="v health">—</span></div>
+    <div class="row"><span class="k">tide</span><span id="ph-tide" class="v health">—</span></div>
+    <div class="row"><span class="k">vessels</span><span id="ph-vessels" class="v health">—</span></div>
+  </div>
+
+  <!-- Top-right: weather readout + wind vane -->
+  <div class="hud hud-tr">
+    <div class="hud-title">weather <span id="wx-station" class="dim"></span></div>
+    <div class="wx-grid">
+      <div class="vane">
+        <svg viewBox="-50 -50 100 100" width="84" height="84">
+          <circle cx="0" cy="0" r="46" class="vane-ring" />
+          <text x="0" y="-36" class="vane-card">N</text>
+          <text x="0" y="42" class="vane-card">S</text>
+          <text x="40" y="4" class="vane-card">E</text>
+          <text x="-40" y="4" class="vane-card">W</text>
+          <g id="vane-arrow" class="vane-arrow">
+            <polygon points="0,-30 7,6 0,0 -7,6" />
+          </g>
+        </svg>
+        <div class="vane-label"><span id="wx-wind">—</span></div>
+      </div>
+      <div class="wx-readout">
+        <div class="row"><span class="k">sky</span><span id="wx-desc" class="v">—</span></div>
+        <div class="row"><span class="k">temp</span><span id="wx-temp" class="v">—</span></div>
+        <div class="row"><span class="k">cloud</span><span id="wx-cloud" class="v">—</span></div>
+        <div class="row"><span class="k">vis</span><span id="wx-vis" class="v">—</span></div>
+        <div class="row"><span class="k">humidity</span><span id="wx-rh" class="v">—</span></div>
+        <div class="row"><span class="k">rain</span><span id="wx-precip" class="v">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom-left: tide + vessel count -->
+  <div class="hud hud-bl">
+    <div class="hud-title">tide <span id="tide-station" class="dim"></span></div>
+    <div class="row"><span class="k">level</span><span id="tide-level" class="v">—</span></div>
+    <div class="row"><span class="k">trend</span><span id="tide-trend" class="v">—</span></div>
+    <div class="row"><span class="k">tracked</span><span id="vessel-count" class="v">0</span></div>
+  </div>
+
+  <div class="notice" id="notice"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

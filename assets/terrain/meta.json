@@ -1,0 +1,37 @@
+{
+  "source": "GMRT GridServer, format=esriascii, resolution=max",
+  "source_url": "https://www.gmrt.org/services/GridServer?minlongitude=-123.13&maxlongitude=-123.05&minlatitude=48.97&maxlatitude=49.01&format=esriascii&resolution=max",
+  "vertical_datum": "MLLW",
+  "vertical_note": "GMRT sea-level elevations shifted up by MLLW_OFFSET_M so 0 = MLLW, matching the tide feed water_level_m.",
+  "mllw_offset_m": 1.609,
+  "origin": {
+    "lat": 48.989009,
+    "lon": -123.085318
+  },
+  "box": {
+    "min_lon": -123.13,
+    "max_lon": -123.05,
+    "min_lat": 48.97,
+    "max_lat": 49.01
+  },
+  "grid": {
+    "nrows": 217,
+    "ncols": 439,
+    "cellsize_deg": 0.00018310546875,
+    "north_lat": 49.01013535840361,
+    "west_lon": -123.13009643554688,
+    "dtype": "float32",
+    "order": "row-major, north row first"
+  },
+  "elevation_m_mllw": {
+    "min": -118.86988830566406,
+    "max": 70.06566619873047
+  },
+  "raw_gmrt": {
+    "nrows": 73,
+    "ncols": 147,
+    "cellsize_deg": 0.00054931640625
+  },
+  "upsample": 3,
+  "smooth_passes": 1
+}
