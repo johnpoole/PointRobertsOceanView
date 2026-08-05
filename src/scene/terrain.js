@@ -37,8 +37,19 @@ export async function buildTerrain(scene, asset, opts = {}) {
 
   const meta = await (await fetch(asset.meta)).json();
   const bin = await (await fetch(asset.heightmap)).arrayBuffer();
-  const Z = new Float32Array(bin);
-  const { nrows, ncols, cellsize_deg, north_lat, west_lon } = meta.grid;
+  const { nrows, ncols, cellsize_deg, north_lat, west_lon, dtype, scale_m } = meta.grid;
+  // Stored as int16 decimetres to keep the file small; everything downstream
+  // works in metres, so scale once here and hand on a Float32Array.
+  let Z;
+  if (dtype === "int16") {
+    const counts = new Int16Array(bin);
+    Z = new Float32Array(counts.length);
+    for (let i = 0; i < counts.length; i++) Z[i] = counts[i] * scale_m;
+  } else if (dtype === "float32") {
+    Z = new Float32Array(bin);
+  } else {
+    throw new Error(`${asset.heightmap}: grid dtype is ${dtype}, expected int16 or float32`);
+  }
   // Cells the tile does not cover, e.g. the far tile's hole under the near tile.
   const nodata = meta.nodata != null ? meta.nodata : null;
   const isHole = (v) => nodata != null && v <= nodata / 2;

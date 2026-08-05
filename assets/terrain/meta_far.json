@@ -19,10 +19,11 @@
     "cellsize_deg": 0.00164794921875,
     "north_lat": 49.24983137791039,
     "west_lon": -124.35067749023438,
-    "dtype": "float32",
+    "dtype": "int16",
+    "scale_m": 0.1,
     "order": "row-major, north row first"
   },
-  "nodata": -99999.0,
+  "nodata": -3276.8,
   "hole": {
     "min_lon": -123.13,
     "max_lon": -123.02,
@@ -30,8 +31,8 @@
     "max_lat": 49.0
   },
   "elevation_m_mllw": {
-    "min": -406.7323303222656,
-    "max": 1463.16650390625
+    "min": -406.70000000000005,
+    "max": 1463.2
   },
   "decimate_stride": 3
 }

@@ -83,9 +83,34 @@ NCEI_IMAGESERVER = (
 CUDEM_TILE = "ncei19_n49x00_w123x25_2024v1"
 NCEI_NODATA = -999999.0
 
+# Elevations are stored as int16 decimetres, not float32. A float32 heightmap is
+# 13 MB and gzips to only 71 % of that, because the low mantissa bits of a metre
+# reading are noise and noise does not compress. Rounding to decimetres throws
+# that noise away and the same file then gzips to 10 %. The 5 cm this costs is
+# far inside the data's own error — the NAVD88 to MLLW shift alone carries 9.4 cm
+# of stated uncertainty.
+ELEV_SCALE_M = 0.1
+I16_MIN, I16_MAX = -32768, 32767
+
 # Marks far-tile cells that the near tile covers. Any triangle touching one is
-# dropped at load, leaving a hole for the near tile to show through.
-NODATA = -99999.0
+# dropped at load, leaving a hole for the near tile to show through. Stored as
+# the int16 floor so it can never collide with a real elevation.
+NODATA_I16 = I16_MIN
+NODATA = NODATA_I16 * ELEV_SCALE_M  # -3276.8 m, what the client sees after scaling
+
+
+def quantise(grid: np.ndarray, what: str) -> np.ndarray:
+    """Metres to int16 decimetres, refusing to wrap silently."""
+    counts = np.round(grid / ELEV_SCALE_M)
+    lo, hi = float(counts.min()), float(counts.max())
+    if lo <= NODATA_I16 or hi > I16_MAX:
+        raise ValueError(
+            f"{what}: elevations {grid.min():.1f}..{grid.max():.1f} m are "
+            f"{lo:.0f}..{hi:.0f} in decimetres, outside the int16 range "
+            f"({NODATA_I16 + 1}..{I16_MAX}) usable at {ELEV_SCALE_M} m. "
+            f"Raise ELEV_SCALE_M or store this tile as float32."
+        )
+    return counts.astype(np.int16)
 
 
 # ---- CUDEM (near tile) ------------------------------------------------------
@@ -206,12 +231,13 @@ def bake_near(out_dir: Path) -> None:
     ncols = round((box["max_lon"] - box["min_lon"]) / CUDEM_CELL_DEG)
     nrows = round((box["max_lat"] - box["min_lat"]) / CUDEM_CELL_DEG)
     grid = fetch_cudem(box, ncols, nrows) + NAVD88_TO_MLLW_M
+    quantised = quantise(grid, "near tile")
 
     # exportImage bbox is the outer extent, so cell centres sit half a cell in.
     north_lat = box["max_lat"] - 0.5 * CUDEM_CELL_DEG
     west_lon = box["min_lon"] + 0.5 * CUDEM_CELL_DEG
 
-    (out_dir / "heightmap.bin").write_bytes(grid.tobytes())
+    (out_dir / "heightmap.bin").write_bytes(quantised.tobytes())
     meta = {
         "source": f"NOAA NCEI CUDEM 1/9 arc-second, {CUDEM_TILE}, via DEM_all ImageServer",
         "vertical_datum": "MLLW",
@@ -223,16 +249,22 @@ def bake_near(out_dir: Path) -> None:
         "grid": {
             "nrows": nrows, "ncols": ncols, "cellsize_deg": CUDEM_CELL_DEG,
             "north_lat": north_lat, "west_lon": west_lon,
-            "dtype": "float32", "order": "row-major, north row first",
+            "dtype": "int16", "scale_m": ELEV_SCALE_M,
+            "order": "row-major, north row first",
         },
-        "elevation_m_mllw": {"min": float(grid.min()), "max": float(grid.max())},
+        "elevation_m_mllw": {
+            "min": float(quantised.min()) * ELEV_SCALE_M,
+            "max": float(quantised.max()) * ELEV_SCALE_M,
+        },
     }
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     lat_m = CUDEM_CELL_DEG * 111320
     lon_m = lat_m * np.cos(np.radians(ORIGIN["lat"]))
-    print(f"wrote near: {nrows}x{ncols}, {grid.nbytes} bytes, "
+    err = np.abs(quantised * ELEV_SCALE_M - grid).max()
+    print(f"wrote near: {nrows}x{ncols}, {quantised.nbytes} bytes, "
           f"cell {lon_m:.1f} x {lat_m:.1f} m, "
-          f"elev {grid.min():.0f}..{grid.max():.0f} m MLLW")
+          f"elev {grid.min():.0f}..{grid.max():.0f} m MLLW, "
+          f"quantisation error <= {err:.3f} m")
 
 
 # ---- GMRT (far tile) --------------------------------------------------------
@@ -317,7 +349,7 @@ def bake_far(out_dir: Path) -> None:
         print(f"decimated by {stride} -> {nrows}x{ncols}")
 
     grid = box_smooth(grid, 1)
-    grid_mllw = (grid + MSL_TO_MLLW_M).astype(np.float32)
+    grid_mllw = quantise(grid + MSL_TO_MLLW_M, "far tile")
 
     # ESRI row 0 is the north row; xll/yll are the lower-left corner of the
     # original grid, so cell-centre extents use the original cellsize.
@@ -337,7 +369,7 @@ def bake_far(out_dir: Path) -> None:
         ((lats >= BOX_NEAR["min_lat"] + cellsize) & (lats <= BOX_NEAR["max_lat"] - cellsize))[:, None]
         & ((lons >= BOX_NEAR["min_lon"] + cellsize) & (lons <= BOX_NEAR["max_lon"] - cellsize))[None, :]
     )
-    grid_mllw[hole] = NODATA
+    grid_mllw[hole] = NODATA_I16
     print(f"punched {int(hole.sum())} far cells under the near tile")
 
     (out_dir / "heightmap_far.bin").write_bytes(grid_mllw.tobytes())
@@ -351,19 +383,22 @@ def bake_far(out_dir: Path) -> None:
         "grid": {
             "nrows": nrows, "ncols": ncols, "cellsize_deg": cellsize,
             "north_lat": north_lat, "west_lon": west_lon,
-            "dtype": "float32", "order": "row-major, north row first",
+            "dtype": "int16", "scale_m": ELEV_SCALE_M,
+            "order": "row-major, north row first",
         },
         "nodata": NODATA,
         "hole": BOX_NEAR,
         "elevation_m_mllw": {
-            "min": float(grid_mllw[~hole].min()), "max": float(grid_mllw[~hole].max()),
+            "min": float(grid_mllw[~hole].min()) * ELEV_SCALE_M,
+            "max": float(grid_mllw[~hole].max()) * ELEV_SCALE_M,
         },
         "decimate_stride": stride,
     }
     (out_dir / "meta_far.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"wrote far: {nrows}x{ncols}, {grid_mllw.nbytes} bytes, "
-          f"cell ~{cellsize * 111320:.0f} m, elev {grid_mllw[~hole].min():.0f}"
-          f"..{grid_mllw[~hole].max():.0f} m MLLW")
+          f"cell ~{cellsize * 111320:.0f} m, "
+          f"elev {grid_mllw[~hole].min() * ELEV_SCALE_M:.0f}"
+          f"..{grid_mllw[~hole].max() * ELEV_SCALE_M:.0f} m MLLW")
 
 
 def main() -> None:

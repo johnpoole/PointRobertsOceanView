@@ -20,11 +20,12 @@
     "cellsize_deg": 3.08641975308642e-05,
     "north_lat": 48.99998456790124,
     "west_lon": -123.12998456790123,
-    "dtype": "float32",
+    "dtype": "int16",
+    "scale_m": 0.1,
     "order": "row-major, north row first"
   },
   "elevation_m_mllw": {
-    "min": -121.78268432617188,
-    "max": 73.72599792480469
+    "min": -121.80000000000001,
+    "max": 73.7
   }
 }

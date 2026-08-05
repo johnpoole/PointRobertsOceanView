@@ -29,6 +29,7 @@ from pathlib import Path
 import httpx
 import websockets
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import Response
 from fastapi.staticfiles import StaticFiles
 
@@ -584,6 +585,13 @@ async def heartbeat_task() -> None:
 # ---- app --------------------------------------------------------------------
 
 app = FastAPI()
+
+# The terrain heightmaps are the bulk of a page load. As int16 decimetres they
+# gzip to about a tenth of their size, so serve them compressed. Level 6 rather
+# than the default 9: on a 7 MB heightmap the last level buys a few per cent for
+# several times the CPU, and this is re-compressed on every cold request.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
+
 _tasks: list[asyncio.Task] = []
 
 
