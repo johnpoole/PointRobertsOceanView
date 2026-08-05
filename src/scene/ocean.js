@@ -249,6 +249,50 @@ export class Ocean {
     this._maskTide = tide;
   }
 
+  // Bed height in metres MLLW under a world x,z, or null off the baked tile.
+  _bedAt(x, z) {
+    if (!this._bed) return null;
+    const { heights, ncols, nrows } = this._bed;
+    const u = (x - this.uniforms.uBedMin.value.x) / this.uniforms.uBedSize.value.x;
+    const v = (z - this.uniforms.uBedMin.value.y) / this.uniforms.uBedSize.value.y;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+    const j = Math.min(ncols - 1, Math.max(0, Math.round(u * (ncols - 1))));
+    const i = Math.min(nrows - 1, Math.max(0, Math.round(v * (nrows - 1))));
+    return heights[i * ncols + j];
+  }
+
+  // The same swell the vertex shader draws, worked out on the CPU so a boat can
+  // ride it. Kept deliberately in step with the GLSL above — the wave sum, the
+  // breaker cap and the plane's x,-z mapping all have to match or the hull sits
+  // in water that is not where it is drawn.
+  surfaceAt(x, z) {
+    const level = this.uniforms.uLevel.value;
+    const bed = this._bedAt(x, z);
+    const depth = bed === null ? 1000 : level - bed;
+    const amp0 = Math.min(this.uniforms.uAmp.value,
+                          (BREAKER_GAMMA / 2) * Math.max(depth, 0));
+    const dir = this.uniforms.uDir.value;
+    const base = Math.atan2(dir.y, dir.x);
+    const t = this.uniforms.uTime.value;
+    const px = x, py = -z;
+    let h = 0, gx = 0, gy = 0;
+    for (let i = 0; i < 3; i++) {
+      const ang = base + (i - 1) * 0.4;
+      const dx = Math.cos(ang), dy = Math.sin(ang);
+      const len = this.uniforms.uLen.value * (1 - 0.35 * i);
+      const amp = amp0 * (1 - 0.3 * i);
+      const k = (2 * Math.PI) / len;
+      const w = Math.sqrt(9.81 * k);
+      const ph = k * (dx * px + dy * py) - w * t;
+      h += amp * Math.sin(ph);
+      const c = amp * k * Math.cos(ph);
+      gx += c * dx;
+      gy += c * dy;
+    }
+    // gy is along +py, and py = -z, so the slope along +z is its negative.
+    return { y: level + h, dx: gx, dz: -gy, bed };
+  }
+
   setLevel(y) {
     this.mesh.position.y = y;
     this.far.position.y = y - 0.5; // just under the near plane to avoid z-fighting

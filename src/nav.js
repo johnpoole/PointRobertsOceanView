@@ -1,7 +1,10 @@
-// Camera navigation. Two modes over the existing OrbitControls:
+// Camera navigation. Three modes over the existing OrbitControls:
 //   orbit - the default look-around, plus smooth tweens to preset viewpoints.
 //   fly   - free flight: pointer-lock mouse look, WASD along the look direction,
 //           Q/E down/up, Shift to go fast.
+//   boat  - a 12 ft aluminium boat with a 4.5 hp outboard. W throttles, A and D
+//           work the tiller. The camera sits at the transom and cannot leave it,
+//           so the bow is in the view and the horizon moves against it.
 // Both modes are held above the surface. Dropping under the water put the camera
 // inside the ocean plane looking up at the underside, which reads as nothing at
 // all. opts.floor(x, z) gives the height to stay above.
@@ -17,6 +20,30 @@ const FAST_SPEED = 260;
 // standing eye height so it never overrides the opening view.
 const CLEARANCE_M = 1;
 
+const KNOT = 0.514444;
+// 4.5 hp on a 12 ft hull is marginal for planing, so the boat only just gets
+// over the hump at the top of its range. Hull speed for an 11 ft waterline is
+// 4.4 kn, the bow starts lifting near 6.6 (speed-length ratio 2.0), and 8 kn is
+// the honest ceiling light and flat.
+const BOAT_MAX_MPS = 8.0 * KNOT;
+const BOAT_PLANE_MPS = 6.6 * KNOT;
+const BOAT_ACCEL_TAU = 4.0;   // s, throttle open: a small outboard builds slowly
+const BOAT_DECEL_TAU = 2.2;   // s, throttle shut: quick, but it still carries way
+// An outboard steers by aiming its thrust: nothing at idle, sharpest at
+// displacement speed where the stern swings on thrust alone, stiffer on plane
+// where the hull tracks straight.
+const BOAT_YAW_MAX = 30 * Math.PI / 180;   // rad/s at full tiller, displacement
+const BOAT_YAW_PLANE_FACTOR = 0.6;         // 30 deg/s falls to 18 on plane
+const BOAT_TRIM_MAX = 9 * Math.PI / 180;   // bow-up at the hump
+const BOAT_BANK_MAX = 6 * Math.PI / 180;   // banks into the turn, on plane
+const HELM_AFT_M = 1.25;                   // the tiller seat, aft of centre
+const HELM_EYE_M = 1.00;                   // eye above the waterline, seated
+
+function smoothstep(a, b, x) {
+  const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
+  return t * t * (3 - 2 * t);
+}
+
 function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
@@ -27,6 +54,13 @@ export class Nav {
     this.orbit = orbit;
     this.onMode = opts.onMode || (() => {});
     this.floor = opts.floor || null;
+    // seaAt(x, z) -> { y, dx, dz } : the surface the boat floats on and its
+    // slope, whichever is higher of the swell and the ground.
+    this.seaAt = opts.seaAt || null;
+    this.boatMesh = opts.boatMesh || null;
+    this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0 };
+    this._euler = new THREE.Euler(0, 0, 0, "YXZ");
+    this._offset = new THREE.Vector3();
     this.mode = "orbit";
     this.tween = null;
     this.keys = {};
@@ -65,7 +99,79 @@ export class Nav {
     this.lock.lock();
   }
 
+  // Launch where the camera already is, on the surface, pointing where it looks.
+  toggleBoat() {
+    if (this.mode === "boat") { this._setOrbit(); return; }
+    if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
+    this.tween = null;
+    this.orbit.enabled = false;
+    this.camera.getWorldDirection(this._dir);
+    const b = this.boat;
+    b.yaw = Math.atan2(-this._dir.x, -this._dir.z);
+    b.speed = 0;
+    b.trim = 0;
+    b.bank = 0;
+    b.pos.set(this.camera.position.x, 0, this.camera.position.z);
+    if (this.boatMesh) this.boatMesh.visible = true;
+    this.mode = "boat";
+    this.onMode("boat");
+  }
+
+  _boatStep(dt) {
+    const b = this.boat;
+
+    const target = (this.keys.KeyW ? 1 : 0) * BOAT_MAX_MPS;
+    const tau = target > b.speed ? BOAT_ACCEL_TAU : BOAT_DECEL_TAU;
+    b.speed += (target - b.speed) * (1 - Math.exp(-dt / tau));
+
+    // A pushes the tiller handle to port, which turns the boat to starboard.
+    // Yaw grows counter-clockwise from above, so starboard is yaw decreasing.
+    const tiller = (this.keys.KeyA ? 1 : 0) - (this.keys.KeyD ? 1 : 0);
+    const planing = smoothstep(BOAT_PLANE_MPS, BOAT_MAX_MPS, b.speed);
+    const bite = smoothstep(0.5 * KNOT, 3.5 * KNOT, b.speed)
+      * (1 - (1 - BOAT_YAW_PLANE_FACTOR) * planing);
+    b.yaw -= tiller * BOAT_YAW_MAX * bite * dt;
+
+    b.pos.x += -Math.sin(b.yaw) * b.speed * dt;
+    b.pos.z += -Math.cos(b.yaw) * b.speed * dt;
+
+    // Bow up to the hump, then down as she comes onto plane.
+    const hump = smoothstep(0, BOAT_PLANE_MPS, b.speed);
+    const trim = BOAT_TRIM_MAX * hump * (1 - planing);
+    const bank = -BOAT_BANK_MAX * tiller * planing;
+
+    // Ride the swell: its height sets where the hull sits, its slope sets how
+    // she lies on it.
+    let surfaceY = 0, slopeX = 0, slopeZ = 0;
+    if (this.seaAt) {
+      const s = this.seaAt(b.pos.x, b.pos.z);
+      surfaceY = s.y; slopeX = s.dx; slopeZ = s.dz;
+    }
+    b.pos.y = surfaceY;
+    const fx = -Math.sin(b.yaw), fz = -Math.cos(b.yaw);
+    const alongBow = slopeX * fx + slopeZ * fz;      // slope under the keel
+    const acrossBeam = slopeX * -fz + slopeZ * fx;   // slope across her
+    b.trim = trim + Math.atan(alongBow);
+    b.bank = bank + Math.atan(acrossBeam);
+
+    if (this.boatMesh) {
+      this.boatMesh.position.copy(b.pos);
+      this.boatMesh.rotation.set(0, 0, 0);
+      this.boatMesh.rotateY(b.yaw);
+      this.boatMesh.rotateX(b.trim);
+      this.boatMesh.rotateZ(b.bank);
+    }
+
+    // The camera is bolted to the transom. It pitches with her, which is the
+    // whole point: the bow holds still in the frame and the horizon moves.
+    this._euler.set(b.trim, b.yaw, b.bank);
+    this.camera.quaternion.setFromEuler(this._euler);
+    this._offset.set(0, HELM_EYE_M, HELM_AFT_M).applyQuaternion(this.camera.quaternion);
+    this.camera.position.copy(b.pos).add(this._offset);
+  }
+
   _setOrbit() {
+    if (this.boatMesh) this.boatMesh.visible = false;
     // Pivot the orbit around a point ahead of where we are looking.
     this.camera.getWorldDirection(this._dir);
     this.orbit.target.copy(this.camera.position).addScaledVector(this._dir, 300);
@@ -78,6 +184,7 @@ export class Nav {
     this.keys[e.code] = down;
     if (!down) return;
     if (e.code === "KeyV") this.toggleFly();
+    if (e.code === "KeyB") this.toggleBoat();
     const m = /^Digit([1-9])$/.exec(e.code);
     if (m && this.onPreset) this.onPreset(Number(m[1]) - 1);
   }
@@ -114,6 +221,9 @@ export class Nav {
       if (this.tween.t >= 1) { this.tween = null; this.orbit.enabled = true; }
       return;
     }
+    // No floor clamp in boat mode: she already floats on the surface, and the
+    // clamp would shove the camera up off the transom.
+    if (this.mode === "boat") { this._boatStep(dt); return; }
     if (this.mode === "fly") { this._flyStep(dt); this._clampFloor(); return; }
     this.orbit.update();
     this._clampFloor();

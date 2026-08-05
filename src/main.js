@@ -14,6 +14,7 @@ import { Vessels } from "./scene/vessels.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
+import { buildBoat } from "./scene/boat.js";
 import { Nav } from "./nav.js";
 import { fromWorld, toWorld } from "./geo.js";
 
@@ -82,6 +83,8 @@ scene.add(ambient, hemi, sun);
 
 const ocean = new Ocean(scene);
 const vessels = new Vessels(scene);
+const boat = buildBoat();
+scene.add(boat);
 const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
@@ -212,7 +215,19 @@ function toView(p) {
 }
 
 const nav = new Nav(camera, renderer.domElement, controls, {
-  onMode: (m) => document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly"),
+  onMode: (m) => {
+    document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
+    document.getElementById("boat-hint").classList.toggle("hidden", m !== "boat");
+  },
+  boatMesh: boat,
+  // What the hull floats on: the swell where there is water under it, the
+  // ground where there is not, so she can sit on the line between the two.
+  seaAt: (x, z) => {
+    const s = ocean.surfaceAt(x, z);
+    const { lat, lon } = fromWorld(x, z);
+    const ground = groundSample ? groundSample(lat, lon) : 0;
+    return ground > s.y ? { y: ground, dx: 0, dz: 0 } : s;
+  },
   // Whichever is higher under the camera, the sea floor or the tide. Off the
   // near tile the terrain sample clamps to a deep edge value, so out in the
   // strait this is just the water.
@@ -233,6 +248,7 @@ PRESETS.forEach((p, i) => {
   viewBtns.appendChild(b);
 });
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
+document.getElementById("boat-btn").addEventListener("click", () => nav.toggleBoat());
 
 const clock = new THREE.Clock();
 function frame() {
