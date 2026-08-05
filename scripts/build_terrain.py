@@ -59,10 +59,12 @@ MSL_TO_MLLW_M = 1.731      # GMRT (far)
 # means the server hands back source pixels instead of resampling them.
 CUDEM_CELL_DEG = 1.0 / 32400.0
 
-# near: the bluff, the beach, and the sea floor west. The north edge is the
-# 49th parallel, where CUDEM coverage ends. Every edge is an exact multiple of
+# near: the whole of Point Roberts plus the sea floor west of the bluff. The
+# town runs east to -123.0217 — the marina and Maple Beach — so the box has to
+# reach past that or the east side falls back on the 183 m skyline grid. The
+# north edge is where CUDEM coverage ends. Every edge is an exact multiple of
 # CUDEM_CELL_DEG, so the request lands on cell boundaries.
-BOX_NEAR = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.00}
+BOX_NEAR = {"min_lon": -123.13, "max_lon": -123.02, "min_lat": 48.97, "max_lat": 49.00}
 # far: the strait, the Gulf Islands, and the Vancouver Island mountains behind
 # them — the full skyline west, out to ~90 km.
 BOX_FAR = {"min_lon": -124.35, "max_lon": -122.92, "min_lat": 48.52, "max_lat": 49.25}
