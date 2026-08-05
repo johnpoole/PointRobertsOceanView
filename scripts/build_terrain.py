@@ -81,6 +81,10 @@ NCEI_IMAGESERVER = (
 CUDEM_TILE = "ncei19_n49x00_w123x25_2024v1"
 NCEI_NODATA = -999999.0
 
+# Marks far-tile cells that the near tile covers. Any triangle touching one is
+# dropped at load, leaving a hole for the near tile to show through.
+NODATA = -99999.0
+
 
 # ---- CUDEM (near tile) ------------------------------------------------------
 
@@ -318,6 +322,22 @@ def bake_far(out_dir: Path) -> None:
     north_lat = yll + (header["nrows"] - 0.5) * header["cellsize"]
     west_lon = xll + 0.5 * header["cellsize"]
 
+    # Punch out the near tile's footprint. Both tiles are drawn, so wherever they
+    # overlap the higher surface wins, and at 183 m the far grid smears the bluff
+    # out over the beach — up to 4 m above the real foreshore. That buries the
+    # near tile and drags the waterline about 100 m seaward. Shrink the hole by
+    # one cell so the far tile still reaches under the near tile's edge rather
+    # than leaving a gap; the rim that overlaps sits in deep water on the west
+    # and south and inland on the east, so it is never the shoreline you see.
+    lats = north_lat - np.arange(nrows) * cellsize
+    lons = west_lon + np.arange(ncols) * cellsize
+    hole = (
+        ((lats >= BOX_NEAR["min_lat"] + cellsize) & (lats <= BOX_NEAR["max_lat"] - cellsize))[:, None]
+        & ((lons >= BOX_NEAR["min_lon"] + cellsize) & (lons <= BOX_NEAR["max_lon"] - cellsize))[None, :]
+    )
+    grid_mllw[hole] = NODATA
+    print(f"punched {int(hole.sum())} far cells under the near tile")
+
     (out_dir / "heightmap_far.bin").write_bytes(grid_mllw.tobytes())
     meta = {
         "source": "GMRT GridServer, format=esriascii, resolution=max",
@@ -331,13 +351,17 @@ def bake_far(out_dir: Path) -> None:
             "north_lat": north_lat, "west_lon": west_lon,
             "dtype": "float32", "order": "row-major, north row first",
         },
-        "elevation_m_mllw": {"min": float(grid_mllw.min()), "max": float(grid_mllw.max())},
+        "nodata": NODATA,
+        "hole": BOX_NEAR,
+        "elevation_m_mllw": {
+            "min": float(grid_mllw[~hole].min()), "max": float(grid_mllw[~hole].max()),
+        },
         "decimate_stride": stride,
     }
     (out_dir / "meta_far.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"wrote far: {nrows}x{ncols}, {grid_mllw.nbytes} bytes, "
-          f"cell ~{cellsize * 111320:.0f} m, elev {grid_mllw.min():.0f}"
-          f"..{grid_mllw.max():.0f} m MLLW")
+          f"cell ~{cellsize * 111320:.0f} m, elev {grid_mllw[~hole].min():.0f}"
+          f"..{grid_mllw[~hole].max():.0f} m MLLW")
 
 
 def main() -> None:

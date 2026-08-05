@@ -39,6 +39,9 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const bin = await (await fetch(asset.heightmap)).arrayBuffer();
   const Z = new Float32Array(bin);
   const { nrows, ncols, cellsize_deg, north_lat, west_lon } = meta.grid;
+  // Cells the tile does not cover, e.g. the far tile's hole under the near tile.
+  const nodata = meta.nodata != null ? meta.nodata : null;
+  const isHole = (v) => nodata != null && v <= nodata / 2;
 
   const count = nrows * ncols;
   const positions = new Float32Array(count * 3);
@@ -49,7 +52,11 @@ export async function buildTerrain(scene, asset, opts = {}) {
     const lat = north_lat - i * cellsize_deg;
     for (let j = 0; j < ncols; j++) {
       const lon = west_lon + j * cellsize_deg;
-      const elev = Z[i * ncols + j];
+      const raw = Z[i * ncols + j];
+      // Hole vertices are never indexed, but they still sit in the position
+      // buffer, so give them a finite height or the bounding sphere goes bad
+      // and three culls the whole mesh.
+      const elev = isHole(raw) ? 0 : raw;
       const w = toWorld(lat, lon, elev);
       const idx = (i * ncols + j) * 3;
       positions[idx] = w.x;
@@ -77,6 +84,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
       const b = a + 1;
       const c = a + ncols;
       const d = c + 1;
+      if (isHole(Z[a]) || isHole(Z[b]) || isHole(Z[c]) || isHole(Z[d])) continue;
       indices[k++] = a; indices[k++] = c; indices[k++] = b;
       indices[k++] = b; indices[k++] = c; indices[k++] = d;
     }
@@ -85,7 +93,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geom.setIndex(new THREE.BufferAttribute(indices, 1));
+  geom.setIndex(new THREE.BufferAttribute(indices.subarray(0, k), 1));
   geom.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({

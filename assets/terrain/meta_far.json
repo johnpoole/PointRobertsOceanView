@@ -22,6 +22,13 @@
     "dtype": "float32",
     "order": "row-major, north row first"
   },
+  "nodata": -99999.0,
+  "hole": {
+    "min_lon": -123.13,
+    "max_lon": -123.05,
+    "min_lat": 48.97,
+    "max_lat": 49.0
+  },
   "elevation_m_mllw": {
     "min": -406.7323303222656,
     "max": 1463.16650390625

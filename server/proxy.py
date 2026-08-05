@@ -404,16 +404,23 @@ async def fetch_tide(client: httpx.AsyncClient) -> dict:
                             begin_date=day, range=48, interval="6"))["predictions"]
         series[station] = {row["t"]: float(row["v"]) for row in rows}
 
-    slot = observed["t"]
-    if slot not in series[TIDE_GAUGE_STATION] or slot not in series[TIDE_STATION]:
-        raise RuntimeError(
-            f"NOAA predictions have no 6-minute slot at {slot} for both "
-            f"{TIDE_GAUGE_STATION} and {TIDE_STATION}; cannot transfer the surge"
-        )
-    surge_m = observed_m - series[TIDE_GAUGE_STATION][slot]
-    level_m = series[TIDE_STATION][slot] + surge_m
-
+    # The surge is read at the gauge's timestamp, which runs about ten minutes
+    # behind. The astronomical tide is read at now. Surge is weather and drifts
+    # over hours; the tide moves up to a metre an hour here, so reading it ten
+    # minutes late puts the waterline metres down the beach.
     now = utcnow()
+    surge_slot = observed["t"]
+    level_slot = now.replace(
+        minute=now.minute - now.minute % 6, second=0, microsecond=0
+    ).strftime("%Y-%m-%d %H:%M")
+    for slot, station in ((surge_slot, TIDE_GAUGE_STATION), (level_slot, TIDE_STATION)):
+        if slot not in series[station]:
+            raise RuntimeError(
+                f"NOAA predictions for station {station} have no 6-minute slot "
+                f"at {slot}; cannot transfer the surge"
+            )
+    surge_m = observed_m - series[TIDE_GAUGE_STATION][surge_slot]
+    level_m = series[TIDE_STATION][level_slot] + surge_m
     extremes = (await coops(client, TIDE_STATION, product="predictions",
                             begin_date=now.strftime("%Y%m%d"), range=48,
                             interval="hilo"))["predictions"]

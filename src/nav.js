@@ -1,7 +1,10 @@
 // Camera navigation. Two modes over the existing OrbitControls:
 //   orbit - the default look-around, plus smooth tweens to preset viewpoints.
 //   fly   - free flight: pointer-lock mouse look, WASD along the look direction,
-//           Q/E down/up, Shift to go fast. No ground clamp; go anywhere.
+//           Q/E down/up, Shift to go fast.
+// Both modes are held above the surface. Dropping under the water put the camera
+// inside the ocean plane looking up at the underside, which reads as nothing at
+// all. opts.floor(x, z) gives the height to stay above.
 // The render loop calls update(dt); nothing else touches the controls.
 
 import * as THREE from "three";
@@ -10,6 +13,9 @@ import { PointerLockControls } from "three/addons/controls/PointerLockControls.j
 const TWEEN_SECONDS = 1.1;
 const FLY_SPEED = 60;   // m/s
 const FAST_SPEED = 260;
+// How far above the surface the camera is stopped. Kept under the bluff's
+// standing eye height so it never overrides the opening view.
+const CLEARANCE_M = 1;
 
 function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -20,6 +26,7 @@ export class Nav {
     this.camera = camera;
     this.orbit = orbit;
     this.onMode = opts.onMode || (() => {});
+    this.floor = opts.floor || null;
     this.mode = "orbit";
     this.tween = null;
     this.keys = {};
@@ -87,17 +94,28 @@ export class Nav {
     if (up) this.camera.position.y += up * speed;
   }
 
+  // Hold the camera above water and ground. In orbit mode this also stops the
+  // drag that would otherwise swing the camera down through the surface.
+  _clampFloor() {
+    if (!this.floor) return;
+    const p = this.camera.position;
+    const min = this.floor(p.x, p.z) + CLEARANCE_M;
+    if (p.y < min) p.y = min;
+  }
+
   update(dt) {
     if (this.tween) {
       this.tween.t = Math.min(this.tween.t + dt / TWEEN_SECONDS, 1);
       const e = easeInOut(this.tween.t);
       this.camera.position.lerpVectors(this.tween.fromP, this.tween.toP, e);
       this.orbit.target.lerpVectors(this.tween.fromT, this.tween.toT, e);
+      this._clampFloor();
       this.camera.lookAt(this.orbit.target);
       if (this.tween.t >= 1) { this.tween = null; this.orbit.enabled = true; }
       return;
     }
-    if (this.mode === "fly") { this._flyStep(dt); return; }
+    if (this.mode === "fly") { this._flyStep(dt); this._clampFloor(); return; }
     this.orbit.update();
+    this._clampFloor();
   }
 }

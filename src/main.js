@@ -15,7 +15,7 @@ import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { Nav } from "./nav.js";
-import { toWorld } from "./geo.js";
+import { fromWorld, toWorld } from "./geo.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -213,6 +213,14 @@ function toView(p) {
 
 const nav = new Nav(camera, renderer.domElement, controls, {
   onMode: (m) => document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly"),
+  // Whichever is higher under the camera, the sea floor or the tide. Off the
+  // near tile the terrain sample clamps to a deep edge value, so out in the
+  // strait this is just the water.
+  floor: (x, z) => {
+    const { lat, lon } = fromWorld(x, z);
+    const ground = groundSample ? groundSample(lat, lon) : 0;
+    return Math.max(ground, tideLevel());
+  },
 });
 nav.onPreset = (i) => { if (PRESETS[i]) nav.goTo(toView(PRESETS[i])); };
 

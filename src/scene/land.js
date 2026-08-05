@@ -116,7 +116,9 @@ export async function buildLand(scene, sample) {
   const markers = [];
   for (const lm of data.landmarks) {
     const w = toWorld(lm.lat, lm.lon, 0);
-    const base = sample(lm.lat, lm.lon);
+    // Landmarks off the near tile carry their own height; sampling would clamp
+    // them to the tile edge and sink them.
+    const base = lm.elev != null ? lm.elev : sample(lm.lat, lm.lon);
     const group = new THREE.Group();
     const dot = makeDot();
     dot.position.set(0, 10, 0);
