@@ -36,15 +36,27 @@ OVERPASS = "https://overpass-api.de/api/interpreter"
 NEAR_BOX = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.00}
 FAR_TERRAIN = "heightmap_far.bin", "meta_far.json"
 
-# The old wharf 547 m due south of the bluff, now only pilings. OpenStreetMap
-# does not have it and NOAA's ENC Direct services return nothing for shoreline
-# construction anywhere near Point Roberts, so it is carried here as a constant.
-# Charted as NOAA ENC cell US4WA1LI, feature SLCONS, LNAM US034625318941680:
-# CATSLC pier (jetty), CONDTN ruined, WATLEV always under water/submerged.
-# Only the position is known — the pilings are too thin to show in 3 m
-# bathymetry, so there is no extent to draw and this stays a marker.
-EXTRA_LANDMARKS = [
-    {"lat": 48.9840947, "lon": -123.0855928, "name": "Old wharf", "kind": "ruined pier"},
+# The old wharf south of the bluff, now only pilings. OpenStreetMap does not
+# have it and NOAA's ENC Direct and chart REST services return nothing for
+# shoreline construction anywhere near Point Roberts, so the outline was read
+# out of the S-57 cell itself: NOAA ENC US4WA1LI, two adjoining SLCONS area
+# features (object class 122), CATSLC pier (jetty), CONDTN ruined. Vertices
+# decoded from the SG2D fields with COMF 1e7 and reduced to their hull. The
+# charted structure runs 255 m east to west by 58 m, out into the water.
+#
+# The chart gives no height, only WATLEV "always under water/submerged", which
+# describes the deck rather than the posts still standing. PILING_TOP_M below
+# is a drawing choice, not a survey.
+RUINED_PIERS = [
+    {
+        "name": "Old wharf",
+        "outline": [
+            [48.9839980, -123.0871466], [48.9840484, -123.0843264],
+            [48.9840659, -123.0836566], [48.9845209, -123.0837609],
+            [48.9845068, -123.0844706], [48.9844296, -123.0869643],
+            [48.9844239, -123.0871466],
+        ],
+    },
 ]
 
 QUERY = """
@@ -208,7 +220,7 @@ def main() -> None:
                 dup["name"] = lm["name"]
             continue
         deduped.append(lm)
-    landmarks = deduped + [dict(lm) for lm in EXTRA_LANDMARKS]
+    landmarks = deduped
 
     far_sample = far_terrain_sampler()
     for lm in landmarks:
@@ -224,7 +236,8 @@ def main() -> None:
         rw["name"] = near["name"] if near else "Runway"
 
     out = {"bbox": BBOX, "roads": roads, "buildings": buildings,
-           "coastline": coastline, "landmarks": landmarks, "runways": runways}
+           "coastline": coastline, "landmarks": landmarks, "runways": runways,
+           "ruined_piers": [dict(p) for p in RUINED_PIERS]}
     out_dir = Path(__file__).resolve().parents[1] / "assets" / "osm"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "features.json").write_text(json.dumps(out), encoding="utf-8")
