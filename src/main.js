@@ -91,6 +91,11 @@ let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
   .then((near) => {
     groundSample = near.sample;
+    const { nrows, ncols, cellsize_deg, north_lat, west_lon } = near.meta.grid;
+    const nw = toWorld(north_lat, west_lon);
+    const se = toWorld(north_lat - (nrows - 1) * cellsize_deg, west_lon + (ncols - 1) * cellsize_deg);
+    ocean.setBed(near.heights, ncols, nrows,
+      new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
     return buildLand(scene, near.sample).then((land) => { landmarkPicks = land.landmarks; });
   })
   .catch((err) => console.error("near terrain / land failed:", err));
@@ -189,7 +194,9 @@ function resize() {
 
 // Navigation: preset viewpoints (tween) and a free-fly mode.
 const PRESETS = [
-  { name: "Bluff", lat: 48.989009, lon: -123.085318, eye: 20, lookLat: 48.989, lookLon: -123.20 },
+  // eye is metres above ground. The bluff here stands 18.5 m above MLLW, so 1.5
+  // puts the camera back where it starts, at EYE_HEIGHT_M above sea level.
+  { name: "Bluff", lat: 48.989009, lon: -123.085318, eye: 1.5, lookLat: 48.989, lookLon: -123.20 },
   { name: "Lighthouse", lat: 48.9728, lon: -123.0821, eye: 7, lookLat: 48.962, lookLon: -123.11 },
   { name: "Marina", lat: 48.9773, lon: -123.0633, eye: 9, lookLat: 48.981, lookLon: -123.045 },
   { name: "Above town", lat: 48.986, lon: -123.073, eye: 750, lookLat: 48.9861, lookLon: -123.0731 },

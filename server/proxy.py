@@ -51,7 +51,18 @@ HEARTBEAT_SECONDS = 10.0
 
 AIS_URL = "wss://stream.aisstream.io/v0/stream"
 
-TIDE_STATION = "9449424"
+# Point Roberts (9449639) is a reference station with its own harmonics, but it
+# has no gauge — predictions only. Cherry Point (9449424) has the nearest live
+# gauge, 27 km southeast, where the tide runs about 0.1 m lower and arrives at a
+# different time. So take the non-tidal residual measured at Cherry Point, which
+# is weather-driven surge and stays coherent over that distance, and carry it
+# onto Point Roberts' own prediction:
+#
+#   level = predicted_PR(t) + (observed_CP(t) - predicted_CP(t))
+#
+# That keeps the live surge and puts the astronomical tide where the view is.
+TIDE_GAUGE_STATION = "9449424"    # Cherry Point, observed water level
+TIDE_STATION = "9449639"          # Point Roberts, predictions
 TIDE_DATUM = "MLLW"
 TIDE_POLL_SECONDS = 300
 RETRY_SECONDS = 20  # after a failed fetch, retry soon instead of the full poll
@@ -353,31 +364,59 @@ async def ais_task() -> None:
 # ---- NOAA tide feed ---------------------------------------------------------
 
 
-async def fetch_tide(client: httpx.AsyncClient) -> dict:
-    common = {
+async def coops(client: httpx.AsyncClient, station: str, **params) -> dict:
+    """One CO-OPS call. NOAA reports failures in a 200 body, so check for them."""
+    response = await client.get(COOPS_BASE, params={
         "application": "PointRobertsOceanView",
-        "station": TIDE_STATION,
+        "station": station,
         "datum": TIDE_DATUM,
         "time_zone": "gmt",
         "units": "metric",
         "format": "json",
-    }
-    level = await client.get(COOPS_BASE, params={**common, "product": "water_level", "date": "latest"})
-    level.raise_for_status()
-    level_json = level.json()
-    if "error" in level_json:
-        raise RuntimeError(f"NOAA water_level: {level_json['error'].get('message')}")
-    point = level_json["data"][0]
+        **params,
+    })
+    response.raise_for_status()
+    payload = response.json()
+    if "error" in payload:
+        raise RuntimeError(
+            f"NOAA CO-OPS station {station} product={params.get('product')}: "
+            f"{payload['error'].get('message')}"
+        )
+    return payload
+
+
+async def fetch_tide(client: httpx.AsyncClient) -> dict:
+    """Point Roberts water level: its own prediction plus the surge measured at
+    Cherry Point. See the TIDE_STATION comment for why."""
+    observed = (await coops(client, TIDE_GAUGE_STATION,
+                            product="water_level", date="latest"))["data"][0]
+    observed_at = parse_time(observed["t"])
+    if observed_at is None:
+        raise RuntimeError(f"NOAA water_level: unparsable timestamp {observed['t']!r}")
+    observed_m = float(observed["v"])
+
+    # 6-minute predictions for both stations over the gauge reading's day, so the
+    # residual and the Point Roberts level are read at the same instant.
+    day = observed_at.strftime("%Y%m%d")
+    series = {}
+    for station in (TIDE_GAUGE_STATION, TIDE_STATION):
+        rows = (await coops(client, station, product="predictions",
+                            begin_date=day, range=48, interval="6"))["predictions"]
+        series[station] = {row["t"]: float(row["v"]) for row in rows}
+
+    slot = observed["t"]
+    if slot not in series[TIDE_GAUGE_STATION] or slot not in series[TIDE_STATION]:
+        raise RuntimeError(
+            f"NOAA predictions have no 6-minute slot at {slot} for both "
+            f"{TIDE_GAUGE_STATION} and {TIDE_STATION}; cannot transfer the surge"
+        )
+    surge_m = observed_m - series[TIDE_GAUGE_STATION][slot]
+    level_m = series[TIDE_STATION][slot] + surge_m
 
     now = utcnow()
-    begin = now.strftime("%Y%m%d")
-    preds = await client.get(COOPS_BASE, params={
-        **common, "product": "predictions", "begin_date": begin,
-        "range": 48, "interval": "hilo",
-    })
-    preds.raise_for_status()
-    extremes = preds.json().get("predictions", [])
-
+    extremes = (await coops(client, TIDE_STATION, product="predictions",
+                            begin_date=now.strftime("%Y%m%d"), range=48,
+                            interval="hilo"))["predictions"]
     trend = None
     prediction_m = None
     for ext in extremes:
@@ -390,12 +429,14 @@ async def fetch_tide(client: httpx.AsyncClient) -> dict:
     return {
         "state": {
             "station_id": TIDE_STATION,
-            "water_level_m": float(point["v"]),
+            "water_level_m": level_m,
             "prediction_m": prediction_m,
             "datum": TIDE_DATUM,
             "trend": trend,
+            "surge_m": surge_m,
+            "gauge_station_id": TIDE_GAUGE_STATION,
         },
-        "time": parse_time(point["t"]) or now,
+        "time": observed_at,
     }
 
 
@@ -411,8 +452,10 @@ async def tide_task() -> None:
                 await clients.broadcast(envelope(
                     "tide.state", "tidesandcurrents.noaa.gov",
                     world.tide_time, world.tide, None))
-                log.info("Tide %.3f m %s (%s)", world.tide["water_level_m"],
-                         TIDE_DATUM, world.tide["trend"])
+                log.info("Tide %.3f m %s (%s), surge %+.3f m from %s",
+                         world.tide["water_level_m"], TIDE_DATUM,
+                         world.tide["trend"], world.tide["surge_m"],
+                         TIDE_GAUGE_STATION)
                 ok = True
             except Exception as exc:
                 world.health["tide"] = "offline"

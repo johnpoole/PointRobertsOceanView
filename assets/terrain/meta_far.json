@@ -1,7 +1,8 @@
 {
   "source": "GMRT GridServer, format=esriascii, resolution=max",
   "vertical_datum": "MLLW",
-  "mllw_offset_m": 1.609,
+  "source_datum": "sea level (~MSL)",
+  "datum_shift_m": 1.731,
   "origin": {
     "lat": 48.989009,
     "lon": -123.085318
@@ -22,9 +23,8 @@
     "order": "row-major, north row first"
   },
   "elevation_m_mllw": {
-    "min": -406.8543395996094,
-    "max": 1463.0445556640625
+    "min": -406.7323303222656,
+    "max": 1463.16650390625
   },
-  "decimate_stride": 3,
-  "upsample": 1
+  "decimate_stride": 3
 }

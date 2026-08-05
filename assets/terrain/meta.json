@@ -1,7 +1,9 @@
 {
-  "source": "GMRT GridServer, format=esriascii, resolution=max",
+  "source": "NOAA NCEI CUDEM 1/9 arc-second, ncei19_n49x00_w123x25_2024v1, via DEM_all ImageServer",
   "vertical_datum": "MLLW",
-  "mllw_offset_m": 1.609,
+  "source_datum": "NAVD88",
+  "datum_shift_m": 0.411,
+  "datum_shift_uncertainty_m": 0.094,
   "origin": {
     "lat": 48.989009,
     "lon": -123.085318
@@ -10,21 +12,19 @@
     "min_lon": -123.13,
     "max_lon": -123.05,
     "min_lat": 48.97,
-    "max_lat": 49.01
+    "max_lat": 49.0
   },
   "grid": {
-    "nrows": 217,
-    "ncols": 439,
-    "cellsize_deg": 0.00018310546875,
-    "north_lat": 49.01013535840361,
-    "west_lon": -123.13009643554688,
+    "nrows": 972,
+    "ncols": 2592,
+    "cellsize_deg": 3.08641975308642e-05,
+    "north_lat": 48.99998456790124,
+    "west_lon": -123.12998456790123,
     "dtype": "float32",
     "order": "row-major, north row first"
   },
   "elevation_m_mllw": {
-    "min": -118.86988830566406,
-    "max": 70.06566619873047
-  },
-  "decimate_stride": 1,
-  "upsample": 3
+    "min": -121.78268432617188,
+    "max": 66.81232452392578
+  }
 }

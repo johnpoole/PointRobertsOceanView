@@ -107,5 +107,5 @@ export async function buildTerrain(scene, asset, opts = {}) {
     const bot = Z[i1 * ncols + j0] * (1 - tj) + Z[i1 * ncols + j1] * tj;
     return top * (1 - ti) + bot * ti;
   };
-  return { mesh, meta, sample };
+  return { mesh, meta, sample, heights: Z };
 }
