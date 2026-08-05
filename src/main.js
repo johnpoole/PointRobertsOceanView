@@ -228,7 +228,7 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   // Solid things in the water: the wharf's pilings and every tracked ship.
   obstacles: () => pilingPosts.concat(vessels.obstacles()),
   // What the hull floats on: the swell where there is water under it, the
-  // ground where there is not, so she can sit on the line between the two.
+  // ground where there is not, so the boat can sit on the line between the two.
   seaAt: (x, z) => {
     const s = ocean.surfaceAt(x, z);
     const { lat, lon } = fromWorld(x, z);

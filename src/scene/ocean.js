@@ -44,8 +44,8 @@ const SEA_MASK_GLSL = `
 `;
 
 // The sea is one unbroken plane and knows nothing about a hull sitting in it, so
-// it draws straight through an open boat and the waterline turns up inside her —
-// worst when she pitches and the transom dips under. Cutting her footprint out
+// it draws straight through an open boat and the waterline turns up inside it —
+// worst when it pitches and the transom dips under. Cutting the footprint out
 // of the water is the only fix that holds at any angle: an occluder inside the
 // hull only works while the whole opening is above the waterline, which stops
 // being true past about nine degrees of trim.
@@ -55,7 +55,7 @@ const HULL_HOLE_GLSL = `
     float along = dot(rel, uHullFwd);
     float across = dot(rel, vec2(-uHullFwd.y, uHullFwd.x));
     float t = clamp(along / uHullHalf.x, -1.0, 1.0);
-    // Narrow toward the stem so the cut follows her waterline, not a box.
+    // Narrow toward the stem so the cut follows the waterline, not a box.
     float halfBeam = uHullHalf.y * (1.0 - 0.85 * smoothstep(0.55, 1.0, t));
     if (abs(along) < uHullHalf.x && abs(across) < halfBeam) discard;
   }

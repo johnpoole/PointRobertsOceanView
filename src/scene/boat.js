@@ -20,7 +20,7 @@ const ROCKER_M = 0.17;   // how far the bottom rises at the stem
 // Where the forefoot sits relative to the waterline. Positive is clear of it.
 const BOW_KEEL_Y = ROCKER_M - DRAFT_M;
 
-// 0 at the transom, 1 at the stem, for shaping sheer and rocker along her.
+// 0 at the transom, 1 at the stem, for shaping sheer and rocker along the hull.
 function fwdFraction(z) {
   return Math.min(1, Math.max(0, (LENGTH_M / 2 - z) / LENGTH_M));
 }
