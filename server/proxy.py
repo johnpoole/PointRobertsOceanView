@@ -66,6 +66,12 @@ AIS_MESSAGE_TYPES = [
 # box. Traffic anywhere on earth separates the third from the other two.
 AIS_PROBE_BOX = [[-90.0, -180.0], [90.0, 180.0]]
 AIS_PROBE_SECONDS = 20.0
+# aisstream.io publishes no status page of its own. This one is unofficial, run
+# by a third party against their own key, and it has a state for exactly the
+# fault we hit: the socket connected and no positions arriving. If it sees the
+# same thing we do, the trouble is not ours. Its own wording is passed through
+# rather than reworded.
+AIS_STATUS_URL = "https://aisuptime.buttermilkgreen.fyi/api/v1/status?simple=true"
 
 # Point Roberts (9449639) is a reference station with its own harmonics, but it
 # has no gauge — predictions only. Cherry Point (9449424) has the nearest live
@@ -152,6 +158,8 @@ class World:
         self.weather_time: datetime | None = None
         self.tide: dict | None = None
         self.tide_time: datetime | None = None
+        # Why vessels are offline, in the monitor's words. Empty when they are not.
+        self.vessels_note = ""
         self.health = {
             "weather": "offline",
             "tide": "offline",
@@ -239,6 +247,7 @@ def snapshot() -> dict:
             "vessels": vessels,
             "aircraft": [],
             "provider_health": dict(world.health),
+            "vessels_note": world.vessels_note,
         },
     }
 
@@ -357,6 +366,19 @@ async def probe_ais_worldwide() -> str:
         return f"disconnected: {type(exc).__name__} {exc}"
 
 
+async def ais_upstream_state() -> str | None:
+    """What an independent monitor makes of aisstream.io right now. Returns its
+    own state string, or None if the monitor itself could not be reached."""
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(AIS_STATUS_URL)
+            response.raise_for_status()
+            return response.json().get("state")
+    except Exception as exc:
+        log.warning("AIS status monitor unreachable: %s", exc)
+        return None
+
+
 async def ais_task() -> None:
     if not AIS_API_KEY:
         world.health["vessels"] = "offline"
@@ -424,6 +446,16 @@ async def ais_task() -> None:
                                     "connections per key, in which case the probe is the "
                                     "one that gets dropped.", verdict,
                                 )
+                            upstream = await ais_upstream_state()
+                            if upstream is None:
+                                world.vessels_note = "monitor unreachable"
+                            else:
+                                world.vessels_note = upstream.lower()
+                                log.error(
+                                    "An independent monitor of aisstream.io reports it "
+                                    "as %r, so this is the service, not our key.",
+                                    upstream,
+                                )
                         continue
                     msg = json.loads(raw)
                     kind = msg.get("MessageType")
@@ -442,6 +474,7 @@ async def ais_task() -> None:
                     silence_reported = False
                     if world.health["vessels"] != "live":
                         world.health["vessels"] = "live"
+                        world.vessels_note = ""
                         log.info("AISStream delivering positions; vessels live")
                     if mmsi:
                         await clients.broadcast(envelope(

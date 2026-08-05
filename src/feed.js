@@ -12,6 +12,7 @@ export class Feed {
     this.weather = null;      // { data, quality }
     this.tide = null;         // { data, quality }
     this.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
+    this.vesselsNote = "";   // why vessels are offline, in the monitor's words
     this.lastMessageAt = 0;
 
     this._ws = null;
@@ -109,6 +110,7 @@ export class Feed {
     this.weather = data.weather ? { data: data.weather.data, quality: data.weather.quality } : null;
     this.tide = data.tide ? { data: data.tide.data, quality: data.tide.quality } : null;
     this.providerHealth = data.provider_health || this.providerHealth;
+    this.vesselsNote = data.vessels_note || "";
   }
 
   _applyVessel(env) {

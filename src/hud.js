@@ -40,6 +40,7 @@ export class Hud {
     this._health("ph-weather", feed.providerHealth.weather);
     this._health("ph-tide", feed.providerHealth.tide);
     this._health("ph-vessels", feed.providerHealth.vessels);
+    el("ais-why").textContent = feed.vesselsNote || "";
 
     // Weather
     const wx = feed.weather && feed.weather.data;
