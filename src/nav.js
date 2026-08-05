@@ -39,6 +39,9 @@ const BOAT_YAW_THRUST_FLOOR = 0.45;        // she still pivots on thrust alone
 const BOAT_TRIM_MAX = 9 * Math.PI / 180;   // bow-up at the hump
 const BOAT_BANK_MAX = 6 * Math.PI / 180;   // banks into the turn, on plane
 const BOW_CLEAR_M = 0.06;                  // forefoot held this far clear of it
+const LAUNCH_SEARCH_M = 2000;              // how far to look for water
+const LAUNCH_STEP_M = 10;                  // spacing of the search
+const LAUNCH_DEPTH_M = 0.4;                // enough under her to float clear
 const HELM_AFT_M = 1.25;                   // the tiller seat, aft of centre
 const HELM_EYE_M = 1.00;                   // eye above the waterline, seated
 
@@ -61,6 +64,8 @@ export class Nav {
     // slope, whichever is higher of the swell and the ground.
     this.seaAt = opts.seaAt || null;
     this.boatMesh = opts.boatMesh || null;
+    // hullHole(h) : cut her footprint out of the water, or null to fill it in.
+    this.hullHole = opts.hullHole || null;
     // obstacles() -> [{ x, z, r }] : pilings, other vessels, anything solid.
     this.obstacles = opts.obstacles || null;
     this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0 };
@@ -104,7 +109,24 @@ export class Nav {
     this.lock.lock();
   }
 
-  // Launch where the camera already is, on the surface, pointing where it looks.
+  // The nearest place she will float, searched outward from where you stand.
+  // That is the water's edge by definition, so pressing B from the bluff walks
+  // you down to the beach rather than launching you on the grass.
+  _launchSpot(x0, z0) {
+    if (!this.seaAt) return { x: x0, z: z0 };
+    for (let r = 0; r <= LAUNCH_SEARCH_M; r += LAUNCH_STEP_M) {
+      const steps = r === 0 ? 1 : Math.max(12, Math.round((2 * Math.PI * r) / LAUNCH_STEP_M));
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const x = x0 + Math.cos(a) * r, z = z0 + Math.sin(a) * r;
+        const s = this.seaAt(x, z);
+        if (!s.aground && s.depth >= LAUNCH_DEPTH_M) return { x, z };
+      }
+    }
+    return { x: x0, z: z0 };
+  }
+
+  // Launch at the water's edge, on the surface, pointing where the camera looks.
   toggleBoat() {
     if (this.mode === "boat") { this._setOrbit(); return; }
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
@@ -116,7 +138,8 @@ export class Nav {
     b.speed = 0;
     b.trim = 0;
     b.bank = 0;
-    b.pos.set(this.camera.position.x, 0, this.camera.position.z);
+    const spot = this._launchSpot(this.camera.position.x, this.camera.position.z);
+    b.pos.set(spot.x, 0, spot.z);
     if (this.boatMesh) this.boatMesh.visible = true;
     this.mode = "boat";
     this.onMode("boat");
@@ -200,6 +223,13 @@ export class Nav {
       if (rise > -1) b.trim = Math.max(b.trim, Math.asin(Math.min(rise, 1)));
     }
 
+    if (this.hullHole) {
+      this.hullHole({
+        x: b.pos.x, z: b.pos.z, fx, fz,
+        halfLen: BOAT.LENGTH_M / 2, halfBeam: (BOAT.BEAM_M / 2) * 1.04,
+      });
+    }
+
     if (this.boatMesh) {
       this.boatMesh.position.copy(b.pos);
       this.boatMesh.rotation.set(0, 0, 0);
@@ -218,6 +248,7 @@ export class Nav {
 
   _setOrbit() {
     if (this.boatMesh) this.boatMesh.visible = false;
+    if (this.hullHole) this.hullHole(null);
     // Pivot the orbit around a point ahead of where we are looking.
     this.camera.getWorldDirection(this._dir);
     this.orbit.target.copy(this.camera.position).addScaledVector(this._dir, 300);

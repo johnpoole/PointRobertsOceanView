@@ -36,7 +36,29 @@ const SEA_MASK_GLSL = `
   uniform vec2 uBedMin;
   uniform vec2 uBedSize;
   uniform float uHasSea;
+  uniform vec2 uHullPos;
+  uniform vec2 uHullFwd;
+  uniform vec2 uHullHalf;
+  uniform float uHasHull;
   varying vec2 vSeaXZ;
+`;
+
+// The sea is one unbroken plane and knows nothing about a hull sitting in it, so
+// it draws straight through an open boat and the waterline turns up inside her —
+// worst when she pitches and the transom dips under. Cutting her footprint out
+// of the water is the only fix that holds at any angle: an occluder inside the
+// hull only works while the whole opening is above the waterline, which stops
+// being true past about nine degrees of trim.
+const HULL_HOLE_GLSL = `
+  if (uHasHull > 0.5) {
+    vec2 rel = vSeaXZ - uHullPos;
+    float along = dot(rel, uHullFwd);
+    float across = dot(rel, vec2(-uHullFwd.y, uHullFwd.x));
+    float t = clamp(along / uHullHalf.x, -1.0, 1.0);
+    // Narrow toward the stem so the cut follows her waterline, not a box.
+    float halfBeam = uHullHalf.y * (1.0 - 0.85 * smoothstep(0.55, 1.0, t));
+    if (abs(along) < uHullHalf.x && abs(across) < halfBeam) discard;
+  }
 `;
 
 const SEA_MASK_DISCARD = `
@@ -45,7 +67,7 @@ const SEA_MASK_DISCARD = `
     bool inside = suv.x >= 0.0 && suv.x <= 1.0 && suv.y >= 0.0 && suv.y <= 1.0;
     if (inside && texture2D(uSea, suv).r < 0.5) discard;
   }
-`;
+` + HULL_HOLE_GLSL;
 
 // Both planes are rotated -90 deg about X and moved only in Y, so plane-local
 // x,y lands on world x,-z for either of them.
@@ -65,6 +87,10 @@ export class Ocean {
       uHasBed: { value: 0 },
       uSea: { value: null },                     // 1 where open water reaches
       uHasSea: { value: 0 },
+      uHullPos: { value: new THREE.Vector2() },  // a hull's footprint, cut out
+      uHullFwd: { value: new THREE.Vector2(0, 1) },
+      uHullHalf: { value: new THREE.Vector2() },
+      uHasHull: { value: 0 },
     };
     this._bed = null;
     this._maskTide = null;
@@ -75,7 +101,8 @@ export class Ocean {
       color: WATER_COLOR, roughness: 0.5, metalness: 0.0,
     });
     farMat.onBeforeCompile = (shader) => {
-      for (const name of ["uSea", "uBedMin", "uBedSize", "uHasSea"]) {
+      for (const name of ["uSea", "uBedMin", "uBedSize", "uHasSea",
+                          "uHullPos", "uHullFwd", "uHullHalf", "uHasHull"]) {
         shader.uniforms[name] = this.uniforms[name];
       }
       shader.vertexShader = shader.vertexShader
@@ -100,7 +127,8 @@ export class Ocean {
     mat.onBeforeCompile = (shader) => {
       for (const name of ["uTime", "uDir", "uAmp", "uLen", "uLevel",
                           "uBed", "uBedMin", "uBedSize", "uHasBed",
-                          "uSea", "uHasSea"]) {
+                          "uSea", "uHasSea",
+                          "uHullPos", "uHullFwd", "uHullHalf", "uHasHull"]) {
         shader.uniforms[name] = this.uniforms[name];
       }
       shader.fragmentShader = shader.fragmentShader
@@ -291,6 +319,15 @@ export class Ocean {
     }
     // gy is along +py, and py = -z, so the slope along +z is its negative.
     return { y: level + h, dx: gx, dz: -gy, bed };
+  }
+
+  // h = { x, z, fx, fz, halfLen, halfBeam } or null to fill the water back in.
+  setHull(h) {
+    if (!h) { this.uniforms.uHasHull.value = 0; return; }
+    this.uniforms.uHullPos.value.set(h.x, h.z);
+    this.uniforms.uHullFwd.value.set(h.fx, h.fz);
+    this.uniforms.uHullHalf.value.set(h.halfLen, h.halfBeam);
+    this.uniforms.uHasHull.value = 1;
   }
 
   setLevel(y) {

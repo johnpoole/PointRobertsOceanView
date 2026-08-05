@@ -110,6 +110,7 @@ export function buildBoat() {
   fittings.position.y = -DRAFT_M;
   group.add(fittings);
 
+
   group.visible = false;
   return group;
 }

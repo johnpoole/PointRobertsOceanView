@@ -224,6 +224,7 @@ const nav = new Nav(camera, renderer.domElement, controls, {
     document.getElementById("boat-hint").classList.toggle("hidden", m !== "boat");
   },
   boatMesh: boat,
+  hullHole: (h) => ocean.setHull(h),
   // Solid things in the water: the wharf's pilings and every tracked ship.
   obstacles: () => pilingPosts.concat(vessels.obstacles()),
   // What the hull floats on: the swell where there is water under it, the
@@ -232,7 +233,8 @@ const nav = new Nav(camera, renderer.domElement, controls, {
     const s = ocean.surfaceAt(x, z);
     const { lat, lon } = fromWorld(x, z);
     const ground = groundSample ? groundSample(lat, lon) : 0;
-    return ground > s.y ? { y: ground, dx: 0, dz: 0 } : s;
+    if (ground > s.y) return { y: ground, dx: 0, dz: 0, depth: 0, aground: true };
+    return { y: s.y, dx: s.dx, dz: s.dz, depth: s.y - ground, aground: false };
   },
   // Whichever is higher under the camera, the sea floor or the tide. Off the
   // near tile the terrain sample clamps to a deep edge value, so out in the
