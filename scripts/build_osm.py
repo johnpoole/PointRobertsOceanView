@@ -56,10 +56,14 @@ FAR_TERRAIN = "heightmap_far.bin", "meta_far.json"
 # Neither source gives a height. The chart says only WATLEV "always under water
 # /submerged", which describes the deck and not the posts left standing, so
 # PILING_TOP_M is a drawing choice.
+# The imagery resolves the structure as one row because 2.5 m is under two
+# pixels; John, who can see it, reports three rows about 2.5 m apart, 5 m across
+# the whole pier. row_offsets_m are metres either side of the measured line.
 RUINED_PIERS = [
     {
         "name": "Old wharf",
         "line": [[48.9842144, -123.086670], [48.9842144, -123.084600]],
+        "row_offsets_m": [-2.5, 0.0, 2.5],
     },
 ]
 

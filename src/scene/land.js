@@ -6,7 +6,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { toWorld } from "../geo.js";
+import { fromWorld, toWorld } from "../geo.js";
 import { OSM } from "../config.js";
 
 const ROAD_WIDTH = { motorway: 10, trunk: 9, primary: 8, secondary: 7, tertiary: 6,
@@ -69,29 +69,40 @@ const PILING_SPACING_M = 5;
 const PILING_TOP_M = 4.0;      // metres MLLW
 const PILING_RADIUS_M = 0.45;
 
-// line is an open polyline, not a ring: a row of posts, not a perimeter.
-function pilings(line, sample) {
+// line is an open polyline, not a ring, and offsets are metres either side of it
+// across the run — a pier stands its posts in parallel rows, not one file.
+function pilings(line, offsets, sample) {
   const geoms = [];
-  const post = (lat, lon) => {
-    const bed = sample(lat, lon);
+  const first = toWorld(line[0][0], line[0][1], 0);
+  const last = toWorld(line[line.length - 1][0], line[line.length - 1][1], 0);
+  const run = Math.hypot(last.x - first.x, last.z - first.z) || 1;
+  const perpX = -(last.z - first.z) / run, perpZ = (last.x - first.x) / run;
+
+  const post = (lat, lon, off) => {
+    const c = toWorld(lat, lon, 0);
+    const x = c.x + perpX * off, z = c.z + perpZ * off;
+    const p = fromWorld(x, z);
+    const bed = sample(p.lat, p.lon);
     if (PILING_TOP_M <= bed) return;  // already dry ground here
     const h = PILING_TOP_M - bed;
     const g = new THREE.CylinderGeometry(PILING_RADIUS_M, PILING_RADIUS_M, h, 5, 1);
-    const w = toWorld(lat, lon, 0);
-    g.translate(w.x, bed + h / 2, w.z);
+    g.translate(x, bed + h / 2, z);
     geoms.push(g);
   };
-  for (let i = 0; i < line.length - 1; i++) {
-    const a = line[i], b = line[i + 1];
-    const wa = toWorld(a[0], a[1], 0), wb = toWorld(b[0], b[1], 0);
-    const steps = Math.max(1, Math.round(Math.hypot(wb.x - wa.x, wb.z - wa.z) / PILING_SPACING_M));
-    for (let k = 0; k < steps; k++) {
-      const t = k / steps;
-      post(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+
+  for (const off of offsets) {
+    for (let i = 0; i < line.length - 1; i++) {
+      const a = line[i], b = line[i + 1];
+      const wa = toWorld(a[0], a[1], 0), wb = toWorld(b[0], b[1], 0);
+      const steps = Math.max(1, Math.round(Math.hypot(wb.x - wa.x, wb.z - wa.z) / PILING_SPACING_M));
+      for (let k = 0; k < steps; k++) {
+        const t = k / steps;
+        post(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, off);
+      }
     }
+    const end = line[line.length - 1];
+    post(end[0], end[1], off);
   }
-  const end = line[line.length - 1];
-  post(end[0], end[1]);
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }
 
@@ -149,7 +160,7 @@ export async function buildLand(scene, sample) {
   const pierMeshes = [];
   const pilingMat = new THREE.MeshStandardMaterial({ color: 0x53483c, roughness: 1 });
   for (const p of data.ruined_piers) {
-    const geom = pilings(p.line, sample);
+    const geom = pilings(p.line, p.row_offsets_m, sample);
     if (!geom) continue;
     const mesh = new THREE.Mesh(geom, pilingMat);
     mesh.userData.landmark = { name: p.name, kind: "ruined pier" };
