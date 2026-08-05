@@ -51,6 +51,11 @@ STALE_SECONDS = {"vessels": 300, "aircraft": 120}
 HEARTBEAT_SECONDS = 10.0
 
 AIS_URL = "wss://stream.aisstream.io/v0/stream"
+# An open socket is not a working feed. AISStream keeps the connection up and
+# answers pings while sending nothing at all if the key is over quota — only a
+# bad key gets disconnected. The strait is busy enough that this long a gap
+# means the feed has stopped, whatever the socket says.
+AIS_SILENCE_SECONDS = 120
 
 # Point Roberts (9449639) is a reference station with its own harmonics, but it
 # has no gauge — predictions only. Cherry Point (9449424) has the nearest live
@@ -336,10 +341,26 @@ async def ais_task() -> None:
         try:
             async with websockets.connect(AIS_URL, ping_interval=20) as ws:
                 await ws.send(json.dumps(subscribe))
-                world.health["vessels"] = "live"
                 backoff = 2.0
+                # Not "live" yet. The socket being open proves only that the key
+                # was not rejected; vessels count as live once one actually lands.
                 log.info("AISStream connected, bbox %s", BBOX)
-                async for raw in ws:
+                unhandled: set[str] = set()
+                while True:
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), AIS_SILENCE_SECONDS)
+                    except asyncio.TimeoutError:
+                        if world.health["vessels"] != "offline":
+                            world.health["vessels"] = "offline"
+                            log.error(
+                                "AISStream has sent nothing for %.0fs with the socket "
+                                "still open, so vessels are now reported offline. The "
+                                "key is being accepted — a rejected key is disconnected "
+                                "— so this is upstream. Check the aisstream.io account "
+                                "for a quota or rate limit.",
+                                AIS_SILENCE_SECONDS,
+                            )
+                        continue
                     msg = json.loads(raw)
                     kind = msg.get("MessageType")
                     if kind in ("PositionReport", "StandardClassBPositionReport",
@@ -348,7 +369,15 @@ async def ais_task() -> None:
                     elif kind == "ShipStaticData":
                         mmsi = apply_static_data(msg)
                     else:
+                        # Anything else is AISStream telling us something. Dropping
+                        # it silently is how a rejected subscription looked healthy.
+                        if kind not in unhandled:
+                            unhandled.add(kind)
+                            log.warning("AISStream sent an unhandled message: %s", raw[:300])
                         continue
+                    if world.health["vessels"] != "live":
+                        world.health["vessels"] = "live"
+                        log.info("AISStream delivering positions; vessels live")
                     if mmsi:
                         await clients.broadcast(envelope(
                             "vessel.position", "aisstream.io",
