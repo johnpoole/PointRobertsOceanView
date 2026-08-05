@@ -56,6 +56,16 @@ AIS_URL = "wss://stream.aisstream.io/v0/stream"
 # bad key gets disconnected. The strait is busy enough that this long a gap
 # means the feed has stopped, whatever the socket says.
 AIS_SILENCE_SECONDS = 120
+AIS_MESSAGE_TYPES = [
+    "PositionReport", "StandardClassBPositionReport",
+    "ExtendedClassBPositionReport", "ShipStaticData",
+]
+# When the feed goes quiet, subscribe to the whole world for a moment. Silence
+# over our own bounding box has three causes that look identical from here: the
+# service is down, the account is over quota, or we are asking for the wrong
+# box. Traffic anywhere on earth separates the third from the other two.
+AIS_PROBE_BOX = [[-90.0, -180.0], [90.0, 180.0]]
+AIS_PROBE_SECONDS = 20.0
 
 # Point Roberts (9449639) is a reference station with its own harmonics, but it
 # has no gauge — predictions only. Cherry Point (9449424) has the nearest live
@@ -314,6 +324,39 @@ def apply_static_data(msg: dict) -> str | None:
     return mmsi
 
 
+async def probe_ais_worldwide() -> str:
+    """Ask AISStream for the whole world for a few seconds and report back.
+
+    Returns one of "delivering", "silent", or "disconnected: <reason>". Opens its
+    own short-lived connection rather than disturbing the live subscription. If
+    AISStream caps concurrent connections per key the probe is the one that gets
+    dropped, which reads as "disconnected" — so that answer is reported as
+    inconclusive rather than as a bad key.
+    """
+    subscribe = {
+        "APIKey": AIS_API_KEY,
+        "BoundingBoxes": [AIS_PROBE_BOX],
+        "FilterMessageTypes": AIS_MESSAGE_TYPES,
+    }
+    try:
+        async with websockets.connect(AIS_URL, ping_interval=20) as ws:
+            await ws.send(json.dumps(subscribe))
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + AIS_PROBE_SECONDS
+            while True:
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    return "silent"
+                try:
+                    raw = await asyncio.wait_for(ws.recv(), remaining)
+                except asyncio.TimeoutError:
+                    return "silent"
+                if json.loads(raw).get("MessageType") in AIS_MESSAGE_TYPES:
+                    return "delivering"
+    except Exception as exc:
+        return f"disconnected: {type(exc).__name__} {exc}"
+
+
 async def ais_task() -> None:
     if not AIS_API_KEY:
         world.health["vessels"] = "offline"
@@ -331,10 +374,7 @@ async def ais_task() -> None:
             [BBOX["min_lat"], BBOX["min_lon"]],
             [BBOX["max_lat"], BBOX["max_lon"]],
         ]],
-        "FilterMessageTypes": [
-            "PositionReport", "StandardClassBPositionReport",
-            "ExtendedClassBPositionReport", "ShipStaticData",
-        ],
+        "FilterMessageTypes": AIS_MESSAGE_TYPES,
     }
     backoff = 2.0
     while True:
@@ -359,12 +399,31 @@ async def ais_task() -> None:
                             silence_reported = True
                             log.error(
                                 "AISStream has sent nothing for %.0fs with the socket "
-                                "still open, so vessels are now reported offline. The "
-                                "key is being accepted — a rejected key is disconnected "
-                                "— so this is upstream. Check the aisstream.io account "
-                                "for a quota or rate limit.",
+                                "still open, so vessels are now reported offline. "
+                                "Probing the whole world to see whose fault it is.",
                                 AIS_SILENCE_SECONDS,
                             )
+                            verdict = await probe_ais_worldwide()
+                            if verdict == "delivering":
+                                log.error(
+                                    "AISStream is delivering worldwide but nothing for "
+                                    "%s. The key and the service are fine; our bounding "
+                                    "box or message filter is what is wrong.", BBOX,
+                                )
+                            elif verdict == "silent":
+                                log.error(
+                                    "AISStream is silent worldwide too, so this is not "
+                                    "our bounding box. The key is still being accepted, "
+                                    "so check the aisstream.io account for a quota or "
+                                    "rate limit, or the service itself.",
+                                )
+                            else:
+                                log.error(
+                                    "The worldwide probe could not stay connected (%s), "
+                                    "so it settles nothing. AISStream may cap concurrent "
+                                    "connections per key, in which case the probe is the "
+                                    "one that gets dropped.", verdict,
+                                )
                         continue
                     msg = json.loads(raw)
                     kind = msg.get("MessageType")
