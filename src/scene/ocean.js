@@ -21,6 +21,36 @@ const BREAKER_GAMMA = 0.78; // depth-limited breaking, H <= gamma * depth
 
 const WATER_COLOR = 0x2b5566;
 
+// Rebuild the sea mask when the tide has moved this far. The mask is a flood
+// fill over 2.5 M cells, too heavy for every frame and pointless at every
+// millimetre.
+const MASK_TIDE_STEP_M = 0.05;
+
+// Shared by both water planes. A flat plane at the tide height covers every
+// point of ground lower than the tide, including the low fields behind the
+// beach ridge that the sea cannot actually reach — the airfield sits at 2.5 to
+// 2.8 m MLLW and a 2.7 m tide turned it into a lagoon. uSea marks the cells the
+// open water reaches; everywhere else inside the tile the water is not drawn.
+const SEA_MASK_GLSL = `
+  uniform sampler2D uSea;
+  uniform vec2 uBedMin;
+  uniform vec2 uBedSize;
+  uniform float uHasSea;
+  varying vec2 vSeaXZ;
+`;
+
+const SEA_MASK_DISCARD = `
+  if (uHasSea > 0.5) {
+    vec2 suv = (vSeaXZ - uBedMin) / uBedSize;
+    bool inside = suv.x >= 0.0 && suv.x <= 1.0 && suv.y >= 0.0 && suv.y <= 1.0;
+    if (inside && texture2D(uSea, suv).r < 0.5) discard;
+  }
+`;
+
+// Both planes are rotated -90 deg about X and moved only in Y, so plane-local
+// x,y lands on world x,-z for either of them.
+const SEA_MASK_VARYING = "vSeaXZ = vec2(position.x, -position.y);";
+
 export class Ocean {
   constructor(scene) {
     this.uniforms = {
@@ -33,12 +63,29 @@ export class Ocean {
       uBedMin: { value: new THREE.Vector2() },   // world x,z of the bed tile's NW corner
       uBedSize: { value: new THREE.Vector2() },  // world extent of the bed tile
       uHasBed: { value: 0 },
+      uSea: { value: null },                     // 1 where open water reaches
+      uHasSea: { value: 0 },
     };
+    this._bed = null;
+    this._maskTide = null;
 
-    // Far flat water, drawn first, underneath.
+    // Far flat water, drawn first, underneath. It reaches across the near tile
+    // too, so it needs the same mask or the puddles just show through it.
     const farMat = new THREE.MeshStandardMaterial({
       color: WATER_COLOR, roughness: 0.5, metalness: 0.0,
     });
+    farMat.onBeforeCompile = (shader) => {
+      for (const name of ["uSea", "uBedMin", "uBedSize", "uHasSea"]) {
+        shader.uniforms[name] = this.uniforms[name];
+      }
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", `#include <common>\n varying vec2 vSeaXZ;`)
+        .replace("#include <begin_vertex>", `#include <begin_vertex>\n ${SEA_MASK_VARYING}`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", `#include <common>\n ${SEA_MASK_GLSL}`)
+        .replace("#include <clipping_planes_fragment>",
+                 `#include <clipping_planes_fragment>\n ${SEA_MASK_DISCARD}`);
+    };
     const far = new THREE.Mesh(new THREE.PlaneGeometry(FAR_SIZE, FAR_SIZE, 1, 1), farMat);
     far.rotation.x = -Math.PI / 2;
     far.renderOrder = 0;
@@ -52,13 +99,19 @@ export class Ocean {
     });
     mat.onBeforeCompile = (shader) => {
       for (const name of ["uTime", "uDir", "uAmp", "uLen", "uLevel",
-                          "uBed", "uBedMin", "uBedSize", "uHasBed"]) {
+                          "uBed", "uBedMin", "uBedSize", "uHasBed",
+                          "uSea", "uHasSea"]) {
         shader.uniforms[name] = this.uniforms[name];
       }
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", `#include <common>\n ${SEA_MASK_GLSL}`)
+        .replace("#include <clipping_planes_fragment>",
+                 `#include <clipping_planes_fragment>\n ${SEA_MASK_DISCARD}`);
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
           `#include <common>
+           varying vec2 vSeaXZ;
            uniform float uTime; uniform vec2 uDir; uniform float uAmp; uniform float uLen;
            uniform float uLevel; uniform sampler2D uBed;
            uniform vec2 uBedMin; uniform vec2 uBedSize; uniform float uHasBed;
@@ -104,7 +157,8 @@ export class Ocean {
         .replace(
           "#include <begin_vertex>",
           `vec3 transformed = vec3(position);
-           transformed.z += _s.x;`
+           transformed.z += _s.x;
+           ${SEA_MASK_VARYING}`
         );
     };
     const near = new THREE.Mesh(new THREE.PlaneGeometry(NEAR_SIZE, NEAR_SIZE, NEAR_SEG, NEAR_SEG), mat);
@@ -154,12 +208,53 @@ export class Ocean {
     this.uniforms.uBedMin.value.copy(min);
     this.uniforms.uBedSize.value.copy(size);
     this.uniforms.uHasBed.value = 1;
+
+    this._bed = { heights, ncols, nrows };
+    this._sea = new Uint8Array(ncols * nrows);
+    this._stack = new Int32Array(ncols * nrows);
+    const seaTex = new THREE.DataTexture(this._sea, ncols, nrows, THREE.RedFormat);
+    seaTex.minFilter = THREE.NearestFilter;
+    seaTex.magFilter = THREE.NearestFilter;
+    seaTex.wrapS = THREE.ClampToEdgeWrapping;
+    seaTex.wrapT = THREE.ClampToEdgeWrapping;
+    this.uniforms.uSea.value = seaTex;
+    this.uniforms.uHasSea.value = 1;
+    this._maskTide = null;
+  }
+
+  // Flood fill inward from the tile edge across everything under the tide. What
+  // it reaches is sea; a hollow lower than the tide but walled off from it is
+  // dry ground, which is most of the low country behind the beach ridge.
+  _rebuildSeaMask(tide) {
+    const { heights, ncols, nrows } = this._bed;
+    const sea = this._sea, stack = this._stack;
+    sea.fill(0);
+    let top = 0;
+    const push = (idx) => {
+      if (sea[idx] === 0 && heights[idx] < tide) { sea[idx] = 1; stack[top++] = idx; }
+    };
+    for (let j = 0; j < ncols; j++) { push(j); push((nrows - 1) * ncols + j); }
+    for (let i = 0; i < nrows; i++) { push(i * ncols); push(i * ncols + ncols - 1); }
+    while (top > 0) {
+      const idx = stack[--top];
+      const i = (idx / ncols) | 0, j = idx - i * ncols;
+      if (j > 0) push(idx - 1);
+      if (j < ncols - 1) push(idx + 1);
+      if (i > 0) push(idx - ncols);
+      if (i < nrows - 1) push(idx + ncols);
+    }
+    this.uniforms.uSea.value.needsUpdate = true;
+    this._maskTide = tide;
   }
 
   setLevel(y) {
     this.mesh.position.y = y;
     this.far.position.y = y - 0.5; // just under the near plane to avoid z-fighting
     this.uniforms.uLevel.value = y;
+    if (this._bed && (this._maskTide === null ||
+                      Math.abs(y - this._maskTide) > MASK_TIDE_STEP_M)) {
+      this._rebuildSeaMask(y);
+    }
   }
 
   update(t) {

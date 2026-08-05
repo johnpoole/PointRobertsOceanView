@@ -36,6 +36,17 @@ OVERPASS = "https://overpass-api.de/api/interpreter"
 NEAR_BOX = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.00}
 FAR_TERRAIN = "heightmap_far.bin", "meta_far.json"
 
+# The old wharf 547 m due south of the bluff, now only pilings. OpenStreetMap
+# does not have it and NOAA's ENC Direct services return nothing for shoreline
+# construction anywhere near Point Roberts, so it is carried here as a constant.
+# Charted as NOAA ENC cell US4WA1LI, feature SLCONS, LNAM US034625318941680:
+# CATSLC pier (jetty), CONDTN ruined, WATLEV always under water/submerged.
+# Only the position is known — the pilings are too thin to show in 3 m
+# bathymetry, so there is no extent to draw and this stays a marker.
+EXTRA_LANDMARKS = [
+    {"lat": 48.9840947, "lon": -123.0855928, "name": "Old wharf", "kind": "ruined pier"},
+]
+
 QUERY = """
 [out:json][timeout:90];
 (
@@ -197,7 +208,7 @@ def main() -> None:
                 dup["name"] = lm["name"]
             continue
         deduped.append(lm)
-    landmarks = deduped
+    landmarks = deduped + [dict(lm) for lm in EXTRA_LANDMARKS]
 
     far_sample = far_terrain_sampler()
     for lm in landmarks:
