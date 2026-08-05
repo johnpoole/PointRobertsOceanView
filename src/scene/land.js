@@ -13,14 +13,35 @@ const ROAD_WIDTH = { motorway: 10, trunk: 9, primary: 8, secondary: 7, tertiary:
                      residential: 5, unclassified: 5, service: 3.5, track: 3, path: 2.5,
                      footway: 2, cycleway: 2.5 };
 
+// How finely a draped line is cut before being laid on the ground. OSM puts a
+// node wherever a road bends, not wherever the ground does, so half its segments
+// are over 7 m and a twentieth are over 56 m. Left whole, those run straight
+// while the ground rises under them: at one point in a thousand the terrain
+// stands 5.4 m through the ribbon, and at worst 17.6 m. Cutting to about the
+// width of a terrain cell makes the line follow the ground instead, which is
+// what lets the lift come down to a few centimetres.
+const DRAPE_STEP_M = 4;
+
 function ribbon(coordsList, sample, width, lift) {
   // Build a flat draped ribbon (two triangles per segment) for each polyline.
   const pos = [];
   for (const line of coordsList) {
-    const pts = line.map(([lat, lon]) => {
+    const pts = [];
+    const put = (lat, lon) => {
       const w = toWorld(lat, lon, 0);
-      return new THREE.Vector3(w.x, sample(lat, lon) + lift, w.z);
-    });
+      pts.push(new THREE.Vector3(w.x, sample(lat, lon) + lift, w.z));
+    };
+    for (let i = 0; i < line.length - 1; i++) {
+      const [alat, alon] = line[i], [blat, blon] = line[i + 1];
+      const wa = toWorld(alat, alon, 0), wb = toWorld(blat, blon, 0);
+      const steps = Math.max(1, Math.round(Math.hypot(wb.x - wa.x, wb.z - wa.z) / DRAPE_STEP_M));
+      for (let k = 0; k < steps; k++) {
+        const t = k / steps;
+        put(alat + (blat - alat) * t, alon + (blon - alon) * t);
+      }
+    }
+    const end = line[line.length - 1];
+    if (end) put(end[0], end[1]);
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
       const dx = b.x - a.x, dz = b.z - a.z;
@@ -134,11 +155,12 @@ export async function buildLand(scene, sample) {
     if (!byWidth.has(width)) byWidth.set(width, []);
     byWidth.get(width).push(r.coords);
   }
-  // Roads: light ribbons, lifted clear of the terrain and widened so they read
-  // against the land.
+  // Roads: light ribbons laid on the ground and widened so they read against
+  // the land. The lift is only enough to keep them off the terrain surface, not
+  // to clear the rises — the drape does that.
   const roadMat = new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 1, side: THREE.DoubleSide });
   for (const [width, lines] of byWidth) {
-    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * 2.4, 9), 2.0), roadMat);
+    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * 2.4, 9), 0.15), roadMat);
     mesh.renderOrder = 1;
     scene.add(mesh);
   }
@@ -150,7 +172,7 @@ export async function buildLand(scene, sample) {
   const runwayMat = new THREE.MeshStandardMaterial({
     color: 0x7d8b52, roughness: 1, side: THREE.DoubleSide });
   for (const rw of data.runways) {
-    const mesh = new THREE.Mesh(ribbon([rw.coords], sample, rw.width, 2.0), runwayMat);
+    const mesh = new THREE.Mesh(ribbon([rw.coords], sample, rw.width, 0.12), runwayMat);
     mesh.renderOrder = 1;
     mesh.userData.landmark = { name: rw.name, kind: "runway" };
     scene.add(mesh);
@@ -173,7 +195,7 @@ export async function buildLand(scene, sample) {
   // Coastline.
   if (data.coastline.length) {
     const mesh = new THREE.Mesh(
-      ribbon(data.coastline.map((c) => c.coords), sample, 6, 1.0),
+      ribbon(data.coastline.map((c) => c.coords), sample, 6, 0.10),
       new THREE.MeshStandardMaterial({ color: 0xcbb98f, roughness: 1, side: THREE.DoubleSide }));
     scene.add(mesh);
   }
