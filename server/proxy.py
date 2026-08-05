@@ -346,12 +346,17 @@ async def ais_task() -> None:
                 # was not rejected; vessels count as live once one actually lands.
                 log.info("AISStream connected, bbox %s", BBOX)
                 unhandled: set[str] = set()
+                silence_reported = False
                 while True:
                     try:
                         raw = await asyncio.wait_for(ws.recv(), AIS_SILENCE_SECONDS)
                     except asyncio.TimeoutError:
-                        if world.health["vessels"] != "offline":
-                            world.health["vessels"] = "offline"
+                        world.health["vessels"] = "offline"
+                        # Report on the silence itself, not on a change of health.
+                        # Health starts offline, so keying off a transition says
+                        # nothing at all when the feed never delivers to begin with.
+                        if not silence_reported:
+                            silence_reported = True
                             log.error(
                                 "AISStream has sent nothing for %.0fs with the socket "
                                 "still open, so vessels are now reported offline. The "
@@ -375,6 +380,7 @@ async def ais_task() -> None:
                             unhandled.add(kind)
                             log.warning("AISStream sent an unhandled message: %s", raw[:300])
                         continue
+                    silence_reported = False
                     if world.health["vessels"] != "live":
                         world.health["vessels"] = "live"
                         log.info("AISStream delivering positions; vessels live")
