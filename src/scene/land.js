@@ -9,9 +9,16 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld, toWorld } from "../geo.js";
 import { OSM } from "../config.js";
 
-const ROAD_WIDTH = { motorway: 10, trunk: 9, primary: 8, secondary: 7, tertiary: 6,
-                     residential: 5, unclassified: 5, service: 3.5, track: 3, path: 2.5,
-                     footway: 2, cycleway: 2.5 };
+// Roughly what each is on the ground, in metres. Drawn a little over life so a
+// lane still reads at a distance, but not so much that the small ones all come
+// out the same: a 9 m floor used to flatten footway, path, service and track
+// into one width, which is two thirds of every way on the peninsula.
+const ROAD_WIDTH = { motorway: 12, trunk: 10, primary: 8, secondary: 7, tertiary: 6,
+                     residential: 5.5, unclassified: 5, service: 3.5, track: 3,
+                     bridleway: 2, cycleway: 2, path: 1.5, footway: 1.5, steps: 1.2 };
+const ROAD_WIDTH_DEFAULT = 4;
+const ROAD_EXAGGERATION = 1.6;
+const ROAD_MIN_M = 2.0;
 
 // How finely a draped line is cut before being laid on the ground. OSM puts a
 // node wherever a road bends, not wherever the ground does, so half its segments
@@ -151,7 +158,7 @@ export async function buildLand(scene, sample) {
   // Roads, grouped by width class so major roads are wider.
   const byWidth = new Map();
   for (const r of data.roads) {
-    const width = ROAD_WIDTH[r.kind] || 4;
+    const width = ROAD_WIDTH[r.kind] || ROAD_WIDTH_DEFAULT;
     if (!byWidth.has(width)) byWidth.set(width, []);
     byWidth.get(width).push(r.coords);
   }
@@ -160,7 +167,7 @@ export async function buildLand(scene, sample) {
   // to clear the rises — the drape does that.
   const roadMat = new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 1, side: THREE.DoubleSide });
   for (const [width, lines] of byWidth) {
-    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * 2.4, 9), 0.15), roadMat);
+    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * ROAD_EXAGGERATION, ROAD_MIN_M), 0.15), roadMat);
     mesh.renderOrder = 1;
     scene.add(mesh);
   }
