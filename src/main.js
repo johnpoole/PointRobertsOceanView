@@ -18,6 +18,7 @@ import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
 import { Audio } from "./audio.js";
+import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
 
 const canvas = document.getElementById("scene");
@@ -98,6 +99,10 @@ for (const spec of VEHICLES) {
 }
 const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 
+// Navigating on foot is guesswork without one — every road looks alike from
+// 1.6 m up.
+const overview = new OverviewMap(document.getElementById("overview"));
+
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 let landmarkPicks = [];
@@ -114,6 +119,7 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
     return buildLand(scene, near.sample).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;
+      overview.build(land.features);
     });
   })
   .catch((err) => console.error("near terrain / land failed:", err));
@@ -279,8 +285,10 @@ for (const [id, label, note] of [
   chooserBtns.appendChild(b);
 }
 document.getElementById("mode-btn").addEventListener("click", () => chooser.classList.remove("hidden"));
+document.getElementById("map-btn").addEventListener("click", () => overview.toggle());
 window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
+  if (e.code === "KeyO") overview.toggle();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.
@@ -314,6 +322,7 @@ const showSound = (on) => { soundBtn.textContent = on ? "sound on" : "sound off"
 audio.onChange(showSound);
 showSound(audio.enabled);
 
+const lookDir = new THREE.Vector3();
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -329,6 +338,18 @@ function frame() {
   weather.update(dt, camera);
 
   nav.update(dt);
+
+  // Whatever is carrying you is what the map should mark.
+  if (overview.visible) {
+    const who = nav.mode === "boat" ? nav.boat : (nav.mode === "vehicle" ? nav.rider : null);
+    if (who) {
+      overview.update(who.pos.x, who.pos.z, who.yaw);
+    } else {
+      camera.getWorldDirection(lookDir);
+      overview.update(camera.position.x, camera.position.z,
+        Math.atan2(-lookDir.x, -lookDir.z));
+    }
+  }
 
   if (t >= waterScanDue) { waterScanDue = t + WATER_SCAN_SECONDS; scanWaterDistance(); }
   const wx = feed.weather && feed.weather.data;

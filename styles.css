@@ -163,3 +163,18 @@ html, body {
 }
 .chooser-btn:hover { background: rgba(255, 255, 255, 0.12); }
 .chooser-btn .cb-note { color: var(--dim); float: right; }
+
+/* Overview map. Sits above the tide readout, bottom left. */
+.overview {
+  position: fixed;
+  left: 14px;
+  bottom: 148px;
+  width: 260px;
+  height: 260px;
+  background: rgba(8, 16, 24, 0.78);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 5;
+}
+.overview.hidden { display: none; }

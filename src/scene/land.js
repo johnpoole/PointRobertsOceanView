@@ -235,5 +235,6 @@ export async function buildLand(scene, sample) {
     scene.add(group);
     markers.push(group);
   }
-  return { landmarks: markers.concat(runwayMeshes, pierMeshes), pilings: pilingPosts };
+  return { landmarks: markers.concat(runwayMeshes, pierMeshes), pilings: pilingPosts,
+           features: data };
 }
