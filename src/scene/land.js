@@ -61,32 +61,37 @@ function buildings(list, sample) {
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }
 
-// Posts stood along a ruined pier's charted outline. The chart gives the
-// footprint but no piling positions or height, so the spacing and the top are
-// drawing choices: the top sits about a metre over MHHW so the posts still
-// show at high water, which is how the wharf reads from the bluff.
-const PILING_SPACING_M = 7;
+// Posts along a ruined pier. The line and the 5 m spacing are measured off
+// aerial imagery; the top is not, because no source gives a height. It sits
+// about a metre over MHHW so the posts still show at high water, which is how
+// the wharf reads from the bluff.
+const PILING_SPACING_M = 5;
 const PILING_TOP_M = 4.0;      // metres MLLW
 const PILING_RADIUS_M = 0.45;
 
-function pilings(outline, sample) {
+// line is an open polyline, not a ring: a row of posts, not a perimeter.
+function pilings(line, sample) {
   const geoms = [];
-  for (let i = 0; i < outline.length; i++) {
-    const a = outline[i], b = outline[(i + 1) % outline.length];
+  const post = (lat, lon) => {
+    const bed = sample(lat, lon);
+    if (PILING_TOP_M <= bed) return;  // already dry ground here
+    const h = PILING_TOP_M - bed;
+    const g = new THREE.CylinderGeometry(PILING_RADIUS_M, PILING_RADIUS_M, h, 5, 1);
+    const w = toWorld(lat, lon, 0);
+    g.translate(w.x, bed + h / 2, w.z);
+    geoms.push(g);
+  };
+  for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i], b = line[i + 1];
     const wa = toWorld(a[0], a[1], 0), wb = toWorld(b[0], b[1], 0);
     const steps = Math.max(1, Math.round(Math.hypot(wb.x - wa.x, wb.z - wa.z) / PILING_SPACING_M));
     for (let k = 0; k < steps; k++) {
       const t = k / steps;
-      const lat = a[0] + (b[0] - a[0]) * t, lon = a[1] + (b[1] - a[1]) * t;
-      const bed = sample(lat, lon);
-      if (PILING_TOP_M <= bed) continue; // already dry ground here
-      const h = PILING_TOP_M - bed;
-      const g = new THREE.CylinderGeometry(PILING_RADIUS_M, PILING_RADIUS_M, h, 5, 1);
-      const w = toWorld(lat, lon, 0);
-      g.translate(w.x, bed + h / 2, w.z);
-      geoms.push(g);
+      post(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
     }
   }
+  const end = line[line.length - 1];
+  post(end[0], end[1]);
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }
 
@@ -144,7 +149,7 @@ export async function buildLand(scene, sample) {
   const pierMeshes = [];
   const pilingMat = new THREE.MeshStandardMaterial({ color: 0x53483c, roughness: 1 });
   for (const p of data.ruined_piers) {
-    const geom = pilings(p.outline, sample);
+    const geom = pilings(p.line, sample);
     if (!geom) continue;
     const mesh = new THREE.Mesh(geom, pilingMat);
     mesh.userData.landmark = { name: p.name, kind: "ruined pier" };

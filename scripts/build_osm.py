@@ -38,26 +38,28 @@ OVERPASS = "https://overpass-api.de/api/interpreter"
 NEAR_BOX = {"min_lon": -123.13, "max_lon": -123.02, "min_lat": 48.97, "max_lat": 49.00}
 FAR_TERRAIN = "heightmap_far.bin", "meta_far.json"
 
-# The old wharf south of the bluff, now only pilings. OpenStreetMap does not
-# have it and NOAA's ENC Direct and chart REST services return nothing for
-# shoreline construction anywhere near Point Roberts, so the outline was read
-# out of the S-57 cell itself: NOAA ENC US4WA1LI, two adjoining SLCONS area
-# features (object class 122), CATSLC pier (jetty), CONDTN ruined. Vertices
-# decoded from the SG2D fields with COMF 1e7 and reduced to their hull. The
-# charted structure runs 255 m east to west by 58 m, out into the water.
+# The old wharf south of the bluff, now only pilings.
 #
-# The chart gives no height, only WATLEV "always under water/submerged", which
-# describes the deck rather than the posts still standing. PILING_TOP_M below
-# is a drawing choice, not a survey.
+# The chart's own geometry is no good for drawing it. NOAA ENC US4WA1LI carries
+# it as two adjoining SLCONS areas (object class 122, CATSLC pier (jetty),
+# CONDTN ruined), but those are a 255 x 58 m bounding box around the structure,
+# not its shape, so drawing their outline stood posts round a large rectangle
+# that is not there.
+#
+# Measured instead off USGS NAIP aerial imagery at 0.146 m/pixel. The pilings
+# read as a single row of dark dots at a constant latitude: the row sits at
+# 48.98421, runs due east and west, and the darkness profile along it rises out
+# of the open-water baseline at -123.08667 and falls back at -123.08460. That is
+# a 151 m line carrying about 30 posts, near enough 5 m apart. The ENC box
+# centre and this line's centre agree to within a few metres.
+#
+# Neither source gives a height. The chart says only WATLEV "always under water
+# /submerged", which describes the deck and not the posts left standing, so
+# PILING_TOP_M is a drawing choice.
 RUINED_PIERS = [
     {
         "name": "Old wharf",
-        "outline": [
-            [48.9839980, -123.0871466], [48.9840484, -123.0843264],
-            [48.9840659, -123.0836566], [48.9845209, -123.0837609],
-            [48.9845068, -123.0844706], [48.9844296, -123.0869643],
-            [48.9844239, -123.0871466],
-        ],
+        "line": [[48.9842144, -123.086670], [48.9842144, -123.084600]],
     },
 ]
 
@@ -104,16 +106,29 @@ def far_terrain_sampler():
         )
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     grid = meta["grid"]
-    values = array.array("f")
+    # The tile is stored as int16 decimetres; read whatever it says it is.
+    code = {"int16": "h", "float32": "f"}.get(grid.get("dtype"))
+    if code is None:
+        raise RuntimeError(
+            f"{meta_path}: grid dtype is {grid.get('dtype')!r}, expected int16 "
+            f"or float32. Rerun scripts/build_terrain.py."
+        )
+    scale = grid.get("scale_m", 1.0)
+    values = array.array(code)
     values.frombytes(bin_path.read_bytes())
     nrows, ncols = grid["nrows"], grid["ncols"]
+    if len(values) != nrows * ncols:
+        raise RuntimeError(
+            f"{bin_path} holds {len(values)} {grid['dtype']} values but "
+            f"{meta_path} says {nrows}x{ncols}={nrows * ncols}."
+        )
 
     def sample(lat: float, lon: float) -> float:
         i = round((grid["north_lat"] - lat) / grid["cellsize_deg"])
         j = round((lon - grid["west_lon"]) / grid["cellsize_deg"])
         if not (0 <= i < nrows and 0 <= j < ncols):
             raise ValueError(f"({lat}, {lon}) is outside the far terrain tile")
-        return values[i * ncols + j]
+        return values[i * ncols + j] * scale
 
     return sample
 
