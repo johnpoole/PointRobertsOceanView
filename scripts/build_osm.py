@@ -30,6 +30,12 @@ BBOX = (48.968, -123.098, 49.006, -123.020)
 # north. Pull it on its own so the peninsula query stays small — a full bbox out
 # to Tsawwassen would drag in all of Delta's roads and buildings.
 FERRY_BBOX = (48.998, -123.145, 49.012, -123.120)
+# The surveyed border, 229 m north of the geodetic 49th parallel (OSM way
+# 229415789). Roads and buildings are pulled past it so Tsawwassen is there to
+# look at, but a landmark north of it is in Canada and is not a Point Roberts
+# landmark — Diefenbaker Park was arriving that way. The ferry terminal is over
+# the line on purpose and has its own query above.
+BORDER_LAT = 49.00206
 OVERPASS = "https://overpass-api.de/api/interpreter"
 
 # Landmarks outside the near terrain tile cannot be draped on it — sampling
@@ -73,12 +79,12 @@ QUERY = """
   way["highway"]({s},{w},{n},{e});
   way["building"]({s},{w},{n},{e});
   way["natural"="coastline"]({s},{w},{n},{e});
-  way["man_made"="lighthouse"]({s},{w},{n},{e});
-  node["man_made"="lighthouse"]({s},{w},{n},{e});
-  way["leisure"="marina"]({s},{w},{n},{e});
-  node["leisure"="marina"]({s},{w},{n},{e});
-  way["leisure"="park"]["name"]({s},{w},{n},{e});
-  way["aeroway"="aerodrome"]({s},{w},{n},{e});
+  way["man_made"="lighthouse"]({s},{w},{b},{e});
+  node["man_made"="lighthouse"]({s},{w},{b},{e});
+  way["leisure"="marina"]({s},{w},{b},{e});
+  node["leisure"="marina"]({s},{w},{b},{e});
+  way["leisure"="park"]["name"]({s},{w},{b},{e});
+  way["aeroway"="aerodrome"]({s},{w},{b},{e});
   way["aeroway"="runway"]({s},{w},{n},{e});
   way["amenity"="ferry_terminal"]({fs},{fw},{fn},{fe});
 );
@@ -88,6 +94,7 @@ out geom;
 
 def fetch() -> dict:
     query = QUERY.format(s=BBOX[0], w=BBOX[1], n=BBOX[2], e=BBOX[3],
+                         b=BORDER_LAT,
                          fs=FERRY_BBOX[0], fw=FERRY_BBOX[1],
                          fn=FERRY_BBOX[2], fe=FERRY_BBOX[3])
     body = urllib.parse.urlencode({"data": query}).encode("utf-8")
