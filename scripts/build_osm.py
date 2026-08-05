@@ -47,6 +47,7 @@ QUERY = """
   way["leisure"="marina"]({s},{w},{n},{e});
   node["leisure"="marina"]({s},{w},{n},{e});
   way["leisure"="park"]["name"]({s},{w},{n},{e});
+  way["aeroway"="aerodrome"]({s},{w},{n},{e});
   way["amenity"="ferry_terminal"]({fs},{fw},{fn},{fe});
 );
 out geom;
@@ -147,6 +148,10 @@ def main() -> None:
             pt = [el["lat"], el["lon"]] if el["type"] == "node" else centroid(coords(el))
             landmarks.append({"lat": pt[0], "lon": pt[1],
                               "name": tags.get("name", "Marina"), "kind": "marina"})
+        elif tags.get("aeroway") == "aerodrome":
+            pt = [el["lat"], el["lon"]] if el["type"] == "node" else centroid(coords(el))
+            landmarks.append({"lat": pt[0], "lon": pt[1],
+                              "name": tags.get("name", "Airfield"), "kind": "airfield"})
         elif tags.get("amenity") == "ferry_terminal":
             pt = [el["lat"], el["lon"]] if el["type"] == "node" else centroid(coords(el))
             landmarks.append({"lat": pt[0], "lon": pt[1],
