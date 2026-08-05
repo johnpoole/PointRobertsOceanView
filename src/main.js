@@ -16,6 +16,7 @@ import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { buildBoat } from "./scene/boat.js";
 import { Nav } from "./nav.js";
+import { Audio } from "./audio.js";
 import { fromWorld, toWorld } from "./geo.js";
 
 const canvas = document.getElementById("scene");
@@ -258,6 +259,37 @@ PRESETS.forEach((p, i) => {
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
 document.getElementById("boat-btn").addEventListener("click", () => nav.toggleBoat());
 
+// How far the nearest water is from the camera, which the surf volume rides on.
+// The tide moves it a long way — the waterline below the bluff sits 99 m out at
+// a 0.5 m tide and 43 m at 3.5 m — so it has to be re-measured, but a coarse
+// ring search twice a second is plenty for a volume knob.
+const WATER_SCAN_SECONDS = 0.5;
+const WATER_SCAN_MAX_M = 900;
+const WATER_SCAN_STEP_M = 25;
+let waterDistance = WATER_SCAN_MAX_M;
+let waterScanDue = 0;
+function scanWaterDistance() {
+  if (!groundSample) return;
+  const cx = camera.position.x, cz = camera.position.z;
+  for (let r = 0; r <= WATER_SCAN_MAX_M; r += WATER_SCAN_STEP_M) {
+    const steps = r === 0 ? 1 : Math.max(8, Math.round((2 * Math.PI * r) / WATER_SCAN_STEP_M));
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+      const { lat, lon } = fromWorld(x, z);
+      if (tideLevel() - groundSample(lat, lon) > 0) { waterDistance = r; return; }
+    }
+  }
+  waterDistance = WATER_SCAN_MAX_M;
+}
+
+const audio = new Audio();
+const soundBtn = document.getElementById("sound-btn");
+soundBtn.addEventListener("click", () => audio.toggle());
+const showSound = (on) => { soundBtn.textContent = on ? "sound on" : "sound off"; };
+audio.onChange(showSound);
+showSound(audio.enabled);
+
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -273,6 +305,17 @@ function frame() {
   weather.update(dt, camera);
 
   nav.update(dt);
+
+  if (t >= waterScanDue) { waterScanDue = t + WATER_SCAN_SECONDS; scanWaterDistance(); }
+  const wx = feed.weather && feed.weather.data;
+  audio.update(dt, {
+    waveHeightM: wx ? wx.wave_height_m : null,
+    wavePeriodS: wx ? wx.wave_period_s : null,
+    waterDistanceM: waterDistance,
+    listenerHeightM: camera.position.y - level,
+    boat: nav.mode === "boat" ? nav.boat : null,
+  });
+
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }

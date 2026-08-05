@@ -68,7 +68,8 @@ export class Nav {
     this.hullHole = opts.hullHole || null;
     // obstacles() -> [{ x, z, r }] : pilings, other vessels, anything solid.
     this.obstacles = opts.obstacles || null;
-    this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0 };
+    this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0,
+                  throttle: 0, planing: 0, maxSpeed: BOAT_MAX_MPS };
     this._euler = new THREE.Euler(0, 0, 0, "YXZ");
     this._offset = new THREE.Vector3();
     this.mode = "orbit";
@@ -180,6 +181,8 @@ export class Nav {
     // Yaw grows counter-clockwise from above, so starboard is yaw decreasing.
     const tiller = (this.keys.KeyA ? 1 : 0) - (this.keys.KeyD ? 1 : 0);
     const planing = smoothstep(BOAT_PLANE_MPS, BOAT_MAX_MPS, b.speed);
+    b.throttle = throttle;   // the engine note is driven off these
+    b.planing = planing;
     // An outboard steers on thrust, not on speed through the water, so the boat
     // still pivots with the throttle open and no way on — which is what gets it
     // off a piling it has stopped against.
