@@ -48,6 +48,7 @@ QUERY = """
   node["leisure"="marina"]({s},{w},{n},{e});
   way["leisure"="park"]["name"]({s},{w},{n},{e});
   way["aeroway"="aerodrome"]({s},{w},{n},{e});
+  way["aeroway"="runway"]({s},{w},{n},{e});
   way["amenity"="ferry_terminal"]({fs},{fw},{fn},{fe});
 );
 out geom;
@@ -107,6 +108,17 @@ def centroid(pts: list[list[float]]) -> list[float]:
     return [lat, lon]
 
 
+def runway_width(tags: dict) -> float:
+    """Metres. OSM tags the width on 1RL; fall back to the narrowest strip a
+    light aircraft field would have rather than guess wide."""
+    if "width" in tags:
+        try:
+            return float(str(tags["width"]).split()[0])
+        except ValueError:
+            pass
+    return 18.0
+
+
 def building_height(tags: dict) -> float:
     if "height" in tags:
         try:
@@ -126,6 +138,7 @@ def main() -> None:
     elements = result.get("elements", [])
 
     roads, buildings, coastline, landmarks = [], [], [], []
+    aerodromes, runways = [], []
     for el in elements:
         tags = el.get("tags", {})
         if el["type"] == "way" and "highway" in tags:
@@ -150,8 +163,14 @@ def main() -> None:
                               "name": tags.get("name", "Marina"), "kind": "marina"})
         elif tags.get("aeroway") == "aerodrome":
             pt = [el["lat"], el["lon"]] if el["type"] == "node" else centroid(coords(el))
-            landmarks.append({"lat": pt[0], "lon": pt[1],
-                              "name": tags.get("name", "Airfield"), "kind": "airfield"})
+            aerodromes.append({"lat": pt[0], "lon": pt[1],
+                               "name": tags.get("name", "Airfield")})
+        elif tags.get("aeroway") == "runway":
+            pts = coords(el)
+            if len(pts) >= 2:
+                runways.append({"coords": pts, "ref": tags.get("ref"),
+                                "width": runway_width(tags),
+                                "surface": tags.get("surface")})
         elif tags.get("amenity") == "ferry_terminal":
             pt = [el["lat"], el["lon"]] if el["type"] == "node" else centroid(coords(el))
             landmarks.append({"lat": pt[0], "lon": pt[1],
@@ -185,15 +204,27 @@ def main() -> None:
         if outside_near_tile(lm["lat"], lm["lon"]):
             lm["elev"] = round(far_sample(lm["lat"], lm["lon"]), 2)
 
+    # The runway carries the field's name so hovering it reads like a landmark.
+    # OSM names the aerodrome, not the strip.
+    for rw in runways:
+        mid = centroid(rw["coords"])
+        near = min(aerodromes, key=lambda a: metres(a, {"lat": mid[0], "lon": mid[1]}),
+                   default=None)
+        rw["name"] = near["name"] if near else "Runway"
+
     out = {"bbox": BBOX, "roads": roads, "buildings": buildings,
-           "coastline": coastline, "landmarks": landmarks}
+           "coastline": coastline, "landmarks": landmarks, "runways": runways}
     out_dir = Path(__file__).resolve().parents[1] / "assets" / "osm"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "features.json").write_text(json.dumps(out), encoding="utf-8")
     print(f"roads {len(roads)}  buildings {len(buildings)}  "
-          f"coastline {len(coastline)}  landmarks {len(landmarks)}")
+          f"coastline {len(coastline)}  landmarks {len(landmarks)}  "
+          f"runways {len(runways)}")
     for lm in landmarks:
         print(f"  landmark: {lm['kind']:10} {lm['name']}  ({lm['lat']:.4f},{lm['lon']:.4f})")
+    for rw in runways:
+        print(f"  runway:   {rw['ref'] or '?':10} {rw['name']}  "
+              f"{rw['width']:.0f} m wide, {rw['surface'] or 'unknown'}")
 
 
 if __name__ == "__main__":

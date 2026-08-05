@@ -97,6 +97,20 @@ export async function buildLand(scene, sample) {
     scene.add(mesh);
   }
 
+  // Runways: drawn at their real tagged width, not the exaggerated road width.
+  // 1RL's strip is 46 m across and 731 m long, which reads plainly from the
+  // bluff without help. Mown grass against the rougher field around it.
+  const runwayMeshes = [];
+  const runwayMat = new THREE.MeshStandardMaterial({
+    color: 0x7d8b52, roughness: 1, side: THREE.DoubleSide });
+  for (const rw of data.runways) {
+    const mesh = new THREE.Mesh(ribbon([rw.coords], sample, rw.width, 2.0), runwayMat);
+    mesh.renderOrder = 1;
+    mesh.userData.landmark = { name: rw.name, kind: "runway" };
+    scene.add(mesh);
+    runwayMeshes.push(mesh);
+  }
+
   // Coastline.
   if (data.coastline.length) {
     const mesh = new THREE.Mesh(
@@ -133,5 +147,5 @@ export async function buildLand(scene, sample) {
     scene.add(group);
     markers.push(group);
   }
-  return { landmarks: markers };
+  return { landmarks: markers.concat(runwayMeshes) };
 }
