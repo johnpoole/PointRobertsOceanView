@@ -92,7 +92,6 @@ html, body {
 .offline-sub { color: var(--dim); margin-top: 4px; }
 
 .hud-views { bottom: 40px; right: 14px; pointer-events: auto; }
-.view-btns { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
 .view-btn {
   font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
   color: var(--ink);

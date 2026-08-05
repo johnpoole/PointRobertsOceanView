@@ -1,5 +1,5 @@
 // Camera navigation. Three modes over the existing OrbitControls:
-//   orbit - the default look-around, plus smooth tweens to preset viewpoints.
+//   orbit - the default look-around.
 //   fly   - free flight: pointer-lock mouse look, WASD along the look direction,
 //           Q/E down/up, Shift to go fast.
 //   boat  - a 12 ft aluminium boat with a 4.5 hp outboard. W throttles, A and D
@@ -15,7 +15,6 @@ import { PointerLockControls } from "three/addons/controls/PointerLockControls.j
 import { BOAT } from "./scene/boat.js";
 import { toWorld } from "./geo.js";
 
-const TWEEN_SECONDS = 1.1;
 const FLY_SPEED = 60;   // m/s
 const FAST_SPEED = 260;
 // How far above the surface the camera is stopped. Kept under the bluff's
@@ -53,10 +52,6 @@ function smoothstep(a, b, x) {
   return t * t * (3 - 2 * t);
 }
 
-function easeInOut(t) {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-}
-
 export class Nav {
   constructor(camera, dom, orbit, opts = {}) {
     this.camera = camera;
@@ -80,7 +75,6 @@ export class Nav {
     this._euler = new THREE.Euler(0, 0, 0, "YXZ");
     this._offset = new THREE.Vector3();
     this.mode = "orbit";
-    this.tween = null;
     this.keys = {};
     this._dir = new THREE.Vector3();
     this._right = new THREE.Vector3();
@@ -94,23 +88,12 @@ export class Nav {
     window.addEventListener("keyup", (e) => this._key(e, false));
   }
 
-  goTo(view) {
-    if (this.mode === "fly") { if (this.lock.isLocked) this.lock.unlock(); this._setOrbit(); }
-    this.orbit.enabled = false;
-    this.tween = {
-      t: 0,
-      fromP: this.camera.position.clone(), toP: view.position.clone(),
-      fromT: this.orbit.target.clone(), toT: view.target.clone(),
-    };
-  }
-
   toggleFly() {
     if (this.mode === "fly") {
       if (this.lock.isLocked) this.lock.unlock(); // unlock event -> orbit
       else this._setOrbit();
       return;
     }
-    this.tween = null;
     this.orbit.enabled = false;
     this.mode = "fly";
     this.onMode("fly");
@@ -138,7 +121,6 @@ export class Nav {
   toggleBoat(start) {
     if (this.mode === "boat") { this._setOrbit(); return; }
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
-    this.tween = null;
     this.orbit.enabled = false;
     if (this.vehicleMesh) this.vehicleMesh.visible = false;
     this.vehicle = null;
@@ -225,7 +207,6 @@ export class Nav {
   // the bonnet and a walker sees from head height.
   enterVehicle(spec, avatar) {
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
-    this.tween = null;
     this.orbit.enabled = false;
     if (this.boatMesh) this.boatMesh.visible = false;
     if (this.hullHole) this.hullHole(null);
@@ -428,8 +409,6 @@ export class Nav {
     if (!down) return;
     if (e.code === "KeyV") this.toggleFly();
     if (e.code === "KeyB") this.toggleBoat();
-    const m = /^Digit([1-9])$/.exec(e.code);
-    if (m && this.onPreset) this.onPreset(Number(m[1]) - 1);
   }
 
   _flyStep(dt) {
@@ -454,16 +433,6 @@ export class Nav {
   }
 
   update(dt) {
-    if (this.tween) {
-      this.tween.t = Math.min(this.tween.t + dt / TWEEN_SECONDS, 1);
-      const e = easeInOut(this.tween.t);
-      this.camera.position.lerpVectors(this.tween.fromP, this.tween.toP, e);
-      this.orbit.target.lerpVectors(this.tween.fromT, this.tween.toT, e);
-      this._clampFloor();
-      this.camera.lookAt(this.orbit.target);
-      if (this.tween.t >= 1) { this.tween = null; this.orbit.enabled = true; }
-      return;
-    }
     // No floor clamp in boat mode: the boat already floats on the surface, and the
     // clamp would shove the camera up off the transom.
     if (this.mode === "vehicle") { this._vehicleStep(dt); return; }

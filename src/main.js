@@ -210,25 +210,7 @@ function resize() {
   renderer.setSize(w, h);
 }
 
-// Navigation: preset viewpoints (tween) and a free-fly mode.
-const PRESETS = [
-  // eye is metres above ground. The bluff here stands 18.5 m above MLLW, so 1.5
-  // puts the camera back where it starts, at EYE_HEIGHT_M above sea level.
-  { name: "Bluff", lat: 48.989009, lon: -123.085318, eye: 1.5, lookLat: 48.989, lookLon: -123.20 },
-  { name: "Lighthouse", lat: 48.9728, lon: -123.0821, eye: 7, lookLat: 48.962, lookLon: -123.11 },
-  { name: "Marina", lat: 48.9773, lon: -123.0633, eye: 9, lookLat: 48.981, lookLon: -123.045 },
-  { name: "Above town", lat: 48.986, lon: -123.073, eye: 750, lookLat: 48.9861, lookLon: -123.0731 },
-  { name: "Shipping lane", lat: 48.992, lon: -123.135, eye: 35, lookLat: 48.99, lookLon: -123.36 },
-];
-function groundY(lat, lon) {
-  return groundSample ? Math.max(groundSample(lat, lon), 0) : 0;
-}
-function toView(p) {
-  const pos = toWorld(p.lat, p.lon, groundY(p.lat, p.lon) + p.eye);
-  const t = toWorld(p.lookLat, p.lookLon, groundY(p.lookLat, p.lookLon));
-  return { position: new THREE.Vector3(pos.x, pos.y, pos.z), target: new THREE.Vector3(t.x, t.y, t.z) };
-}
-
+// Navigation: a free-fly camera alongside whichever vehicle you are in.
 const nav = new Nav(camera, renderer.domElement, controls, {
   onMode: (m, spec) => {
     document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
@@ -260,20 +242,10 @@ const nav = new Nav(camera, renderer.domElement, controls, {
     return Math.max(ground, tideLevel());
   },
 });
-nav.onPreset = (i) => { if (PRESETS[i]) nav.goTo(toView(PRESETS[i])); };
-
-const viewBtns = document.getElementById("view-btns");
-PRESETS.forEach((p, i) => {
-  const b = document.createElement("button");
-  b.className = "view-btn";
-  b.textContent = `${i + 1}  ${p.name}`;
-  b.addEventListener("click", () => nav.goTo(toView(p)));
-  viewBtns.appendChild(b);
-});
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
 // How you are getting about has to be chosen before the world is yours to move
-// in. The free camera stays: orbit, the view presets and fly all still work once
-// you are in, and "look around" picks that instead of a vehicle.
+// in. The free camera stays: "look around" picks it instead of a vehicle, and
+// fly still works once you are in.
 const chooser = document.getElementById("chooser");
 const chooserBtns = document.getElementById("chooser-btns");
 const modeHint = document.getElementById("boat-hint");
