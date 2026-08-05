@@ -10,3 +10,7 @@ __pycache__/
 
 # Terrain build scratch (raw tiles); the baked asset under assets/ is committed
 scripts/_tiles/
+
+# Per-host compose settings. The Basement server publishes on 8091, not the
+# 8090 in docker-compose.yml, so it keeps an override here that git leaves alone.
+docker-compose.override.yml
