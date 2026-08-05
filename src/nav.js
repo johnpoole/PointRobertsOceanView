@@ -169,6 +169,36 @@ export class Nav {
     }
   }
 
+  // The boat does not drive up the beach. If a step would land it on dry ground,
+  // strip the part of the move heading ashore and let it slide along the shore
+  // instead; if even that is aground, it stops. Sitting on the line is fine —
+  // this only blocks travelling over land.
+  _keepAfloat(fromX, fromZ) {
+    if (!this.seaAt) return;
+    const b = this.boat;
+    if (!this.seaAt(b.pos.x, b.pos.z).aground) return;
+
+    const dx = b.pos.x - fromX, dz = b.pos.z - fromZ;
+    const d = 3;
+    const gx = this.seaAt(b.pos.x + d, b.pos.z).y - this.seaAt(b.pos.x - d, b.pos.z).y;
+    const gz = this.seaAt(b.pos.x, b.pos.z + d).y - this.seaAt(b.pos.x, b.pos.z - d).y;
+    const gl = Math.hypot(gx, gz);
+    if (gl > 1e-6) {
+      const ux = gx / gl, uz = gz / gl;   // uphill, so away from the water
+      const into = dx * ux + dz * uz;
+      if (into > 0) {
+        const tx = fromX + (dx - ux * into), tz = fromZ + (dz - uz * into);
+        if (!this.seaAt(tx, tz).aground) {
+          b.pos.x = tx; b.pos.z = tz;
+          b.speed *= 0.75;                // dragging along the beach costs way
+          return;
+        }
+      }
+    }
+    b.pos.x = fromX; b.pos.z = fromZ;
+    b.speed = 0;
+  }
+
   _boatStep(dt) {
     const b = this.boat;
 
@@ -193,9 +223,11 @@ export class Nav {
     );
     b.yaw -= tiller * BOAT_YAW_MAX * bite * dt;
 
+    const fromX = b.pos.x, fromZ = b.pos.z;
     b.pos.x += -Math.sin(b.yaw) * b.speed * dt;
     b.pos.z += -Math.cos(b.yaw) * b.speed * dt;
     this._resolveCollisions();
+    this._keepAfloat(fromX, fromZ);
 
     // Bow up to the hump, then down as it comes onto plane.
     const hump = smoothstep(0, BOAT_PLANE_MPS, b.speed);
