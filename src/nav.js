@@ -42,6 +42,8 @@ const BOW_CLEAR_M = 0.06;                  // forefoot held this far clear of it
 const LAUNCH_SEARCH_M = 2000;              // how far to look for water
 const LAUNCH_STEP_M = 10;                  // spacing of the search
 const LAUNCH_DEPTH_M = 0.4;                // enough under it to float clear
+const AIR_START_M = 60;                    // height an aircraft is entered at
+const AIR_FLOOR_M = 3;                     // and how close to the ground it may fly
 const HELM_AFT_M = 1.25;                   // the tiller seat, aft of centre
 const HELM_EYE_M = 1.00;                   // eye above the waterline, seated
 
@@ -70,6 +72,10 @@ export class Nav {
     this.obstacles = opts.obstacles || null;
     this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0,
                   throttle: 0, planing: 0, maxSpeed: BOAT_MAX_MPS };
+    // Walking, bicycle, golf cart, ultralight all ride on this one.
+    this.rider = { yaw: 0, speed: 0, pos: new THREE.Vector3(), pitch: 0, roll: 0 };
+    this.vehicle = null;
+    this.vehicleMesh = null;
     this._euler = new THREE.Euler(0, 0, 0, "YXZ");
     this._offset = new THREE.Vector3();
     this.mode = "orbit";
@@ -133,6 +139,8 @@ export class Nav {
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
     this.tween = null;
     this.orbit.enabled = false;
+    if (this.vehicleMesh) this.vehicleMesh.visible = false;
+    this.vehicle = null;
     this.camera.getWorldDirection(this._dir);
     const b = this.boat;
     b.yaw = Math.atan2(-this._dir.x, -this._dir.z);
@@ -169,34 +177,147 @@ export class Nav {
     }
   }
 
-  // The boat does not drive up the beach. If a step would land it on dry ground,
-  // strip the part of the move heading ashore and let it slide along the shore
-  // instead; if even that is aground, it stops. Sitting on the line is fine —
-  // this only blocks travelling over land.
-  _keepAfloat(fromX, fromZ) {
+  // Hold a thing to its own element. The boat may not drive up the beach and a
+  // golf cart may not drive into the sea; it is the same rule read either way
+  // round. A step that lands in the wrong element has the part crossing the
+  // shoreline stripped out, so it slides along the water's edge instead, and if
+  // even that is wrong it stops. Resting on the line itself is allowed — this
+  // only blocks travelling through the other element.
+  //
+  // pos is mutated in place and carries a speed the caller owns.
+  _confine(pos, fromX, fromZ, wantAground, scrub) {
     if (!this.seaAt) return;
-    const b = this.boat;
-    if (!this.seaAt(b.pos.x, b.pos.z).aground) return;
+    const ok = (x, z) => this.seaAt(x, z).aground === wantAground;
+    if (ok(pos.x, pos.z)) return;
 
-    const dx = b.pos.x - fromX, dz = b.pos.z - fromZ;
+    const dx = pos.x - fromX, dz = pos.z - fromZ;
     const d = 3;
-    const gx = this.seaAt(b.pos.x + d, b.pos.z).y - this.seaAt(b.pos.x - d, b.pos.z).y;
-    const gz = this.seaAt(b.pos.x, b.pos.z + d).y - this.seaAt(b.pos.x, b.pos.z - d).y;
+    // Uphill from where it ended up. Dry ground is up, so a boat is pushed back
+    // downhill and a land vehicle back uphill — the sign falls out of wantAground.
+    const gx = this.seaAt(pos.x + d, pos.z).y - this.seaAt(pos.x - d, pos.z).y;
+    const gz = this.seaAt(pos.x, pos.z + d).y - this.seaAt(pos.x, pos.z - d).y;
     const gl = Math.hypot(gx, gz);
     if (gl > 1e-6) {
-      const ux = gx / gl, uz = gz / gl;   // uphill, so away from the water
+      const s = wantAground ? -1 : 1;
+      const ux = (gx / gl) * s, uz = (gz / gl) * s;
       const into = dx * ux + dz * uz;
       if (into > 0) {
         const tx = fromX + (dx - ux * into), tz = fromZ + (dz - uz * into);
-        if (!this.seaAt(tx, tz).aground) {
-          b.pos.x = tx; b.pos.z = tz;
-          b.speed *= 0.75;                // dragging along the beach costs way
-          return;
-        }
+        if (ok(tx, tz)) { pos.x = tx; pos.z = tz; return scrub; }
       }
     }
-    b.pos.x = fromX; b.pos.z = fromZ;
-    b.speed = 0;
+    pos.x = fromX; pos.z = fromZ;
+    return 0;
+  }
+
+  _keepAfloat(fromX, fromZ) {
+    const b = this.boat;
+    const keep = this._confine(b.pos, fromX, fromZ, false, 0.75);
+    if (keep !== undefined) b.speed *= keep;
+  }
+
+  // Walking, bicycle, golf cart, ultralight. The boat keeps its own step because
+  // it has real hydrodynamics — trim, planing, riding the swell — that none of
+  // these need. W drives, A and D steer, and in the air Q and E lose or gain
+  // height. The camera sits at the vehicle's own eye, so a cart driver sees over
+  // the bonnet and a walker sees from head height.
+  enterVehicle(spec, avatar) {
+    if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
+    this.tween = null;
+    this.orbit.enabled = false;
+    if (this.boatMesh) this.boatMesh.visible = false;
+    if (this.hullHole) this.hullHole(null);
+    if (this.vehicleMesh) this.vehicleMesh.visible = false;
+
+    this.vehicle = spec;
+    this.vehicleMesh = avatar;
+    avatar.visible = true;
+
+    this.camera.getWorldDirection(this._dir);
+    const v = this.rider;
+    v.yaw = Math.atan2(-this._dir.x, -this._dir.z);
+    v.speed = spec.medium === "air" ? (spec.stallSpeed || spec.maxSpeed) : 0;
+    v.pitch = 0;
+    v.roll = 0;
+    const spot = spec.medium === "air"
+      ? { x: this.camera.position.x, z: this.camera.position.z }
+      : this._groundSpot(this.camera.position.x, this.camera.position.z);
+    v.pos.set(spot.x, 0, spot.z);
+    if (spec.medium === "air") {
+      const g = this.seaAt ? this.seaAt(spot.x, spot.z).y : 0;
+      v.pos.y = Math.max(this.camera.position.y, g + AIR_START_M);
+    }
+    this.mode = "vehicle";
+    this.onMode("vehicle", spec);
+  }
+
+  // Nearest dry ground, the mirror of _launchSpot.
+  _groundSpot(x0, z0) {
+    if (!this.seaAt) return { x: x0, z: z0 };
+    for (let r = 0; r <= LAUNCH_SEARCH_M; r += LAUNCH_STEP_M) {
+      const steps = r === 0 ? 1 : Math.max(12, Math.round((2 * Math.PI * r) / LAUNCH_STEP_M));
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const x = x0 + Math.cos(a) * r, z = z0 + Math.sin(a) * r;
+        if (this.seaAt(x, z).aground) return { x, z };
+      }
+    }
+    return { x: x0, z: z0 };
+  }
+
+  _vehicleStep(dt) {
+    const spec = this.vehicle, v = this.rider;
+    const air = spec.medium === "air";
+    const throttle = this.keys.KeyW ? 1 : 0;
+
+    // An aircraft cannot be flown slower than its stall and stay up.
+    const floor = air ? (spec.stallSpeed || 0) : 0;
+    const target = Math.max(floor, throttle * spec.maxSpeed);
+    const tau = target > v.speed ? spec.accelTau : spec.decelTau;
+    v.speed += (target - v.speed) * (1 - Math.exp(-dt / tau));
+
+    const steer = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
+    // Wheels and wings need to be moving to turn; feet do not.
+    const bite = spec.pivot ? 1 : smoothstep(0, spec.maxSpeed * 0.35, v.speed);
+    v.yaw += steer * (spec.turn * Math.PI / 180) * bite * dt;
+
+    const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
+    const fromX = v.pos.x, fromZ = v.pos.z;
+    v.pos.x += fx * v.speed * dt;
+    v.pos.z += fz * v.speed * dt;
+
+    if (air) {
+      const lift = (this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0);
+      v.pos.y += lift * spec.climb * dt;
+      const g = this.seaAt ? this.seaAt(v.pos.x, v.pos.z).y : 0;
+      if (v.pos.y < g + AIR_FLOOR_M) v.pos.y = g + AIR_FLOOR_M;
+      v.pitch = 0;
+      v.roll = -steer * (spec.bank * Math.PI / 180) * bite;
+    } else {
+      const keep = this._confine(v.pos, fromX, fromZ, true, 0.6);
+      if (keep !== undefined) v.speed *= keep;
+      // Sit on the ground and lie along it.
+      const s = this.seaAt ? this.seaAt(v.pos.x, v.pos.z) : { y: 0 };
+      v.pos.y = s.y;
+      const d = 2;
+      const gx = this.seaAt ? (this.seaAt(v.pos.x + d, v.pos.z).y - this.seaAt(v.pos.x - d, v.pos.z).y) / (2 * d) : 0;
+      const gz = this.seaAt ? (this.seaAt(v.pos.x, v.pos.z + d).y - this.seaAt(v.pos.x, v.pos.z - d).y) / (2 * d) : 0;
+      v.pitch = -Math.atan(gx * fx + gz * fz);
+      v.roll = Math.atan(gx * -fz + gz * fx);
+    }
+
+    if (this.vehicleMesh) {
+      this.vehicleMesh.position.copy(v.pos);
+      this.vehicleMesh.rotation.set(0, 0, 0);
+      this.vehicleMesh.rotateY(v.yaw);
+      this.vehicleMesh.rotateX(v.pitch);
+      this.vehicleMesh.rotateZ(v.roll);
+    }
+
+    this._euler.set(v.pitch, v.yaw, v.roll);
+    this.camera.quaternion.setFromEuler(this._euler);
+    this._offset.set(0, spec.eye.y, spec.eye.z).applyQuaternion(this.camera.quaternion);
+    this.camera.position.copy(v.pos).add(this._offset);
   }
 
   _boatStep(dt) {
@@ -281,9 +402,14 @@ export class Nav {
     this.camera.position.copy(b.pos).add(this._offset);
   }
 
+  // Put whatever you were in away and go back to looking around.
+  toOrbit() { this._setOrbit(); }
+
   _setOrbit() {
     if (this.boatMesh) this.boatMesh.visible = false;
     if (this.hullHole) this.hullHole(null);
+    if (this.vehicleMesh) this.vehicleMesh.visible = false;
+    this.vehicle = null;
     // Pivot the orbit around a point ahead of where we are looking.
     this.camera.getWorldDirection(this._dir);
     this.orbit.target.copy(this.camera.position).addScaledVector(this._dir, 300);
@@ -335,6 +461,7 @@ export class Nav {
     }
     // No floor clamp in boat mode: the boat already floats on the surface, and the
     // clamp would shove the camera up off the transom.
+    if (this.mode === "vehicle") { this._vehicleStep(dt); return; }
     if (this.mode === "boat") { this._boatStep(dt); return; }
     if (this.mode === "fly") { this._flyStep(dt); this._clampFloor(); return; }
     this.orbit.update();

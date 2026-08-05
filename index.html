@@ -17,6 +17,15 @@
 <body>
   <canvas id="scene"></canvas>
 
+  <!-- Pick how you are in the world before anything else. -->
+  <div id="chooser" class="chooser">
+    <div class="chooser-card">
+      <div class="chooser-title">Point Roberts</div>
+      <div class="chooser-sub">how are you getting about?</div>
+      <div id="chooser-btns" class="chooser-btns"></div>
+    </div>
+  </div>
+
   <!-- Big banner shown only when the feed is not connected. -->
   <div id="offline" class="offline hidden">
     <div class="offline-title">feed offline</div>
@@ -76,7 +85,7 @@
     <div class="hud-title">views</div>
     <div id="view-btns" class="view-btns"></div>
     <button class="view-btn fly-btn" id="fly-btn">fly (V)</button>
-    <button class="view-btn fly-btn" id="boat-btn">boat (B)</button>
+    <button class="view-btn fly-btn" id="mode-btn">change mode (M)</button>
     <button class="view-btn fly-btn" id="sound-btn">sound</button>
   </div>
 

@@ -15,6 +15,7 @@ import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { buildBoat } from "./scene/boat.js";
+import { VEHICLES, vehicleById } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
 import { Audio } from "./audio.js";
 import { fromWorld, toWorld } from "./geo.js";
@@ -86,6 +87,15 @@ const ocean = new Ocean(scene);
 const vessels = new Vessels(scene);
 const boat = buildBoat();
 scene.add(boat);
+// One avatar per way of getting about. They are world objects, not first-person
+// props, so another player can see which one you are.
+const avatars = new Map();
+for (const spec of VEHICLES) {
+  const a = spec.build();
+  a.visible = false;
+  scene.add(a);
+  avatars.set(spec.id, a);
+}
 const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
@@ -220,9 +230,13 @@ function toView(p) {
 }
 
 const nav = new Nav(camera, renderer.domElement, controls, {
-  onMode: (m) => {
+  onMode: (m, spec) => {
     document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
-    document.getElementById("boat-hint").classList.toggle("hidden", m !== "boat");
+    const hint = document.getElementById("boat-hint");
+    const show = m === "boat" || m === "vehicle";
+    hint.classList.toggle("hidden", !show);
+    if (m === "boat") hint.textContent = HINTS.boat;
+    else if (m === "vehicle" && spec) hint.textContent = HINTS[spec.medium] || HINTS.land;
   },
   boatMesh: boat,
   hullHole: (h) => ocean.setHull(h),
@@ -257,7 +271,45 @@ PRESETS.forEach((p, i) => {
   viewBtns.appendChild(b);
 });
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
-document.getElementById("boat-btn").addEventListener("click", () => nav.toggleBoat());
+// How you are getting about has to be chosen before the world is yours to move
+// in. The free camera stays: orbit, the view presets and fly all still work once
+// you are in, and "look around" picks that instead of a vehicle.
+const chooser = document.getElementById("chooser");
+const chooserBtns = document.getElementById("chooser-btns");
+const modeHint = document.getElementById("boat-hint");
+
+const HINTS = {
+  boat: "W throttle · A/D tiller · M to change",
+  land: "W go · A/D steer · M to change",
+  air: "W throttle · A/D turn · Q/E down-up · M to change",
+};
+
+function chooseMode(id) {
+  chooser.classList.add("hidden");
+  if (id === "look") { nav.toOrbit(); return; }
+  if (id === "boat") { nav.toggleBoat(); return; }
+  const spec = vehicleById(id);
+  if (spec) nav.enterVehicle(spec, avatars.get(id));
+}
+
+for (const [id, label, note] of [
+  ["walk", "walking", "5 km/h"],
+  ["bike", "bicycle", "18 km/h"],
+  ["cart", "golf cart", "24 km/h"],
+  ["boat", "boat", "8 kn"],
+  ["ultralight", "ultra light", "90 km/h"],
+  ["look", "look around", "no vehicle"],
+]) {
+  const b = document.createElement("button");
+  b.className = "chooser-btn";
+  b.innerHTML = `${label}<span class="cb-note">${note}</span>`;
+  b.addEventListener("click", () => chooseMode(id));
+  chooserBtns.appendChild(b);
+}
+document.getElementById("mode-btn").addEventListener("click", () => chooser.classList.remove("hidden"));
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyM") chooser.classList.remove("hidden");
+});
 
 // How far the nearest water is from the camera, which the surf volume rides on.
 // The tide moves it a long way — the waterline below the bluff sits 99 m out at
