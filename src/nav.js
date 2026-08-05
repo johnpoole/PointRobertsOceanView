@@ -12,6 +12,7 @@
 
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+import { BOAT } from "./scene/boat.js";
 
 const TWEEN_SECONDS = 1.1;
 const FLY_SPEED = 60;   // m/s
@@ -34,8 +35,10 @@ const BOAT_DECEL_TAU = 2.2;   // s, throttle shut: quick, but it still carries w
 // where the hull tracks straight.
 const BOAT_YAW_MAX = 30 * Math.PI / 180;   // rad/s at full tiller, displacement
 const BOAT_YAW_PLANE_FACTOR = 0.6;         // 30 deg/s falls to 18 on plane
+const BOAT_YAW_THRUST_FLOOR = 0.45;        // she still pivots on thrust alone
 const BOAT_TRIM_MAX = 9 * Math.PI / 180;   // bow-up at the hump
 const BOAT_BANK_MAX = 6 * Math.PI / 180;   // banks into the turn, on plane
+const BOW_CLEAR_M = 0.06;                  // forefoot held this far clear of it
 const HELM_AFT_M = 1.25;                   // the tiller seat, aft of centre
 const HELM_EYE_M = 1.00;                   // eye above the waterline, seated
 
@@ -58,6 +61,8 @@ export class Nav {
     // slope, whichever is higher of the swell and the ground.
     this.seaAt = opts.seaAt || null;
     this.boatMesh = opts.boatMesh || null;
+    // obstacles() -> [{ x, z, r }] : pilings, other vessels, anything solid.
+    this.obstacles = opts.obstacles || null;
     this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0 };
     this._euler = new THREE.Euler(0, 0, 0, "YXZ");
     this._offset = new THREE.Vector3();
@@ -117,10 +122,34 @@ export class Nav {
     this.onMode("boat");
   }
 
+  // Push the hull out of anything solid it has run into and scrub off the speed
+  // that was driving into it, so a glancing blow slides and a head-on stops.
+  // Her centreline is treated as a segment, the obstacles as circles.
+  _resolveCollisions() {
+    if (!this.obstacles) return;
+    const b = this.boat;
+    const fx = -Math.sin(b.yaw), fz = -Math.cos(b.yaw);
+    const half = BOAT.LENGTH_M / 2, beam = BOAT.BEAM_M / 2;
+    for (const o of this.obstacles()) {
+      const dx = o.x - b.pos.x, dz = o.z - b.pos.z;
+      const t = Math.min(half, Math.max(-half, dx * fx + dz * fz));
+      let nx = b.pos.x + fx * t - o.x, nz = b.pos.z + fz * t - o.z;
+      const d = Math.hypot(nx, nz);
+      const clear = o.r + beam;
+      if (d >= clear) continue;
+      if (d < 1e-6) { nx = -fx; nz = -fz; } else { nx /= d; nz /= d; }
+      b.pos.x += nx * (clear - d);
+      b.pos.z += nz * (clear - d);
+      const headOn = -(fx * nx + fz * nz);
+      if (headOn > 0) b.speed *= Math.max(0, 1 - headOn);
+    }
+  }
+
   _boatStep(dt) {
     const b = this.boat;
 
-    const target = (this.keys.KeyW ? 1 : 0) * BOAT_MAX_MPS;
+    const throttle = this.keys.KeyW ? 1 : 0;
+    const target = throttle * BOAT_MAX_MPS;
     const tau = target > b.speed ? BOAT_ACCEL_TAU : BOAT_DECEL_TAU;
     b.speed += (target - b.speed) * (1 - Math.exp(-dt / tau));
 
@@ -128,12 +157,19 @@ export class Nav {
     // Yaw grows counter-clockwise from above, so starboard is yaw decreasing.
     const tiller = (this.keys.KeyA ? 1 : 0) - (this.keys.KeyD ? 1 : 0);
     const planing = smoothstep(BOAT_PLANE_MPS, BOAT_MAX_MPS, b.speed);
-    const bite = smoothstep(0.5 * KNOT, 3.5 * KNOT, b.speed)
-      * (1 - (1 - BOAT_YAW_PLANE_FACTOR) * planing);
+    // An outboard steers on thrust, not on speed through the water, so she will
+    // still pivot with the throttle open and no way on — which is what gets her
+    // off a piling she has stopped against.
+    const bite = Math.max(
+      smoothstep(0.5 * KNOT, 3.5 * KNOT, b.speed)
+        * (1 - (1 - BOAT_YAW_PLANE_FACTOR) * planing),
+      throttle * BOAT_YAW_THRUST_FLOOR,
+    );
     b.yaw -= tiller * BOAT_YAW_MAX * bite * dt;
 
     b.pos.x += -Math.sin(b.yaw) * b.speed * dt;
     b.pos.z += -Math.cos(b.yaw) * b.speed * dt;
+    this._resolveCollisions();
 
     // Bow up to the hump, then down as she comes onto plane.
     const hump = smoothstep(0, BOAT_PLANE_MPS, b.speed);
@@ -153,6 +189,16 @@ export class Nav {
     const acrossBeam = slopeX * -fz + slopeZ * fx;   // slope across her
     b.trim = trim + Math.atan(alongBow);
     b.bank = bank + Math.atan(acrossBeam);
+
+    // The forefoot never goes under. Lift the bow as far as it takes, measured
+    // against the water where the bow actually is rather than under the helm,
+    // so she rides over a wave face instead of spearing it.
+    const half = BOAT.LENGTH_M / 2;
+    if (this.seaAt) {
+      const bowWater = this.seaAt(b.pos.x + fx * half, b.pos.z + fz * half).y;
+      const rise = (bowWater + BOW_CLEAR_M - b.pos.y - BOAT.BOW_KEEL_Y) / half;
+      if (rise > -1) b.trim = Math.max(b.trim, Math.asin(Math.min(rise, 1)));
+    }
 
     if (this.boatMesh) {
       this.boatMesh.position.copy(b.pos);

@@ -91,6 +91,7 @@ const weather = new Weather(scene, { sky, ocean, sun, hemi, ambient });
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 let landmarkPicks = [];
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
+let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
   .then((near) => {
     groundSample = near.sample;
@@ -99,7 +100,10 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
     const se = toWorld(north_lat - (nrows - 1) * cellsize_deg, west_lon + (ncols - 1) * cellsize_deg);
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
-    return buildLand(scene, near.sample).then((land) => { landmarkPicks = land.landmarks; });
+    return buildLand(scene, near.sample).then((land) => {
+      landmarkPicks = land.landmarks;
+      pilingPosts = land.pilings;
+    });
   })
   .catch((err) => console.error("near terrain / land failed:", err));
 buildTerrain(scene, TERRAIN.far, { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5 })
@@ -220,6 +224,8 @@ const nav = new Nav(camera, renderer.domElement, controls, {
     document.getElementById("boat-hint").classList.toggle("hidden", m !== "boat");
   },
   boatMesh: boat,
+  // Solid things in the water: the wharf's pilings and every tracked ship.
+  obstacles: () => pilingPosts.concat(vessels.obstacles()),
   // What the hull floats on: the swell where there is water under it, the
   // ground where there is not, so she can sit on the line between the two.
   seaAt: (x, z) => {

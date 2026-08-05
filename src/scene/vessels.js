@@ -185,6 +185,25 @@ export class Vessels {
     return Array.from(this.groups.values());
   }
 
+  // Circles a small boat cannot drive through, at the size the ship is drawn
+  // rather than its real size, so what blocks you is what you can see. Three
+  // down the hull approximates it far better than one circle round the whole
+  // length, which would wall off open water either side of a tanker.
+  obstacles() {
+    const out = [];
+    for (const g of this.groups.values()) {
+      const dim = (g.userData.vessel && g.userData.vessel.dimensions_m) || {};
+      const s = g.scale.x || 1;
+      const length = Math.max(6, dim.length || DEFAULT.length) * s;
+      const r = (Math.max(2, dim.beam || DEFAULT.beam) * s) / 2;
+      const fx = -Math.sin(g.rotation.y), fz = -Math.cos(g.rotation.y);
+      for (const t of [-0.34, 0, 0.34]) {
+        out.push({ x: g.position.x + fx * length * t, z: g.position.z + fz * length * t, r });
+      }
+    }
+    return out;
+  }
+
   update(feed, tideLevel, t, camera) {
     for (const [mmsi, entry] of feed.vessels) {
       const state = entry.data;

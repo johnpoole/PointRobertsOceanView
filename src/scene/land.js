@@ -71,7 +71,7 @@ const PILING_RADIUS_M = 0.45;
 
 // line is an open polyline, not a ring, and offsets are metres either side of it
 // across the run — a pier stands its posts in parallel rows, not one file.
-function pilings(line, offsets, sample) {
+function pilings(line, offsets, sample, posts) {
   const geoms = [];
   const first = toWorld(line[0][0], line[0][1], 0);
   const last = toWorld(line[line.length - 1][0], line[line.length - 1][1], 0);
@@ -88,6 +88,7 @@ function pilings(line, offsets, sample) {
     const g = new THREE.CylinderGeometry(PILING_RADIUS_M, PILING_RADIUS_M, h, 5, 1);
     g.translate(x, bed + h / 2, z);
     geoms.push(g);
+    if (posts) posts.push({ x, z, r: PILING_RADIUS_M });
   };
 
   for (const off of offsets) {
@@ -158,9 +159,10 @@ export async function buildLand(scene, sample) {
 
   // Ruined piers: bare posts, weathered timber.
   const pierMeshes = [];
+  const pilingPosts = [];
   const pilingMat = new THREE.MeshStandardMaterial({ color: 0x53483c, roughness: 1 });
   for (const p of data.ruined_piers) {
-    const geom = pilings(p.line, p.row_offsets_m, sample);
+    const geom = pilings(p.line, p.row_offsets_m, sample, pilingPosts);
     if (!geom) continue;
     const mesh = new THREE.Mesh(geom, pilingMat);
     mesh.userData.landmark = { name: p.name, kind: "ruined pier" };
@@ -204,5 +206,5 @@ export async function buildLand(scene, sample) {
     scene.add(group);
     markers.push(group);
   }
-  return { landmarks: markers.concat(runwayMeshes, pierMeshes) };
+  return { landmarks: markers.concat(runwayMeshes, pierMeshes), pilings: pilingPosts };
 }

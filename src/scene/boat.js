@@ -11,8 +11,19 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const LENGTH_M = 3.66;   // 12 ft
 const BEAM_M = 1.40;
-const DEPTH_M = 0.45;    // gunwale above the bottom
+const DEPTH_M = 0.45;    // gunwale above the bottom, amidships
 const DRAFT_M = 0.13;    // bottom below the waterline, light
+// The sheer lifts toward the bow and the bottom rocks up under it, so the
+// forefoot clears the water at rest instead of knifing into it.
+const SHEER_M = 0.22;    // extra gunwale height at the stem
+const ROCKER_M = 0.17;   // how far the bottom rises at the stem
+// Where the forefoot sits relative to the waterline. Positive is clear of it.
+const BOW_KEEL_Y = ROCKER_M - DRAFT_M;
+
+// 0 at the transom, 1 at the stem, for shaping sheer and rocker along her.
+function fwdFraction(z) {
+  return Math.min(1, Math.max(0, (LENGTH_M / 2 - z) / LENGTH_M));
+}
 
 // Plan outline, bow first, down the starboard side and back up the port side.
 const HALF = BEAM_M / 2;
@@ -33,22 +44,26 @@ function hullGeometry() {
   const bottom = [];
   const sides = [];
   const n = OUTLINE.length;
+  const keel = (z) => ROCKER_M * fwdFraction(z) ** 2;          // bottom rises forward
+  const sheer = (z) => DEPTH_M + SHEER_M * fwdFraction(z) ** 2; // gunwale rises with it
 
   // Bottom: a fan from the middle of the transom out to each edge pair.
   const cx = 0, cz = FWD * 0.35;
   for (let i = 0; i < n; i++) {
     const a = OUTLINE[i], b = OUTLINE[(i + 1) % n];
-    bottom.push(cx, 0, cz, a[0], 0, a[1], b[0], 0, b[1]);
+    bottom.push(cx, keel(cz), cz, a[0], keel(a[1]), a[1], b[0], keel(b[1]), b[1]);
   }
 
   // Sides: the outline swept up to the gunwale.
   for (let i = 0; i < n; i++) {
     const a = OUTLINE[i], b = OUTLINE[(i + 1) % n];
     // Flare the gunwale out a little, the way a hull opens toward the sheer.
-    const fa = 1.08, h = DEPTH_M;
+    const fa = 1.08;
+    const ay = keel(a[1]), by = keel(b[1]);
+    const ah = sheer(a[1]), bh = sheer(b[1]);
     sides.push(
-      a[0], 0, a[1], b[0], 0, b[1], b[0] * fa, h, b[1],
-      a[0], 0, a[1], b[0] * fa, h, b[1], a[0] * fa, h, a[1],
+      a[0], ay, a[1], b[0], by, b[1], b[0] * fa, bh, b[1],
+      a[0], ay, a[1], b[0] * fa, bh, b[1], a[0] * fa, ah, a[1],
     );
   }
 
@@ -99,4 +114,4 @@ export function buildBoat() {
   return group;
 }
 
-export const BOAT = { LENGTH_M, BEAM_M, DEPTH_M, DRAFT_M };
+export const BOAT = { LENGTH_M, BEAM_M, DEPTH_M, DRAFT_M, BOW_KEEL_Y };
