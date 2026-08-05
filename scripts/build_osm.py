@@ -21,8 +21,10 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-# south, west, north, east — the Point Roberts peninsula.
-BBOX = (48.968, -123.098, 49.006, -123.048)
+# south, west, north, east — the Point Roberts peninsula. The east edge has to
+# clear -123.0217, the far side of the marina and Maple Beach, or the roads and
+# buildings over there are never fetched.
+BBOX = (48.968, -123.098, 49.006, -123.020)
 # The Tsawwassen ferry terminal sits 3.9 km northwest, off the end of a causeway
 # and well outside BBOX, but it is the one built thing on the water in the view
 # north. Pull it on its own so the peninsula query stays small — a full bbox out
@@ -33,7 +35,7 @@ OVERPASS = "https://overpass-api.de/api/interpreter"
 # Landmarks outside the near terrain tile cannot be draped on it — sampling
 # clamps to the tile edge, which out west is 90 m of water, and the marker would
 # vanish under the sea. Those carry an explicit height read from the far tile.
-NEAR_BOX = {"min_lon": -123.13, "max_lon": -123.05, "min_lat": 48.97, "max_lat": 49.00}
+NEAR_BOX = {"min_lon": -123.13, "max_lon": -123.02, "min_lat": 48.97, "max_lat": 49.00}
 FAR_TERRAIN = "heightmap_far.bin", "meta_far.json"
 
 # The old wharf south of the bluff, now only pilings. OpenStreetMap does not
