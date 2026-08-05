@@ -140,28 +140,42 @@ function buildUltralight() {
 //
 // eye is the driver's head in the vehicle's own frame, +Z aft.
 // turn is degrees a second at full lock; pivot means it can turn standing still.
+// start is where you get in, off OpenStreetMap: the golf club, the community
+// centre, the border, the apron at 1RL.
 export const VEHICLES = [
   {
     id: "walk", label: "walking", medium: "land", build: buildWalker,
     maxSpeed: 1.4, accelTau: 0.5, decelTau: 0.4,     // 5 km/h
     turn: 150, pivot: true, eye: { y: 1.63, z: 0 },
+    start: { lat: 48.984425, lon: -123.076809 },   // the community centre
   },
   {
     id: "bike", label: "bicycle", medium: "land", build: buildBicycle,
     maxSpeed: 5.0, accelTau: 3.0, decelTau: 2.0,     // 18 km/h
     turn: 70, pivot: false, eye: { y: 1.48, z: 0.18 },
+    // The port of entry is at 49.00133, past the north edge of the fine terrain,
+    // so this sits on the same road 229 m short of the line — as close to the
+    // border as there is ground worth standing on.
+    start: { lat: 48.999900, lon: -123.068427 },
   },
   {
     id: "cart", label: "golf cart", medium: "land", build: buildGolfCart,
     maxSpeed: 24 * KMH, accelTau: 2.4, decelTau: 1.4,
     turn: 55, pivot: false, eye: { y: 1.40, z: -0.05 },
+    start: { lat: 48.996920, lon: -123.078049 },   // Bald Eagle Golf Club
   },
   {
     id: "ultralight", label: "ultra light", medium: "air", build: buildUltralight,
     maxSpeed: 90 * KMH, stallSpeed: 47 * KMH, accelTau: 4.0, decelTau: 5.0,
     turn: 28, pivot: false, bank: 28, climb: 3.5, eye: { y: 1.28, z: -0.55 },
+    // Over the apron at 1RL, already up, since there is no ground roll.
+    start: { lat: 48.978710, lon: -123.080091 },
   },
 ];
+
+// The boat is not one of these — it has its own step — but it starts somewhere
+// too, and this is where the starting places live.
+export const BOAT_START = { lat: 48.978152, lon: -123.066585 };  // Point Roberts Marina
 
 export function vehicleById(id) {
   return VEHICLES.find((v) => v.id === id) || null;

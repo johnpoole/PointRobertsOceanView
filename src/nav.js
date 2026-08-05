@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { BOAT } from "./scene/boat.js";
+import { toWorld } from "./geo.js";
 
 const TWEEN_SECONDS = 1.1;
 const FLY_SPEED = 60;   // m/s
@@ -134,7 +135,7 @@ export class Nav {
   }
 
   // Launch at the water's edge, on the surface, pointing where the camera looks.
-  toggleBoat() {
+  toggleBoat(start) {
     if (this.mode === "boat") { this._setOrbit(); return; }
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
     this.tween = null;
@@ -147,7 +148,8 @@ export class Nav {
     b.speed = 0;
     b.trim = 0;
     b.bank = 0;
-    const spot = this._launchSpot(this.camera.position.x, this.camera.position.z);
+    const from = start ? toWorld(start.lat, start.lon) : this.camera.position;
+    const spot = this._launchSpot(from.x, from.z);
     b.pos.set(spot.x, 0, spot.z);
     if (this.boatMesh) this.boatMesh.visible = true;
     this.mode = "boat";
@@ -239,9 +241,12 @@ export class Nav {
     v.speed = spec.medium === "air" ? (spec.stallSpeed || spec.maxSpeed) : 0;
     v.pitch = 0;
     v.roll = 0;
+    // Each one is got into where it lives, not wherever the camera happened to
+    // be looking from.
+    const home = spec.start ? toWorld(spec.start.lat, spec.start.lon) : this.camera.position;
     const spot = spec.medium === "air"
-      ? { x: this.camera.position.x, z: this.camera.position.z }
-      : this._groundSpot(this.camera.position.x, this.camera.position.z);
+      ? { x: home.x, z: home.z }
+      : this._groundSpot(home.x, home.z);
     v.pos.set(spot.x, 0, spot.z);
     if (spec.medium === "air") {
       const g = this.seaAt ? this.seaAt(spot.x, spot.z).y : 0;

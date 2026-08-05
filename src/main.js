@@ -15,7 +15,7 @@ import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { buildBoat } from "./scene/boat.js";
-import { VEHICLES, vehicleById } from "./scene/vehicles.js";
+import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
 import { Audio } from "./audio.js";
 import { fromWorld, toWorld } from "./geo.js";
@@ -287,7 +287,7 @@ const HINTS = {
 function chooseMode(id) {
   chooser.classList.add("hidden");
   if (id === "look") { nav.toOrbit(); return; }
-  if (id === "boat") { nav.toggleBoat(); return; }
+  if (id === "boat") { nav.toggleBoat(BOAT_START); return; }
   const spec = vehicleById(id);
   if (spec) nav.enterVehicle(spec, avatars.get(id));
 }
