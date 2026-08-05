@@ -230,8 +230,10 @@ export class Ocean {
     const sea = this._sea, stack = this._stack;
     sea.fill(0);
     let top = 0;
+    // 255, not 1: a byte texture is normalized to 0..1 in the shader, so a 1
+    // arrives as 0.004 and reads as land.
     const push = (idx) => {
-      if (sea[idx] === 0 && heights[idx] < tide) { sea[idx] = 1; stack[top++] = idx; }
+      if (sea[idx] === 0 && heights[idx] < tide) { sea[idx] = 255; stack[top++] = idx; }
     };
     for (let j = 0; j < ncols; j++) { push(j); push((nrows - 1) * ncols + j); }
     for (let i = 0; i < nrows; i++) { push(i * ncols); push(i * ncols + ncols - 1); }
