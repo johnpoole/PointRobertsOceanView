@@ -67,7 +67,7 @@ function buildings(list, sample) {
 // the wharf reads from the bluff.
 const PILING_SPACING_M = 5;
 const PILING_TOP_M = 4.0;      // metres MLLW
-const PILING_RADIUS_M = 0.45;
+const PILING_RADIUS_M = 0.225;  // 0.45 m across
 
 // line is an open polyline, not a ring, and offsets are metres either side of it
 // across the run — a pier stands its posts in parallel rows, not one file.
