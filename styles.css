@@ -146,6 +146,9 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   background: rgba(6, 12, 18, 0.72);
 }
+/* .hidden is declared earlier and is only a class, so this display would beat
+   it on source order alone and the chooser would never go away. */
+.chooser.hidden { display: none; }
 .chooser-card {
   background: var(--panel); border: 1px solid var(--edge); border-radius: 12px;
   padding: 22px 26px; text-align: center; pointer-events: auto;
