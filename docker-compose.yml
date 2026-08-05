@@ -6,5 +6,7 @@ services:
     restart: unless-stopped
     environment:
       AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
+    # 8091, not 8090: the Basement server already runs yarbo-emulator-timefold
+    # on 8090, and nginx proxies oceanview.johnpoole.ca here.
     ports:
-      - "8090:8080"
+      - "8091:8080"
