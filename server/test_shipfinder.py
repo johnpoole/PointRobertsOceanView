@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server.shipfinder import (  # noqa: E402
     HEADER_BYTES, RECORD_BYTES, bearing, decode, dm_to_degrees, in_box,
-    load_cache, parse_detail, save_cache,
+    load_cache, metres_between, nearest, parse_detail, save_cache, type_code,
 )
 
 # Verbatim from their page, MISTY BLUE, captured off a real click.
@@ -191,6 +191,46 @@ def test_a_corrupt_cache_says_so_rather_than_starting_empty() -> None:
             assert "could not be read" in str(exc), exc
         else:
             raise AssertionError("a corrupt cache was read as empty")
+
+
+def test_their_type_names_become_the_ais_codes_the_renderer_knows() -> None:
+    # The renderer reads 60-69 passenger, 70-79 cargo, 80-89 tanker, 30 fishing,
+    # 36 and 37 small, and 50-55 service.
+    assert 60 <= type_code("Passenger ship") <= 69
+    assert 70 <= type_code("Cargo") <= 79
+    assert 80 <= type_code("Tanker") <= 89
+    assert type_code("Fishing") == 30
+    assert type_code("Tug") in (50, 51, 52, 53, 54, 55)
+    assert type_code("Sailing") in (36, 37)
+    assert type_code("Pleasure craft") in (36, 37)
+
+
+def test_an_unfamiliar_type_name_is_left_unclassified_not_guessed() -> None:
+    assert type_code("Wing in ground effect") is None
+    assert type_code("") is None
+    assert type_code(None) is None
+
+
+def test_type_names_match_whatever_the_case() -> None:
+    assert type_code("PLEASURE CRAFT") == type_code("Pleasure craft")
+    assert type_code("  sailing  ") == type_code("Sailing")
+
+
+def test_nearest_picks_the_closest_hull() -> None:
+    ships = [
+        {"id": "A", "latitude": 48.9900, "longitude": -123.0900},
+        {"id": "B", "latitude": 48.9910, "longitude": -123.0900},
+        {"id": "C", "latitude": 48.9800, "longitude": -123.0900},
+    ]
+    assert nearest(48.9901, -123.0900, ships)["id"] == "A"
+    assert nearest(48.9909, -123.0900, ships)["id"] == "B"
+    assert nearest(48.9805, -123.0900, ships)["id"] == "C"
+    assert nearest(48.99, -123.09, []) is None
+
+
+def test_metres_between_is_metres() -> None:
+    assert abs(metres_between(48.99, -123.09, 49.00, -123.09) - 1113.2) < 5
+    assert metres_between(48.99, -123.09, 48.99, -123.09) == 0.0
 
 
 def main() -> int:

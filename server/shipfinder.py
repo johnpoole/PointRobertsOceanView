@@ -114,9 +114,38 @@ DETAIL_FIELDS = {
 }
 BLANK = {"", "-", "UNKNOWN", "Unknown"}
 
-# A click that lands on nothing leaves the previous ship's panel up, so the
-# panel has to agree with where the click went before it is believed.
-DETAIL_MATCH_M = 400.0
+# A click that lands on nothing leaves the previous ship's panel up, and a click
+# in a crowded anchorage lands on whichever hull is on top. So the panel is only
+# believed when the ship it reports is nearer to the ship that was aimed at than
+# to any other, and within this far of it. A plain radius does not do: at 400 m
+# two moored boats both took the same panel, and at 60 m the ship's own drift
+# between the payload and the click threw away more than half of the good ones.
+DETAIL_MATCH_M = 300.0
+
+# Their type names, as the equivalent AIS code, so the renderer classifies these
+# the same way it classifies a real AIS vessel. The type byte in the payload is
+# no use for this: it is the AIS message type, 1, 2 or 18, and a tug, a yacht
+# and a sailing boat all arrive as 1.
+TYPE_CODES = {
+    "passenger ship": 60, "passenger": 60, "ferry": 60,
+    "cargo": 70, "cargo ship": 70, "general cargo": 70, "container ship": 70,
+    "bulk carrier": 70,
+    "tanker": 80, "oil tanker": 80, "chemical tanker": 80, "lng tanker": 80,
+    "fishing": 30, "fishing vessel": 30,
+    "tug": 52, "towing": 52, "pilot": 50, "pilot vessel": 50,
+    "search and rescue": 51, "port tender": 53, "dredger": 33,
+    "law enforcement": 55, "military": 35,
+    "sailing": 36, "sailing vessel": 36,
+    "pleasure craft": 37, "yacht": 37,
+}
+
+
+def type_code(name: str | None) -> int | None:
+    """The AIS type code their type name stands for, or None when it is one we
+    have not seen. None leaves the vessel unclassified rather than guessed at."""
+    if not name:
+        return None
+    return TYPE_CODES.get(name.strip().lower())
 
 
 def dm_to_degrees(text: str) -> float | None:
@@ -196,7 +225,7 @@ CACHE_PATH = Path(__file__).resolve().parents[1] / "data" / "shipfinder_ships.js
 
 # How many unknown ships to look up per pass. Each one is a click and a read, so
 # a full box fills in over a few passes rather than in one long burst.
-ENRICH_PER_PASS = 25
+ENRICH_PER_PASS = 60
 CLICK_SETTLE_MS = 1500
 # Clicks land on the icon, which is drawn around the position. If the first
 # point misses, a few pixels either way usually finds it.
@@ -289,22 +318,47 @@ async def fetch(box: dict, cache: dict | None = None) -> tuple[list[dict], dict]
                      len(vessels), len(inside))
 
             unknown = [v for v in inside if v["id"] not in cache][:ENRICH_PER_PASS]
+            # One boat cannot be two boats. If a panel gives an MMSI already
+            # spoken for, the click landed on a neighbour and the answer is
+            # thrown away rather than written against the wrong hull.
+            claimed = {d["mmsi"] for d in cache.values() if d.get("mmsi")}
+            clashes = 0
             for vessel in unknown:
-                detail = await _read_detail(page, vessel)
-                if detail:
-                    learned[vessel["id"]] = detail
+                detail = await _read_detail(page, vessel, inside)
+                if not detail:
+                    continue
+                mmsi = detail.get("mmsi")
+                if mmsi and mmsi in claimed:
+                    clashes += 1
+                    continue
+                if mmsi:
+                    claimed.add(mmsi)
+                learned[vessel["id"]] = detail
             if unknown:
-                log.info("shipfinder: looked up %d of %d unknown ships, %d answered",
+                log.info("shipfinder: looked up %d of %d unknown, %d answered, "
+                         "%d thrown away as another ship's panel",
                          len(unknown),
                          sum(1 for v in inside if v["id"] not in cache),
-                         len(learned))
+                         len(learned), clashes)
         finally:
             await browser.close()
 
     return inside, learned
 
 
-async def _read_detail(page, vessel: dict) -> dict | None:
+def metres_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    return math.hypot((lat1 - lat2) * 111320.0,
+                      (lon1 - lon2) * 111320.0 * math.cos(math.radians(lat1)))
+
+
+def nearest(lat: float, lon: float, vessels: list[dict]) -> dict | None:
+    """The vessel closest to a point, or None if there are none."""
+    if not vessels:
+        return None
+    return min(vessels, key=lambda v: metres_between(lat, lon, v["latitude"], v["longitude"]))
+
+
+async def _read_detail(page, vessel: dict, neighbours: list[dict] | None = None) -> dict | None:
     """Click a ship and read its panel. None when the click missed, which is
     normal: icons overlap and some are under the chrome."""
     point = await page.evaluate(
@@ -320,16 +374,17 @@ async def _read_detail(page, vessel: dict) -> dict | None:
         detail = parse_detail(text)
         if not detail.get("mmsi"):
             continue
-        # The panel keeps the last ship up if the click hit water, so it only
-        # counts when its own position agrees with where the click went.
+        # The panel keeps the last ship up if the click hit water, and in a
+        # crowd it shows whichever hull is on top. So it counts only when the
+        # ship it describes is the one that was aimed at.
         plat = detail.pop("panel_latitude", None)
         plon = detail.pop("panel_longitude", None)
         if plat is None or plon is None:
             continue
-        north = (plat - vessel["latitude"]) * 111320.0
-        east = ((plon - vessel["longitude"]) * 111320.0
-                * math.cos(math.radians(vessel["latitude"])))
-        if math.hypot(north, east) > DETAIL_MATCH_M:
+        if metres_between(plat, plon, vessel["latitude"], vessel["longitude"]) > DETAIL_MATCH_M:
+            continue
+        closest = nearest(plat, plon, neighbours or [vessel])
+        if closest is not None and closest["id"] != vessel["id"]:
             continue
         return detail
     return None

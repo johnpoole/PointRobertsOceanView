@@ -924,7 +924,6 @@ async def shipfinder_task() -> None:
                 state["course_over_ground_degrees"] = course
             state["latitude"] = v["latitude"]
             state["longitude"] = v["longitude"]
-            state["vessel_type"] = v["kind"]
             state["source"] = "shipfinder"
 
             # What the ship is, if it has ever been looked up. The MMSI replaces
@@ -936,6 +935,12 @@ async def shipfinder_task() -> None:
                 for field in ("name", "call_sign", "imo", "vessel_type_name"):
                     if known.get(field):
                         state[field] = known[field]
+                # The type the panel gave, as the AIS code the renderer knows.
+                # Unset when it is a name we have not met, so an unknown vessel
+                # stays unclassified instead of being drawn as something else.
+                code = shipfinder.type_code(known.get("vessel_type_name"))
+                if code is not None:
+                    state["vessel_type"] = code
                 if known.get("length_m") and known.get("width_m"):
                     state["dimensions_m"] = {"length": known["length_m"],
                                              "width": known["width_m"]}
