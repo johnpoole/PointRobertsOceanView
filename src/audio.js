@@ -15,12 +15,15 @@
 
 const STORE_KEY = "oceanview.sound";
 
-// A 4.5 hp outboard is a single-cylinder two-stroke, so it fires once per
-// revolution and the firing rate in hertz is just rpm/60 — 18 Hz at idle, 87 at
-// full throttle. The note we hear is the harmonics of that, which is why a
-// sawtooth through a lowpass sounds right and a sine does not.
+// The Evinrude 4.5 is a two-cylinder two-stroke, 5.28 cubic inches, and the two
+// fire 180 degrees apart. Two firings a revolution, so the rate in hertz is
+// rpm/30 — 37 Hz at idle, 160 at full throttle. The note we hear is the
+// harmonics of that, which is why a sawtooth through a lowpass sounds right and
+// a sine does not.
+const FIRINGS_PER_REV = 2;
 const IDLE_RPM = 1100;
-const MAX_RPM = 5200;
+// OMC propped these to turn 4000-5000 at wide open throttle.
+const MAX_RPM = 4800;
 // Revs sag as the hull pushes against its own bow wave, then pick up as it comes
 // onto plane and the load falls away.
 const LOAD_SAG_RPM = 700;
@@ -104,10 +107,10 @@ export class Audio {
     // ---- engine ------------------------------------------------------------
     this.fire = ctx.createOscillator();      // the firing frequency itself
     this.fire.type = "sawtooth";
-    this.fire.frequency.value = IDLE_RPM / 60;
+    this.fire.frequency.value = IDLE_RPM * FIRINGS_PER_REV / 60;
     this.buzz = ctx.createOscillator();      // an octave up, slightly out
     this.buzz.type = "sawtooth";
-    this.buzz.frequency.value = IDLE_RPM / 30;
+    this.buzz.frequency.value = IDLE_RPM * FIRINGS_PER_REV / 30;
     this.buzz.detune.value = 14;
     this.buzzGain = ctx.createGain();
     this.buzzGain.gain.value = 0.35;
@@ -174,7 +177,7 @@ export class Audio {
     const sag = LOAD_SAG_RPM * b.throttle * hump * (1 - b.planing);
     this.revs += ((wanted - sag) - this.revs) * (1 - Math.exp(-dt / REV_TAU));
 
-    const fire = this.revs / 60;
+    const fire = this.revs * FIRINGS_PER_REV / 60;
     at(this.fire.frequency, fire, 0.06);
     at(this.buzz.frequency, fire * 2, 0.06);
     const open = clamp((this.revs - IDLE_RPM) / (MAX_RPM - IDLE_RPM), 0, 1);
