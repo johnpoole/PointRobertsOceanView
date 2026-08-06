@@ -2,3 +2,5 @@ fastapi==0.141.1
 uvicorn[standard]==0.52.1
 httpx==0.28.1
 websockets==16.1.1
+# Drives a headless browser for the shipfinder scrape (server/shipfinder.py).
+playwright==1.62.0

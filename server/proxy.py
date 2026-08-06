@@ -209,6 +209,10 @@ class Clients:
         self._sockets.add(ws)
         visitors.opened(client_ip(ws))
 
+    @property
+    def count(self) -> int:
+        return len(self._sockets)
+
     def remove(self, ws: WebSocket) -> None:
         if ws in self._sockets:
             self._sockets.discard(ws)
@@ -308,9 +312,13 @@ def envelope(message_type: str, source: str, source_time: datetime | None,
 
 
 def snapshot() -> dict:
+    # Each vessel says where it actually came from. A scraped position must not
+    # go out labelled as an AIS one.
     vessels = [
-        envelope("vessel.position", "aisstream.io", world.vessel_seen.get(mmsi),
-                 state, STALE_SECONDS["vessels"])
+        envelope("vessel.position",
+                 "shipfinder.com (scraped)" if state.get("source") == "shipfinder"
+                 else "aisstream.io",
+                 world.vessel_seen.get(mmsi), state, STALE_SECONDS["vessels"])
         for mmsi, state in world.vessels.items()
     ]
     weather = (
@@ -858,6 +866,76 @@ async def weather_task() -> None:
             await asyncio.sleep(WEATHER_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
+# ---- scraped vessels --------------------------------------------------------
+
+# Only while somebody is watching, and then rarely. Their map polls the same
+# endpoint every ten seconds, so an ordinary visitor to their site is worth
+# about sixty of these.
+SHIPFINDER_PERIOD_SECONDS = 600.0
+SHIPFINDER_IDLE_CHECK_SECONDS = 15.0
+SHIPFINDER_NOTE = "scraped from shipfinder"
+
+
+async def shipfinder_task() -> None:
+    from server import shipfinder
+
+    # None, not zero: the loop clock starts near zero too, so zero would read as
+    # "ran a moment ago" and hold the first scrape back the full ten minutes.
+    last_run: float | None = None
+    while True:
+        # Nobody watching, nothing to fetch. Nor if the real feed is working:
+        # this is a stand-in for a dead feed, not a second opinion on a live one.
+        if not clients.count or world.health["vessels"] == "live":
+            await asyncio.sleep(SHIPFINDER_IDLE_CHECK_SECONDS)
+            continue
+        now = asyncio.get_running_loop().time()
+        if last_run is not None and now - last_run < SHIPFINDER_PERIOD_SECONDS:
+            await asyncio.sleep(SHIPFINDER_IDLE_CHECK_SECONDS)
+            continue
+        last_run = now
+        try:
+            found = await shipfinder.fetch(BBOX)
+        except Exception as exc:
+            world.health["vessels"] = "offline"
+            world.vessels_note = "shipfinder unreachable"
+            log.error("Shipfinder scrape failed: %s", exc)
+            await asyncio.sleep(RETRY_SECONDS)
+            continue
+
+        seen_at = utcnow()
+        fresh = set()
+        for v in found:
+            key = v["id"]
+            fresh.add(key)
+            state = world.vessels.setdefault(key, {"mmsi": key})
+            # Course from the last fix, because the payload does not carry one
+            # that could be read with any confidence.
+            course = shipfinder.bearing(
+                state.get("latitude", v["latitude"]),
+                state.get("longitude", v["longitude"]),
+                v["latitude"], v["longitude"])
+            if course is not None:
+                state["course_over_ground_degrees"] = course
+            state["latitude"] = v["latitude"]
+            state["longitude"] = v["longitude"]
+            state["vessel_type"] = v["kind"]
+            state["source"] = "shipfinder"
+            world.vessel_seen[key] = seen_at
+
+        # Only ours. An AIS vessel that came back to life is not this task's to
+        # throw away.
+        stale = [k for k, s in world.vessels.items()
+                 if s.get("source") == "shipfinder" and k not in fresh]
+        for key in stale:
+            del world.vessels[key]
+            world.vessel_seen.pop(key, None)
+
+        world.health["vessels"] = "scraped"
+        world.vessels_note = SHIPFINDER_NOTE
+        log.info("Shipfinder: %d vessels in the box", len(found))
+        await clients.broadcast(snapshot())
+
+
 # ---- heartbeat --------------------------------------------------------------
 
 
@@ -884,13 +962,34 @@ app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 _tasks: list[asyncio.Task] = []
 
 
+def _spawn(coro, name: str) -> asyncio.Task:
+    """A task that dies takes its feed with it, and asyncio says nothing unless
+    somebody asks. This asks."""
+    task = asyncio.create_task(coro, name=name)
+
+    def done(t: asyncio.Task) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            log.error("Feed task %s died and its feed has stopped: %r", name, exc,
+                      exc_info=exc)
+        else:
+            log.error("Feed task %s returned and its feed has stopped.", name)
+
+    task.add_done_callback(done)
+    return task
+
+
 @app.on_event("startup")
 async def startup() -> None:
-    _tasks.append(asyncio.create_task(ais_task()))
-    _tasks.append(asyncio.create_task(tide_task()))
-    _tasks.append(asyncio.create_task(aircraft_task()))
-    _tasks.append(asyncio.create_task(weather_task()))
-    _tasks.append(asyncio.create_task(heartbeat_task()))
+    for coro, name in ((ais_task(), "ais"),
+                       (shipfinder_task(), "shipfinder"),
+                       (tide_task(), "tide"),
+                       (aircraft_task(), "aircraft"),
+                       (weather_task(), "weather"),
+                       (heartbeat_task(), "heartbeat")):
+        _tasks.append(_spawn(coro, name))
 
 
 @app.on_event("shutdown")

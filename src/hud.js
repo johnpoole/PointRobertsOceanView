@@ -32,7 +32,7 @@ export class Hud {
   _health(id, status) {
     const node = el(id);
     node.textContent = status || "offline";
-    node.classList.remove("live", "offline", "mock", "fallback");
+    node.classList.remove("live", "offline", "mock", "fallback", "scraped");
     node.classList.add(status || "offline");
   }
 

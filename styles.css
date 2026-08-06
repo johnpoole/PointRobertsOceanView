@@ -60,7 +60,7 @@ html, body {
 .health { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
 .health.live { color: var(--live); }
 .health.offline { color: var(--off); }
-.health.mock, .health.fallback { color: var(--warn); }
+.health.mock, .health.fallback, .health.scraped { color: var(--warn); }
 
 .wx-grid { display: flex; gap: 12px; align-items: flex-start; }
 .wx-readout { flex: 1; min-width: 140px; }

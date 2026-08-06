@@ -22,7 +22,7 @@ const ROAD_MIN_M = 2.0;
 
 // The house against the grey of every other building, and the named places
 // against both.
-const HOME_COLOR = 0xb4553a;
+const HOME_COLOR = 0x317543;
 const PLACE_COLOR = 0x3d7a8c;
 
 // How finely a draped line is cut before being laid on the ground. OSM puts a
