@@ -894,7 +894,13 @@ async def shipfinder_task() -> None:
             continue
         last_run = now
         try:
-            found = await shipfinder.fetch(BBOX)
+            ships = shipfinder.load_cache()
+            found, learned = await shipfinder.fetch(BBOX, ships)
+            if learned:
+                ships.update(learned)
+                shipfinder.save_cache(ships)
+                log.info("Shipfinder: learned %d ships, %d known now",
+                         len(learned), len(ships))
         except Exception as exc:
             world.health["vessels"] = "offline"
             world.vessels_note = "shipfinder unreachable"
@@ -920,6 +926,21 @@ async def shipfinder_task() -> None:
             state["longitude"] = v["longitude"]
             state["vessel_type"] = v["kind"]
             state["source"] = "shipfinder"
+
+            # What the ship is, if it has ever been looked up. The MMSI replaces
+            # their internal id, which is meaningless outside their own system.
+            known = ships.get(key)
+            if known:
+                if known.get("mmsi"):
+                    state["mmsi"] = known["mmsi"]
+                for field in ("name", "call_sign", "imo", "vessel_type_name"):
+                    if known.get(field):
+                        state[field] = known[field]
+                if known.get("length_m") and known.get("width_m"):
+                    state["dimensions_m"] = {"length": known["length_m"],
+                                             "width": known["width_m"]}
+                if known.get("speed_over_ground_knots") is not None:
+                    state["speed_over_ground_knots"] = known["speed_over_ground_knots"]
             world.vessel_seen[key] = seen_at
 
         # Only ours. An AIS vessel that came back to life is not this task's to

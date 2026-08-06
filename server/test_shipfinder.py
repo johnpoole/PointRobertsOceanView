@@ -17,8 +17,32 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server.shipfinder import (  # noqa: E402
-    HEADER_BYTES, RECORD_BYTES, bearing, decode, in_box,
+    HEADER_BYTES, RECORD_BYTES, bearing, decode, dm_to_degrees, in_box,
+    load_cache, parse_detail, save_cache,
 )
+
+# Verbatim from their page, MISTY BLUE, captured off a real click.
+PANEL = (
+    "API\nPlans & Pricing\nMMSI：316022604\n\n48º 51.314 N\n123º 29.921 W\n2nm\n+\n−\n"
+    "©2026 ShipFinder-H5 - Chart@C-Map @OpenStreetMap Terms & Conditions\n"
+    "11level - 410vessels\nUsing C-Map Chart, Pleaselogin now\n     \nChart\nMap\n\n"
+    "MISTY BLUE\n\nCoastal AIS\nWeather\nVoyage\n\n"
+    "MMSI：\t316022604\tHeading：\tUnknown\n"
+    "Call Sign：\tUNKNOWN\tCourse：\t305.0Deg\n"
+    "IMO：\t-\tSpeed：\t0.3kn\n"
+    "Type：\tPleasure craft\tLat：\t48-51.479N\n"
+    "Status：\t\tLon：\t123-30.028W\n"
+    "Length：\t8m\tDest：\t-\n"
+    "Width：\t2m\tETA：\t-\n"
+    "Draught：\t-\tLast Update：\t2026-08-06 13:26:41\n"
+    "Ship Info\nShip Track\nPort Call\n"
+)
+
+# The same panel for a ship whose call sign is blank. The empty field is what
+# used to make the parser read the next label as the value.
+PANEL_BLANK_CALLSIGN = PANEL.replace(
+    "Call Sign：\tUNKNOWN\tCourse：\t305.0Deg",
+    "Call Sign：\t\tCourse：\t322.1Deg")
 
 BOX = {"min_lat": 48.80, "min_lon": -123.50, "max_lat": 49.18, "max_lon": -122.95}
 
@@ -98,6 +122,75 @@ def test_bearing_is_degrees_true() -> None:
 
 def test_bearing_between_two_fixes_a_few_metres_apart_is_not_a_course() -> None:
     assert bearing(48.99, -123.09, 48.99009, -123.09) is None
+
+
+def test_the_panel_gives_up_what_the_ship_is() -> None:
+    d = parse_detail(PANEL)
+    assert d["mmsi"] == "316022604", d
+    assert d["name"] == "MISTY BLUE", d
+    assert d["vessel_type_name"] == "Pleasure craft", d
+    assert d["length_m"] == 8.0 and d["width_m"] == 2.0, d
+    assert d["speed_over_ground_knots"] == 0.3, d
+    assert d["course_over_ground_degrees"] == 305.0, d
+
+
+def test_blanks_are_left_out_rather_than_stored_as_dashes() -> None:
+    d = parse_detail(PANEL)
+    assert "imo" not in d, d          # the panel shows "-"
+    assert "call_sign" not in d, d    # the panel shows "UNKNOWN"
+
+
+def test_an_empty_field_does_not_swallow_the_next_label() -> None:
+    d = parse_detail(PANEL_BLANK_CALLSIGN)
+    assert "call_sign" not in d, d
+    assert d["course_over_ground_degrees"] == 322.1, d
+    assert d["mmsi"] == "316022604", d
+
+
+def test_the_name_is_found_though_it_carries_no_label() -> None:
+    assert parse_detail(PANEL)["name"] == "MISTY BLUE"
+    assert "name" not in parse_detail("MMSI：\t316022604\t")
+
+
+def test_the_panel_position_comes_back_so_a_missed_click_can_be_caught() -> None:
+    d = parse_detail(PANEL)
+    assert abs(d["panel_latitude"] - 48.858033) < 1e-4, d
+    assert abs(d["panel_longitude"] + 123.500483) < 1e-4, d
+
+
+def test_degrees_and_minutes() -> None:
+    assert abs(dm_to_degrees("48-51.482N") - 48.858033) < 1e-6
+    assert abs(dm_to_degrees("123-30.029W") + 123.500483) < 1e-6
+    assert abs(dm_to_degrees("48º 51.314 N") - 48.855233) < 1e-6
+    assert dm_to_degrees("") is None
+    assert dm_to_degrees("nonsense") is None
+
+
+def test_an_empty_panel_yields_nothing_rather_than_junk() -> None:
+    assert parse_detail("") == {}
+    assert parse_detail("nothing to see here") == {}
+
+
+def test_the_cache_survives_a_round_trip() -> None:
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / "ships.json"
+        assert load_cache(path) == {}
+        save_cache({"ABC": {"mmsi": "316022604", "name": "MISTY BLUE"}}, path)
+        assert load_cache(path)["ABC"]["name"] == "MISTY BLUE"
+
+
+def test_a_corrupt_cache_says_so_rather_than_starting_empty() -> None:
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / "ships.json"
+        path.write_text("{not json", encoding="utf-8")
+        try:
+            load_cache(path)
+        except RuntimeError as exc:
+            assert "could not be read" in str(exc), exc
+        else:
+            raise AssertionError("a corrupt cache was read as empty")
 
 
 def main() -> int:

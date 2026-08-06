@@ -13,3 +13,9 @@ services:
     # on 8090, and nginx proxies oceanview.johnpoole.ca here.
     ports:
       - "8091:8080"
+    # What a ship is does not change, so the lookups survive a redeploy.
+    volumes:
+      - shipfinder-ships:/app/data
+
+volumes:
+  shipfinder-ships:
