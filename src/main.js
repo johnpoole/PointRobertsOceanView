@@ -274,8 +274,19 @@ function vehicleHint(spec) {
   return parts.join(" · ");
 }
 
+// Back to where the app opens: the bluff at the house, eye above sea level,
+// looking due west. toOrbit aims the target down the current view, so the
+// position and the target are set after it, not before.
+function toBluff() {
+  nav.toOrbit();
+  camera.position.set(0, EYE_HEIGHT_M, 0);
+  controls.target.set(-500, 0, 0);
+  controls.update();
+}
+
 function chooseMode(id) {
   chooser.classList.add("hidden");
+  if (id === "bluff") { toBluff(); return; }
   if (id === "look") { nav.toOrbit(); return; }
   if (id === "boat") { nav.toggleBoat(BOAT_START); return; }
   const spec = vehicleById(id);
@@ -288,6 +299,7 @@ for (const [id, label, note] of [
   ["cart", "golf cart", "24 km/h"],
   ["boat", "boat", "8 kn"],
   ["ultralight", "ultra light", "90 km/h"],
+  ["bluff", "bluff", "looking west"],
   ["look", "look around", "no vehicle"],
 ]) {
   const b = document.createElement("button");
