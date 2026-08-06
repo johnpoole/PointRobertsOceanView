@@ -35,6 +35,10 @@ const MAX_RPM = 4800;
 // each cycle, so 10 gives 7 percent — a crack at idle that smears into a buzz
 // as the firings crowd together.
 const PULSE_SHARPNESS = 10;
+// A pulse that narrow carries far less energy than the sawtooth it replaced —
+// 15 times less, measured — so the bank needs that back or the motor disappears
+// under the surf. Chosen to land on the old level, not by ear.
+const PULSE_DRIVE = 15;
 // Where the motor rings, in hertz, with how sharply and how loud. Measured off
 // nothing — these are the resonances of a small two-stroke and its leg, low
 // thump, mid bark, and the tinny top that says aluminium.
@@ -177,7 +181,7 @@ export class Audio {
       band.frequency.value = r.f;
       band.Q.value = r.q;
       const g = ctx.createGain();
-      g.gain.value = r.gain;
+      g.gain.value = r.gain * PULSE_DRIVE;
       this.pulse.connect(band).connect(g).connect(this.engineFilter);
       this.chuffGate.connect(band);
       this.resonators.push(band);
