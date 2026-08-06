@@ -54,9 +54,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # ---- fixed constants (documented, not fetched) -----------------------------
 
-# Wide enough to cover the traffic visible from the bluff: the Strait of Georgia
-# shipping lane to the west and the Tsawwassen ferry lanes to the north and south.
-BBOX = {"min_lat": 48.80, "min_lon": -123.50, "max_lat": 49.18, "max_lon": -122.95}
+# Twenty kilometres round the bluff, which is what can actually be seen from it.
+# The eye is 20 m above the sea, so the horizon is 17.3 km of open water; a 4 m
+# cruiser stays above it out to 25 km and a 2 m runabout to 22.7. Past that a
+# boat is behind the curve of the earth and drawing it puts a hull on the water
+# where there is nothing to see.
+#
+# The old box ran 21 km south and 30 km west and held 211 vessels, most of them
+# small craft off Richmond and through the Gulf Islands, over the horizon and
+# invisible. This holds 99, and every one of them is above it.
+BBOX = {"min_lat": 48.809, "min_lon": -123.359, "max_lat": 49.169, "max_lon": -122.812}
 STALE_SECONDS = {"vessels": 300, "aircraft": 120}
 HEARTBEAT_SECONDS = 10.0
 
