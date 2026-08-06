@@ -70,8 +70,55 @@ function ribbon(coordsList, sample, width, lift) {
   return geom;
 }
 
+// A gable sitting on a width x depth box, ridge along the longer side the way a
+// house is framed. Origin is the middle of the eaves, so it drops onto the top
+// of the wall block. Merged with BoxGeometry later, so it carries the same
+// attributes: uv is never sampled, but it has to be there or the merge fails.
+function gable(width, depth, rise) {
+  const hw = width / 2, hd = depth / 2;
+  const alongX = width >= depth;
+  // Ridge ends and the four eave corners, in the frame where the ridge runs X.
+  const w = alongX ? hw : hd, d = alongX ? hd : hw;
+  const v = [
+    [-w, 0, -d], [w, 0, -d], [w, 0, d], [-w, 0, d],   // eaves 0..3
+    [-w, rise, 0], [w, rise, 0],                       // ridge 4,5
+  ];
+  const faces = [
+    [0, 1, 5], [0, 5, 4],   // the slope on the -d side
+    [2, 3, 4], [2, 4, 5],   // the slope on the +d side
+    [0, 4, 3],              // gable end at -w
+    [1, 2, 5],              // gable end at +w
+  ];
+  const pos = [];
+  for (const f of faces) {
+    // Swapping x and z mirrors the shape and a mirror reverses winding, so the
+    // unswapped case has to walk its triangles the other way round or every
+    // face ends up pointing into the roof and renders black.
+    const order = alongX ? [f[2], f[1], f[0]] : f;
+    for (const i of order) {
+      const p = v[i];
+      pos.push(alongX ? p[0] : p[2], p[1], alongX ? p[2] : p[0]);
+    }
+  }
+  const count = pos.length / 3;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+  // BoxGeometry is indexed and the merge refuses a mix, so index it straight
+  // through.
+  g.setIndex(Array.from({ length: count }, (_, i) => i));
+  g.computeVertexNormals();
+  return g;
+}
+
+// Roof pitch, rise over half the short span. About 6 in 12, which is what the
+// houses here are framed at, capped so a wide footprint does not grow a spire.
+const ROOF_PITCH = 0.5;
+const ROOF_RISE_MAX_M = 3.0;
+
 function buildings(list, sample) {
-  // Axis-aligned block per footprint: cheap, and from the bluff the massing reads.
+  // Axis-aligned block per footprint: cheap, and from the bluff the massing
+  // reads. Houses get a gable on top; trading premises stay flat.
   const geoms = [];
   for (const b of list) {
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -87,9 +134,17 @@ function buildings(list, sample) {
     const n = b.coords.length;
     const base = sample(latSum / n, lonSum / n);
     const h = Math.max(3, Math.min(b.height || 5, 60));
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
     const g = new THREE.BoxGeometry(width, h, depth);
-    g.translate((minX + maxX) / 2, base + h / 2, (minZ + maxZ) / 2);
+    g.translate(cx, base + h / 2, cz);
     geoms.push(g);
+    if (!b.flat) {
+      const span = Math.min(width, depth);
+      const rise = Math.min(ROOF_PITCH * span / 2, ROOF_RISE_MAX_M);
+      const roof = gable(width, depth, rise);
+      roof.translate(cx, base + h, cz);
+      geoms.push(roof);
+    }
   }
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }

@@ -187,6 +187,21 @@ PLACES = [
 ]
 
 
+# Which buildings get a flat roof. Point Roberts is houses: 2,397 tagged house,
+# 1,666 tagged yes, and 334 sheds, garages, caravans and cabins, against 35 that
+# are trading premises. So a peak is the default and this is the exception.
+FLAT_TAGS = ("amenity", "shop", "office", "tourism", "craft")
+FLAT_BUILDINGS = {"commercial", "retail", "industrial", "warehouse", "office",
+                  "public", "school", "civic", "hospital", "supermarket",
+                  "hangar", "roof"}
+
+
+def flat_roofed(tags: dict) -> bool:
+    if any(k in tags for k in FLAT_TAGS):
+        return True
+    return tags.get("building") in FLAT_BUILDINGS
+
+
 def in_ring(lat: float, lon: float, ring: list[list[float]]) -> bool:
     """Crossing count. The ring is [[lat, lon], ...] and need not be closed."""
     pts = ring if ring[0] == ring[-1] else ring + [ring[0]]
@@ -229,7 +244,10 @@ def main() -> None:
         elif el["type"] == "way" and "building" in tags:
             pts = coords(el)
             if len(pts) >= 3:
-                buildings.append({"coords": pts, "height": building_height(tags)})
+                b = {"coords": pts, "height": building_height(tags)}
+                if flat_roofed(tags):
+                    b["flat"] = True
+                buildings.append(b)
         elif el["type"] == "way" and tags.get("natural") == "coastline":
             pts = coords(el)
             if len(pts) >= 2:
@@ -298,6 +316,10 @@ def main() -> None:
                 f"PLACES is in {Path(__file__).name}."
             )
         hit["name"] = place["name"]
+        # Trading premises, so flat, even where OSM tags the business on a node
+        # inside the building and leaves the building itself plain. That is how
+        # the Pier Restaurant sits in the marina.
+        hit["flat"] = True
 
     deduped: list[dict] = []
     for lm in landmarks:
@@ -337,6 +359,8 @@ def main() -> None:
         if b.get("name"):
             c = centroid(b["coords"])
             print(f"  place:    {b['name']:20} ({c[0]:.5f},{c[1]:.5f})")
+    flat = sum(1 for b in buildings if b.get("flat"))
+    print(f"  roofs:    {len(buildings) - flat} peaked, {flat} flat")
     for lm in landmarks:
         print(f"  landmark: {lm['kind']:10} {lm['name']}  ({lm['lat']:.4f},{lm['lon']:.4f})")
     for rw in runways:
