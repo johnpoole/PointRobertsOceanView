@@ -2,9 +2,9 @@
 //
 //   water  - always on, filtered noise driven by the real sea state and how far
 //            away the water actually is at the current tide.
-//   engine - boat mode only, a two-cylinder two-stroke: one bang per firing,
-//            into fixed resonances, at a rate that follows engine revs rather
-//            than boat speed.
+//   engine - boat mode only, a two-stroke outboard: one bang per firing, into
+//            fixed resonances, at a rate that follows engine revs rather than
+//            boat speed.
 //
 // Nothing is loaded from disk. Both voices are a handful of oscillators and a
 // noise buffer, which costs nothing in payload and, more to the point, lets the
@@ -16,10 +16,6 @@
 
 const STORE_KEY = "oceanview.sound";
 
-// The Evinrude 4.5 is a two-cylinder two-stroke, 5.28 cubic inches, and the two
-// fire 180 degrees apart. Two firings a revolution, so the rate in hertz is
-// rpm/30 — 37 Hz at idle, 160 at full throttle.
-const FIRINGS_PER_REV = 2;
 const IDLE_RPM = 1100;
 // OMC propped these to turn 4000-5000 at wide open throttle.
 const MAX_RPM = 4800;
@@ -31,27 +27,73 @@ const MAX_RPM = 4800;
 // motor is recognisably the same motor at idle and at full throttle, and why a
 // sawtooth sliding up the scale sounds like a synthesiser instead.
 //
-// Sharpness sets how narrow the bang is. The pulse occupies about ln(2)/k of
-// each cycle, so 10 gives 7 percent — a crack at idle that smears into a buzz
-// as the firings crowd together.
-const PULSE_SHARPNESS = 10;
-// A pulse that narrow carries far less energy than the sawtooth it replaced —
-// 15 times less, measured — so the bank needs that back or the motor disappears
-// under the surf. Chosen to land on the old level, not by ear.
-const PULSE_DRIVE = 15;
-// Where the motor rings, in hertz, with how sharply and how loud. Measured off
-// nothing — these are the resonances of a small two-stroke and its leg, low
-// thump, mid bark, and the tinny top that says aluminium.
-const RESONANCES = [
-  { f: 190, q: 9, gain: 1.00 },
-  { f: 430, q: 7, gain: 0.55 },
-  { f: 1150, q: 5, gain: 0.28 },
+// Two motors here to pick between. Add ?motor=bright to the address to get the
+// second one. When one is chosen the other goes.
+//
+//   firings   per crank revolution. A twin fires twice, a single once, and it
+//             sets the pitch: rpm/30 against rpm/60, an octave apart.
+//   sharpness how narrow the bang is. The pulse fills about ln(2)/k of a cycle.
+//   drive     makes back the energy a narrow pulse loses against a full
+//             waveform, so the motor is not buried under the surf.
+//   ring      where it rings, how long it rings, how loud. Q is pi*f*decay.
+//   crank     mechanical buzz at the firing rate and its first two harmonics,
+//             each with its own level and phase.
+//   hiss      broadband engine clatter, continuous, at unit level.
+//   chuff     noise gated by the pulse — a puff of gas with each bang.
+//   wash      prop wash under the boat. Its level wanders between floor and 1
+//             at gurgleHz, which is what bubbles sound like from above.
+//   drown     lowpass in hertz with the leg in the water, and lifted out on
+//             plane. The exhaust exits through the prop hub, under water.
+//   squash    tanh drive. Nothing above zero leaves it undistorted.
+//   gain      overall, at idle and wide open.
+const MOTORS = {
+  deep: {
+    firings: 1, sharpness: 20, drive: 10,
+    ring: [
+      { f: 72, decay: 0.035, gain: 1.00 },
+      { f: 138, decay: 0.025, gain: 0.58 },
+      { f: 285, decay: 0.016, gain: 0.26 },
+    ],
+    crank: [
+      { level: 0.25, phase: 0 },
+      { level: 0.16, phase: 0.4 },
+      { level: 0.08, phase: 1.1 },
+    ],
+    hiss: { f: 570, q: 1.4, level: 0.11 },
+    chuff: 0,
+    wash: { f: 96, q: 0.65, floor: 0.30, gurgleHz: 18 },
+    mix: { ring: [0.74, 0.96], crank: [0.17, 0.39], wash: [0.15, 0.35] },
+    drown: [900, 3200], squash: 1.45, gain: [0.09, 0.32],
+  },
+  bright: {
+    firings: 2, sharpness: 10, drive: 15,
+    ring: [
+      { f: 190, decay: 0.0151, gain: 1.00 },
+      { f: 430, decay: 0.0052, gain: 0.55 },
+      { f: 1150, decay: 0.0014, gain: 0.28 },
+    ],
+    crank: null, hiss: null,
+    chuff: 0.9,
+    wash: null,
+    mix: { ring: [1, 1], crank: [0, 0], wash: [0, 0] },
+    drown: [900, 3200], squash: 0, gain: [0.05, 0.21],
+  },
+};
+
+const params = new URLSearchParams(window.location.search);
+const MOTOR = MOTORS[params.get("motor")] || MOTORS.deep;
+
+// The revs the mix is written against: full brightness by 3250, which is where
+// a 4.5 is working hard.
+const MIX_FLOOR_RPM = 850;
+const MIX_SPAN_RPM = 2400;
+
+// Small engines never hold their revs. Two slow wanders and a slow random one,
+// as a fraction of the firing rate.
+const HUNT = [
+  { hz: 0.43, depth: 0.025 },
+  { hz: 0.17, depth: 0.012 },
 ];
-// The exhaust goes out through the prop hub, under water. That is what takes
-// the edge off and makes it burble instead of crack, and it opens up as the
-// leg comes closer to the surface on plane.
-const EXHAUST_DROWNED_HZ = 900;
-const EXHAUST_OPEN_HZ = 3200;
 // Revs sag as the hull pushes against its own bow wave, then pick up as it comes
 // onto plane and the load falls away.
 const LOAD_SAG_RPM = 700;
@@ -72,6 +114,34 @@ function pulseCurve(k, n = 1024) {
   for (let i = 0; i < n; i++) curve[i] = Math.pow(i / (n - 1), k);
   return curve;
 }
+
+// Soft clip, the way a real exhaust runs out of room. A waveshaper only sees
+// -1..1, so the signal is scaled down by RANGE going in and the curve undoes it.
+const SQUASH_RANGE = 3;
+function squashCurve(drive, n = 1024) {
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const u = (i / (n - 1)) * 2 - 1;
+    curve[i] = Math.tanh(drive * u * SQUASH_RANGE);
+  }
+  return curve;
+}
+
+// A resonator that dies away in `decay` seconds is a bandpass of Q = pi f decay.
+function ringQ(f, decay) { return Math.PI * f * decay; }
+
+// White noise comes out of a filter far quieter than it went in, by an amount
+// that depends on how narrow the filter is. The buffer is uniform noise, so its
+// variance is 1/3 spread flat over half the sample rate, and what survives a
+// filter passing B hertz is sqrt(B/3 / (SR/2)). Undoing that is what lets the
+// levels below be the levels they say they are.
+const bandWidthHz = (f, q) => Math.PI * f / (2 * q);
+const lowWidthHz = (f) => Math.PI * f / 2;
+function noiseGain(widthHz, sampleRate) {
+  return Math.sqrt((sampleRate / 2) * 3 / widthHz);
+}
+// The gurgle is a slow wander, and three standard deviations covers it.
+const GURGLE_SIGMA = 3;
 
 export class Audio {
   constructor() {
@@ -143,55 +213,150 @@ export class Audio {
     this.swellLfo.connect(this.swellDepth).connect(this.surfGain.gain);
 
     // ---- engine ------------------------------------------------------------
-    // Saw -> waveshaper is the pulse train. One bang per firing.
-    this.fire = ctx.createOscillator();
-    this.fire.type = "sawtooth";
-    this.fire.frequency.value = IDLE_RPM * FIRINGS_PER_REV / 60;
-    this.pulse = ctx.createWaveShaper();
-    this.pulse.curve = pulseCurve(PULSE_SHARPNESS);
-    this.pulse.oversample = "4x";
-    this.fire.connect(this.pulse);
+    const m = MOTOR;
+    const noise = () => {
+      const n = ctx.createBufferSource();
+      n.buffer = buf;
+      n.loop = true;
+      n.start();
+      return n;
+    };
+    const idleFire = IDLE_RPM * m.firings / 60;
 
-    // Each bang also throws a puff of exhaust gas, so the same pulse gates
-    // noise. This is most of what makes it read as an engine and not a buzzer.
-    this.chuff = ctx.createBufferSource();
-    this.chuff.buffer = buf;
-    this.chuff.loop = true;
-    this.chuffGate = ctx.createGain();
-    this.chuffGate.gain.value = 0;             // driven entirely by the pulse
-    this.chuffLevel = ctx.createGain();
-    this.chuffLevel.gain.value = 0.9;
-    this.pulse.connect(this.chuffLevel).connect(this.chuffGate.gain);
-    this.chuff.connect(this.chuffGate);
-
-    // The exhaust, under water. Everything passes through this.
+    // The exhaust, under water, and the level. Everything ends up here.
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = "lowpass";
-    this.engineFilter.frequency.value = EXHAUST_DROWNED_HZ;
+    this.engineFilter.frequency.value = m.drown[0];
     this.engineFilter.Q.value = 0.7;
     this.engineGain = ctx.createGain();
     this.engineGain.gain.value = 0;
 
-    // The bangs ring the motor. Fixed frequencies, so the motor keeps its own
-    // voice as the revs climb.
-    this.resonators = [];
-    for (const r of RESONANCES) {
-      const band = ctx.createBiquadFilter();
-      band.type = "bandpass";
-      band.frequency.value = r.f;
-      band.Q.value = r.q;
-      const g = ctx.createGain();
-      g.gain.value = r.gain * PULSE_DRIVE;
-      this.pulse.connect(band).connect(g).connect(this.engineFilter);
-      this.chuffGate.connect(band);
-      this.resonators.push(band);
+    // Soft clip before the exhaust, or straight through if the motor wants none.
+    let sum = this.engineFilter;
+    if (m.squash > 0) {
+      const trim = ctx.createGain();
+      trim.gain.value = 1 / SQUASH_RANGE;
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = squashCurve(m.squash);
+      shaper.oversample = "4x";
+      trim.connect(shaper).connect(this.engineFilter);
+      sum = trim;
     }
     this.engineFilter.connect(this.engineGain).connect(this.master);
 
+    // Saw -> waveshaper is the pulse train. One bang per firing.
+    this.fire = ctx.createOscillator();
+    this.fire.type = "sawtooth";
+    this.fire.frequency.value = idleFire;
+    this.pulse = ctx.createWaveShaper();
+    this.pulse.curve = pulseCurve(m.sharpness);
+    this.pulse.oversample = "4x";
+    this.fire.connect(this.pulse);
+    this.fire.start();
+
+    // Revs wander. A motor held to the sample is the giveaway that it is not one.
+    this.hunt = [];
+    for (const h of HUNT) {
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = h.hz;
+      const depth = ctx.createGain();
+      depth.gain.value = idleFire * h.depth;
+      lfo.connect(depth).connect(this.fire.frequency);
+      lfo.start();
+      this.hunt.push({ depth, fraction: h.depth });
+    }
+
+    // The bangs ring the motor. Fixed frequencies, so the motor keeps its own
+    // voice as the revs climb.
+    this.ringGain = ctx.createGain();
+    this.ringGain.gain.value = m.mix.ring[0];
+    this.ringGain.connect(sum);
+    for (const r of m.ring) {
+      const band = ctx.createBiquadFilter();
+      band.type = "bandpass";
+      band.frequency.value = r.f;
+      band.Q.value = ringQ(r.f, r.decay);
+      const g = ctx.createGain();
+      g.gain.value = r.gain * m.drive;
+      this.pulse.connect(band).connect(g).connect(this.ringGain);
+
+      // A puff of gas with each bang, gated by the pulse, rung by the same bank.
+      if (m.chuff > 0) {
+        const gate = ctx.createGain();
+        gate.gain.value = 0;             // driven entirely by the pulse
+        const level = ctx.createGain();
+        level.gain.value = m.chuff;
+        this.pulse.connect(level).connect(gate.gain);
+        noise().connect(gate).connect(band);
+      }
+    }
+
+    // Mechanical: the crank buzzing at the firing rate, plus steady clatter.
+    if (m.crank || m.hiss) {
+      this.crankGain = ctx.createGain();
+      this.crankGain.gain.value = m.mix.crank[0];
+      this.crankGain.connect(sum);
+      if (m.crank) {
+        // One oscillator carrying all the harmonics at their own levels and
+        // phases. Web Audio builds a waveform from cosine and sine terms, so a
+        // harmonic of level A at phase p is A sin p on one and A cos p on the
+        // other.
+        const real = new Float32Array(m.crank.length + 1);
+        const imag = new Float32Array(m.crank.length + 1);
+        m.crank.forEach((h, i) => {
+          real[i + 1] = h.level * Math.sin(h.phase);
+          imag[i + 1] = h.level * Math.cos(h.phase);
+        });
+        this.crankOsc = ctx.createOscillator();
+        this.crankOsc.setPeriodicWave(ctx.createPeriodicWave(real, imag,
+          { disableNormalization: true }));
+        this.crankOsc.frequency.value = idleFire;
+        this.crankOsc.connect(this.crankGain);
+        this.crankOsc.start();
+      }
+      if (m.hiss) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.frequency.value = m.hiss.f;
+        bp.Q.value = m.hiss.q;
+        const g = ctx.createGain();
+        g.gain.value = m.hiss.level
+          * noiseGain(bandWidthHz(m.hiss.f, m.hiss.q), ctx.sampleRate);
+        noise().connect(bp).connect(g).connect(this.crankGain);
+      }
+    }
+
+    // Prop wash, gurgling under the boat. The gurgle is slow random noise on
+    // the level, which is what bubbles sound like from above.
+    if (m.wash) {
+      this.washGain = ctx.createGain();
+      this.washGain.gain.value = m.mix.wash[0];
+      this.washGain.connect(sum);
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = m.wash.f;
+      bp.Q.value = m.wash.q;
+      // The level swings between floor and 1, so it sits at the middle and the
+      // gurgle carries it half the distance either way.
+      const unit = noiseGain(bandWidthHz(m.wash.f, m.wash.q), ctx.sampleRate);
+      const mid = (m.wash.floor + 1) / 2;
+      const swing = (1 - m.wash.floor) / 2;
+      const body = ctx.createGain();
+      body.gain.value = mid * unit;
+      noise().connect(bp).connect(body).connect(this.washGain);
+
+      const gurgle = ctx.createBiquadFilter();
+      gurgle.type = "lowpass";
+      gurgle.frequency.value = m.wash.gurgleHz;
+      const depth = ctx.createGain();
+      depth.gain.value = swing * unit
+        * noiseGain(lowWidthHz(m.wash.gurgleHz), ctx.sampleRate) / GURGLE_SIGMA;
+      noise().connect(gurgle).connect(depth).connect(body.gain);
+    }
+
     this.surfNoise.start();
     this.swellLfo.start();
-    this.fire.start();
-    this.chuff.start();
     if (this.enabled) ctx.resume();
     this._onChange(this.enabled);
   }
@@ -231,14 +396,26 @@ export class Audio {
     const sag = LOAD_SAG_RPM * b.throttle * hump * (1 - b.planing);
     this.revs += ((wanted - sag) - this.revs) * (1 - Math.exp(-dt / REV_TAU));
 
-    const fire = this.revs * FIRINGS_PER_REV / 60;
+    const m = MOTOR;
+    const fire = this.revs * m.firings / 60;
     at(this.fire.frequency, fire, 0.06);
+    // The wander is a fraction of the revs, so it stays proportional.
+    for (const h of this.hunt) at(h.depth.gain, fire * h.fraction, 0.06);
+    if (this.crankOsc) at(this.crankOsc.frequency, fire, 0.06);
+
     const open = clamp((this.revs - IDLE_RPM) / (MAX_RPM - IDLE_RPM), 0, 1);
     // Coming onto plane lifts the leg and the exhaust with it, so the muffling
     // lets go and the bark comes out. Throttle alone does a little of this.
     const lift = clamp(0.35 * open + 0.65 * b.planing, 0, 1);
-    at(this.engineFilter.frequency,
-      EXHAUST_DROWNED_HZ + (EXHAUST_OPEN_HZ - EXHAUST_DROWNED_HZ) * lift, 0.1);
-    at(this.engineGain.gain, 0.05 + 0.16 * open, 0.1);
+    at(this.engineFilter.frequency, m.drown[0] + (m.drown[1] - m.drown[0]) * lift, 0.1);
+    at(this.engineGain.gain, m.gain[0] + (m.gain[1] - m.gain[0]) * open, 0.1);
+
+    // The mix leans on the exhaust at idle and lets the mechanical and the wash
+    // in as it works.
+    const load = clamp((this.revs - MIX_FLOOR_RPM) / MIX_SPAN_RPM, 0, 1);
+    const blend = (g, pair) => { if (g) at(g.gain, pair[0] + (pair[1] - pair[0]) * load, 0.1); };
+    blend(this.ringGain, m.mix.ring);
+    blend(this.crankGain, m.mix.crank);
+    blend(this.washGain, m.mix.wash);
   }
 }
