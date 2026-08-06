@@ -54,16 +54,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # ---- fixed constants (documented, not fetched) -----------------------------
 
-# Twenty kilometres round the bluff, which is what can actually be seen from it.
-# The eye is 20 m above the sea, so the horizon is 17.3 km of open water; a 4 m
-# cruiser stays above it out to 25 km and a 2 m runabout to 22.7. Past that a
-# boat is behind the curve of the earth and drawing it puts a hull on the water
-# where there is nothing to see.
+# Ten kilometres round the bluff. The eye is 20 m above the sea, so the horizon
+# is 17.3 km of open water and everything in here is well inside it and big
+# enough on screen to be worth drawing.
 #
-# The old box ran 21 km south and 30 km west and held 211 vessels, most of them
-# small craft off Richmond and through the Gulf Islands, over the horizon and
-# invisible. This holds 99, and every one of them is above it.
-BBOX = {"min_lat": 48.809, "min_lon": -123.359, "max_lat": 49.169, "max_lon": -122.812}
+# This is the near water: the beach, the ferry terminal, the marina, and the
+# inshore edge of the shipping lane. The box has been 30 km west and 20 km round
+# before this, at 211 and 130 vessels; ten leaves what is close enough to pick
+# out from the window.
+BBOX = {"min_lat": 48.899, "min_lon": -123.222, "max_lat": 49.079, "max_lon": -122.949}
 STALE_SECONDS = {"vessels": 300, "aircraft": 120}
 HEARTBEAT_SECONDS = 10.0
 
