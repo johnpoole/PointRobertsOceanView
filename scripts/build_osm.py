@@ -177,6 +177,28 @@ def runway_width(tags: dict) -> float:
 HOME = {"lat": 48.9890765, "lon": -123.0857900}
 HOME_MAX_M = 40.0
 
+# Places worth telling apart from the four thousand grey boxes. OSM tags two of
+# these on the building and one, the Pier Restaurant, as a node inside the
+# marina building, so all three are matched by the footprint the point falls in.
+PLACES = [
+    {"name": "Kiniski's Reef", "lat": 48.984570, "lon": -123.083454},   # way 440752837
+    {"name": "Saltwater Cafe", "lat": 48.984035, "lon": -123.081844},   # way 440751025
+    {"name": "Pier Restaurant", "lat": 48.977073, "lon": -123.063032},  # node 2165488384
+]
+
+
+def in_ring(lat: float, lon: float, ring: list[list[float]]) -> bool:
+    """Crossing count. The ring is [[lat, lon], ...] and need not be closed."""
+    pts = ring if ring[0] == ring[-1] else ring + [ring[0]]
+    hit = False
+    for i in range(len(pts) - 1):
+        y1, x1 = pts[i]
+        y2, x2 = pts[i + 1]
+        if (y1 > lat) != (y2 > lat):
+            if lon < x1 + (lat - y1) * (x2 - x1) / (y2 - y1):
+                hit = not hit
+    return hit
+
 
 def building_height(tags: dict) -> float:
     if "height" in tags:
@@ -264,6 +286,19 @@ def main() -> None:
         )
     home["home"] = True
 
+    # Named places. The point falls inside its own footprint, so no distance
+    # guess is needed and a miss means the place has moved or OSM has changed.
+    for place in PLACES:
+        hit = next((b for b in buildings
+                    if in_ring(place["lat"], place["lon"], b["coords"])), None)
+        if hit is None:
+            raise SystemExit(
+                f"No building footprint contains {place['name']} at "
+                f"{place['lat']},{place['lon']}. Check the point against OSM; "
+                f"PLACES is in {Path(__file__).name}."
+            )
+        hit["name"] = place["name"]
+
     deduped: list[dict] = []
     for lm in landmarks:
         dup = next((x for x in deduped if x["kind"] == lm["kind"] and metres(x, lm) < 500), None)
@@ -298,6 +333,10 @@ def main() -> None:
           f"runways {len(runways)}")
     print(f"  home:     {home_m:.0f} m from the address node, "
           f"({home_c[0]:.5f},{home_c[1]:.5f})")
+    for b in buildings:
+        if b.get("name"):
+            c = centroid(b["coords"])
+            print(f"  place:    {b['name']:20} ({c[0]:.5f},{c[1]:.5f})")
     for lm in landmarks:
         print(f"  landmark: {lm['kind']:10} {lm['name']}  ({lm['lat']:.4f},{lm['lon']:.4f})")
     for rw in runways:

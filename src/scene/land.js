@@ -20,8 +20,10 @@ const ROAD_WIDTH_DEFAULT = 4;
 const ROAD_EXAGGERATION = 1.6;
 const ROAD_MIN_M = 2.0;
 
-// The house against the grey of every other building.
+// The house against the grey of every other building, and the named places
+// against both.
 const HOME_COLOR = 0xb4553a;
+const PLACE_COLOR = 0x3d7a8c;
 
 // How finely a draped line is cut before being laid on the ground. OSM puts a
 // node wherever a road bends, not wherever the ground does, so half its segments
@@ -210,9 +212,9 @@ export async function buildLand(scene, sample) {
     scene.add(mesh);
   }
 
-  // Buildings. The house is marked in the bake and drawn on its own so it can
-  // be told apart from the four thousand others.
-  const bgeom = buildings(data.buildings.filter((b) => !b.home), sample);
+  // Buildings. The house and the named places are marked in the bake and drawn
+  // on their own so they can be told apart from the four thousand others.
+  const bgeom = buildings(data.buildings.filter((b) => !b.home && !b.name), sample);
   if (bgeom) {
     scene.add(new THREE.Mesh(bgeom, new THREE.MeshStandardMaterial({
       color: 0xa7a396, roughness: 0.9, metalness: 0 })));
@@ -221,6 +223,19 @@ export async function buildLand(scene, sample) {
   if (hgeom) {
     scene.add(new THREE.Mesh(hgeom, new THREE.MeshStandardMaterial({
       color: HOME_COLOR, roughness: 0.7, metalness: 0 })));
+  }
+
+  // One mesh each, because each carries its own name on hover.
+  const placeMeshes = [];
+  for (const b of data.buildings) {
+    if (!b.name) continue;
+    const geom = buildings([b], sample);
+    if (!geom) continue;
+    const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+      color: PLACE_COLOR, roughness: 0.7, metalness: 0 }));
+    mesh.userData.landmark = { name: b.name, kind: "building" };
+    scene.add(mesh);
+    placeMeshes.push(mesh);
   }
 
   // Landmarks: a screen-constant dot; the name shows on hover.
@@ -244,6 +259,7 @@ export async function buildLand(scene, sample) {
     scene.add(group);
     markers.push(group);
   }
-  return { landmarks: markers.concat(runwayMeshes, pierMeshes), pilings: pilingPosts,
+  return { landmarks: markers.concat(runwayMeshes, pierMeshes, placeMeshes),
+    pilings: pilingPosts,
            features: data };
 }
