@@ -113,6 +113,9 @@ DETAIL_FIELDS = {
     "Lon": "lon_text",
 }
 BLANK = {"", "-", "UNKNOWN", "Unknown"}
+# The page's own tabs, which sit where a nameless ship's name would be.
+PAGE_LABELS = {"Map", "Chart", "Weather", "Voyage", "Ship Info", "Ship Track",
+               "Port Call", "Alert", "Forecast", "Coastal AIS"}
 
 # A click that lands on nothing leaves the previous ship's panel up, and a click
 # in a crowded anchorage lands on whichever hull is on top. So the panel is only
@@ -129,11 +132,13 @@ DETAIL_MATCH_M = 300.0
 TYPE_CODES = {
     "passenger ship": 60, "passenger": 60, "ferry": 60,
     "cargo": 70, "cargo ship": 70, "general cargo": 70, "container ship": 70,
-    "bulk carrier": 70,
+    "container": 70, "bulk carrier": 70, "vehicles carrier": 70,
+    "reefer": 70, "ro-ro": 70,
     "tanker": 80, "oil tanker": 80, "chemical tanker": 80, "lng tanker": 80,
     "fishing": 30, "fishing vessel": 30,
     "tug": 52, "towing": 52, "pilot": 50, "pilot vessel": 50,
-    "search and rescue": 51, "port tender": 53, "dredger": 33,
+    "search and rescue": 51, "search and rescue vessel": 51,
+    "port tender": 53, "dredger": 33,
     "law enforcement": 55, "military": 35,
     "sailing": 36, "sailing vessel": 36,
     "pleasure craft": 37, "yacht": 37,
@@ -179,11 +184,13 @@ def parse_detail(text: str) -> dict:
         out.setdefault(DETAIL_FIELDS[label], value)
 
     # The name carries no label. It stands on its own line above the tabs that
-    # run along the top of the panel.
+    # run along the top of the panel. A ship with no name has no line at all,
+    # and the page's own tab labels sit immediately above where it would be, so
+    # they have to be refused or every nameless ship comes out called Map.
     anchor = text.find("Coastal AIS")
     if anchor > 0:
         before = [ln.strip() for ln in text[:anchor].splitlines() if ln.strip()]
-        if before and before[-1] not in BLANK:
+        if before and before[-1] not in BLANK and before[-1] not in PAGE_LABELS:
             out["name"] = before[-1]
     for key in ("length_m", "width_m"):
         if key in out:
@@ -236,12 +243,18 @@ def load_cache(path: Path = CACHE_PATH) -> dict:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        cache = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise RuntimeError(
             f"The shipfinder ship cache at {path} could not be read: {exc}. "
             f"Delete it to start over; it is only a lookup table."
         ) from exc
+    # Nameless ships were once stored under the page tab that sits where their
+    # name would be. Drop those names so the ship is asked about again.
+    for ship in cache.values():
+        if ship.get("name") in PAGE_LABELS:
+            del ship["name"]
+    return cache
 
 
 def save_cache(cache: dict, path: Path = CACHE_PATH) -> None:

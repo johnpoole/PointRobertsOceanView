@@ -44,6 +44,10 @@ PANEL_BLANK_CALLSIGN = PANEL.replace(
     "Call Sign：\tUNKNOWN\tCourse：\t305.0Deg",
     "Call Sign：\t\tCourse：\t322.1Deg")
 
+# A ship with no name at all. There is no name line, so the page's own tab
+# labels sit directly above "Coastal AIS" where the name would have been.
+PANEL_NO_NAME = PANEL.replace("MISTY BLUE\n\nCoastal AIS", "Coastal AIS")
+
 BOX = {"min_lat": 48.80, "min_lon": -123.50, "max_lat": 49.18, "max_lon": -122.95}
 
 
@@ -152,6 +156,12 @@ def test_the_name_is_found_though_it_carries_no_label() -> None:
     assert "name" not in parse_detail("MMSI：\t316022604\t")
 
 
+def test_a_nameless_ship_is_not_called_after_the_page_tab_above_it() -> None:
+    d = parse_detail(PANEL_NO_NAME)
+    assert "name" not in d, d
+    assert d["mmsi"] == "316022604", d
+
+
 def test_the_panel_position_comes_back_so_a_missed_click_can_be_caught() -> None:
     d = parse_detail(PANEL)
     assert abs(d["panel_latitude"] - 48.858033) < 1e-4, d
@@ -180,6 +190,18 @@ def test_the_cache_survives_a_round_trip() -> None:
         assert load_cache(path)["ABC"]["name"] == "MISTY BLUE"
 
 
+def test_a_ship_stored_under_a_page_tab_loses_that_name_on_load() -> None:
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / "ships.json"
+        save_cache({"A": {"mmsi": "315817309", "name": "Map"},
+                    "B": {"mmsi": "316022604", "name": "MISTY BLUE"}}, path)
+        got = load_cache(path)
+        assert "name" not in got["A"], got["A"]
+        assert got["A"]["mmsi"] == "315817309", got["A"]
+        assert got["B"]["name"] == "MISTY BLUE", got["B"]
+
+
 def test_a_corrupt_cache_says_so_rather_than_starting_empty() -> None:
     import tempfile
     with tempfile.TemporaryDirectory() as d:
@@ -203,6 +225,14 @@ def test_their_type_names_become_the_ais_codes_the_renderer_knows() -> None:
     assert type_code("Tug") in (50, 51, 52, 53, 54, 55)
     assert type_code("Sailing") in (36, 37)
     assert type_code("Pleasure craft") in (36, 37)
+    # Real ships in the box that used to come out unclassified.
+    assert 70 <= type_code("Container") <= 79
+    assert 70 <= type_code("Cargo ship") <= 79
+    assert type_code("Search and rescue vessel") in (50, 51, 52, 53, 54, 55)
+    # Seen on real ships in the box and previously unmapped.
+    assert 70 <= type_code("Container") <= 79
+    assert type_code("Search and rescue vessel") in (50, 51, 52, 53, 54, 55)
+    assert 70 <= type_code("Cargo ship") <= 79
 
 
 def test_an_unfamiliar_type_name_is_left_unclassified_not_guessed() -> None:

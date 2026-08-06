@@ -916,8 +916,16 @@ async def shipfinder_task() -> None:
 
         seen_at = utcnow()
         fresh = set()
+        # Their map lists some hulls under two of its own ids. One MMSI is one
+        # boat, so the second copy is dropped rather than drawn alongside itself.
+        afloat: set[str] = set()
         for v in found:
             key = v["id"]
+            mmsi = (ships.get(key) or {}).get("mmsi")
+            if mmsi:
+                if mmsi in afloat:
+                    continue
+                afloat.add(mmsi)
             fresh.add(key)
             state = world.vessels.setdefault(key, {"mmsi": key})
             # Course from the last fix, because the payload does not carry one
