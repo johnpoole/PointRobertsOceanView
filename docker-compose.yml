@@ -6,6 +6,9 @@ services:
     restart: unless-stopped
     environment:
       AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
+      # Guards /admin/visitors. Unset means that page returns 503, not that it
+      # opens.
+      OCEANVIEW_ADMIN_PASSWORD: ${OCEANVIEW_ADMIN_PASSWORD:-}
     # 8091, not 8090: the Basement server already runs yarbo-emulator-timefold
     # on 8090, and nginx proxies oceanview.johnpoole.ca here.
     ports:

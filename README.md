@@ -49,6 +49,30 @@ Python 3.10+ is required. Node/npm is not.
 
 4. Open http://localhost:8080.
 
+## Who is connected
+
+`/admin/visitors` lists every address that has connected and marks the ones
+connected now. It is for the operator, not for visitors: no one using the site
+ever sees another visitor's address.
+
+Set a password to open it, in the same `.env`:
+
+```bash
+OCEANVIEW_ADMIN_PASSWORD=...
+```
+
+The browser asks for it. Any user name will do. Without the variable the page
+returns 503 and says so — it does not open unguarded.
+
+The list lives in memory, so restarting the proxy forgets everyone, and it holds
+the 500 most recent addresses.
+
+Check it with:
+
+```bash
+python server/test_visitors.py
+```
+
 ## Tide and the shoreline
 
 The tide feed reports water level in metres above MLLW. The terrain heightmap is

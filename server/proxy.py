@@ -13,6 +13,10 @@ The browser talks only to this process, so there is no CORS and the AISStream
 key never leaves the server. Nothing is invented: each feed carries a health
 status of live / offline, and a feed that fails is reported, not faked.
 
+/admin/visitors lists the addresses that have connected and which are connected
+now. It needs OCEANVIEW_ADMIN_PASSWORD set in .env and asks for it as a browser
+password. No visitor ever sees another visitor's address.
+
 Run:
     python -m uvicorn server.proxy:app --port 8080
 or:
@@ -22,17 +26,21 @@ or:
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import html
 import json
 import logging
 import os
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
 import websockets
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from starlette.middleware.gzip import GZipMiddleware
-from starlette.responses import Response
+from starlette.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(
@@ -125,6 +133,9 @@ def load_env() -> None:
 
 load_env()
 AIS_API_KEY = os.environ.get("AISSTREAM_API_KEY", "").strip()
+# Guards /admin/visitors, which lists the addresses of everyone who has
+# connected. Unset means that page is shut, not open.
+ADMIN_PASSWORD = os.environ.get("OCEANVIEW_ADMIN_PASSWORD", "").strip()
 
 
 # ---- shared world state ----------------------------------------------------
@@ -196,9 +207,12 @@ class Clients:
     async def add(self, ws: WebSocket) -> None:
         await ws.accept()
         self._sockets.add(ws)
+        visitors.opened(client_ip(ws))
 
     def remove(self, ws: WebSocket) -> None:
-        self._sockets.discard(ws)
+        if ws in self._sockets:
+            self._sockets.discard(ws)
+            visitors.closed(client_ip(ws))
 
     async def broadcast(self, message: dict) -> None:
         dead = []
@@ -208,10 +222,69 @@ class Clients:
             except Exception:
                 dead.append(ws)
         for ws in dead:
-            self._sockets.discard(ws)
+            self.remove(ws)
 
 
 clients = Clients()
+
+
+# ---- who is here ------------------------------------------------------------
+
+# nginx sets X-Real-IP on both / and /ws/live, so behind it this is the browser's
+# address rather than the proxy's. Straight to port 8091 there is no header and
+# the socket's own peer is the truth. Anything reaching 8091 directly could put
+# whatever it liked in the header, so this is a record of who says they are here,
+# which for a view of a beach is the question being asked.
+def client_ip(ws: WebSocket) -> str:
+    forwarded = ws.headers.get("x-real-ip")
+    if forwarded:
+        return forwarded.strip()
+    return ws.client.host if ws.client else "unknown"
+
+
+# Held in memory, so a restart forgets everyone. Bounded because an address is
+# one dictionary entry and nothing else prunes them.
+VISITOR_LIMIT = 500
+
+
+class Visitors:
+    def __init__(self) -> None:
+        self._by_ip: dict[str, dict] = {}
+
+    def opened(self, ip: str) -> None:
+        now = utcnow()
+        seen = self._by_ip.get(ip)
+        if seen is None:
+            seen = {"first_seen": now, "visits": 0, "open": 0}
+            self._by_ip[ip] = seen
+        seen["last_seen"] = now
+        seen["visits"] += 1
+        seen["open"] += 1
+        self._prune()
+
+    def closed(self, ip: str) -> None:
+        seen = self._by_ip.get(ip)
+        if seen is None:
+            return
+        seen["last_seen"] = utcnow()
+        seen["open"] = max(0, seen["open"] - 1)
+
+    def listing(self) -> list[dict]:
+        rows = [dict(seen, ip=ip) for ip, seen in self._by_ip.items()]
+        # Everyone here now, then the rest by how recently they left.
+        rows.sort(key=lambda r: (r["open"] == 0, -r["last_seen"].timestamp()))
+        return rows
+
+    def _prune(self) -> None:
+        if len(self._by_ip) <= VISITOR_LIMIT:
+            return
+        idle = [(v["last_seen"], k) for k, v in self._by_ip.items() if v["open"] == 0]
+        idle.sort()
+        for _, ip in idle[: len(self._by_ip) - VISITOR_LIMIT]:
+            del self._by_ip[ip]
+
+
+visitors = Visitors()
 
 
 def envelope(message_type: str, source: str, source_time: datetime | None,
@@ -837,6 +910,73 @@ async def ws_live(ws: WebSocket) -> None:
         clients.remove(ws)
     except Exception:
         clients.remove(ws)
+
+
+def since(dt: datetime) -> str:
+    seconds = int((utcnow() - dt).total_seconds())
+    if seconds < 60:
+        return f"{seconds}s ago"
+    if seconds < 3600:
+        return f"{seconds // 60}m ago"
+    if seconds < 86400:
+        return f"{seconds // 3600}h ago"
+    return f"{seconds // 86400}d ago"
+
+
+@app.get("/admin/visitors", response_class=HTMLResponse)
+async def admin_visitors(request: Request) -> Response:
+    if not ADMIN_PASSWORD:
+        # A page listing people's addresses does not get to open itself because
+        # nobody set a password.
+        log.error(
+            "GET /admin/visitors refused: OCEANVIEW_ADMIN_PASSWORD is not set. "
+            "Put it in the .env beside docker-compose.yml and restart."
+        )
+        return HTMLResponse(
+            "OCEANVIEW_ADMIN_PASSWORD is not set on the server, so this page is "
+            "shut. Set it in .env and restart.",
+            status_code=503,
+        )
+
+    header = request.headers.get("authorization", "")
+    given = ""
+    if header.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(header[6:]).decode("utf-8")
+            _, _, given = decoded.partition(":")
+        except (binascii.Error, UnicodeDecodeError):
+            given = ""
+    if not secrets.compare_digest(given, ADMIN_PASSWORD):
+        return Response(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="oceanview"'},
+        )
+
+    rows = visitors.listing()
+    here = sum(1 for r in rows if r["open"])
+    body = [
+        "<title>Visitors</title>",
+        "<style>body{font:14px system-ui;margin:2rem;color:#20262c}"
+        "table{border-collapse:collapse}th,td{text-align:left;padding:.35rem 1.2rem .35rem 0}"
+        "th{border-bottom:1px solid #c8ced4;font-weight:600}"
+        "td{border-bottom:1px solid #eceff2;font-variant-numeric:tabular-nums}"
+        ".here{color:#1a7f4b;font-weight:600}.gone{color:#8b939b}</style>",
+        f"<p>{here} here now, {len(rows)} seen.</p>",
+        "<table><tr><th>address<th>active<th>last seen<th>first seen<th>visits</tr>",
+    ]
+    for r in rows:
+        live = r["open"] > 0
+        body.append(
+            "<tr>"
+            f"<td>{html.escape(r['ip'])}"
+            f"<td class='{'here' if live else 'gone'}'>{'yes' if live else 'no'}"
+            f"<td>{'now' if live else since(r['last_seen'])}"
+            f"<td>{since(r['first_seen'])}"
+            f"<td>{r['visits']}"
+            "</tr>"
+        )
+    body.append("</table>")
+    return HTMLResponse("\n".join(body))
 
 
 # Static site last so the WebSocket route wins for /ws/live. This is a local dev
