@@ -178,7 +178,11 @@ export const VEHICLES = [
 
 // The boat is not one of these — it has its own step — but it starts somewhere
 // too, and this is where the starting places live.
-export const BOAT_START = { lat: 48.978152, lon: -123.066585 };  // Point Roberts Marina
+//
+// The house on the bluff, not the marina. _launchSpot searches outward from here
+// for water deep enough to float in, which puts the boat at the foot of the
+// bluff about 60 m off, where it used to launch from before the modes existed.
+export const BOAT_START = { lat: 48.989009, lon: -123.085318 };
 
 export function vehicleById(id) {
   return VEHICLES.find((v) => v.id === id) || null;
