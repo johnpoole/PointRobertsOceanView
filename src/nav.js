@@ -256,16 +256,24 @@ export class Nav {
     const air = spec.medium === "air";
     const throttle = this.keys.KeyW ? 1 : 0;
 
-    // An aircraft cannot be flown slower than its stall and stay up.
-    const floor = air ? (spec.stallSpeed || 0) : 0;
-    const target = Math.max(floor, throttle * spec.maxSpeed);
+    // An aircraft cannot be flown slower than its stall and stay up. Reverse
+    // exists only where the real thing has it: a cart does, and you can back up
+    // on your own feet; a bicycle and an aircraft cannot.
+    const backing = spec.reverse && this.keys.KeyS && !throttle;
+    const target = air
+      ? Math.max(spec.stallSpeed || 0, throttle * spec.maxSpeed)
+      : (backing ? -spec.reverse : throttle * spec.maxSpeed);
     const tau = target > v.speed ? spec.accelTau : spec.decelTau;
     v.speed += (target - v.speed) * (1 - Math.exp(-dt / tau));
 
+    // D turns right. That is the opposite of the boat, whose tiller is pushed
+    // the way you do not want to go — a wheel and a pair of feet are not.
     const steer = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
-    // Wheels and wings need to be moving to turn; feet do not.
-    const bite = spec.pivot ? 1 : smoothstep(0, spec.maxSpeed * 0.35, v.speed);
-    v.yaw += steer * (spec.turn * Math.PI / 180) * bite * dt;
+    // Wheels and wings need to be moving to turn; feet do not. Backing up
+    // steers the other way round, the way reversing a car does.
+    const bite = spec.pivot ? 1 : smoothstep(0, spec.maxSpeed * 0.35, Math.abs(v.speed));
+    const sense = v.speed < 0 ? -1 : 1;
+    v.yaw -= steer * (spec.turn * Math.PI / 180) * bite * sense * dt;
 
     const fx = -Math.sin(v.yaw), fz = -Math.cos(v.yaw);
     const fromX = v.pos.x, fromZ = v.pos.z;

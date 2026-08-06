@@ -229,8 +229,8 @@ const nav = new Nav(camera, renderer.domElement, controls, {
     const hint = document.getElementById("boat-hint");
     const show = m === "boat" || m === "vehicle";
     hint.classList.toggle("hidden", !show);
-    if (m === "boat") hint.textContent = HINTS.boat;
-    else if (m === "vehicle" && spec) hint.textContent = HINTS[spec.medium] || HINTS.land;
+    if (m === "boat") hint.textContent = BOAT_HINT;
+    else if (m === "vehicle" && spec) hint.textContent = vehicleHint(spec);
   },
   boatMesh: boat,
   hullHole: (h) => ocean.setHull(h),
@@ -262,11 +262,17 @@ const chooser = document.getElementById("chooser");
 const chooserBtns = document.getElementById("chooser-btns");
 const modeHint = document.getElementById("boat-hint");
 
-const HINTS = {
-  boat: "W throttle · A/D tiller · M to change",
-  land: "W go · A/D steer · M to change",
-  air: "W throttle · A/D turn · Q/E down-up · M to change",
-};
+// Each mode says what it actually has. The boat's tiller is backwards on
+// purpose; nothing else is.
+const BOAT_HINT = "W throttle · A/D tiller (A turns right) · M to change";
+function vehicleHint(spec) {
+  const parts = ["W go"];
+  if (spec.reverse) parts.push("S back");
+  parts.push("A/D steer");
+  if (spec.medium === "air") parts.push("Q/E down-up");
+  parts.push("M to change");
+  return parts.join(" · ");
+}
 
 function chooseMode(id) {
   chooser.classList.add("hidden");

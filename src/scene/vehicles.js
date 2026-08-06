@@ -140,13 +140,16 @@ function buildUltralight() {
 //
 // eye is the driver's head in the vehicle's own frame, +Z aft.
 // turn is degrees a second at full lock; pivot means it can turn standing still.
+// reverse is how fast it will go backwards, absent where the real thing cannot:
+// a cart has a reverse gear and you can back up on your feet, a bicycle and an
+// aircraft have neither.
 // start is where you get in, off OpenStreetMap: the golf club, the community
 // centre, the border, the apron at 1RL.
 export const VEHICLES = [
   {
     id: "walk", label: "walking", medium: "land", build: buildWalker,
     maxSpeed: 1.4, accelTau: 0.5, decelTau: 0.4,     // 5 km/h
-    turn: 150, pivot: true, eye: { y: 1.63, z: 0 },
+    turn: 150, pivot: true, reverse: 0.9, eye: { y: 1.63, z: 0 },
     start: { lat: 48.984425, lon: -123.076809 },   // the community centre
   },
   {
@@ -161,7 +164,7 @@ export const VEHICLES = [
   {
     id: "cart", label: "golf cart", medium: "land", build: buildGolfCart,
     maxSpeed: 24 * KMH, accelTau: 2.4, decelTau: 1.4,
-    turn: 55, pivot: false, eye: { y: 1.40, z: -0.05 },
+    turn: 55, pivot: false, reverse: 8 * KMH, eye: { y: 1.40, z: -0.05 },
     start: { lat: 48.996920, lon: -123.078049 },   // Bald Eagle Golf Club
   },
   {
