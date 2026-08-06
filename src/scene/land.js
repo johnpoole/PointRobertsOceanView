@@ -20,6 +20,9 @@ const ROAD_WIDTH_DEFAULT = 4;
 const ROAD_EXAGGERATION = 1.6;
 const ROAD_MIN_M = 2.0;
 
+// The house against the grey of every other building.
+const HOME_COLOR = 0xb4553a;
+
 // How finely a draped line is cut before being laid on the ground. OSM puts a
 // node wherever a road bends, not wherever the ground does, so half its segments
 // are over 7 m and a twentieth are over 56 m. Left whole, those run straight
@@ -207,11 +210,17 @@ export async function buildLand(scene, sample) {
     scene.add(mesh);
   }
 
-  // Buildings.
-  const bgeom = buildings(data.buildings, sample);
+  // Buildings. The house is marked in the bake and drawn on its own so it can
+  // be told apart from the four thousand others.
+  const bgeom = buildings(data.buildings.filter((b) => !b.home), sample);
   if (bgeom) {
     scene.add(new THREE.Mesh(bgeom, new THREE.MeshStandardMaterial({
       color: 0xa7a396, roughness: 0.9, metalness: 0 })));
+  }
+  const hgeom = buildings(data.buildings.filter((b) => b.home), sample);
+  if (hgeom) {
+    scene.add(new THREE.Mesh(hgeom, new THREE.MeshStandardMaterial({
+      color: HOME_COLOR, roughness: 0.7, metalness: 0 })));
   }
 
   // Landmarks: a screen-constant dot; the name shows on hover.

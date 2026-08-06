@@ -170,6 +170,14 @@ def runway_width(tags: dict) -> float:
     return 18.0
 
 
+# 389 W Bluff Rd. OSM carries the address as a standalone node, 9485003908, and
+# not on any footprint, so the house is the footprint nearest that point. The
+# nearest one has to be close or the match is wrong and the bake says so rather
+# than marking a neighbour's roof.
+HOME = {"lat": 48.9890765, "lon": -123.0857900}
+HOME_MAX_M = 40.0
+
+
 def building_height(tags: dict) -> float:
     if "height" in tags:
         try:
@@ -240,6 +248,22 @@ def main() -> None:
         dlon = (a["lon"] - b["lon"]) * 111320 * math.cos(math.radians(a["lat"]))
         return math.hypot(dlat, dlon)
 
+    # Mark the house. Nearest footprint centroid to the address node wins.
+    if not buildings:
+        raise SystemExit("No buildings came back from Overpass, so the house "
+                         "cannot be matched. Re-run the bake.")
+    home = min(buildings,
+               key=lambda b: metres(HOME, dict(zip(("lat", "lon"), centroid(b["coords"])))))
+    home_c = centroid(home["coords"])
+    home_m = metres(HOME, {"lat": home_c[0], "lon": home_c[1]})
+    if home_m > HOME_MAX_M:
+        raise SystemExit(
+            f"Nearest building to the 389 W Bluff Rd address node is {home_m:.0f} m "
+            f"away, past the {HOME_MAX_M:.0f} m limit, so this is somebody else's "
+            f"house. Check HOME in {Path(__file__).name} against OSM node 9485003908."
+        )
+    home["home"] = True
+
     deduped: list[dict] = []
     for lm in landmarks:
         dup = next((x for x in deduped if x["kind"] == lm["kind"] and metres(x, lm) < 500), None)
@@ -272,6 +296,8 @@ def main() -> None:
     print(f"roads {len(roads)}  buildings {len(buildings)}  "
           f"coastline {len(coastline)}  landmarks {len(landmarks)}  "
           f"runways {len(runways)}")
+    print(f"  home:     {home_m:.0f} m from the address node, "
+          f"({home_c[0]:.5f},{home_c[1]:.5f})")
     for lm in landmarks:
         print(f"  landmark: {lm['kind']:10} {lm['name']}  ({lm['lat']:.4f},{lm['lon']:.4f})")
     for rw in runways:
