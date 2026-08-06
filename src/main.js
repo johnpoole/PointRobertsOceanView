@@ -33,7 +33,7 @@ const scene = new THREE.Scene();
 // Narrower than a phone's wide lens, closer to how the eye frames the vista, so
 // the islands and mountains across the strait read at the height they feel.
 const camera = new THREE.PerspectiveCamera(
-  40, window.innerWidth / window.innerHeight, 1, 150000);
+  25, window.innerWidth / window.innerHeight, 1, 150000);
 camera.position.set(0, EYE_HEIGHT_M, 0);
 
 const controls = new OrbitControls(camera, canvas);
