@@ -1,11 +1,13 @@
 """Local proxy for the Point Roberts ocean view.
 
-Serves the static site and bridges three upstream feeds into one browser
+Serves the static site and bridges four upstream feeds into one browser
 WebSocket at /ws/live:
 
-  - vessels : AISStream.io  (needs AISSTREAM_API_KEY in .env)
-  - tide    : NOAA CO-OPS station 9449424 (Cherry Point), MLLW, metres
-  - weather : NWS api.weather.gov, station KORS + gridpoint sky/precip
+  - vessels  : AISStream.io  (needs AISSTREAM_API_KEY in .env)
+  - aircraft : adsb.lol, community-fed ADS-B, 30 nm around the bluff, no key
+  - tide     : NOAA CO-OPS 9449639 (Point Roberts) with the surge measured at
+               9449424 (Cherry Point) carried onto it, MLLW, metres
+  - weather  : Open-Meteo forecast and marine at the exact coordinates
 
 The browser talks only to this process, so there is no CORS and the AISStream
 key never leaves the server. Nothing is invented: each feed carries a health
@@ -90,6 +92,17 @@ TIDE_POLL_SECONDS = 300
 RETRY_SECONDS = 20  # after a failed fetch, retry soon instead of the full poll
 COOPS_BASE = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 
+# Aircraft from adsb.lol: community-fed, ODbL, no key. A drop-in for the
+# ADSBexchange API that went paid. Their docs say a key may be required in
+# future, earned by feeding the network.
+# 30 nm covers the Vancouver floatplane lanes and the approach to YVR, which is
+# what actually crosses the view. Six seconds is well inside their tolerance and
+# the client interpolates between polls.
+ADSB_URL = "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{nm}"
+ADSB_RADIUS_NM = 30
+AIRCRAFT_POLL_SECONDS = 6.0
+FT_TO_M = 0.3048
+
 POINT = (48.989009, -123.085318)
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
@@ -154,6 +167,8 @@ class World:
     def __init__(self) -> None:
         self.vessels: dict[str, dict] = {}          # mmsi -> VesselState
         self.vessel_seen: dict[str, datetime] = {}  # mmsi -> source_time
+        self.aircraft: dict[str, dict] = {}         # icao -> AircraftState
+        self.aircraft_seen: dict[str, datetime] = {}
         self.weather: dict | None = None
         self.weather_time: datetime | None = None
         self.tide: dict | None = None
@@ -245,7 +260,12 @@ def snapshot() -> dict:
             "weather": weather,
             "tide": tide,
             "vessels": vessels,
-            "aircraft": [],
+            "aircraft": [
+                envelope("aircraft.state", "adsb.lol",
+                         world.aircraft_seen.get(icao), state,
+                         STALE_SECONDS["aircraft"])
+                for icao, state in world.aircraft.items()
+            ],
             "provider_health": dict(world.health),
             "vessels_note": world.vessels_note,
         },
@@ -489,6 +509,75 @@ async def ais_task() -> None:
             backoff = min(backoff * 2, 60.0)
 
 
+# ---- aircraft feed ----------------------------------------------------------
+
+
+def aircraft_state(a: dict) -> dict | None:
+    """One adsb.lol record as our own shape, or None if it cannot be placed."""
+    lat, lon = a.get("lat"), a.get("lon")
+    if lat is None or lon is None:
+        return None
+    alt = a.get("alt_baro")
+    on_ground = alt == "ground"
+    altitude_m = 0.0 if on_ground else (float(alt) * FT_TO_M if alt is not None else None)
+    callsign = (a.get("flight") or "").strip() or None
+    return {
+        "icao": a.get("hex"),
+        "callsign": callsign,
+        "registration": a.get("r"),
+        "aircraft_type": a.get("t"),
+        "latitude": lat,
+        "longitude": lon,
+        "altitude_m": altitude_m,
+        "on_ground": on_ground,
+        "ground_speed_kn": a.get("gs"),
+        "track_degrees": a.get("track"),
+        "distance_nm": a.get("dst"),
+    }
+
+
+async def aircraft_task() -> None:
+    url = ADSB_URL.format(lat=POINT[0], lon=POINT[1], nm=ADSB_RADIUS_NM)
+    async with httpx.AsyncClient(timeout=25) as client:
+        while True:
+            ok = False
+            try:
+                response = await client.get(url, headers={"User-Agent": "PointRobertsOceanView/0.1"})
+                response.raise_for_status()
+                records = response.json().get("ac") or []
+                now = utcnow()
+                seen_now = set()
+                for record in records:
+                    state = aircraft_state(record)
+                    if not state or not state["icao"]:
+                        continue
+                    icao = state["icao"]
+                    seen_now.add(icao)
+                    world.aircraft[icao] = state
+                    world.aircraft_seen[icao] = now
+                    await clients.broadcast(envelope(
+                        "aircraft.state", "adsb.lol", now, state,
+                        STALE_SECONDS["aircraft"]))
+                # Drop anything that has been out of range long enough to be gone.
+                for icao in [k for k, t in world.aircraft_seen.items()
+                             if (now - t).total_seconds() > STALE_SECONDS["aircraft"]]:
+                    world.aircraft.pop(icao, None)
+                    world.aircraft_seen.pop(icao, None)
+                # Live means aircraft arrived, not that the request returned.
+                if seen_now:
+                    if world.health["aircraft"] != "live":
+                        world.health["aircraft"] = "live"
+                        log.info("adsb.lol delivering; aircraft live (%d in range)", len(seen_now))
+                elif world.health["aircraft"] != "offline":
+                    world.health["aircraft"] = "offline"
+                    log.warning("adsb.lol answered with no aircraft within %d nm.", ADSB_RADIUS_NM)
+                ok = True
+            except Exception as exc:
+                world.health["aircraft"] = "offline"
+                log.error("Aircraft fetch failed: %s", exc)
+            await asyncio.sleep(AIRCRAFT_POLL_SECONDS if ok else RETRY_SECONDS)
+
+
 # ---- NOAA tide feed ---------------------------------------------------------
 
 
@@ -726,6 +815,7 @@ _tasks: list[asyncio.Task] = []
 async def startup() -> None:
     _tasks.append(asyncio.create_task(ais_task()))
     _tasks.append(asyncio.create_task(tide_task()))
+    _tasks.append(asyncio.create_task(aircraft_task()))
     _tasks.append(asyncio.create_task(weather_task()))
     _tasks.append(asyncio.create_task(heartbeat_task()))
 

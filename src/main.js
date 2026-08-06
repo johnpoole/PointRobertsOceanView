@@ -11,6 +11,7 @@ import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
 import { Sky } from "./scene/sky.js";
 import { Vessels } from "./scene/vessels.js";
+import { Aircraft } from "./scene/aircraft.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
@@ -86,6 +87,7 @@ scene.add(ambient, hemi, sun);
 
 const ocean = new Ocean(scene);
 const vessels = new Vessels(scene);
+const aircraft = new Aircraft(scene);
 const boat = buildBoat();
 scene.add(boat);
 // One avatar per way of getting about. They are world objects, not first-person
@@ -133,6 +135,7 @@ feed.onChange((kind) => {
   if (kind === "close") {
     // Feed down: blank the world rather than show last-known as if it were live.
     feed.vessels.clear();
+    feed.aircraft.clear();
     feed.weather = null;
     feed.tide = null;
     feed.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
@@ -185,14 +188,17 @@ renderer.domElement.addEventListener("pointerleave", () => {
 function updateHover() {
   if (!pointerInside) return;
   raycaster.setFromCamera(pointer, camera);
-  const targets = vessels.pickList().concat(landmarkPicks);
+  const targets = vessels.pickList().concat(aircraft.pickList(), landmarkPicks);
   const hits = raycaster.intersectObjects(targets, true);
   let o = hits.length ? hits[0].object : null;
-  while (o && !o.userData.vessel && !o.userData.landmark) o = o.parent;
+  while (o && !o.userData.vessel && !o.userData.aircraft && !o.userData.landmark) o = o.parent;
   if (!o) { tip.classList.add("hidden"); return; }
   let rows, stale = false;
   if (o.userData.vessel) {
     rows = Vessels.describe(o.userData.vessel);
+    stale = o.userData.stale;
+  } else if (o.userData.aircraft) {
+    rows = Aircraft.describe(o.userData.aircraft);
     stale = o.userData.stale;
   } else {
     rows = [["place", o.userData.landmark.name], ["type", o.userData.landmark.kind]];
@@ -334,6 +340,7 @@ function frame() {
   ocean.setLevel(level);
   ocean.update(t);
   vessels.update(feed, level, t, camera);
+  aircraft.update(feed, t, camera);
   updateHover();
   weather.update(dt, camera);
 

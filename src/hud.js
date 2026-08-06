@@ -40,6 +40,7 @@ export class Hud {
     this._health("ph-weather", feed.providerHealth.weather);
     this._health("ph-tide", feed.providerHealth.tide);
     this._health("ph-vessels", feed.providerHealth.vessels);
+    this._health("ph-aircraft", feed.providerHealth.aircraft);
     el("ais-why").textContent = feed.vesselsNote || "";
 
     // Weather
@@ -74,5 +75,6 @@ export class Hud {
     el("tide-trend").textContent = tide && tide.trend ? tide.trend : "—";
 
     el("vessel-count").textContent = String(feed.vessels.size);
+    el("aircraft-count").textContent = String(feed.aircraft.size);
   }
 }

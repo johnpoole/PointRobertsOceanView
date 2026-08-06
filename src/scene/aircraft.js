@@ -1,0 +1,135 @@
+// Aircraft over the strait, from adsb.lol. Mostly the Vancouver floatplane lanes
+// and the approach to YVR, which is what actually crosses the view from here.
+//
+// Drawn the same way as vessels: real position, real altitude, but larger than
+// life so a light aircraft three kilometres up is not a single pixel. Forward is
+// -Z, matching everything else.
+
+import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { toWorld, headingToYaw } from "../geo.js";
+
+const KN = 0.514444;
+// A Beaver is 9 m long and often 300 m up; at that size it would be invisible.
+// Lift everything to a floor and let distance add a little more, capped.
+const FLOOR_LEN = 90;
+const MAX_LEN = 420;
+const SIZE_REF_M = 4000;
+const GROWTH_CAP = 2.4;
+
+// Rough real lengths, metres, by ICAO type code. Anything unknown is a light
+// single, which is most of what flies over Point Roberts.
+const TYPE_LEN = {
+  DHC2: 9.2, DHC6: 15.8, C172: 8.3, C182: 8.8, C208: 11.5, PA46: 8.7,
+  B190: 14.3, BE20: 13.3, PC12: 14.4, SR22: 7.9,
+  A319: 33.8, A320: 37.6, A321: 44.5, A20N: 37.6, A21N: 44.5,
+  B737: 33.6, B738: 39.5, B739: 42.1, B38M: 39.5, B739ER: 42.1,
+  B752: 47.3, B763: 54.9, B772: 63.7, B77W: 73.9, B788: 56.7, B789: 62.8,
+  A332: 58.8, A333: 63.7, A359: 66.8, E75L: 31.7, CRJ9: 36.2, DH8D: 32.8,
+};
+
+function planeGeometry(lengthM) {
+  const L = lengthM;
+  const parts = [];
+  const fuselage = new THREE.CylinderGeometry(L * 0.055, L * 0.035, L, 8);
+  fuselage.rotateX(Math.PI / 2);
+  parts.push(fuselage);
+  const wing = new THREE.BoxGeometry(L * 1.05, L * 0.018, L * 0.16);
+  wing.translate(0, 0, -L * 0.02);
+  parts.push(wing);
+  const tailplane = new THREE.BoxGeometry(L * 0.38, L * 0.015, L * 0.08);
+  tailplane.translate(0, 0, L * 0.42);
+  parts.push(tailplane);
+  const fin = new THREE.BoxGeometry(L * 0.015, L * 0.13, L * 0.10);
+  fin.translate(0, L * 0.07, L * 0.43);
+  parts.push(fin);
+  return mergeGeometries(parts, false);
+}
+
+export class Aircraft {
+  constructor(scene) {
+    this.scene = scene;
+    this.groups = new Map();
+  }
+
+  pickList() {
+    return Array.from(this.groups.values());
+  }
+
+  update(feed, t, camera) {
+    for (const [icao, entry] of feed.aircraft) {
+      const state = entry.data;
+      if (state.latitude == null || state.longitude == null) continue;
+      // Some transponders report a position and no altitude. Better to leave
+      // one out than to fly it along the surface of the strait.
+      if (state.altitude_m == null && !state.on_ground) continue;
+      let group = this.groups.get(icao);
+      if (!group) {
+        const length = TYPE_LEN[state.aircraft_type] || 9;
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xffffff, roughness: 0.4, metalness: 0.5,
+        });
+        const mesh = new THREE.Mesh(planeGeometry(length), material);
+        group = new THREE.Group();
+        group.add(mesh);
+        group.userData = { length, material, target: new THREE.Vector3(), placed: false };
+        this.scene.add(group);
+        this.groups.set(icao, group);
+      }
+      group.userData.aircraft = state;
+
+      if (state.track_degrees != null) group.rotation.y = headingToYaw(state.track_degrees);
+
+      const w = toWorld(state.latitude, state.longitude, 0);
+      const alt = state.altitude_m != null ? state.altitude_m : 0;
+      group.userData.target.set(w.x, alt, w.z);
+      if (!group.userData.placed) {
+        group.position.copy(group.userData.target);
+        group.userData.placed = true;
+      } else {
+        // Six seconds between polls, so carry it along the track in between
+        // rather than letting it sit still and jump.
+        group.position.lerp(group.userData.target, 0.06);
+      }
+
+      const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
+      const L = group.userData.length;
+      const boost = Math.max(FLOOR_LEN / L, 1);
+      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), GROWTH_CAP);
+      group.scale.setScalar(Math.max(1, Math.min(boost * grow, MAX_LEN / L)));
+
+      const stale = feed.isStale(entry);
+      const mat = group.userData.material;
+      if (stale !== group.userData.stale) {
+        mat.color.setHex(stale ? 0x5a626c : 0xffffff);
+        mat.transparent = stale;
+        mat.opacity = stale ? 0.45 : 1;
+        group.userData.stale = stale;
+      }
+    }
+
+    for (const icao of this.groups.keys()) {
+      if (!feed.aircraft.has(icao)) {
+        const group = this.groups.get(icao);
+        this.scene.remove(group);
+        group.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+        group.userData.material.dispose();
+        this.groups.delete(icao);
+      }
+    }
+  }
+
+  static describe(state) {
+    const rows = [];
+    rows.push(["flight", state.callsign || state.registration || state.icao]);
+    if (state.aircraft_type) rows.push(["type", state.aircraft_type]);
+    if (state.on_ground) rows.push(["altitude", "on the ground"]);
+    else if (state.altitude_m != null) rows.push(["altitude", `${Math.round(state.altitude_m)} m`]);
+    if (state.ground_speed_kn != null) {
+      rows.push(["speed", `${Math.round(state.ground_speed_kn)} kn`]);
+    }
+    if (state.track_degrees != null) rows.push(["track", `${Math.round(state.track_degrees)}°`]);
+    if (state.distance_nm != null) rows.push(["range", `${state.distance_nm.toFixed(1)} nm`]);
+    return rows;
+  }
+}

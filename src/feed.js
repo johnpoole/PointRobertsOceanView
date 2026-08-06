@@ -8,7 +8,8 @@ import { BACKEND_WS, STALE_SECONDS } from "./config.js";
 export class Feed {
   constructor() {
     this.connected = false;
-    this.vessels = new Map(); // mmsi -> { data, quality, receivedTime }
+    this.vessels = new Map();    // mmsi -> { data, quality, receivedTime }
+    this.aircraft = new Map();   // icao -> { data, quality, receivedTime }
     this.weather = null;      // { data, quality }
     this.tide = null;         // { data, quality }
     this.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
@@ -95,6 +96,10 @@ export class Feed {
         this.providerHealth.tide = "live";
         this._emit("tide");
         break;
+      case "aircraft.state":
+        this._applyAircraft(msg);
+        this._emit("aircraft");
+        break;
       case "vessel.position":
         this._applyVessel(msg);
         this._emit("vessel");
@@ -107,10 +112,19 @@ export class Feed {
   _applySnapshot(data) {
     this.vessels.clear();
     for (const env of data.vessels || []) this._applyVessel(env);
+    this.aircraft.clear();
+    for (const env of data.aircraft || []) this._applyAircraft(env);
     this.weather = data.weather ? { data: data.weather.data, quality: data.weather.quality } : null;
     this.tide = data.tide ? { data: data.tide.data, quality: data.tide.quality } : null;
     this.providerHealth = data.provider_health || this.providerHealth;
     this.vesselsNote = data.vessels_note || "";
+  }
+
+  _applyAircraft(env) {
+    const icao = env.data.icao;
+    if (icao == null) return;
+    this.aircraft.set(icao, env);
+    this.providerHealth.aircraft = "live";
   }
 
   _applyVessel(env) {
