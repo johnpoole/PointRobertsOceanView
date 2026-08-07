@@ -7,6 +7,8 @@ const el = (id) => document.getElementById(id);
 const CARDINALS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
                    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 
+const KNOT = 0.514444;   // m/s, for the helm readout
+
 function cardinal(deg) {
   if (deg == null) return "";
   return CARDINALS[Math.round(deg / 22.5) % 16];
@@ -39,6 +41,7 @@ export class Hud {
   update(feed) {
     this._health("ph-weather", feed.providerHealth.weather);
     this._health("ph-tide", feed.providerHealth.tide);
+    this._health("ph-currents", feed.providerHealth.currents);
     this._health("ph-vessels", feed.providerHealth.vessels);
     this._health("ph-aircraft", feed.providerHealth.aircraft);
     el("ais-why").textContent = feed.vesselsNote || "";
@@ -76,5 +79,25 @@ export class Hud {
 
     el("vessel-count").textContent = String(feed.vessels.size);
     el("aircraft-count").textContent = String(feed.aircraft.size);
+  }
+
+  // The helm, in boat mode only. boat is Nav's own state: heading and course are
+  // radians about +Y, speed and madeGood are metres a second. A null course
+  // means it is not going anywhere worth naming a bearing for.
+  helm(show, boat, current) {
+    el("helm").classList.toggle("hidden", !show);
+    if (!show) return;
+    const c = current && current.data;
+    el("helm-current").textContent = !c ? "—"
+      : c.state === "slack" ? "slack"
+      : `${num(c.drift_kn, 1, " kn")} ${Math.round(c.set_degrees)}° ${cardinal(c.set_degrees)}`;
+    // Nav's yaw grows counter-clockwise from north; a compass bearing does not.
+    const bearing = (rad) => (((-rad * 180) / Math.PI) % 360 + 360) % 360;
+    el("helm-heading").textContent =
+      `${Math.round(bearing(boat.yaw))}° at ${(boat.speed / KNOT).toFixed(1)} kn`;
+    el("helm-course").textContent = boat.course == null ? "—"
+      : `${Math.round(bearing(boat.course))}° at ${(boat.madeGood / KNOT).toFixed(1)} kn`;
+    el("helm-note").textContent = !c ? "no current reading"
+      : `predicted, ${c.station_id} ${c.station_distance_km} km offshore`;
   }
 }

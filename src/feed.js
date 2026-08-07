@@ -12,7 +12,9 @@ export class Feed {
     this.aircraft = new Map();   // icao -> { data, quality, receivedTime }
     this.weather = null;      // { data, quality }
     this.tide = null;         // { data, quality }
-    this.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
+    this.current = null;      // { data, quality } — the tidal stream, predicted
+    this.providerHealth = { weather: "offline", tide: "offline", currents: "offline",
+                            vessels: "offline", aircraft: "offline" };
     this.vesselsNote = "";   // why vessels are offline, in the monitor's words
     this.lastMessageAt = 0;
 
@@ -96,6 +98,11 @@ export class Feed {
         this.providerHealth.tide = "live";
         this._emit("tide");
         break;
+      case "current.state":
+        this.current = { data: msg.data, quality: msg.quality };
+        this.providerHealth.currents = "live";
+        this._emit("current");
+        break;
       case "aircraft.state":
         this._applyAircraft(msg);
         this._emit("aircraft");
@@ -116,6 +123,8 @@ export class Feed {
     for (const env of data.aircraft || []) this._applyAircraft(env);
     this.weather = data.weather ? { data: data.weather.data, quality: data.weather.quality } : null;
     this.tide = data.tide ? { data: data.tide.data, quality: data.tide.quality } : null;
+    this.current = data.current
+      ? { data: data.current.data, quality: data.current.quality } : null;
     this.providerHealth = data.provider_health || this.providerHealth;
     this.vesselsNote = data.vessels_note || "";
   }

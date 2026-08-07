@@ -38,6 +38,7 @@
     <div class="row"><span class="k">feed</span><span id="conn" class="v">connecting…</span></div>
     <div class="row"><span class="k">weather</span><span id="ph-weather" class="v health">—</span></div>
     <div class="row"><span class="k">tide</span><span id="ph-tide" class="v health">—</span></div>
+    <div class="row"><span class="k">currents</span><span id="ph-currents" class="v health">—</span></div>
     <div class="row"><span class="k">vessels <span id="ais-why" class="dim"></span></span><span id="ph-vessels" class="v health">—</span></div>
     <div class="row"><span class="k">aircraft</span><span id="ph-aircraft" class="v health">—</span></div>
   </div>
@@ -90,6 +91,15 @@
     <button class="view-btn fly-btn" id="mode-btn">change mode (M)</button>
     <button class="view-btn fly-btn" id="map-btn">map (O)</button>
     <button class="view-btn fly-btn" id="sound-btn">sound</button>
+  </div>
+
+  <!-- At the helm: what the water is doing, and where you are actually going as
+       opposed to where you are pointed. Boat mode only. -->
+  <div class="hud hud-helm hidden" id="helm">
+    <div class="row"><span class="k">current</span><span id="helm-current" class="v">—</span></div>
+    <div class="row"><span class="k">heading</span><span id="helm-heading" class="v">—</span></div>
+    <div class="row"><span class="k">course</span><span id="helm-course" class="v">—</span></div>
+    <div class="helm-note" id="helm-note"></div>
   </div>
 
   <!-- The stick, drawn where the thumb lands. -->

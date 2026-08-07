@@ -78,8 +78,14 @@ export class Nav {
     this.hullHole = opts.hullHole || null;
     // obstacles() -> [{ x, z, r }] : pilings, other vessels, anything solid.
     this.obstacles = opts.obstacles || null;
+    // current() -> { x, z } : the tidal stream in metres a second, world axes,
+    // or null when there is no reading. Null means no current, never a guess.
+    this.current = opts.current || null;
+    // speed is through the water, which is what the throttle sets. course and
+    // madeGood are over the ground, which is what the current makes of it.
     this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0,
-                  throttle: 0, planing: 0, maxSpeed: BOAT_MAX_MPS };
+                  throttle: 0, planing: 0, maxSpeed: BOAT_MAX_MPS,
+                  course: null, madeGood: 0, set: null, drift: 0 };
     // Walking, bicycle, golf cart, ultralight all ride on this one.
     this.rider = { yaw: 0, speed: 0, pos: new THREE.Vector3(), pitch: 0, roll: 0 };
     this.vehicle = null;
@@ -418,9 +424,22 @@ export class Nav {
     );
     b.yaw -= tiller * BOAT_YAW_MAX * bite * dt;
 
+    // The hull's own way through the water, and then the water itself. The
+    // current does not turn the boat, it carries it: heading stays where the
+    // tiller put it and the wake goes somewhere else. Steer at the marina on an
+    // ebb and you will watch yourself go past it.
     const fromX = b.pos.x, fromZ = b.pos.z;
-    b.pos.x += -Math.sin(b.yaw) * b.speed * dt;
-    b.pos.z += -Math.cos(b.yaw) * b.speed * dt;
+    const through = { x: -Math.sin(b.yaw) * b.speed, z: -Math.cos(b.yaw) * b.speed };
+    const stream = this.current ? this.current() : null;
+    const overX = through.x + (stream ? stream.x : 0);
+    const overZ = through.z + (stream ? stream.z : 0);
+    b.pos.x += overX * dt;
+    b.pos.z += overZ * dt;
+    // What the readout needs: the set being felt, and the course actually made.
+    b.set = stream ? stream.set : null;
+    b.drift = stream ? stream.drift : 0;
+    b.madeGood = Math.hypot(overX, overZ);
+    b.course = b.madeGood > 0.05 ? Math.atan2(-overX, -overZ) : null;
     this._resolveCollisions();
     this._keepAfloat(fromX, fromZ);
 

@@ -36,7 +36,9 @@ scripts/build_terrain.py   bakes the two heightmaps from NOAA CUDEM and GMRT
 scripts/build_osm.py       bakes roads, buildings, coastline, landmarks from Overpass
 scripts/build_landcover.py bakes NLCD 2021 land cover for the near tile
 src/main.js                wires the scene, the camera, the modes
-src/scene/                 terrain, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
+src/nav.js                 the modes themselves, and the boat's hydrodynamics
+src/touch.js               the on-screen stick, and the drag that looks about
+src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
 assets/                    everything baked. Do not edit by hand.
 ```
 
@@ -45,10 +47,18 @@ assets/                    everything baked. Do not edit by hand.
 | feed | source | state |
 | --- | --- | --- |
 | tide | NOAA CO-OPS 9449639, surge from 9449424 | live |
+| currents | NOAA CO-OPS PUG1726 bin 35, predictions | live, labelled predicted |
 | weather | Open-Meteo | live |
 | aircraft | adsb.lol, 30 nm, no key | live |
 | vessels | shipfinder.com, scraped | live, labelled scraped |
 | vessels | AISStream | dead, see issue #1 |
+
+The tidal stream is PUG1726, 4.5 nm southwest of the point, 8.1 km off the bluff. Bin 35 is
+9.4 m down and the shallowest of the three the station publishes, so it is the one a boat is in;
+bin 11 is 57 m down and is what the API returns when no bin is asked for. A whole day of
+predictions comes in one call and is interpolated locally, so it is fetched about twice a day and
+not once a poll. It is one point offshore standing for the whole tile, which is wrong along the
+West Bluff and at Lighthouse Park — issue #13.
 
 AISStream went silent with the socket open and stayed that way. It is not our key and not our
 bounding box: the proxy proves it with a worldwide probe and an outside monitor, and the service
@@ -86,6 +96,14 @@ the community centre, the border, the golf club, the foot of the bluff, the apro
 Controls vary by mode; the boat's tiller is backwards on purpose and nothing else is. `O` toggles
 the overview map.
 
+On a touch screen a thumb on the left half raises a stick where it lands: away is go, across is
+turn, and being a stick it is analog. In the air its fore-and-aft is the climb instead, which is
+the one place it means something different. Look is a drag anywhere else, or the mouse on a
+desktop. Looking around from the bluff is OrbitControls' own and the stick stands down there.
+
+Where you look is not where the boat points. The hull holds its heading and the head turns on top
+of it, 150° across and 78° up and down.
+
 ## Who is connected
 
 `/admin/visitors` lists the addresses that have opened the live socket and which still have it
@@ -98,6 +116,13 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
 - #2 boat mode enhancements
 - #4 what running an AIS aggregation service would take
 - #5 the shipfinder scrape
+- #7 move the tide in time, and say plainly it is a prediction
+- #8 flash the navigation lights to their own characters
+- #9 let real smoke take the islands away
+- #10 orca sightings
+- #11 the moon
+- #12 name the ferry and where it is bound
+- #13 work the currents out from the geography, with NOAA as the far field
 
 ## Things that have bitten, so they do not again
 

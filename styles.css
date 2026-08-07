@@ -105,6 +105,12 @@ html, body {
 .view-btn:hover { background: rgba(150, 190, 220, 0.2); }
 .fly-btn { width: 100%; text-align: center; color: var(--warn); }
 
+/* The helm readout. Above the tide panel on the left; bottom right is taken by
+   the buttons and bottom centre by the hint. */
+.hud-helm { bottom: 156px; left: 14px; min-width: 168px; }
+.hud-helm.hidden { display: none; }
+.helm-note { color: var(--dim); font-size: 11px; margin-top: 4px; }
+
 .fly-hint {
   position: fixed;
   bottom: 14px;

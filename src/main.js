@@ -253,6 +253,21 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   hullHole: (h) => ocean.setHull(h),
   // Solid things in the water: the wharf's pilings and every tracked ship.
   obstacles: () => pilingPosts.concat(vessels.obstacles()),
+  // The tidal stream, in world metres a second. One station eight kilometres
+  // offshore stands for the whole tile, which is wrong near the land and is the
+  // whole of issue #13. Null when there is no reading, never a guess.
+  current: () => {
+    const c = feed.current && feed.current.data;
+    if (!c || c.set_degrees == null || !c.drift_mps) return null;
+    // A set is the compass bearing the water runs toward. North is -Z.
+    const set = (c.set_degrees * Math.PI) / 180;
+    return {
+      x: Math.sin(set) * c.drift_mps,
+      z: -Math.cos(set) * c.drift_mps,
+      set: c.set_degrees,
+      drift: c.drift_mps,
+    };
+  },
   // What the hull floats on: the swell where there is water under it, the
   // ground where there is not, so the boat can sit on the line between the two.
   seaAt: (x, z) => {
@@ -400,6 +415,7 @@ function frame() {
 
   nav.update(dt);
   if (trees) trees.update(camera);
+  hud.helm(nav.mode === "boat", nav.boat, feed.current);
 
   // Whatever is carrying you is what the map should mark.
   if (overview.visible) {

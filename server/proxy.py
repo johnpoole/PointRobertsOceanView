@@ -33,7 +33,7 @@ import json
 import logging
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -105,6 +105,31 @@ TIDE_DATUM = "MLLW"
 TIDE_POLL_SECONDS = 300
 RETRY_SECONDS = 20  # after a failed fetch, retry soon instead of the full poll
 COOPS_BASE = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
+
+# The tidal stream, from the nearest current station: PUG1726, "Strait of
+# Georgia, 4.5 nm SW of Point Roberts", 8.1 km off the bluff. That is the water
+# in the view, which is as close as a published station gets.
+#
+# The station has 36 bins two metres apart and publishes predictions for three of
+# them. Bin 35 sits 9.4 m down and is the shallowest of the three, so it is the
+# one a boat is in. Bin 11 is 57 m down and is what the API hands back when no
+# bin is named, which would be the current well under the keel.
+#
+# Velocity_Major is signed along the channel: positive runs toward meanFloodDir,
+# negative toward meanEbbDir. In metric units it is centimetres a second.
+#
+# This is one point eight kilometres offshore, and the stream along the West
+# Bluff is not the stream out there. See issue #13.
+CURRENT_STATION = "PUG1726"
+CURRENT_BIN = 35
+CURRENT_STATION_KM = 8.1          # from the bluff, for the readout to own up to
+CURRENT_POLL_SECONDS = 300
+# Predictions for a whole day arrive in one call and do not change, so the day is
+# held and interpolated locally. Refetched when the held day runs out.
+CURRENT_FETCH_DAYS = 2
+CURRENT_SLACK_MPS = 0.05          # under this it is slack and has no direction
+CM_PER_S_TO_M_PER_S = 0.01
+KNOT_MPS = 0.514444
 
 # Aircraft from adsb.lol: community-fed, ODbL, no key. A drop-in for the
 # ADSBexchange API that went paid. Their docs say a key may be required in
@@ -190,11 +215,14 @@ class World:
         self.weather_time: datetime | None = None
         self.tide: dict | None = None
         self.tide_time: datetime | None = None
+        self.current: dict | None = None
+        self.current_time: datetime | None = None
         # Why vessels are offline, in the monitor's words. Empty when they are not.
         self.vessels_note = ""
         self.health = {
             "weather": "offline",
             "tide": "offline",
+            "currents": "offline",
             "vessels": "offline",
             "aircraft": "offline",
         }
@@ -337,6 +365,11 @@ def snapshot() -> dict:
                  world.tide, None)
         if world.tide else None
     )
+    current = (
+        envelope("current.state", "tidesandcurrents.noaa.gov", world.current_time,
+                 world.current, None)
+        if world.current else None
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "message_type": "initial.snapshot",
@@ -346,6 +379,7 @@ def snapshot() -> dict:
             "server_time": iso(utcnow()),
             "weather": weather,
             "tide": tide,
+            "current": current,
             "vessels": vessels,
             "aircraft": [
                 envelope("aircraft.state", "adsb.lol",
@@ -668,17 +702,23 @@ async def aircraft_task() -> None:
 # ---- NOAA tide feed ---------------------------------------------------------
 
 
-async def coops(client: httpx.AsyncClient, station: str, **params) -> dict:
-    """One CO-OPS call. NOAA reports failures in a 200 body, so check for them."""
-    response = await client.get(COOPS_BASE, params={
+async def coops(client: httpx.AsyncClient, station: str,
+                datum: str | None = TIDE_DATUM, **params) -> dict:
+    """One CO-OPS call. NOAA reports failures in a 200 body, so check for them.
+
+    A current prediction is a speed and has no datum, so it passes datum=None and
+    the parameter is left off the query rather than sent empty."""
+    query = {
         "application": "PointRobertsOceanView",
         "station": station,
-        "datum": TIDE_DATUM,
         "time_zone": "gmt",
         "units": "metric",
         "format": "json",
         **params,
-    })
+    }
+    if datum:
+        query["datum"] = datum
+    response = await client.get(COOPS_BASE, params=query)
     response.raise_for_status()
     payload = response.json()
     if "error" in payload:
@@ -772,6 +812,118 @@ async def tide_task() -> None:
                 world.health["tide"] = "offline"
                 log.error("Tide fetch failed: %s", exc)
             await asyncio.sleep(TIDE_POLL_SECONDS if ok else RETRY_SECONDS)
+
+
+# ---- NOAA tidal current feed ------------------------------------------------
+
+
+async def fetch_current_series(client: httpx.AsyncClient, start: datetime) -> list[tuple]:
+    """The station's predicted stream over the next couple of days, as
+    (time, centimetres a second, flood bearing, ebb bearing, bin depth)."""
+    rows = (await coops(
+        client, CURRENT_STATION, datum=None, product="currents_predictions",
+        bin=CURRENT_BIN, begin_date=start.strftime("%Y%m%d"),
+        range=24 * CURRENT_FETCH_DAYS, interval="30",
+    ))["current_predictions"]["cp"]
+    series = []
+    for row in rows:
+        when = parse_time(row["Time"])
+        if when is None:
+            raise RuntimeError(
+                f"NOAA currents_predictions station {CURRENT_STATION} bin "
+                f"{CURRENT_BIN}: unparsable timestamp {row['Time']!r}"
+            )
+        series.append((
+            when,
+            float(row["Velocity_Major"]),
+            float(row["meanFloodDir"]),
+            float(row["meanEbbDir"]),
+            float(row["Depth"]),
+        ))
+    if not series:
+        raise RuntimeError(
+            f"NOAA currents_predictions station {CURRENT_STATION} bin "
+            f"{CURRENT_BIN} returned no rows for {start:%Y-%m-%d}"
+        )
+    series.sort(key=lambda r: r[0])
+    return series
+
+
+def current_at(series: list[tuple], when: datetime) -> dict:
+    """Straight-line interpolation between the half-hourly predictions. Returns
+    the set — the bearing the water is going — and the drift."""
+    if when < series[0][0] or when > series[-1][0]:
+        raise RuntimeError(
+            f"NOAA currents_predictions for {CURRENT_STATION} cover "
+            f"{series[0][0]:%Y-%m-%d %H:%M} to {series[-1][0]:%Y-%m-%d %H:%M} "
+            f"and {when:%Y-%m-%d %H:%M} is outside that. Refetch the series."
+        )
+    later = next(i for i, row in enumerate(series) if row[0] >= when)
+    if later == 0:
+        row, span = series[0], 0.0
+        velocity = row[1]
+    else:
+        before, after = series[later - 1], series[later]
+        span = (after[0] - before[0]).total_seconds()
+        t = 0.0 if span == 0 else (when - before[0]).total_seconds() / span
+        velocity = before[1] + (after[1] - before[1]) * t
+        row = before
+
+    _, _, flood_dir, ebb_dir, depth_m = row
+    speed = abs(velocity) * CM_PER_S_TO_M_PER_S
+    if speed < CURRENT_SLACK_MPS:
+        state, set_deg = "slack", None
+    elif velocity >= 0:
+        state, set_deg = "flooding", flood_dir
+    else:
+        state, set_deg = "ebbing", ebb_dir
+    return {
+        "station_id": CURRENT_STATION,
+        "bin": CURRENT_BIN,
+        "bin_depth_m": depth_m,
+        "station_distance_km": CURRENT_STATION_KM,
+        "set_degrees": set_deg,
+        "drift_mps": round(speed, 3),
+        "drift_kn": round(speed / KNOT_MPS, 2),
+        "state": state,
+        "flood_direction_deg": flood_dir,
+        "ebb_direction_deg": ebb_dir,
+        # This is a prediction for one point offshore, not a measurement of the
+        # water the boat is in. Anything showing it has to say so.
+        "kind": "prediction",
+    }
+
+
+async def current_task() -> None:
+    async with httpx.AsyncClient(timeout=30) as client:
+        series: list[tuple] = []
+        while True:
+            ok = False
+            try:
+                now = utcnow()
+                # One call a day rather than one every poll: a prediction for a
+                # given minute is the same answer whenever it is asked for.
+                if not series or now > series[-1][0] - timedelta(hours=2):
+                    series = await fetch_current_series(client, now)
+                    log.info("Current predictions %s bin %d: %d rows, %s to %s",
+                             CURRENT_STATION, CURRENT_BIN, len(series),
+                             series[0][0].strftime("%Y-%m-%d %H:%M"),
+                             series[-1][0].strftime("%Y-%m-%d %H:%M"))
+                world.current = current_at(series, now)
+                world.current_time = now
+                world.health["currents"] = "live"
+                await clients.broadcast(envelope(
+                    "current.state", "tidesandcurrents.noaa.gov",
+                    world.current_time, world.current, None))
+                log.info("Current %.2f kn %s (%s)", world.current["drift_kn"],
+                         world.current["state"],
+                         "slack" if world.current["set_degrees"] is None
+                         else f"{world.current['set_degrees']:.0f}°")
+                ok = True
+            except Exception as exc:
+                world.health["currents"] = "offline"
+                log.error("Current fetch failed: %s", exc)
+            await asyncio.sleep(CURRENT_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
 # ---- Open-Meteo weather + marine feed ---------------------------------------
@@ -1026,6 +1178,7 @@ async def startup() -> None:
     for coro, name in ((ais_task(), "ais"),
                        (shipfinder_task(), "shipfinder"),
                        (tide_task(), "tide"),
+                       (current_task(), "current"),
                        (aircraft_task(), "aircraft"),
                        (weather_task(), "weather"),
                        (heartbeat_task(), "heartbeat")):
