@@ -203,6 +203,11 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
   height was undefined: the tile drew as nothing, the ground sampler answered NaN, the audio was
   handed a non-finite number, and the page reported that it had loaded. Check `res.ok`, and check
   the byte count against what the metadata says the grid is.
+- A comment that closes early is not a syntax error. A stray `-->` on line 10 of `index.html` ended
+  a comment four lines short and the rest of it was printed over the water on every load for four
+  commits. Nothing threw, nothing logged, the page reported that it had loaded. `server/test_index.py`
+  reads the file the way a browser does and fails on loose text in the head, on comment punctuation
+  standing as page text, and on any comment that does not open and close once.
 - A hidden panel has to start hidden in the markup. Hiding it from `main.js` is too late — the
   module fetches three from a CDN first, and the browser has already painted the panel by then.
   That is what flashed the mode chooser on every load.
