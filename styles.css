@@ -234,9 +234,13 @@ html, body {
 }
 .overview.hidden { display: none; }
 
-/* --- Hamburger menu (mobile only) --- */
+/* --- Hamburger, at every width ---------------------------------------------
+   Four readout panels and a button stack sit in the four corners, and on any
+   screen they cover most of the water. This page is a window, so the window wins:
+   the panels are off until the button is pressed. Not a phone rule — a desktop is
+   where they blocked the most. */
 .hamburger {
-  display: none;
+  display: block;
   position: fixed;
   top: 8px;
   left: 8px;
@@ -252,12 +256,11 @@ html, body {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
-@media (max-width: 768px) {
-  .hamburger { display: block; }
-  .hud { display: none !important; }
-  /* Not .hidden ones. The helm readout is a .hud and is hidden unless you are in
-     the boat, and an unqualified display:block !important beat that and put a
-     panel of dashes on the screen. */
-  body.hud-visible .hud:not(.hidden) { display: block !important; }
-  body.hud-visible .hamburger { background: rgba(80, 140, 180, 0.5); }
-}
+.hud { display: none; }
+/* Not the .hidden ones. The helm readout is a .hud and is hidden unless you are
+   in the boat, and an unqualified reveal put a panel of dashes on the screen. */
+body.hud-visible .hud:not(.hidden) { display: block; }
+body.hud-visible .hamburger { background: rgba(80, 140, 180, 0.5); }
+/* The button sits in the top left corner and so does the first panel. Move the
+   panel down out from under it rather than the button off the corner. */
+body.hud-visible .hud-tl { top: 60px; }

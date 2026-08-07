@@ -114,9 +114,12 @@ zoom at whatever the pointer is over. One finger drags, two pinch and twist. Tha
 `MapControls` with `zoomToCursor`, not OrbitControls — the difference that matters is that a plain
 drag pans instead of orbiting.
 
-Under 768 px the readouts are off and a hamburger at the top left brings them back, because five
-panels and a button stack cover a phone. The reveal rule has to skip `.hidden` — the helm readout
-is a `.hud` and is hidden unless you are in the boat.
+The readouts start off and the hamburger at the top left brings them back. At every width, not just
+on a phone: open, the four corner panels cover 21% of a 1280 x 800 screen and 60% of a phone, and
+this page is a window, so the window wins. The keys still work with the panels shut — `M`, `O`, `T`,
+`V`. The reveal rule has to skip `.hidden`, because the helm readout is a `.hud` and is hidden
+unless you are in the boat. The two failure banners are not `.hud`, so a dead feed or missing
+ground still says so with the menu closed.
 
 On a touch screen a thumb on the left half raises a stick where it lands: away is go, across is
 turn, and being a stick it is analog. In the air its fore-and-aft is the climb instead, which is
