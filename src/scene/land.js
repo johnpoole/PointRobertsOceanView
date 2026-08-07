@@ -287,10 +287,14 @@ export async function buildLand(scene, sample, opts = {}) {
     isolated = new THREE.Mesh(igeom, plainMat);
     scene.add(isolated);
   }
-  const hgeom = buildings(data.buildings.filter((b) => b.home), sample);
-  if (hgeom) {
-    scene.add(new THREE.Mesh(hgeom, new THREE.MeshStandardMaterial({
-      color: HOME_COLOR, roughness: 0.7, metalness: 0 })));
+  // The home is not extruded from its trace: cabin.js models it off photographs
+  // and puts it here itself. opts.skipHome is what stops the two from stacking.
+  if (!opts.skipHome) {
+    const hgeom = buildings(data.buildings.filter((b) => b.home), sample);
+    if (hgeom) {
+      scene.add(new THREE.Mesh(hgeom, new THREE.MeshStandardMaterial({
+        color: HOME_COLOR, roughness: 0.7, metalness: 0 })));
+    }
   }
 
   // One mesh each, because each carries its own name on hover.

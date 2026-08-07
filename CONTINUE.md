@@ -59,6 +59,8 @@ src/touch.js               the on-screen stick, and the drag that looks about
 src/share.js               puts the view in the address bar, and reads it back
 src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
 src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not
+src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
+src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
 assets/                    everything baked. Do not edit by hand.
 ```
 
@@ -97,6 +99,23 @@ Heights and the tide are both metres above MLLW, so the water plane height equal
 reading and the waterline sits where it really sits. The near tile is NOAA CUDEM at about 3 m,
 shifted NAVD88 to MLLW by +0.411 m. Verified against USGS 3DEP to 0.15 m and against the OSM
 coastline to 0.01 m. If you rebake, check it again.
+
+## The cabin
+
+389 W Bluff Rd is not extruded from its OSM trace like every other building. It is modelled off the
+photographs in the stabilisation packet at `../PointRobertsEngineering`: near-black lap siding, a
+low standing-seam gable with very deep eaves, a brick chimney above the ridge, white window bands
+facing the water, an upper deck on posts with a wire rail, a lower deck with timber rails, a lattice
+screen under it and a stair down the north side. `buildLand` takes `skipHome` so the two do not stack.
+
+The ground under it falls from 10.79 m at the east corner to 5.74 m at the west — five metres under
+a seven metre building. The east side is dug into the bank and the west stands on posts, which is
+the whole reason that packet exists. The address node is 34 m uphill of the cabin, at 18.84 m, up on
+Bluff Road; the camera opens there, not on the cabin.
+
+The traced footprint is an irregular seven-node 55 m². What is built is the rectangle that fits it,
+7.4 by 6.0 turned 18° east of north, because that is what the photographs show and a photograph
+cannot place the notch.
 
 ## Ground colour
 

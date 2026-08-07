@@ -18,6 +18,7 @@ import { buildLand } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
+import { buildCabin } from "./scene/cabin.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -140,8 +141,12 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     brademy = buildBrademy(scene, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
     // while the courts are up.
+    // The cabin is modelled off photographs rather than extruded from its OSM
+    // trace, so land.js leaves the home alone and cabin.js puts it there.
+    buildCabin(scene, near.sample);
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
+      skipHome: true,
     }).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;

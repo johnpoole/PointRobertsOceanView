@@ -19,6 +19,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld, toWorld } from "../geo.js";
+import { box, gableRoof, pick, seeded, tint } from "./parts.js";
 
 // The old Breakers parking lot, clockwise from the northeast. Supplied, not
 // surveyed.
@@ -350,36 +351,6 @@ function fence(x0, x1, z0, z1, y) {
   return mergeGeometries(parts, false);
 }
 
-// One repeatable stream, so the planting is the same planting on every reload
-// rather than a fresh scatter each time the switch is thrown.
-function seeded(seed) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
-}
-
-// Paint a part one colour so many colours can share one mesh. Everything that
-// goes into a merge has to come through here, or the attribute sets differ and
-// mergeGeometries refuses.
-function tint(geom, color) {
-  geom.deleteAttribute("uv");
-  const g = geom.index ? geom.toNonIndexed() : geom;
-  const c = new THREE.Color(color);
-  const n = g.attributes.position.count;
-  const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
-  }
-  g.setAttribute("color", new THREE.BufferAttribute(arr, 3));
-  return g;
-}
-
-function pick(list, rand) {
-  return list[Math.floor(rand() * list.length)];
-}
-
 // The hedge round the lot: the boundary cut into short stations, each with its
 // own ground height, its own width and its own top, then closed up into a strip.
 // The jitter is what stops it reading as a painted wall — a clipped hedge is
@@ -503,41 +474,6 @@ function benchGeometry(rand) {
     parts.push(tint(arm, BENCH_FRAME_COLOR));
   }
   return mergeGeometries(parts, false);
-}
-
-// A gable roof whose ridge runs north-south, hanging past the walls on all four
-// sides. The overhang is the point: a roof stopping flush at the wall reads as an
-// extruded box, and a roof with 900 mm of eave and a shadow under it reads as a
-// building. Double sided in the material so the soffit shows from below.
-//
-// halfW, halfL are the walls. slope falls from the ridge to the eave.
-function gableRoof(halfW, halfL, wallTop, rise, eave, color) {
-  const slope = rise / halfW;
-  const ridgeY = wallTop + rise;
-  const outW = halfW + eave;
-  const eaveY = wallTop - slope * eave;
-  const outL = halfL + eave;
-  const pos = [];
-  const tri = (a, b, c) => pos.push(...a, ...b, ...c);
-  for (const s of [-1, 1]) {
-    // ridge to eave, running the length of the building.
-    tri([0, ridgeY, -outL], [s * outW, eaveY, -outL], [s * outW, eaveY, outL]);
-    tri([0, ridgeY, -outL], [s * outW, eaveY, outL], [0, ridgeY, outL]);
-  }
-  // The gable ends close the triangle above the wall, set in behind the rake.
-  for (const z of [-halfL, halfL]) {
-    tri([-halfW, wallTop, z], [halfW, wallTop, z], [0, ridgeY, z]);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
-  g.computeVertexNormals();
-  return tint(g, color);
-}
-
-function box(w, d, h, x, y, z, color) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  g.translate(x, y + h / 2, z);
-  return tint(g, color);
 }
 
 // A band of glass set into a wall face, standing a little proud so it catches its
