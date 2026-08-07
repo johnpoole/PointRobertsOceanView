@@ -1154,9 +1154,16 @@ app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 _tasks: list[asyncio.Task] = []
 
 
-def _spawn(coro, name: str) -> asyncio.Task:
+def _spawn(coro, name: str, feed: str | None = None) -> asyncio.Task:
     """A task that dies takes its feed with it, and asyncio says nothing unless
-    somebody asks. This asks."""
+    somebody asks. This asks.
+
+    feed is the health key the task keeps up to date. Logging the death is not
+    enough on its own: the last thing a task did before dying was probably set
+    its health to live, and nothing else ever sets it back, so the page would go
+    on showing LIVE over numbers that had stopped moving. So the death sets it
+    offline. A surviving task that shares the key will put it back on its next
+    good cycle, which is what should happen — the vessels key has two owners."""
     task = asyncio.create_task(coro, name=name)
 
     def done(t: asyncio.Task) -> None:
@@ -1168,6 +1175,10 @@ def _spawn(coro, name: str) -> asyncio.Task:
                       exc_info=exc)
         else:
             log.error("Feed task %s returned and its feed has stopped.", name)
+        if feed:
+            world.health[feed] = "offline"
+            if feed == "vessels":
+                world.vessels_note = f"{name} task died"
 
     task.add_done_callback(done)
     return task
@@ -1175,14 +1186,16 @@ def _spawn(coro, name: str) -> asyncio.Task:
 
 @app.on_event("startup")
 async def startup() -> None:
-    for coro, name in ((ais_task(), "ais"),
-                       (shipfinder_task(), "shipfinder"),
-                       (tide_task(), "tide"),
-                       (current_task(), "current"),
-                       (aircraft_task(), "aircraft"),
-                       (weather_task(), "weather"),
-                       (heartbeat_task(), "heartbeat")):
-        _tasks.append(_spawn(coro, name))
+    # The third column is the health key the task owns, so its death takes that
+    # reading down with it. The heartbeat owns none: it is not a feed.
+    for coro, name, feed in ((ais_task(), "ais", "vessels"),
+                             (shipfinder_task(), "shipfinder", "vessels"),
+                             (tide_task(), "tide", "tide"),
+                             (current_task(), "current", "currents"),
+                             (aircraft_task(), "aircraft", "aircraft"),
+                             (weather_task(), "weather", "weather"),
+                             (heartbeat_task(), "heartbeat", None)):
+        _tasks.append(_spawn(coro, name, feed))
 
 
 @app.on_event("shutdown")
