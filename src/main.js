@@ -3,7 +3,7 @@
 // and the HUD. Renders empty water honestly when the feed is down.
 
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { MapControls } from "three/addons/controls/MapControls.js";
 
 import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
@@ -40,13 +40,21 @@ const camera = new THREE.PerspectiveCamera(
   25, window.innerWidth / window.innerHeight, 1, 150000);
 camera.position.set(0, EYE_HEIGHT_M, 0);
 
-const controls = new OrbitControls(camera, canvas);
+// Google Maps' 3D bindings, which is what people already have in their hands:
+// drag to pull the ground about, ctrl-drag or right-drag to swing round and tilt,
+// wheel to zoom at whatever the pointer is over. On a touch screen, one finger
+// drags and two pinch and twist. MapControls is OrbitControls with those bindings
+// and with panning held parallel to the ground instead of to the screen.
+const controls = new MapControls(camera, canvas);
 controls.target.set(-500, 0, 0); // look west, slightly down to the water
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.maxPolarAngle = Math.PI * 0.52; // don't drop below the sea surface
 controls.minDistance = 20;
 controls.maxDistance = 8000;
+// Zoom toward what is under the pointer rather than toward the middle of the
+// screen. This is the half of the Google feel that is not in the bindings.
+controls.zoomToCursor = true;
 
 // World direction pointing toward the sun, from a compass azimuth (0=N, cw) and
 // elevation. World axes: +X east, +Y up, +Z south.

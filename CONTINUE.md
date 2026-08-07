@@ -102,6 +102,12 @@ the community centre, the border, the golf club, the foot of the bluff, the apro
 Controls vary by mode; the boat's tiller is backwards on purpose and nothing else is. `O` toggles
 the overview map.
 
+Looking around uses Google Maps' 3D bindings, because that is what people already have in their
+hands. Drag to pull the ground about, ctrl-drag or right-drag to swing round and tilt, wheel to
+zoom at whatever the pointer is over. One finger drags, two pinch and twist. That is three's
+`MapControls` with `zoomToCursor`, not OrbitControls — the difference that matters is that a plain
+drag pans instead of orbiting.
+
 On a touch screen a thumb on the left half raises a stick where it lands: away is go, across is
 turn, and being a stick it is analog. In the air its fore-and-aft is the climb instead, which is
 the one place it means something different. Look is a drag anywhere else, or the mouse on a
