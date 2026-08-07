@@ -127,7 +127,9 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
     });
   })
   .catch((err) => console.error("near terrain / land failed:", err));
-buildTerrain(scene, TERRAIN.far, { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5 })
+// No gravel on the far tile: its nearest ground is ten kilometres off.
+buildTerrain(scene, TERRAIN.far,
+  { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5, gravel: false })
   .catch((err) => console.error("far terrain failed:", err));
 
 const hud = new Hud();

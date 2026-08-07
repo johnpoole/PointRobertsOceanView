@@ -19,6 +19,18 @@ const SHINGLE = new THREE.Color(0x767065);
 // above the second.
 const SAND_SLOPE = 0.05;
 const STONE_SLOPE = 0.22;
+// Above this the grass starts and there is no beach left to gravel.
+const BEACH_TOP_M = 6.0;
+
+// Pea gravel, an inch and under. Far too small to be geometry — a beach of it
+// is millions of stones — so it is laid on per pixel instead, at the size the
+// stones actually are. It fades out with distance because past forty metres an
+// inch is smaller than a pixel, and drawing it there only makes it crawl.
+const GRAVEL_M = 0.025;
+const GRAVEL_COARSE_M = 0.07;
+const GRAVEL_DEPTH = 0.16;
+const GRAVEL_FADE_NEAR_M = 12.0;
+const GRAVEL_FADE_FAR_M = 45.0;
 
 // Cheap value noise off the grid indices. Not smooth, and it does not need to
 // be: what is wanted is speckle at about the size of a stone.
@@ -52,6 +64,75 @@ function colorForElevation(elev, target, row = 0, col = 0, slope = 0) {
   return target;
 }
 
+// Lays gravel on whatever the stony attribute says is stony. Two octaves of
+// value noise in world metres, one at the size of a pea and one at the size of
+// the patches they gather in, darkening and lightening the ground rather than
+// tinting it — wet stone and dry stone next to each other, not a colour wash.
+function addGravel(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.gravelSize = { value: GRAVEL_M };
+    shader.uniforms.gravelCoarse = { value: GRAVEL_COARSE_M };
+    shader.uniforms.gravelDepth = { value: GRAVEL_DEPTH };
+    shader.uniforms.gravelFade = {
+      value: new THREE.Vector2(GRAVEL_FADE_NEAR_M, GRAVEL_FADE_FAR_M),
+    };
+
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", `
+        #include <common>
+        attribute float stony;
+        varying float vStony;
+        varying vec3 vGroundPos;
+      `)
+      .replace("#include <begin_vertex>", `
+        #include <begin_vertex>
+        vStony = stony;
+        vGroundPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+      `);
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `
+        #include <common>
+        varying float vStony;
+        varying vec3 vGroundPos;
+        uniform float gravelSize;
+        uniform float gravelCoarse;
+        uniform float gravelDepth;
+        uniform vec2 gravelFade;
+
+        float hash21(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        }
+        float valueNoise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          float a = hash21(i);
+          float b = hash21(i + vec2(1.0, 0.0));
+          float c = hash21(i + vec2(0.0, 1.0));
+          float d = hash21(i + vec2(1.0, 1.0));
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+      `)
+      .replace("#include <color_fragment>", `
+        #include <color_fragment>
+        if (vStony > 0.001) {
+          // Wrapped to a kilometre first: world coordinates run to thousands of
+          // metres and a float cannot hold both that and a 25 mm stone.
+          vec2 ground = mod(vGroundPos.xz, 1000.0);
+          float stones = valueNoise(ground / gravelSize) - 0.5;
+          float patches = valueNoise(ground / gravelCoarse) - 0.5;
+          float dist = length(vGroundPos - cameraPosition);
+          float near = 1.0 - smoothstep(gravelFade.x, gravelFade.y, dist);
+          float grit = (stones * 0.7 + patches * 0.3) * gravelDepth * vStony * near;
+          diffuseColor.rgb = clamp(diffuseColor.rgb * (1.0 + grit * 2.0), 0.0, 1.0);
+        }
+      `);
+  };
+  // A material whose shader is rewritten needs its own program.
+  material.customProgramCacheKey = () => "terrain-gravel";
+}
+
 // asset: { heightmap, meta }. opts: { haze 0..1, hazeGrade [nearM,farM,nearHaze,
 // farHaze], fog, yOffset }. hazeGrade ramps haze with distance for atmospheric
 // perspective, so nearer islands read crisp and far mountains fade.
@@ -83,6 +164,9 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const count = nrows * ncols;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
+  // How stony this vertex is, 0 on the sand and 1 on the steep. The fragment
+  // shader reads it to know where to lay the gravel.
+  const stony = new Float32Array(count);
   const tmp = new THREE.Color();
 
   // One cell on the ground, for the slope. A degree of latitude is 111320 m and
@@ -118,6 +202,9 @@ export async function buildTerrain(scene, asset, opts = {}) {
         }
       }
       colorForElevation(elev, tmp, i, j, slope);
+      stony[i * ncols + j] = elev < BEACH_TOP_M
+        ? Math.min(Math.max((slope - SAND_SLOPE) / (STONE_SLOPE - SAND_SLOPE), 0), 1)
+        : 0;
       let h = haze;
       if (grade) {
         const d = Math.hypot(w.x, w.z);
@@ -148,12 +235,14 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geom.setAttribute("stony", new THREE.BufferAttribute(stony, 1));
   geom.setIndex(new THREE.BufferAttribute(indices.subarray(0, k), 1));
   geom.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 1, metalness: 0, fog,
   });
+  if (opts.gravel !== false) addGravel(mat);
   const mesh = new THREE.Mesh(geom, mat);
   mesh.position.y = yOffset;
   scene.add(mesh);
