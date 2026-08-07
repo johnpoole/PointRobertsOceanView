@@ -150,13 +150,24 @@ export class Feed {
     });
   }
 
-  // A vessel is stale when the proxy flagged it, or its reported age exceeds the
-  // stale threshold for its kind. Never drops it; the scene dims it instead.
-  isStale(entry) {
+  // A track is stale when the proxy flagged it, or its reported age exceeds the
+  // threshold for its kind. Never drops it; the scene dims it instead.
+  //
+  // kind picks the threshold and is not optional. This used to read the vessel
+  // threshold for both, so an aircraft gone quiet for four minutes still drew as
+  // live: aircraft go stale at two minutes and ships at five, and the aircraft
+  // figure sat in config.js unused.
+  isStale(entry, kind) {
+    const limit = STALE_SECONDS[kind];
+    if (limit == null) {
+      throw new Error(
+        `feed.isStale: no stale threshold for ${JSON.stringify(kind)}. ` +
+        `STALE_SECONDS in config.js has ${Object.keys(STALE_SECONDS).join(", ")}.`);
+    }
     if (!entry) return true;
     if (entry.quality && entry.quality.stale) return true;
     const age = entry.quality ? entry.quality.age_seconds : null;
-    if (age != null && age > STALE_SECONDS.vessels) return true;
+    if (age != null && age > limit) return true;
     return false;
   }
 }

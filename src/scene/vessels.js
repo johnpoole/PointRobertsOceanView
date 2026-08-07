@@ -251,7 +251,7 @@ export class Vessels {
       group.scale.setScalar(zoom);
 
       // Stale: grey and fade via the material (vertex colours are multiplied).
-      const stale = feed.isStale(entry);
+      const stale = feed.isStale(entry, "vessels");
       const mat = group.userData.material;
       if (stale !== group.userData.stale) {
         mat.color.setHex(stale ? 0x5a626c : 0xffffff);

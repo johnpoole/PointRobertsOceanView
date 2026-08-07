@@ -101,7 +101,7 @@ export class Aircraft {
       group.scale.setScalar(Math.min(
         Math.max(Math.pow(dist / ZOOM_REF_M, ZOOM_POWER), 1), ZOOM_MAX));
 
-      const stale = feed.isStale(entry);
+      const stale = feed.isStale(entry, "aircraft");
       const mat = group.userData.material;
       if (stale !== group.userData.stale) {
         mat.color.setHex(stale ? 0x5a626c : 0xffffff);

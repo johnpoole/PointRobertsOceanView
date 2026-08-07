@@ -11,6 +11,11 @@ __pycache__/
 # Terrain build scratch (raw tiles); the baked asset under assets/ is committed
 scripts/_tiles/
 
+# Runtime cache: the ship names read off shipfinder's panel. A named volume in
+# Docker (docker-compose.yml), a plain directory when the proxy runs from a
+# checkout. Never committed — a missing name is simply fetched again.
+data/
+
 # Per-host compose settings, for a machine that needs to differ from
 # docker-compose.yml without the difference showing up as a local modification.
 docker-compose.override.yml
