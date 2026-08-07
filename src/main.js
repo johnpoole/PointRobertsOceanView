@@ -411,10 +411,28 @@ document.getElementById("map-btn").addEventListener("click", () => overview.togg
 
 // The courts are not there, so they are not drawn until asked for, and they say
 // so on screen the whole time they are.
+//
+// Turning them on takes you to them. They sit 616 m south-southeast of the house
+// and there is no point drawing something that is behind you. Turning them off
+// leaves the view wherever you have got to.
 function toggleBrademy() {
   if (!brademy) return;
-  brademy.setVisible(!brademy.visible);
-  document.getElementById("brademy-note").classList.toggle("hidden", !brademy.visible);
+  const on = !brademy.visible;
+  brademy.setVisible(on);
+  document.getElementById("brademy-note").classList.toggle("hidden", !on);
+  if (on) lookAtBrademy();
+}
+
+function lookAtBrademy() {
+  const c = brademy.centre;
+  // Far enough back that the whole facility sits inside the vertical field of
+  // view, with a margin, and from the south so the peninsula is behind it.
+  const fov = (camera.fov * Math.PI) / 360;
+  const range = (brademy.span / 2) / Math.tan(fov) * 1.25;
+  nav.toOrbit();   // whatever you were driving, you are not driving it now
+  camera.position.set(c.x, c.y + range * 0.62, c.z + range * 0.78);
+  controls.target.copy(c);
+  controls.update();
 }
 document.getElementById("brademy-btn").addEventListener("click", toggleBrademy);
 

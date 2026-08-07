@@ -353,6 +353,12 @@ export function buildBrademy(scene, sample) {
     group,
     courts: 6,
     padY,
+    // The middle of the six courts, on the pad, so a caller can aim at them.
+    centre: new THREE.Vector3(
+      layout.blockX0 + blockW / 2, padY, layout.blockZ0 + blockD / 2),
+    // How far off the whole thing has to be seen from, which is its long side
+    // over the tangent of half the vertical field of view, with room round it.
+    span: Math.max(blockW, blockD),
     groundLow: low,
     groundHigh: high,
     retainingM: padY - low,
