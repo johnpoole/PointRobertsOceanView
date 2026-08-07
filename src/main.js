@@ -20,6 +20,7 @@ import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildDrift } from "./scene/drift.js";
+import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -129,6 +130,7 @@ let trees = null;        // swaps each tree between near and far detail as you m
 let brademy = null;      // the proposed courts. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
+let orcas = null;        // a group passing, at the rate the season says
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
@@ -149,6 +151,9 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.
     drift = buildDrift(scene, { seaAt: nav.seaAt });
+    // Whales ride the same surface, and the same sampler keeps them off the
+    // shallows.
+    orcas = buildOrcas(scene, { seaAt: nav.seaAt });
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
@@ -545,6 +550,7 @@ function frame() {
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current);
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
+  if (orcas) orcas.update(dt);
 
   const wall = performance.now();
   share.update(wall);

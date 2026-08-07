@@ -62,6 +62,7 @@ src/scene/brademy.js       the tennis courts, off unless asked for, and the hedg
 src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
 src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
 src/scene/drift.js         kelp, sticks and foam on the water, so the current can be seen
+src/scene/orcas.js         a group passing, at the rate the month says. Not a feed.
 assets/                    everything baked. Do not edit by hand.
 ```
 
@@ -93,6 +94,28 @@ about sixty of these. It stands down entirely if AIS ever comes back. Nothing ou
 gets past their Unauthorized, so a headless Chromium loads their map and the answer is read off
 the wire. Ship names come from clicking a ship and reading the panel; the answer is cached on a
 volume because a name does not change.
+
+## The whales
+
+Nobody publishes where the orcas are right now. Ocean Wise holds the live alerts for commercial
+mariners and delays the public a day. Orca Network's reports are prose on a blog and a Facebook
+page. What is published is how often they are seen, month by month, so that is what is drawn: a
+season and a rate, and a group put on the water at that rate. It is not a feed, it carries no
+label, and it makes no claim about today. Issue #10.
+
+The rate is the Orca Behavior Institute's 2025 Salish Sea count of Bigg's killer whales. Four
+figures are theirs — 1860 for the year, 96 in February, 190 in September, 252 across December,
+January and February — along with the rank order, most in June then August then May and fewest in
+December then November then January. The other nine months are fitted to those and are the weakest
+thing in the file. Bigg's and not the Southern Residents because Bigg's are what passes now: the
+residents were absent from the whole Salish Sea in May, June and August of 2025.
+
+`LOCAL_SHARE` is an assumption and nothing else. It is the share of Salish Sea groups that come
+within sight of this bluff, set at 0.03 because the sightings pile up in Haro Strait and the San
+Juans and Point Roberts sits on the edge of that. Nobody has measured it.
+
+`RATE_MULTIPLIER` is at 25000 so the whales can be looked at. At 1 a group passes about once every
+four days in August and you would never see one in a sitting. Put it back to 1.
 
 ## The datum, which everything depends on
 
@@ -178,7 +201,7 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
 - #7 move the tide in time, and say plainly it is a prediction
 - #8 flash the navigation lights to their own characters
 - #9 let real smoke take the islands away
-- #10 orca sightings
+- #10 orca sightings — drawn, but the rate is multiplied up and LOCAL_SHARE is a guess
 - #11 the moon
 - #12 name the ferry and where it is bound
 - #13 work the currents out from the geography, with NOAA as the far field
