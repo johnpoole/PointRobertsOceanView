@@ -1,9 +1,7 @@
 // The Brademy: six tennis courts on the old Breakers parking lot.
 //
-// This is not there. It is a proposal, so it is off until asked for and it says
-// proposed whenever it is on. Everything else on this page is a measurement of
-// something real and this is the one thing that is not, which is why it is kept
-// behind a switch rather than drawn into the world.
+// Not built yet, so it is off until asked for on T rather than drawn into the
+// world. The switch is the whole of how it is kept apart from the peninsula.
 //
 // The lot's four corners are John's, off the ground rather than off a survey.
 // Everything else here is worked out from them: the buildable rectangle, where
@@ -14,11 +12,9 @@
 // to the side rather than in a server's eyes. Side by side would have wanted
 // 119 m of width and the lot has 62 m, so the sets stack.
 //
-// The hedge is the exception to all of that. It is round the lot now, so it is
-// drawn now, outside the switch and without the proposed label — a real hedge
-// hidden behind a proposal, or labelled as one, would be the same lie in the
-// other direction. With the courts off you get a hedge round an empty lot, which
-// is what is there.
+// The hedge is the exception. It is round the lot now, so it is drawn now, in its
+// own group outside the switch. With the courts off you get a hedge round an empty
+// lot, which is what is there.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -665,7 +661,7 @@ export function buildBrademy(scene, sample) {
   scene.add(group);
 
   // The hedge is round the lot now, so it is drawn now — its own group, outside
-  // the switch, with no proposed label on it.
+  // the switch.
   const hedge = new THREE.Group();
   hedge.add(new THREE.Mesh(
     hedgeGeometry(corners, sample, seeded(19940115)),

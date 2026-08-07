@@ -13,16 +13,16 @@ Nothing is invented. Every feed carries a health value and a source, and a feed 
 so on screen rather than showing stale or made-up numbers. The scraped vessels are labelled
 scraped, in the HUD and on every position. Keep it that way.
 
-There is one exception and it is handled rather than excused. The Brademy, six proposed tennis
-courts on the old Breakers parking lot, does not exist. So it is not drawn until `T` is pressed,
-and while it is drawn the screen says proposed, not built. Issue #14. Anything else of that kind
-gets the same treatment or it does not go in.
+That rule is about the feeds. The Brademy, six tennis courts on the old Breakers parking lot, is
+not built yet, and the switch on `T` is the whole of how it is kept apart from the peninsula: off
+unless asked for. Issue #14. It carries no caption saying so, and nothing else here should either —
+a line describing the status of a feature is not something the person looking out of the window
+needs.
 
-The hedge round that lot is not part of the exception. It is there now, so it is drawn now: its
-own group, outside the switch, with no proposed label on it. Hiding a real hedge behind a proposal,
-or labelling it as one, would be the same lie the other way round. With the courts off you get a
-hedge round an empty lot, which is what is there. Its height of 3 m is assumed rather than
-measured, and it is drawn unbroken because nobody has said where the way in is.
+The hedge round that lot is not behind the switch. It is there now, so it is drawn now, in its own
+group. With the courts off you get a hedge round an empty lot, which is what is there. Its height
+of 3 m is assumed rather than measured, and it is drawn unbroken because nobody has said where the
+way in is.
 
 ## Deploy
 
@@ -50,7 +50,7 @@ src/main.js                wires the scene, the camera, the modes
 src/nav.js                 the modes themselves, and the boat's hydrodynamics
 src/touch.js               the on-screen stick, and the drag that looks about
 src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
-src/scene/brademy.js       the proposed tennis courts. The one thing here that is not there.
+src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not
 assets/                    everything baked. Do not edit by hand.
 ```
 

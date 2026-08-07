@@ -409,17 +409,13 @@ for (const [id, label, note] of [
 document.getElementById("mode-btn").addEventListener("click", () => chooser.classList.remove("hidden"));
 document.getElementById("map-btn").addEventListener("click", () => overview.toggle());
 
-// The courts are not there, so they are not drawn until asked for, and they say
-// so on screen the whole time they are.
-//
-// Turning them on takes you to them. They sit 616 m south-southeast of the house
-// and there is no point drawing something that is behind you. Turning them off
-// leaves the view wherever you have got to.
+// Turning the courts on takes you to them. They sit 616 m south-southeast of the
+// house and there is no point drawing something that is behind you. Turning them
+// off leaves the view wherever you have got to.
 function toggleBrademy() {
   if (!brademy) return;
   const on = !brademy.visible;
   brademy.setVisible(on);
-  document.getElementById("brademy-note").classList.toggle("hidden", !on);
   if (on) lookAtBrademy();
 }
 
