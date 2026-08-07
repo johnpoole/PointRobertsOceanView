@@ -81,6 +81,10 @@ export class Nav {
     // current() -> { x, z } : the tidal stream in metres a second, world axes,
     // or null when there is no reading. Null means no current, never a guess.
     this.current = opts.current || null;
+    // hasGround() -> whether the terrain has loaded. Nothing that travels over
+    // the ground may be entered before it has, because seaAt has no seabed to
+    // answer with and will say so rather than invent one.
+    this.hasGround = opts.hasGround || (() => true);
     // speed is through the water, which is what the throttle sets. course and
     // madeGood are over the ground, which is what the current makes of it.
     this.boat = { yaw: 0, speed: 0, pos: new THREE.Vector3(), trim: 0, bank: 0,
@@ -189,6 +193,7 @@ export class Nav {
   // Launch at the water's edge, on the surface, pointing where the camera looks.
   toggleBoat(start) {
     if (this.mode === "boat") { this._setOrbit(); return; }
+    if (!this.hasGround()) return;   // no seabed to float on yet
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
     this.orbit.enabled = false;
     if (this.vehicleMesh) this.vehicleMesh.visible = false;
@@ -277,6 +282,7 @@ export class Nav {
   // height. The camera sits at the vehicle's own eye, so a cart driver sees over
   // the bonnet and a walker sees from head height.
   enterVehicle(spec, avatar) {
+    if (!this.hasGround()) return;   // nothing to travel over yet
     if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
     this.orbit.enabled = false;
     if (this.boatMesh) this.boatMesh.visible = false;

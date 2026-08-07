@@ -151,6 +151,14 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
   vertices. `Math.sin`, per-vertex object allocation and `offsetHSL` cost 4 seconds between them.
 - Overpass refuses full bakes for hours at a time. Every mirror. Wait, or apply the change to the
   baked asset with the baker's own constants imported rather than copied.
+- `fetch` resolves for a 404 and a 500 as happily as for a 200. Only a network failure rejects. A
+  21-byte error page went into an `Int16Array` and built three and a half million vertices whose
+  height was undefined: the tile drew as nothing, the ground sampler answered NaN, the audio was
+  handed a non-finite number, and the page reported that it had loaded. Check `res.ok`, and check
+  the byte count against what the metadata says the grid is.
+- A hidden panel has to start hidden in the markup. Hiding it from `main.js` is too late — the
+  module fetches three from a CDN first, and the browser has already painted the panel by then.
+  That is what flashed the mode chooser on every load.
 
 ## Standing instructions from John
 

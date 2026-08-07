@@ -142,11 +142,24 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
       overview.build(land.features);
     });
   })
-  .catch((err) => console.error("near terrain / land failed:", err));
+  .catch((err) => failed("the ground under the view", err));
 // No gravel on the far tile: its nearest ground is ten kilometres off.
 buildTerrain(scene, TERRAIN.far,
   { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5, gravel: false })
-  .catch((err) => console.error("far terrain failed:", err));
+  .catch((err) => failed("the skyline across the strait", err));
+
+// A feed that goes down says so on screen and the terrain did not, and the
+// terrain is most of what is out there. Losing it quietly left a page that
+// looked like it had loaded and had no beach, no land and no bottom to the sea.
+function failed(what, err) {
+  console.error(`${what} failed to load:`, err);
+  const banner = document.getElementById("terrain-fail");
+  const said = document.getElementById("terrain-fail-sub");
+  // Both tiles can fail, and the second must not erase the first.
+  said.textContent = said.textContent
+    ? `${said.textContent}; ${what}` : `${what} did not load`;
+  banner.classList.remove("hidden");
+}
 
 const hud = new Hud();
 const feed = new Feed();
@@ -281,21 +294,36 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   },
   // What the hull floats on: the swell where there is water under it, the
   // ground where there is not, so the boat can sit on the line between the two.
+  //
+  // This used to read the ground as zero until the terrain loaded, which stood
+  // the boat on a flat imaginary bottom at chart datum and made the shoreline
+  // mean nothing, and said not a word about it. The modes that need ground are
+  // refused until there is ground, so getting here without it is a bug.
   seaAt: (x, z) => {
+    if (!groundSample) {
+      throw new Error(
+        "seaAt: no terrain, so there is no seabed to float the boat on. Boat and " +
+        "vehicle modes are meant to be refused until the near tile has loaded — " +
+        "see needsGround in main.js.");
+    }
     const s = ocean.surfaceAt(x, z);
     const { lat, lon } = fromWorld(x, z);
-    const ground = groundSample ? groundSample(lat, lon) : 0;
+    const ground = groundSample(lat, lon);
     if (ground > s.y) return { y: ground, dx: 0, dz: 0, depth: 0, aground: true };
     return { y: s.y, dx: s.dx, dz: s.dz, depth: s.y - ground, aground: false };
   },
   // Whichever is higher under the camera, the sea floor or the tide. Off the
   // near tile the terrain sample clamps to a deep edge value, so out in the
-  // strait this is just the water.
+  // strait this is just the water. Looking around and free flight both work
+  // without terrain, so with none the water is the whole of the floor.
   floor: (x, z) => {
+    if (!groundSample) return tideLevel();
     const { lat, lon } = fromWorld(x, z);
-    const ground = groundSample ? groundSample(lat, lon) : 0;
-    return Math.max(ground, tideLevel());
+    return Math.max(groundSample(lat, lon), tideLevel());
   },
+  // B launches the boat straight from the keyboard, so the guard has to live in
+  // Nav as well as in the chooser.
+  hasGround: () => groundSample != null,
 });
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
 // How you are getting about has to be chosen before the world is yours to move
@@ -342,7 +370,18 @@ function toBluff() {
   controls.update();
 }
 
+// Everything that travels needs to know where the ground is: a boat to float and
+// run aground, a cart and a pair of feet to stay on it. Without the terrain they
+// would all be moving over nothing, so they are refused and told why. Looking
+// around and free flight need no ground and stay available.
+const needsGround = (id) => id !== "bluff" && id !== "look";
+
 function chooseMode(id) {
+  if (needsGround(id) && !groundSample) {
+    document.getElementById("chooser-note").textContent =
+      "the ground has not loaded, so there is nothing to travel over yet";
+    return;   // chooser stays open, with the reason on it
+  }
   chooser.classList.add("hidden");
   if (id === "bluff") { toBluff(); return; }
   if (id === "look") { nav.toOrbit(); return; }
@@ -366,9 +405,6 @@ for (const [id, label, note] of [
   b.addEventListener("click", () => chooseMode(id));
   chooserBtns.appendChild(b);
 }
-// The page opens looking around from the bluff. The chooser is there when it is
-// wanted, on the button or on M, and not before.
-chooser.classList.add("hidden");
 
 document.getElementById("mode-btn").addEventListener("click", () => chooser.classList.remove("hidden"));
 document.getElementById("map-btn").addEventListener("click", () => overview.toggle());

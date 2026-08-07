@@ -206,6 +206,23 @@ function addGravel(material) {
   material.customProgramCacheKey = () => "terrain-gravel";
 }
 
+// fetch resolves for a 404 and a 500 as happily as for a 200 — only a network
+// failure rejects. Left unchecked, an error page came back as twenty-one bytes,
+// went into an Int16Array, and built three and a half million vertices whose
+// height was undefined. The tile drew as nothing, the ground sampler answered
+// NaN, the audio was handed a non-finite number, and the page reported that it
+// had loaded.
+async function grab(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(
+      `${url}: HTTP ${res.status} ${res.statusText}. The baked assets are served ` +
+      `from the same origin as the page, so this is a deploy or a build problem ` +
+      `and not a network one.`);
+  }
+  return res;
+}
+
 // asset: { heightmap, meta }. opts: { haze 0..1, hazeGrade [nearM,farM,nearHaze,
 // farHaze], fog, yOffset }. hazeGrade ramps haze with distance for atmospheric
 // perspective, so nearer islands read crisp and far mountains fade.
@@ -215,8 +232,8 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const fog = opts.fog !== false;
   const yOffset = opts.yOffset || 0;
 
-  const meta = await (await fetch(asset.meta)).json();
-  const bin = await (await fetch(asset.heightmap)).arrayBuffer();
+  const meta = await (await grab(asset.meta)).json();
+  const bin = await (await grab(asset.heightmap)).arrayBuffer();
 
   // What is on the ground, if this tile has it. Its grid is its own: 30 m cells
   // over the same box, so a vertex is looked up by where it is, not by index.
@@ -248,6 +265,17 @@ export async function buildTerrain(scene, asset, opts = {}) {
     return cover.codes[i * ncols + j];
   };
   const { nrows, ncols, cellsize_deg, north_lat, west_lon, dtype, scale_m } = meta.grid;
+  // The heightmap has to be the size the metadata says it is. A short file does
+  // not fail, it reads as undefined past its end, and undefined heights become
+  // NaN positions that three will happily draw.
+  const sampleBytes = dtype === "int16" ? 2 : 4;
+  const wantBytes = nrows * ncols * sampleBytes;
+  if (bin.byteLength !== wantBytes) {
+    throw new Error(
+      `${asset.heightmap}: ${bin.byteLength} bytes, but ${asset.meta} says ` +
+      `${nrows} x ${ncols} of ${dtype} = ${wantBytes}. Re-run ` +
+      `scripts/build_terrain.py, or check what the server actually served.`);
+  }
   // Stored as int16 decimetres to keep the file small; everything downstream
   // works in metres, so scale once here and hand on a Float32Array.
   let Z;

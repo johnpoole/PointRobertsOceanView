@@ -17,13 +17,24 @@
 <body>
   <canvas id="scene"></canvas>
 
-  <!-- Pick how you are in the world before anything else. -->
-  <div id="chooser" class="chooser">
+  <!-- How you are getting about, on the button or on M. Hidden here in the
+       markup and not by script: the page opens looking west from the bluff, and
+       a module that has to fetch three from a CDN before it runs cannot hide
+       this before the browser has already painted it. -->
+  <div id="chooser" class="chooser hidden">
     <div class="chooser-card">
       <div class="chooser-title">Point Roberts</div>
       <div class="chooser-sub">how are you getting about?</div>
       <div id="chooser-btns" class="chooser-btns"></div>
+      <div id="chooser-note" class="chooser-note"></div>
     </div>
+  </div>
+
+  <!-- The terrain is most of what is out there. If it does not load, say so
+       rather than showing an empty sea that looks like it worked. -->
+  <div id="terrain-fail" class="hidden">
+    <div class="offline-title">ground missing</div>
+    <div class="offline-sub" id="terrain-fail-sub"></div>
   </div>
 
   <!-- Big banner shown only when the feed is not connected. -->
