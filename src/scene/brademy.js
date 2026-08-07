@@ -29,6 +29,58 @@ const LOT = [
   [48.98418392813251, -123.08315269838253],  // NW
 ];
 
+// The Breakers building itself, so the clubhouse can stand where it stands and
+// the old block can be taken away while the proposal is up.
+//
+// It is not named in OSM, so it is found by what it is: the largest footprint for
+// two hundred metres, 1,501 m² at 38 by 58, tagged as trading premises, sitting
+// between the parking lot and the water with the parking behind it. 16,157 sq ft,
+// which is what a hall licensed for 999 wants.
+const BREAKERS_AT = { x: 123, z: 582 };   // world metres, its centroid
+const BREAKERS_WITHIN_M = 30;
+
+export function isBreakers(coords) {
+  let x = 0, z = 0;
+  for (const [lat, lon] of coords) {
+    const w = toWorld(lat, lon, 0);
+    x += w.x; z += w.z;
+  }
+  x /= coords.length; z /= coords.length;
+  return Math.hypot(x - BREAKERS_AT.x, z - BREAKERS_AT.z) <= BREAKERS_WITHIN_M;
+}
+
+// The clubhouse that replaces it. Not sixteen thousand square feet: a tennis club
+// wants about four, which is the figure the budget was built on. Two volumes, a
+// lounge and a lower service wing, with the long walls facing the courts to the
+// east and the water to the west.
+const CH_MAIN_W = 11.0;      // east to west
+const CH_MAIN_L = 16.0;      // north to south, so the ridge runs north-south
+const CH_MAIN_WALL = 5.4;
+const CH_MAIN_RISE = 2.1;    // shallow, which is what the rain here wants
+const CH_WING_W = 8.0;
+const CH_WING_L = 12.0;
+const CH_WING_WALL = 3.5;
+const CH_WING_RISE = 1.3;
+const CH_EAVE = 0.9;         // deep, and the whole of why it reads as a building
+const CH_PLINTH = 0.35;
+const CH_TERRACE_D = 3.6;    // the covered walk facing the courts
+const CH_TERRACE_H = 3.1;
+const CH_DECK_D = 4.2;       // and the open deck facing the water
+const CH_RAIL_H = 1.05;
+const CH_GLASS_H = 2.0;
+const CH_GLASS_SILL = 1.0;
+
+// Stained cedar. Kept well off black: at 0x3d3227 the walls came out as one dark
+// mass and the eaves, the plinth and the glazing all disappeared into it.
+const CH_CLAD = 0x6d5a45;
+const CH_CLAD_WING = 0x7c6851;
+const CH_TRIM = 0xd6d0c2;
+const CH_ROOF = 0x53585b;        // standing seam
+const CH_GLASS = 0x1b2b35;
+const CH_DECK_COLOR = 0x8b7355;
+const CH_POST = 0x2e2822;
+const CH_PLINTH_COLOR = 0x6d6e6a;
+
 // A tennis court, in metres. These are the real numbers.
 const COURT_L = 23.77;      // baseline to baseline
 const COURT_W = 10.97;      // doubles, sideline to sideline
@@ -453,6 +505,133 @@ function benchGeometry(rand) {
   return mergeGeometries(parts, false);
 }
 
+// A gable roof whose ridge runs north-south, hanging past the walls on all four
+// sides. The overhang is the point: a roof stopping flush at the wall reads as an
+// extruded box, and a roof with 900 mm of eave and a shadow under it reads as a
+// building. Double sided in the material so the soffit shows from below.
+//
+// halfW, halfL are the walls. slope falls from the ridge to the eave.
+function gableRoof(halfW, halfL, wallTop, rise, eave, color) {
+  const slope = rise / halfW;
+  const ridgeY = wallTop + rise;
+  const outW = halfW + eave;
+  const eaveY = wallTop - slope * eave;
+  const outL = halfL + eave;
+  const pos = [];
+  const tri = (a, b, c) => pos.push(...a, ...b, ...c);
+  for (const s of [-1, 1]) {
+    // ridge to eave, running the length of the building.
+    tri([0, ridgeY, -outL], [s * outW, eaveY, -outL], [s * outW, eaveY, outL]);
+    tri([0, ridgeY, -outL], [s * outW, eaveY, outL], [0, ridgeY, outL]);
+  }
+  // The gable ends close the triangle above the wall, set in behind the rake.
+  for (const z of [-halfL, halfL]) {
+    tri([-halfW, wallTop, z], [halfW, wallTop, z], [0, ridgeY, z]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.computeVertexNormals();
+  return tint(g, color);
+}
+
+function box(w, d, h, x, y, z, color) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  g.translate(x, y + h / 2, z);
+  return tint(g, color);
+}
+
+// A band of glass set into a wall face, standing a little proud so it catches its
+// own shadow line rather than reading as paint.
+function glazing(along, x, y, z, faceX, color) {
+  const g = faceX
+    ? new THREE.BoxGeometry(0.08, CH_GLASS_H, along)
+    : new THREE.BoxGeometry(along, CH_GLASS_H, 0.08);
+  g.translate(x, y + CH_GLASS_H / 2, z);
+  return tint(g, color);
+}
+
+// The clubhouse. Two volumes, deep eaves, a covered walk facing the courts and an
+// open deck facing the water.
+function clubhouse(cx, cz, ground) {
+  const parts = [];
+  const mw = CH_MAIN_W / 2, ml = CH_MAIN_L / 2;
+  const base = ground + CH_PLINTH;
+
+  // Plinth, a little wider than the walls, so the building sits rather than floats.
+  parts.push(box(CH_MAIN_W + 1.0, CH_MAIN_L + 1.0, CH_PLINTH, cx, ground, cz, CH_PLINTH_COLOR));
+
+  // The lounge: walls, then glass east toward the courts and west toward the sea.
+  parts.push(box(CH_MAIN_W, CH_MAIN_L, CH_MAIN_WALL, cx, base, cz, CH_CLAD));
+  parts.push(glazing(CH_MAIN_L - 2.0, cx + mw, base + CH_GLASS_SILL, cz, true, CH_GLASS));
+  parts.push(glazing(CH_MAIN_L - 2.0, cx - mw, base + CH_GLASS_SILL, cz, true, CH_GLASS));
+  // A clerestory band under the eaves, which is what lifts the inside light.
+  const cl = new THREE.BoxGeometry(0.08, 0.7, CH_MAIN_L - 4.0);
+  cl.translate(cx + mw, base + CH_MAIN_WALL - 0.85, cz);
+  parts.push(tint(cl, CH_GLASS));
+  // The gable ends: south looks down the water, north is the way in from the car.
+  // Neither may be left a blank slab — that is what makes a box read as a box.
+  parts.push(glazing(CH_MAIN_W - 3.0, cx, base + CH_GLASS_SILL, cz + ml, false, CH_GLASS));
+  parts.push(glazing(CH_MAIN_W - 5.0, cx, base + CH_GLASS_SILL, cz - ml, false, CH_GLASS));
+  // Fascia along the wall head, and a belt course at the window head, which is
+  // what stops eleven metres of cladding reading as one surface.
+  for (const s of [-1, 1]) {
+    parts.push(box(0.14, CH_MAIN_L + 0.4, 0.22, cx + s * mw, base + CH_MAIN_WALL - 0.22, cz, CH_TRIM));
+    parts.push(box(0.11, CH_MAIN_L + 0.3, 0.10, cx + s * mw,
+                   base + CH_GLASS_SILL + CH_GLASS_H, cz, CH_TRIM));
+  }
+  for (const s of [-1, 1]) {
+    parts.push(box(CH_MAIN_W + 0.3, 0.11, 0.10, cx,
+                   base + CH_GLASS_SILL + CH_GLASS_H, cz + s * ml, CH_TRIM));
+  }
+  const roof = gableRoof(mw, ml, base + CH_MAIN_WALL, CH_MAIN_RISE, CH_EAVE, CH_ROOF);
+  roof.translate(cx, 0, cz);
+  parts.push(roof);
+
+  // The service wing, lower, off the north end and running east.
+  const wx = cx + CH_WING_L / 2 - 1.0;
+  const wz = cz - ml - CH_WING_W / 2 + 1.5;
+  parts.push(box(CH_WING_L + 0.8, CH_WING_W + 0.8, CH_PLINTH, wx, ground, wz, CH_PLINTH_COLOR));
+  parts.push(box(CH_WING_L, CH_WING_W, CH_WING_WALL, wx, base, wz, CH_CLAD_WING));
+  parts.push(glazing(CH_WING_L - 3.0, wx, base + CH_GLASS_SILL, wz + CH_WING_W / 2, false, CH_GLASS));
+  const wingRoof = gableRoof(CH_WING_W / 2, CH_WING_L / 2, base + CH_WING_WALL,
+                             CH_WING_RISE, CH_EAVE * 0.8, CH_ROOF);
+  wingRoof.rotateY(Math.PI / 2);   // ridge across the wing, east to west
+  wingRoof.translate(wx, 0, wz);
+  parts.push(wingRoof);
+
+  // The covered walk facing the courts: a deck, six posts and a flat canopy.
+  const tz = cz;
+  const tx = cx + mw + CH_TERRACE_D / 2;
+  parts.push(box(CH_TERRACE_D, CH_MAIN_L, 0.18, tx, ground + CH_PLINTH - 0.18, tz, CH_DECK_COLOR));
+  for (let k = 0; k < 6; k++) {
+    const pz = cz - ml + 0.9 + (k * (CH_MAIN_L - 1.8)) / 5;
+    parts.push(box(0.16, 0.16, CH_TERRACE_H, cx + mw + CH_TERRACE_D - 0.3, base, pz, CH_POST));
+  }
+  parts.push(box(CH_TERRACE_D + 0.5, CH_MAIN_L + 0.5, 0.16,
+                  tx + 0.1, base + CH_TERRACE_H, tz, CH_ROOF));
+  parts.push(box(CH_TERRACE_D + 0.5, 0.12, 0.26,
+                  tx + 0.1, base + CH_TERRACE_H - 0.26, tz + (CH_MAIN_L + 0.5) / 2, CH_TRIM));
+
+  // The deck facing the water, open, with a rail.
+  const dx = cx - mw - CH_DECK_D / 2;
+  parts.push(box(CH_DECK_D, CH_MAIN_L - 2.0, 0.18, dx, ground + CH_PLINTH - 0.18, cz, CH_DECK_COLOR));
+  const rail = (x, z, w, d) => {
+    parts.push(box(w, d, 0.08, x, base + CH_RAIL_H, z, CH_TRIM));
+  };
+  rail(dx, cz - (CH_MAIN_L - 2.0) / 2, CH_DECK_D, 0.08);
+  rail(dx, cz + (CH_MAIN_L - 2.0) / 2, CH_DECK_D, 0.08);
+  rail(cx - mw - CH_DECK_D, cz, 0.08, CH_MAIN_L - 2.0);
+  for (let k = 0; k < 7; k++) {
+    const pz = cz - (CH_MAIN_L - 2.0) / 2 + (k * (CH_MAIN_L - 2.0)) / 6;
+    parts.push(box(0.09, 0.09, CH_RAIL_H, cx - mw - CH_DECK_D, base, pz, CH_POST));
+  }
+
+  // A door, pale, on the court side under the walk.
+  parts.push(box(0.1, 1.6, 2.2, cx + mw + 0.02, base, cz + 2.0, CH_TRIM));
+
+  return parts;
+}
+
 // A flat walk laid on the ground, cut fine enough to follow it. Same idea as the
 // road ribbons on the peninsula, in world coordinates rather than lat/lon.
 function walk(loop, sample, width) {
@@ -657,6 +836,23 @@ export function buildBrademy(scene, sample) {
   }
   group.add(new THREE.Mesh(mergeGeometries(benches, false),
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 })));
+
+  // The clubhouse, on the Breakers footprint. Its ground is taken as the highest
+  // under the building so the plinth sits on the slope rather than into it.
+  let chGround = -Infinity;
+  for (let i = -1; i <= 1; i++) {
+    for (let j = -1; j <= 1; j++) {
+      const h = groundAt(BREAKERS_AT.x + i * (CH_MAIN_W / 2 + CH_DECK_D),
+                         BREAKERS_AT.z + j * (CH_MAIN_L / 2 + CH_WING_W));
+      if (h > chGround) chGround = h;
+    }
+  }
+  group.add(new THREE.Mesh(
+    mergeGeometries(clubhouse(BREAKERS_AT.x, BREAKERS_AT.z, chGround), false),
+    new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 0.75, metalness: 0.05,
+      // The roof hangs past the walls, so the soffit is seen from underneath.
+      side: THREE.DoubleSide })));
 
   scene.add(group);
 

@@ -212,8 +212,13 @@ function makeDot() {
   return s;
 }
 
-export async function buildLand(scene, sample) {
+// opts.isolate(building) -> true to give that footprint its own mesh instead of
+// merging it into the grey mass of the other four thousand. Returned as
+// `isolated`, so a caller can hide one building without rebuilding them all —
+// which is what the Brademy needs to put its clubhouse where the Breakers is.
+export async function buildLand(scene, sample, opts = {}) {
   const data = await (await fetch(OSM)).json();
+  const isolate = opts.isolate || (() => false);
 
   // Roads, grouped by width class so major roads are wider.
   const byWidth = new Map();
@@ -269,10 +274,18 @@ export async function buildLand(scene, sample) {
 
   // Buildings. The house and the named places are marked in the bake and drawn
   // on their own so they can be told apart from the four thousand others.
-  const bgeom = buildings(data.buildings.filter((b) => !b.home && !b.name), sample);
-  if (bgeom) {
-    scene.add(new THREE.Mesh(bgeom, new THREE.MeshStandardMaterial({
-      color: 0xa7a396, roughness: 0.9, metalness: 0 })));
+  const plainMat = new THREE.MeshStandardMaterial({
+    color: 0xa7a396, roughness: 0.9, metalness: 0 });
+  const plain = data.buildings.filter((b) => !b.home && !b.name);
+  const bgeom = buildings(plain.filter((b) => !isolate(b)), sample);
+  if (bgeom) scene.add(new THREE.Mesh(bgeom, plainMat));
+
+  // The one asked for, drawn the same way but on its own so it can be hidden.
+  let isolated = null;
+  const igeom = buildings(plain.filter((b) => isolate(b)), sample);
+  if (igeom) {
+    isolated = new THREE.Mesh(igeom, plainMat);
+    scene.add(isolated);
   }
   const hgeom = buildings(data.buildings.filter((b) => b.home), sample);
   if (hgeom) {
@@ -316,5 +329,6 @@ export async function buildLand(scene, sample) {
   }
   return { landmarks: markers.concat(runwayMeshes, pierMeshes, placeMeshes),
     pilings: pilingPosts,
+           isolated,
            features: data };
 }

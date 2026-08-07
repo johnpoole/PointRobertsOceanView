@@ -19,6 +19,13 @@ unless asked for. Issue #14. It carries no caption saying so, and nothing else h
 a line describing the status of a feature is not something the person looking out of the window
 needs.
 
+A clubhouse stands where the Breakers building stands, so one of the two is up at a time: with the
+courts off you get the block that is really there. OSM does not name that building, so it is found
+by what it is — the largest footprint for 200 m, 1,501 m² at 38 by 58, tagged as trading premises,
+between the parking lot and the water. `buildLand` takes an `isolate` predicate to give one
+footprint its own mesh instead of merging it with the other four thousand, which is what lets a
+single building be hidden without rebuilding them all.
+
 The hedge round that lot is not behind the switch. It is there now, so it is drawn now, in its own
 group. With the courts off you get a hedge round an empty lot, which is what is there. Its height
 of 3 m is assumed rather than measured, and it is drawn unbroken because nobody has said where the

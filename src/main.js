@@ -17,7 +17,7 @@ import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
-import { buildBrademy } from "./scene/brademy.js";
+import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -124,6 +124,7 @@ let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
 let brademy = null;      // the proposed courts. Off until asked for.
+let breakers = null;     // the old Breakers block, on its own so it can stand down
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
@@ -136,9 +137,14 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     trees = buildTrees(scene, near.sample, near.cover);
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
-    return buildLand(scene, near.sample).then((land) => {
+    // The Breakers block is drawn on its own so the clubhouse can stand in for it
+    // while the courts are up.
+    return buildLand(scene, near.sample, {
+      isolate: (b) => isBreakers(b.coords),
+    }).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;
+      breakers = land.isolated;
       overview.build(land.features);
     });
   })
@@ -416,6 +422,9 @@ function toggleBrademy() {
   if (!brademy) return;
   const on = !brademy.visible;
   brademy.setVisible(on);
+  // The clubhouse stands where the Breakers stands, so one of them is up at a
+  // time. With the courts off you get the building that is actually there.
+  if (breakers) breakers.visible = !on;
   if (on) lookAtBrademy();
 }
 
