@@ -4,6 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Point Roberts — West Bluff</title>
+  <!-- Inline, and before the stylesheet, because a linked stylesheet arrives
+       after the first paint. Every panel and both banners were flashing up for
+       one frame with their hidden class already on them, simply because nothing
+       had yet said what hidden means. -->
+       Only these two rules. An id selector here would out-specify the rules in
+       styles.css that later show these things, and the chooser would never open
+       again. Every one of them carries the hidden class in the markup, so the
+       class rules are enough. -->
+  <style>
+    .hidden { display: none !important; }
+    .hud { display: none; }
+  </style>
   <link rel="stylesheet" href="styles.css" />
   <script type="importmap">
   {

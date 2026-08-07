@@ -20,15 +20,22 @@ function num(value, digits, suffix = "") {
 }
 
 export class Hud {
+  // The row in the corner. Says what it is doing from the first frame, because a
+  // one-line reading is not in anybody's way.
   setConnection(connected, detail) {
     const conn = el("conn");
     conn.textContent = connected ? "online" : (detail || "offline");
     conn.classList.toggle("live", connected);
     conn.classList.toggle("offline", !connected);
+  }
 
-    const banner = el("offline");
-    banner.classList.toggle("hidden", connected);
-    if (!connected) el("offline-sub").textContent = detail || "connecting…";
+  // The banner across the middle of the view. Separate from the row above, and
+  // the caller decides when: it used to go up the instant the page loaded and
+  // came down when the socket opened, so every single load began with a red box
+  // over the water saying the feed was offline when nothing was wrong.
+  banner(show, detail) {
+    el("offline").classList.toggle("hidden", !show);
+    if (show) el("offline-sub").textContent = detail || "reconnecting…";
   }
 
   _health(id, status) {

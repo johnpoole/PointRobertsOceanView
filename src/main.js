@@ -211,7 +211,16 @@ function updateSun() {
 updateSun();
 setInterval(updateSun, 60000);
 
+// The corner row says "connecting" from the first frame. The banner does not:
+// see below.
 hud.setConnection(false, "connecting…");
+
+// A feed that is down matters and gets a banner. A feed that has simply not
+// finished opening yet does not — that put a red box over the water on every
+// load for the second or so the socket took, which is not a fault and should
+// not look like one. Nothing is shown until it has been down this long.
+const OFFLINE_GRACE_MS = 6000;
+let downSince = performance.now();
 feed.connect();
 
 function tideLevel() {
@@ -531,7 +540,12 @@ function frame() {
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current);
 
-  share.update(performance.now());
+  const wall = performance.now();
+  share.update(wall);
+  if (feed.connected) downSince = null;
+  else if (downSince === null) downSince = wall;
+  hud.banner(downSince !== null && wall - downSince > OFFLINE_GRACE_MS,
+             "reconnecting…");
 
   // Whatever is carrying you is what the map should mark.
   if (overview.visible) {
