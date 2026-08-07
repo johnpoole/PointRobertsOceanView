@@ -16,6 +16,7 @@ import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
+import { buildTrees } from "./scene/trees.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -111,6 +112,7 @@ const overview = new OverviewMap(document.getElementById("overview"));
 let landmarkPicks = [];
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
+let trees = null;        // swaps each tree between near and far detail as you move
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
@@ -120,6 +122,8 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
     buildBeach(scene, near.sample, ORIGIN);
+    trees = buildTrees(scene, near.sample, near.cover);
+    trees.update(camera);
     return buildLand(scene, near.sample).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;
@@ -371,6 +375,7 @@ function frame() {
   weather.update(dt, camera);
 
   nav.update(dt);
+  if (trees) trees.update(camera);
 
   // Whatever is carrying you is what the map should mark.
   if (overview.visible) {

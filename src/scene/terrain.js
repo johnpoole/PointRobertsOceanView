@@ -70,7 +70,7 @@ const COVER_WATER = new Set([11, 12]);
 // The beach runs from the water to about here. Below it elevation and slope
 // decide; above it the land cover does; between, they cross over.
 const BEACH_ONLY_M = 3.0;
-const COVER_ONLY_M = 6.5;
+export const COVER_ONLY_M = 6.5;
 
 // Ground dries and pales as it climbs away from the sea, whatever is growing on
 // it. This is the elevation still speaking after the class has had its say.
@@ -362,5 +362,5 @@ export async function buildTerrain(scene, asset, opts = {}) {
     const bot = Z[i1 * ncols + j0] * (1 - tj) + Z[i1 * ncols + j1] * tj;
     return top * (1 - ti) + bot * ti;
   };
-  return { mesh, meta, sample, heights: Z };
+  return { mesh, meta, sample, heights: Z, cover };
 }
