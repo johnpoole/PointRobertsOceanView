@@ -114,6 +114,10 @@ zoom at whatever the pointer is over. One finger drags, two pinch and twist. Tha
 `MapControls` with `zoomToCursor`, not OrbitControls — the difference that matters is that a plain
 drag pans instead of orbiting.
 
+Under 768 px the readouts are off and a hamburger at the top left brings them back, because five
+panels and a button stack cover a phone. The reveal rule has to skip `.hidden` — the helm readout
+is a `.hud` and is hidden unless you are in the boat.
+
 On a touch screen a thumb on the left half raises a stick where it lands: away is go, across is
 turn, and being a stick it is analog. In the air its fore-and-aft is the climb instead, which is
 the one place it means something different. Look is a drag anywhere else, or the mouse on a

@@ -233,3 +233,31 @@ html, body {
   z-index: 5;
 }
 .overview.hidden { display: none; }
+
+/* --- Hamburger menu (mobile only) --- */
+.hamburger {
+  display: none;
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+@media (max-width: 768px) {
+  .hamburger { display: block; }
+  .hud { display: none !important; }
+  /* Not .hidden ones. The helm readout is a .hud and is hidden unless you are in
+     the boat, and an unqualified display:block !important beat that and put a
+     panel of dashes on the screen. */
+  body.hud-visible .hud:not(.hidden) { display: block !important; }
+  body.hud-visible .hamburger { background: rgba(80, 140, 180, 0.5); }
+}
