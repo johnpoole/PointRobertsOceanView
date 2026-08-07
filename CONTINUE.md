@@ -18,6 +18,12 @@ courts on the old Breakers parking lot, does not exist. So it is not drawn until
 and while it is drawn the screen says proposed, not built. Issue #14. Anything else of that kind
 gets the same treatment or it does not go in.
 
+The hedge round that lot is not part of the exception. It is there now, so it is drawn now: its
+own group, outside the switch, with no proposed label on it. Hiding a real hedge behind a proposal,
+or labelling it as one, would be the same lie the other way round. With the courts off you get a
+hedge round an empty lot, which is what is there. Its height of 3 m is assumed rather than
+measured, and it is drawn unbroken because nobody has said where the way in is.
+
 ## Deploy
 
 ```

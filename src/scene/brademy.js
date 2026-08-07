@@ -13,6 +13,12 @@
 // courts run north and south, which is the convention — the low sun ends up off
 // to the side rather than in a server's eyes. Side by side would have wanted
 // 119 m of width and the lot has 62 m, so the sets stack.
+//
+// The hedge is the exception to all of that. It is round the lot now, so it is
+// drawn now, outside the switch and without the proposed label — a real hedge
+// hidden behind a proposal, or labelled as one, would be the same lie in the
+// other direction. With the courts off you get a hedge round an empty lot, which
+// is what is there.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -67,6 +73,47 @@ const COURT_COLOR = 0x2f5f8f;
 const LINE_COLOR = 0xf0f0ea;
 const FENCE_COLOR = 0x3f4a52;
 const NET_COLOR = 0x23282c;
+
+// The hedge that is round the lot now. Its line is the lot boundary, which is
+// John's four corners. Two things about it are assumed and neither is measured:
+// it is taken as 3 m, which is what "high" gets you in a clipped cedar, and it
+// is drawn unbroken because nobody has said where the way in is.
+const HEDGE_H = 3.0;
+const HEDGE_W = 1.15;
+const HEDGE_STEP_M = 1.2;       // how finely it is cut before being laid on the ground
+const HEDGE_TOP_JITTER = 0.13;  // a clipped hedge is level, not flat
+const HEDGE_SIDE_JITTER = 0.09;
+const HEDGE_COLORS = [0x24462c, 0x1e3d27, 0x2b4f33, 0x1a3623];
+
+// Landscaping. Ornamental trees, not the firs on the bluff: what goes round a
+// court is small and round-headed so it does not shade the surface or drop
+// needles on it.
+const TREE_H_M = [4.0, 6.8];
+const TREE_CROWN_FRAC = [0.34, 0.46];   // crown radius over height, so round
+const TREE_TRUNK_TOP = 0.42;
+const TREE_TRUNK_R_FRAC = 0.030;
+const TREE_COLORS = [0x3f6b3a, 0x4a7742, 0x36602f, 0x53804a, 0x2f5730];
+const TRUNK_COLOR = 0x4a3f33;
+
+const SHRUB_R_M = [0.45, 1.05];
+const SHRUB_SQUASH = 0.72;
+const SHRUB_COLORS = [0x37613a, 0x2d5533, 0x426b3c, 0x4d7444, 0x5d6f36];
+
+// A path you would walk on, laid between the pad and the planting.
+const PATH_W_M = 2.0;
+const PATH_LIFT_M = 0.05;
+const PATH_COLOR = 0xbdb49c;
+
+// Casual seating, not bleachers: a slatted timber bench with a back, the kind
+// that stands in a park. 1.8 m long, which seats two in comfort and three at a
+// push.
+const BENCH_L = 1.8;
+const BENCH_SEAT_H = 0.44;
+const BENCH_SEAT_D = 0.46;
+const BENCH_BACK_H = 0.52;
+const BENCH_SLAT_T = 0.035;
+const BENCH_WOOD = [0x8a6a45, 0x94734c, 0x7d5f3d];
+const BENCH_FRAME_COLOR = 0x3a3f42;
 
 // Marks the court surface out per pixel instead of building a mesh of painted
 // lines. Every line on a tennis court is straight and axis-aligned, so each one
@@ -255,6 +302,192 @@ function fence(x0, x1, z0, z1, y) {
   return mergeGeometries(parts, false);
 }
 
+// One repeatable stream, so the planting is the same planting on every reload
+// rather than a fresh scatter each time the switch is thrown.
+function seeded(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+// Paint a part one colour so many colours can share one mesh. Everything that
+// goes into a merge has to come through here, or the attribute sets differ and
+// mergeGeometries refuses.
+function tint(geom, color) {
+  geom.deleteAttribute("uv");
+  const g = geom.index ? geom.toNonIndexed() : geom;
+  const c = new THREE.Color(color);
+  const n = g.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(arr, 3));
+  return g;
+}
+
+function pick(list, rand) {
+  return list[Math.floor(rand() * list.length)];
+}
+
+// The hedge round the lot: the boundary cut into short stations, each with its
+// own ground height, its own width and its own top, then closed up into a strip.
+// The jitter is what stops it reading as a painted wall — a clipped hedge is
+// level without being flat.
+function hedgeGeometry(corners, sample, rand) {
+  const pts = [];
+  for (let i = 0; i < corners.length; i++) {
+    const a = corners[i], b = corners[(i + 1) % corners.length];
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    const steps = Math.max(1, Math.round(len / HEDGE_STEP_M));
+    for (let k = 0; k < steps; k++) {
+      const t = k / steps;
+      pts.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+    }
+  }
+
+  const rows = pts.map((p, i) => {
+    const q = pts[(i + 1) % pts.length];
+    const dx = q.x - p.x, dz = q.z - p.z;
+    const l = Math.hypot(dx, dz) || 1;
+    const nx = -dz / l, nz = dx / l;          // across the run, horizontal
+    const half = (HEDGE_W / 2) * (1 + (rand() - 0.5) * 2 * HEDGE_SIDE_JITTER);
+    const { lat, lon } = fromWorld(p.x, p.z);
+    const ground = sample(lat, lon);
+    return {
+      ox: p.x + nx * half, oz: p.z + nz * half,
+      ix: p.x - nx * half, iz: p.z - nz * half,
+      // Sunk a little so the ground closes over the bottom wherever it sits.
+      base: ground - 0.35,
+      top: ground + HEDGE_H + (rand() - 0.5) * 2 * HEDGE_TOP_JITTER,
+      color: new THREE.Color(pick(HEDGE_COLORS, rand)),
+    };
+  });
+
+  const pos = [];
+  const col = [];
+  const push = (x, y, z, c) => {
+    pos.push(x, y, z);
+    col.push(c.r, c.g, c.b);
+  };
+  // Two faces and a top per station. The bottom is underground and the loop is
+  // closed, so there is nothing else to draw. Double sided in the material,
+  // which saves getting the winding right on both faces of a shell.
+  for (let i = 0; i < rows.length; i++) {
+    const a = rows[i], b = rows[(i + 1) % rows.length];
+    const quad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, ca, cb) => {
+      push(ax, ay, az, ca); push(bx, by, bz, cb); push(cx, cy, cz, cb);
+      push(ax, ay, az, ca); push(cx, cy, cz, cb); push(dx, dy, dz, ca);
+    };
+    quad(a.ox, a.base, a.oz, b.ox, b.base, b.oz, b.ox, b.top, b.oz,
+         a.ox, a.top, a.oz, a.color, b.color);
+    quad(a.ix, a.base, a.iz, b.ix, b.base, b.iz, b.ix, b.top, b.iz,
+         a.ix, a.top, a.iz, a.color, b.color);
+    quad(a.ox, a.top, a.oz, b.ox, b.top, b.oz, b.ix, b.top, b.iz,
+         a.ix, a.top, a.iz, a.color, b.color);
+  }
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(col), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+// A small round-headed ornamental on a short trunk, standing on the ground.
+function ornamental(x, z, ground, rand) {
+  const h = TREE_H_M[0] + (TREE_H_M[1] - TREE_H_M[0]) * rand();
+  const r = h * (TREE_CROWN_FRAC[0] + (TREE_CROWN_FRAC[1] - TREE_CROWN_FRAC[0]) * rand());
+  const parts = [];
+  const trunk = new THREE.CylinderGeometry(
+    h * TREE_TRUNK_R_FRAC * 0.8, h * TREE_TRUNK_R_FRAC, h * TREE_TRUNK_TOP, 6, 1, true);
+  trunk.translate(x, ground + (h * TREE_TRUNK_TOP) / 2, z);
+  parts.push(tint(trunk, TRUNK_COLOR));
+  const crown = new THREE.IcosahedronGeometry(r, 0);
+  crown.scale(1, 0.86, 1);
+  crown.rotateY(rand() * Math.PI * 2);
+  crown.translate(x, ground + h - r * 0.86, z);
+  parts.push(tint(crown, pick(TREE_COLORS, rand)));
+  return parts;
+}
+
+function shrub(x, z, ground, rand) {
+  const r = SHRUB_R_M[0] + (SHRUB_R_M[1] - SHRUB_R_M[0]) * rand();
+  const g = new THREE.IcosahedronGeometry(r, 0);
+  g.scale(1 + rand() * 0.3, SHRUB_SQUASH, 1 + rand() * 0.3);
+  g.rotateY(rand() * Math.PI * 2);
+  g.translate(x, ground + r * SHRUB_SQUASH * 0.75, z);
+  return tint(g, pick(SHRUB_COLORS, rand));
+}
+
+// A slatted timber bench with a back and arms, standing on the ground facing -Z.
+// Not bleachers: somewhere to sit for twenty minutes and watch, or to sit for the
+// sake of sitting.
+function benchGeometry(rand) {
+  const parts = [];
+  const slat = 0.115, gap = 0.03;
+  const wood = () => pick(BENCH_WOOD, rand);
+  // Seat: four slats front to back.
+  for (let k = 0; k < 4; k++) {
+    const g = new THREE.BoxGeometry(BENCH_L, BENCH_SLAT_T, slat);
+    g.translate(0, BENCH_SEAT_H, -BENCH_SEAT_D / 2 + slat / 2 + k * (slat + gap));
+    parts.push(tint(g, wood()));
+  }
+  // Back: three slats, leaned back the way a comfortable one is.
+  for (let k = 0; k < 3; k++) {
+    const g = new THREE.BoxGeometry(BENCH_L, slat, BENCH_SLAT_T);
+    g.rotateX(-0.19);
+    g.translate(0, BENCH_SEAT_H + 0.10 + k * (slat + gap), BENCH_SEAT_D / 2 - 0.03);
+    parts.push(tint(g, wood()));
+  }
+  // Two end frames: a leg fore and aft, and an arm across them.
+  for (const side of [-1, 1]) {
+    const ex = side * (BENCH_L / 2 - 0.055);
+    for (const ez of [-BENCH_SEAT_D / 2 + 0.05, BENCH_SEAT_D / 2 - 0.05]) {
+      const leg = new THREE.BoxGeometry(0.045, BENCH_SEAT_H, 0.045);
+      leg.translate(ex, BENCH_SEAT_H / 2, ez);
+      parts.push(tint(leg, BENCH_FRAME_COLOR));
+    }
+    const arm = new THREE.BoxGeometry(0.045, 0.045, BENCH_SEAT_D);
+    arm.translate(ex, BENCH_SEAT_H + BENCH_BACK_H * 0.42, 0);
+    parts.push(tint(arm, BENCH_FRAME_COLOR));
+  }
+  return mergeGeometries(parts, false);
+}
+
+// A flat walk laid on the ground, cut fine enough to follow it. Same idea as the
+// road ribbons on the peninsula, in world coordinates rather than lat/lon.
+function walk(loop, sample, width) {
+  const pos = [];
+  const half = width / 2;
+  const pts = [];
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length];
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    const steps = Math.max(1, Math.round(len / 2.5));
+    for (let k = 0; k < steps; k++) {
+      const t = k / steps;
+      const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+      const { lat, lon } = fromWorld(x, z);
+      pts.push({ x, z, y: sample(lat, lon) + PATH_LIFT_M });
+    }
+  }
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const l = Math.hypot(dx, dz) || 1;
+    const px = (-dz / l) * half, pz = (dx / l) * half;
+    pos.push(a.x + px, a.y, a.z + pz, a.x - px, a.y, a.z - pz, b.x + px, b.y, b.z + pz);
+    pos.push(b.x + px, b.y, b.z + pz, a.x - px, a.y, a.z - pz, b.x - px, b.y, b.z - pz);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 // One net per court: two posts and a flat panel between them.
 function nets(layout, y) {
   const parts = [];
@@ -348,10 +581,102 @@ export function buildBrademy(scene, sample) {
   group.add(new THREE.Mesh(nets(layout, padY), new THREE.MeshStandardMaterial({
     color: NET_COLOR, roughness: 0.9, metalness: 0, side: THREE.DoubleSide })));
 
+  // ---- landscaping and seating -------------------------------------------
+  const rand = seeded(20260807);
+  const groundAt = (x, z) => {
+    const { lat, lon } = fromWorld(x, z);
+    return sample(lat, lon);
+  };
+
+  // Points spaced round the four sides of a rectangle, nudged off the line so a
+  // planted row does not read as a fence of trees.
+  const ring = (x0, x1, z0, z1, spacing, jitter) => {
+    const out = [];
+    const side = (ax, az, bx, bz) => {
+      const len = Math.hypot(bx - ax, bz - az);
+      const n = Math.max(1, Math.round(len / spacing));
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;
+        out.push({
+          x: ax + (bx - ax) * t + (rand() - 0.5) * 2 * jitter,
+          z: az + (bz - az) * t + (rand() - 0.5) * 2 * jitter,
+        });
+      }
+    };
+    side(x0, z0, x1, z0);
+    side(x1, z0, x1, z1);
+    side(x1, z1, x0, z1);
+    side(x0, z1, x0, z0);
+    return out;
+  };
+  const out = (m) => [padX0 - m, padX1 + m, padZ0 - m, padZ1 + m];
+
+  // The walk: a loop just outside the pad, and the planting beyond it.
+  group.add(new THREE.Mesh(
+    walk([
+      { x: padX0 - 1.1, z: padZ0 - 1.1 }, { x: padX1 + 1.1, z: padZ0 - 1.1 },
+      { x: padX1 + 1.1, z: padZ1 + 1.1 }, { x: padX0 - 1.1, z: padZ1 + 1.1 },
+    ], sample, PATH_W_M),
+    new THREE.MeshStandardMaterial({
+      color: PATH_COLOR, roughness: 1, side: THREE.DoubleSide })));
+
+  const planting = [];
+  for (const p of ring(...out(3.6), 8.5, 1.1)) {
+    planting.push(...ornamental(p.x, p.z, groundAt(p.x, p.z), rand));
+  }
+  for (const p of ring(...out(4.9), 2.6, 0.9)) {
+    planting.push(shrub(p.x, p.z, groundAt(p.x, p.z), rand));
+  }
+
+  // The walk between the two sets is the one that matters: it is where you stand
+  // to watch, so it gets the trees and the benches face the courts from it.
+  const midZ = layout.setZ0 + setD + PATH_M / 2;
+  for (let k = 0; k < 6; k++) {
+    const x = layout.blockX0 + setW * ((k + 0.5) / 6);
+    planting.push(...ornamental(x, midZ, padY, rand));
+  }
+  group.add(new THREE.Mesh(mergeGeometries(planting, false),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 })));
+
+  // Benches. A bench faces -Z before it is turned, so the yaw that points it at
+  // a thing is atan2 of the negated offset.
+  const benchBase = benchGeometry(rand);
+  const benches = [];
+  const seat = (x, y, z, dx, dz) => {
+    const g = benchBase.clone();
+    g.rotateY(Math.atan2(-dx, -dz));
+    g.translate(x, y, z);
+    benches.push(g);
+  };
+  for (let k = 0; k < 3; k++) {
+    const x = layout.blockX0 + setW * (0.22 + k * 0.28);
+    seat(x, padY, midZ - 2.4, 0, -1);   // watching the north set
+    seat(x, padY, midZ + 2.4, 0, 1);    // watching the south set
+  }
+  // And a few on the outer walk looking in, for sitting rather than watching.
+  for (let k = 0; k < 3; k++) {
+    const z = padZ0 + (padZ1 - padZ0) * (0.2 + k * 0.3);
+    seat(padX1 + 1.1, groundAt(padX1 + 1.1, z), z, -1, 0);
+    seat(padX0 - 1.1, groundAt(padX0 - 1.1, z), z, 1, 0);
+  }
+  group.add(new THREE.Mesh(mergeGeometries(benches, false),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 })));
+
   scene.add(group);
+
+  // The hedge is round the lot now, so it is drawn now — its own group, outside
+  // the switch, with no proposed label on it.
+  const hedge = new THREE.Group();
+  hedge.add(new THREE.Mesh(
+    hedgeGeometry(corners, sample, seeded(19940115)),
+    new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide })));
+  scene.add(hedge);
   return {
     group,
+    hedge,
     courts: 6,
+    benches: benches.length,
     padY,
     // The middle of the six courts, on the pad, so a caller can aim at them.
     centre: new THREE.Vector3(
