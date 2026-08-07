@@ -1,3 +1,5 @@
 # Build-time only. Needed to bake the terrain heightmap, not to run the app.
 # The runtime proxy (requirements.txt) does not depend on these.
 numpy==2.2.6
+# Reads the land cover PNG that MRLC renders (build_landcover.py).
+pillow==12.3.0

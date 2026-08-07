@@ -1,0 +1,16 @@
+{
+ "source": "MRLC NLCD_2021_Land_Cover_Science_Product_L48",
+ "box": {
+  "min_lon": -123.13,
+  "max_lon": -123.02,
+  "min_lat": 48.97,
+  "max_lat": 49.0
+ },
+ "grid": {
+  "nrows": 111,
+  "ncols": 268,
+  "dtype": "uint8"
+ },
+ "cell_m": 30.0,
+ "nodata": 0
+}

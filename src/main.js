@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-import { EYE_HEIGHT_M, ORIGIN, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -111,7 +111,7 @@ const overview = new OverviewMap(document.getElementById("overview"));
 let landmarkPicks = [];
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
-buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
+buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
     const { nrows, ncols, cellsize_deg, north_lat, west_lon } = near.meta.grid;
@@ -312,6 +312,10 @@ for (const [id, label, note] of [
   b.addEventListener("click", () => chooseMode(id));
   chooserBtns.appendChild(b);
 }
+// The page opens looking around from the bluff. The chooser is there when it is
+// wanted, on the button or on M, and not before.
+chooser.classList.add("hidden");
+
 document.getElementById("mode-btn").addEventListener("click", () => chooser.classList.remove("hidden"));
 document.getElementById("map-btn").addEventListener("click", () => overview.toggle());
 window.addEventListener("keydown", (e) => {

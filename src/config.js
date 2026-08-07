@@ -26,6 +26,13 @@ export const EYE_HEIGHT_M = 20; // camera eye above sea level
 // from the page location. Never hardcode a port that could drift from the server.
 export const BACKEND_WS = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws/live`;
 
+// What is growing or built on the near tile, from NLCD 2021 at 30 m. Colours the
+// ground by what is actually there rather than by how high it is.
+export const LANDCOVER = {
+  cover: "assets/landcover/cover.bin",
+  meta: "assets/landcover/meta.json",
+};
+
 // Baked terrain heightmaps, MLLW datum (same zero as the tide feed).
 // near: fine shoreline around the bluff. far: the strait and Gulf Islands skyline.
 export const TERRAIN = {

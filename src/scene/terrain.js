@@ -32,18 +32,74 @@ const GRAVEL_DEPTH = 0.16;
 const GRAVEL_FADE_NEAR_M = 12.0;
 const GRAVEL_FADE_FAR_M = 45.0;
 
-// Cheap value noise off the grid indices. Not smooth, and it does not need to
-// be: what is wanted is speckle at about the size of a stone.
+// Value noise off the grid indices. Not smooth, and it does not need to be:
+// what is wanted is speckle at about the size of a stone.
+//
+// Integer mixing rather than the usual sin-and-take-the-fraction. This is
+// called some seven million times building the near tile and the trigonometric
+// version took seven seconds of it.
 function speckle(row, col) {
-  const n = Math.sin(row * 127.1 + col * 311.7) * 43758.5453;
-  return n - Math.floor(n);
+  let h = Math.imul(row, 73856093) ^ Math.imul(col, 19349663);
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
 }
 
-function colorForElevation(elev, target, row = 0, col = 0, slope = 0) {
-  const grass = new THREE.Color(0x4f6b3a);
-  const forest = new THREE.Color(0x2f4a28);
-  const floor = new THREE.Color(0x24322f);
-  const beach = new THREE.Color();
+// What is on the ground, by NLCD class. Land cover says what grows or is built;
+// it says nothing about the beach, because at 30 m a 20 m strip of shingle
+// falls inside whichever cell it happens to touch.
+const COVER_COLORS = {
+  21: 0x8d9077,   // developed, open space — lawns, verges, the golf course
+  22: 0x8a8574,   // developed, low — houses among trees
+  23: 0x8d8880,   // developed, medium
+  24: 0x91908c,   // developed, high — the pavement
+  31: 0xa49984,   // barren
+  41: 0x4e6b33,   // deciduous forest
+  42: 0x2c4526,   // evergreen forest
+  43: 0x3d5a2d,   // mixed forest
+  52: 0x6a7046,   // shrub
+  71: 0x7c8455,   // grassland
+  81: 0x7d8a44,   // hay and pasture
+  82: 0x8a7f3f,   // cultivated crops
+  90: 0x435339,   // woody wetland
+  95: 0x5b6a47,   // emergent wetland
+};
+const COVER_WATER = new Set([11, 12]);
+
+// The beach runs from the water to about here. Below it elevation and slope
+// decide; above it the land cover does; between, they cross over.
+const BEACH_ONLY_M = 3.0;
+const COVER_ONLY_M = 6.5;
+
+// Ground dries and pales as it climbs away from the sea, whatever is growing on
+// it. This is the elevation still speaking after the class has had its say.
+const EXPOSURE_TOP_M = 60.0;
+const EXPOSURE_LIGHTEN = 0.06;
+
+// Made once. This runs per vertex and the near tile has three and a half
+// million of them; five colours built on every call cost seconds.
+const GRASS = new THREE.Color(0x4f6b3a);
+const FOREST = new THREE.Color(0x2f4a28);
+const FLOOR = new THREE.Color(0x24322f);
+const scratchBeach = new THREE.Color();
+const scratchLand = new THREE.Color();
+
+// Lighten or darken in place. offsetHSL converts to HSL and back on every call,
+// which for a nudge this small is a lot of arithmetic to arrive at a multiply.
+function shade(color, amount) {
+  const k = 1 + amount * 2;
+  color.r = Math.min(Math.max(color.r * k, 0), 1);
+  color.g = Math.min(Math.max(color.g * k, 0), 1);
+  color.b = Math.min(Math.max(color.b * k, 0), 1);
+}
+
+function colorForGround(elev, target, row, col, slope, cover) {
+  const grass = GRASS;
+  const forest = FOREST;
+  const floor = FLOOR;
+  const beach = scratchBeach;
+  const land = scratchLand;
   if (elev < 0) {
     target.copy(floor);
     return target;
@@ -52,14 +108,31 @@ function colorForElevation(elev, target, row = 0, col = 0, slope = 0) {
   beach.copy(SAND).lerp(SHINGLE, stony);
   // Only the stone is mottled. Sand is even, which is what makes it read as sand.
   if (stony > 0) {
-    beach.offsetHSL(0, 0, (speckle(row, col) - 0.5) * 0.16 * stony);
+    shade(beach, (speckle(row, col) - 0.5) * 0.16 * stony);
   }
-  if (elev < 3) {
+  if (elev < BEACH_ONLY_M) {
     target.copy(beach);
-  } else if (elev < 14) {
-    target.copy(beach).lerp(grass, (elev - 3) / 11);
+    return target;
+  }
+
+  // Above the beach the class decides, and height alone is the fallback for
+  // cells the survey does not cover — the Canadian end of the tile.
+  const known = COVER_COLORS[cover];
+  if (known != null && !COVER_WATER.has(cover)) {
+    land.setHex(known);
+    // A patch of one class is not one colour. Break it up at the vertex.
+    shade(land, (speckle(row + 7919, col + 104729) - 0.5) * 0.07);
   } else {
-    target.copy(grass).lerp(forest, Math.min((elev - 14) / 40, 1));
+    land.copy(grass).lerp(forest, Math.min(Math.max((elev - 14) / 40, 0), 1));
+  }
+  // Then elevation modulates whatever it turned out to be.
+  const exposure = Math.min(Math.max(elev / EXPOSURE_TOP_M, 0), 1);
+  shade(land, EXPOSURE_LIGHTEN * exposure);
+
+  if (elev < COVER_ONLY_M) {
+    target.copy(beach).lerp(land, (elev - BEACH_ONLY_M) / (COVER_ONLY_M - BEACH_ONLY_M));
+  } else {
+    target.copy(land);
   }
   return target;
 }
@@ -144,6 +217,36 @@ export async function buildTerrain(scene, asset, opts = {}) {
 
   const meta = await (await fetch(asset.meta)).json();
   const bin = await (await fetch(asset.heightmap)).arrayBuffer();
+
+  // What is on the ground, if this tile has it. Its grid is its own: 30 m cells
+  // over the same box, so a vertex is looked up by where it is, not by index.
+  let cover = null;
+  if (opts.landcover) {
+    const cMeta = await (await fetch(opts.landcover.meta)).json();
+    const cBin = new Uint8Array(await (await fetch(opts.landcover.cover)).arrayBuffer());
+    const want = cMeta.grid.nrows * cMeta.grid.ncols;
+    if (cBin.length !== want) {
+      throw new Error(
+        `${opts.landcover.cover}: ${cBin.length} bytes, but the meta says ` +
+        `${cMeta.grid.nrows} x ${cMeta.grid.ncols} = ${want}. Re-run build_landcover.py.`);
+    }
+    cover = { meta: cMeta, codes: cBin };
+  }
+  // Nearest cell, with the lookup nudged by up to half a cell so a 30 m grid
+  // does not draw the peninsula as squares. The nudge is the vertex's own
+  // speckle, so it is the same every time rather than shimmering.
+  const coverAt = (lat, lon, row, col) => {
+    if (!cover) return 0;
+    const { nrows, ncols } = cover.meta.grid;
+    const b = cover.meta.box;
+    const fx = (lon - b.min_lon) / (b.max_lon - b.min_lon) * ncols
+      + (speckle(row * 3, col * 3) - 0.5);
+    const fy = (b.max_lat - lat) / (b.max_lat - b.min_lat) * nrows
+      + (speckle(col * 5, row * 5) - 0.5);
+    const j = Math.min(Math.max(Math.floor(fx), 0), ncols - 1);
+    const i = Math.min(Math.max(Math.floor(fy), 0), nrows - 1);
+    return cover.codes[i * ncols + j];
+  };
   const { nrows, ncols, cellsize_deg, north_lat, west_lon, dtype, scale_m } = meta.grid;
   // Stored as int16 decimetres to keep the file small; everything downstream
   // works in metres, so scale once here and hand on a Float32Array.
@@ -201,7 +304,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
                              (right - left) / (2 * cellEastM));
         }
       }
-      colorForElevation(elev, tmp, i, j, slope);
+      colorForGround(elev, tmp, i, j, slope, coverAt(lat, lon, i, j));
       stony[i * ncols + j] = elev < BEACH_TOP_M
         ? Math.min(Math.max((slope - SAND_SLOPE) / (STONE_SLOPE - SAND_SLOPE), 0), 1)
         : 0;
