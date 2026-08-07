@@ -19,6 +19,7 @@ import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCabin } from "./scene/cabin.js";
+import { buildDrift } from "./scene/drift.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -127,6 +128,7 @@ let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass th
 let trees = null;        // swaps each tree between near and far detail as you move
 let brademy = null;      // the proposed courts. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
+let drift = null;        // kelp, sticks and foam, so the current can be seen
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
@@ -144,6 +146,9 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     // The cabin is modelled off photographs rather than extruded from its OSM
     // trace, so land.js leaves the home alone and cabin.js puts it there.
     buildCabin(scene, near.sample);
+    // What the water is carrying. Uses the same seaAt the boat floats on, so it
+    // rides the same swell and knows the same shoreline.
+    drift = buildDrift(scene, { seaAt: nav.seaAt });
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
@@ -539,6 +544,7 @@ function frame() {
   nav.update(dt);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current);
+  if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
 
   const wall = performance.now();
   share.update(wall);

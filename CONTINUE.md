@@ -61,6 +61,7 @@ src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, v
 src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not
 src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
 src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
+src/scene/drift.js         kelp, sticks and foam on the water, so the current can be seen
 assets/                    everything baked. Do not edit by hand.
 ```
 
