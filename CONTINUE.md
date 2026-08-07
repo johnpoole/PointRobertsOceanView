@@ -56,6 +56,7 @@ scripts/build_landcover.py bakes NLCD 2021 land cover for the near tile
 src/main.js                wires the scene, the camera, the modes
 src/nav.js                 the modes themselves, and the boat's hydrodynamics
 src/touch.js               the on-screen stick, and the drag that looks about
+src/share.js               puts the view in the address bar, and reads it back
 src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
 src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not
 assets/                    everything baked. Do not edit by hand.
@@ -132,6 +133,12 @@ On a touch screen a thumb on the left half raises a stick where it lands: away i
 turn, and being a stick it is analog. In the air its fore-and-aft is the climb instead, which is
 the one place it means something different. Look is a drag anywhere else, or the mouse on a
 desktop. Looking around from the bluff is OrbitControls' own and the stick stands down there.
+
+The address bar is the view. It is rewritten as you move, so copying it out of the bar is the whole
+of sharing and there is no button. What goes in is the eye and a point 300 m down the line of
+sight, in lat/lon, plus whichever switches are on — so it is a viewpoint and not a vehicle, and it
+reconstructs as a look-around view whether it was taken from the bluff, the boat or free flight. A
+malformed hash is ignored rather than half applied and the page opens as usual.
 
 Where you look is not where the boat points. The hull holds its heading and the head turns on top
 of it, 150° across and 78° up and down.

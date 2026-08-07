@@ -22,6 +22,7 @@ import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
 import { Touch } from "./touch.js";
+import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
@@ -146,6 +147,14 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
+      // What a shared link asked for, now that there is something to switch on.
+      // Set directly rather than through the toggles: toggleBrademy re-aims the
+      // camera, which would throw away the view the link carried.
+      if (shared && shared.brademy) {
+        brademy.setVisible(true);
+        if (breakers) breakers.visible = false;
+      }
+      if (shared && shared.map) overview.toggle();
     });
   })
   .catch((err) => failed("the ground under the view", err));
@@ -376,6 +385,17 @@ function toBluff() {
   controls.update();
 }
 
+// A link someone was sent. Read once, at load, before the address bar starts
+// being rewritten. Malformed hashes come back null and the page opens as usual.
+const shared = readViewHash(location.hash);
+function toShared() {
+  nav.toOrbit();
+  camera.position.copy(shared.eye);
+  controls.target.copy(shared.aim);
+  controls.update();
+}
+if (shared) toShared();
+
 // Everything that travels needs to know where the ground is: a boat to float and
 // run aground, a cart and a pair of feet to stay on it. Without the terrain they
 // would all be moving over nothing, so they are refused and told why. Looking
@@ -441,6 +461,14 @@ function lookAtBrademy() {
 }
 document.getElementById("brademy-btn").addEventListener("click", toggleBrademy);
 
+// The address bar is the view. Nothing to press: it is rewritten as you move, so
+// whatever is in it is what is on the screen, and copying it out of the bar is
+// the whole of sharing.
+const share = new Share(camera, () => ({
+  brademy: brademy ? brademy.visible : false,
+  map: overview.visible,
+}));
+
 window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
   if (e.code === "KeyO") overview.toggle();
@@ -497,6 +525,8 @@ function frame() {
   nav.update(dt);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current);
+
+  share.update(performance.now());
 
   // Whatever is carrying you is what the map should mark.
   if (overview.visible) {
