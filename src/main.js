@@ -15,6 +15,7 @@ import { Aircraft } from "./scene/aircraft.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
+import { buildBeach } from "./scene/beach.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -118,6 +119,7 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true })
     const se = toWorld(north_lat - (nrows - 1) * cellsize_deg, west_lon + (ncols - 1) * cellsize_deg);
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
+    buildBeach(scene, near.sample, ORIGIN);
     return buildLand(scene, near.sample).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;

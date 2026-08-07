@@ -9,17 +9,43 @@ import { toWorld } from "../geo.js";
 
 const SKYLINE_HAZE = new THREE.Color(0x8295a8);
 
-function colorForElevation(elev, target) {
-  const sand = new THREE.Color(0x9c8f6f);
+// The flat of the beach is sand. Where it tilts it is shingle: rounded grey and
+// brown stone, no two square metres the same colour. Slope is what sorts them —
+// the sea takes the fines off anything that leans and leaves the stone behind.
+const SAND = new THREE.Color(0x9c8f6f);
+const SHINGLE = new THREE.Color(0x767065);
+
+// Rise over run. Flat berm and tide flat below the first, bluff toe and berm lip
+// above the second.
+const SAND_SLOPE = 0.05;
+const STONE_SLOPE = 0.22;
+
+// Cheap value noise off the grid indices. Not smooth, and it does not need to
+// be: what is wanted is speckle at about the size of a stone.
+function speckle(row, col) {
+  const n = Math.sin(row * 127.1 + col * 311.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+function colorForElevation(elev, target, row = 0, col = 0, slope = 0) {
   const grass = new THREE.Color(0x4f6b3a);
   const forest = new THREE.Color(0x2f4a28);
   const floor = new THREE.Color(0x24322f);
+  const beach = new THREE.Color();
   if (elev < 0) {
     target.copy(floor);
-  } else if (elev < 3) {
-    target.copy(sand);
+    return target;
+  }
+  const stony = Math.min(Math.max((slope - SAND_SLOPE) / (STONE_SLOPE - SAND_SLOPE), 0), 1);
+  beach.copy(SAND).lerp(SHINGLE, stony);
+  // Only the stone is mottled. Sand is even, which is what makes it read as sand.
+  if (stony > 0) {
+    beach.offsetHSL(0, 0, (speckle(row, col) - 0.5) * 0.16 * stony);
+  }
+  if (elev < 3) {
+    target.copy(beach);
   } else if (elev < 14) {
-    target.copy(sand).lerp(grass, (elev - 3) / 11);
+    target.copy(beach).lerp(grass, (elev - 3) / 11);
   } else {
     target.copy(grass).lerp(forest, Math.min((elev - 14) / 40, 1));
   }
@@ -59,6 +85,11 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const colors = new Float32Array(count * 3);
   const tmp = new THREE.Color();
 
+  // One cell on the ground, for the slope. A degree of latitude is 111320 m and
+  // a degree of longitude is that times the cosine of where you are standing.
+  const cellNorthM = cellsize_deg * 111320;
+  const cellEastM = cellNorthM * Math.cos((north_lat * Math.PI) / 180);
+
   for (let i = 0; i < nrows; i++) {
     const lat = north_lat - i * cellsize_deg;
     for (let j = 0; j < ncols; j++) {
@@ -73,7 +104,20 @@ export async function buildTerrain(scene, asset, opts = {}) {
       positions[idx] = w.x;
       positions[idx + 1] = w.y;
       positions[idx + 2] = w.z;
-      colorForElevation(elev, tmp);
+      // Slope from the cells either side. The edges have no neighbour, and the
+      // edge of the tile is nowhere near the beach, so they take zero.
+      let slope = 0;
+      if (i > 0 && i < nrows - 1 && j > 0 && j < ncols - 1) {
+        const up = Z[(i - 1) * ncols + j];
+        const down = Z[(i + 1) * ncols + j];
+        const left = Z[i * ncols + j - 1];
+        const right = Z[i * ncols + j + 1];
+        if (!isHole(up) && !isHole(down) && !isHole(left) && !isHole(right)) {
+          slope = Math.hypot((up - down) / (2 * cellNorthM),
+                             (right - left) / (2 * cellEastM));
+        }
+      }
+      colorForElevation(elev, tmp, i, j, slope);
       let h = haze;
       if (grade) {
         const d = Math.hypot(w.x, w.z);
