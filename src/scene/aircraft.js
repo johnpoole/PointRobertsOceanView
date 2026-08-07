@@ -10,14 +10,17 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
 
 const KN = 0.514444;
-// A Beaver is 9 m long and often 300 m up; at that size it would be invisible.
-// So there is a floor, and like the one on vessels it is a share of the view
-// rather than a length in metres — what decides whether an aircraft can be made
-// out is how big it lands on the screen, and a floor in metres cannot know it.
-// Anything already over the floor is drawn at its real size. Aircraft read at a
-// smaller size than ships do, being against the sky rather than the water.
-const MIN_VIEW_FRAC = 0.018;  // shortest an aircraft may look, in view heights
-const MAX_LEN = 420;          // nothing renders longer than this
+// Sized the same way as vessels: real size near to, growing with the square root
+// of the range so a Beaver three kilometres up is not one pixel, and depending on
+// the range and never on the aircraft, so a Cessna can never come out the size of
+// an A330. See the comment in vessels.js for why every floor and cap measured in
+// metres of airframe has been taken out.
+//
+// Aircraft carry their own reference because they are small and always far: an
+// airliner at cruise is twenty-five kilometres off, where a ship would be five.
+const ZOOM_REF_M = 600;
+const ZOOM_POWER = 0.5;
+const ZOOM_MAX = 6;
 
 // Rough real lengths, metres, by ICAO type code. Anything unknown is a light
 // single, which is most of what flies over Point Roberts.
@@ -74,7 +77,7 @@ export class Aircraft {
         const mesh = new THREE.Mesh(planeGeometry(length), material);
         group = new THREE.Group();
         group.add(mesh);
-        group.userData = { length, material, target: new THREE.Vector3(), placed: false };
+        group.userData = { material, target: new THREE.Vector3(), placed: false };
         this.scene.add(group);
         this.groups.set(icao, group);
       }
@@ -95,11 +98,8 @@ export class Aircraft {
       }
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
-      const L = group.userData.length;
-      // How many metres, at this range, span the whole view from top to bottom.
-      const viewM = camera ? 2 * Math.tan((camera.fov * Math.PI) / 360) * dist : dist;
-      const wanted = MIN_VIEW_FRAC * viewM;   // metres of aircraft the floor asks for
-      group.scale.setScalar(Math.max(1, Math.min(wanted / L, MAX_LEN / L)));
+      group.scale.setScalar(Math.min(
+        Math.max(Math.pow(dist / ZOOM_REF_M, ZOOM_POWER), 1), ZOOM_MAX));
 
       const stale = feed.isStale(entry);
       const mat = group.userData.material;

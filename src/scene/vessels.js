@@ -13,17 +13,29 @@ import { toWorld, headingToYaw } from "../geo.js";
 
 const DEFAULT = { length: 30, beam: 8 };
 
-// A vessel too small to make out is drawn bigger until it can be made out, and
-// not one metre further. What decides that is how big it lands on the screen,
-// which is its length over its distance — a floor in metres of hull cannot
-// know it, and drew a twelve metre boat in the marina at a hundred and forty.
+// How big a vessel is drawn depends on how far away it is and on nothing else.
+// Near to it is its real size. With range it grows, so a ship across the strait
+// is still a ship and not two pixels.
 //
-// So the floor is a share of the view height. A vessel already filling more
-// than that is left at its real size, which is every ship close enough to see
-// properly. The rest are scaled up to sit exactly on the floor, and since the
-// floor is an angle, that scaling grows with distance on its own.
-const MIN_VIEW_FRAC = 0.024;  // shortest a hull may look, in view heights
-const MAX_LEN = 650;          // no vessel renders longer than this, whatever the floor asks
+// The growth is the square root of the range: four times further off looks half
+// the size rather than a quarter. The falloff is flattened, not removed, so a
+// nearer ship still reads as nearer.
+//
+// The important part is what it does not depend on. Because the factor is a
+// function of range alone, two vessels at the same range keep the ratio they
+// really have, at every range. Nothing here can ever make a small boat look
+// bigger than a big ship.
+//
+// Both of the ways this has been got wrong were floors and caps measured in
+// metres of hull. A 140 m minimum drew a 9 m runabout in the marina larger on
+// screen than a container ship. Replacing it with a floor in screen size fixed
+// that and took all the magnification off the big ships with it, so a tanker
+// you could nearly read the name of came out at a couple of pixels. There is no
+// floor and no cap in metres here. That is deliberate: any of them flattens two
+// different vessels onto the same size.
+const ZOOM_REF_M = 1200;   // closer than this, real size
+const ZOOM_POWER = 0.5;    // the square root
+const ZOOM_MAX = 4;        // and it stops growing here
 
 function classify(type) {
   const t = type == null ? -1 : type;
@@ -173,7 +185,6 @@ function buildVessel(state) {
 
   group.userData.vessel = state;
   group.userData.material = mat;
-  group.userData.length = length;
   group.userData.placed = false;
   group.userData.target = new THREE.Vector3();
   return group;
@@ -235,12 +246,9 @@ export class Vessels {
       group.position.y = tideLevel + bob;
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
-      const L = group.userData.length;
-      // How many metres, at this range, span the whole view from top to bottom.
-      const viewM = camera ? 2 * Math.tan((camera.fov * Math.PI) / 360) * dist : dist;
-      const wanted = MIN_VIEW_FRAC * viewM;   // metres of hull the floor asks for
-      const s = Math.max(1, Math.min(wanted / L, MAX_LEN / L));
-      group.scale.setScalar(s);
+      const zoom = Math.min(
+        Math.max(Math.pow(dist / ZOOM_REF_M, ZOOM_POWER), 1), ZOOM_MAX);
+      group.scale.setScalar(zoom);
 
       // Stale: grey and fade via the material (vertex colours are multiplied).
       const stale = feed.isStale(entry);
