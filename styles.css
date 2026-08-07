@@ -119,6 +119,36 @@ html, body {
   pointer-events: none;
 }
 
+/* The stick. Placed at the thumb, so left and top are set from script; the
+   translate is what centres the ring on that point. Nothing here takes a
+   pointer event — the canvas underneath owns them all, which is what lets one
+   thumb work the stick while another drags the view. */
+.stick {
+  position: fixed;
+  width: 116px;
+  height: 116px;
+  margin: -58px 0 0 -58px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: rgba(8, 16, 24, 0.35);
+  pointer-events: none;
+  z-index: 6;
+}
+.stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: rgba(150, 190, 220, 0.22);
+}
+.stick.hidden { display: none; }
+
+/* A drag has to reach the canvas rather than scroll or zoom the page. */
+#scene { touch-action: none; }
+
 .vessel-tip {
   position: fixed;
   z-index: 6;

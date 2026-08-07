@@ -47,9 +47,21 @@ const AIR_FLOOR_M = 3;                     // and how close to the ground it may
 const HELM_AFT_M = 1.25;                   // the tiller seat, aft of centre
 const HELM_EYE_M = 1.00;                   // eye above the waterline, seated
 
+// Where you are looking is not where the thing is pointed. A helmsman watches
+// the shore go by without steering at it, and a driver checks a mirror. So the
+// hull or the wheels hold their heading and the head turns on top of it, as far
+// as a neck goes and no further.
+const LOOK_YAW_MAX = 150 * Math.PI / 180;
+const LOOK_PITCH_MAX = 78 * Math.PI / 180;
+const LOOK_RAD_PER_PX = 0.0035;   // a drag across 900 px is half a turn
+
 function smoothstep(a, b, x) {
   const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
   return t * t * (3 - 2 * t);
+}
+
+function clamp(x, lo, hi) {
+  return Math.min(Math.max(x, lo), hi);
 }
 
 export class Nav {
@@ -72,7 +84,15 @@ export class Nav {
     this.rider = { yaw: 0, speed: 0, pos: new THREE.Vector3(), pitch: 0, roll: 0 };
     this.vehicle = null;
     this.vehicleMesh = null;
+    // touch: the on-screen stick and the drag that looks about, or null on a
+    // machine that has neither.
+    this.touch = opts.touch || null;
+    // Where the head is turned, in the frame of whatever is carrying it.
+    this.look = { yaw: 0, pitch: 0 };
     this._euler = new THREE.Euler(0, 0, 0, "YXZ");
+    this._lookEuler = new THREE.Euler(0, 0, 0, "YXZ");
+    this._bodyQ = new THREE.Quaternion();
+    this._lookQ = new THREE.Quaternion();
     this._offset = new THREE.Vector3();
     this.mode = "orbit";
     this.keys = {};
@@ -88,6 +108,44 @@ export class Nav {
     window.addEventListener("keyup", (e) => this._key(e, false));
   }
 
+  // What the stick is asking for, zero on a machine with no touch screen.
+  _stick() {
+    return this.touch ? this.touch.move : { x: 0, y: 0 };
+  }
+
+  // Turn the accumulated drag into a head angle. Drag right and you look right,
+  // drag down and you look down, the way a mouse does.
+  _applyLook() {
+    if (!this.touch) return;
+    const d = this.touch.takeLook();
+    if (!d.dx && !d.dy) return;
+    this.look.yaw = clamp(this.look.yaw - d.dx * LOOK_RAD_PER_PX,
+                          -LOOK_YAW_MAX, LOOK_YAW_MAX);
+    this.look.pitch = clamp(this.look.pitch - d.dy * LOOK_RAD_PER_PX,
+                            -LOOK_PITCH_MAX, LOOK_PITCH_MAX);
+  }
+
+  // Seat the camera at the driver's eye and point it where the head is turned,
+  // which is the body's heading with the look laid on top.
+  _seat(pitch, yaw, roll, pos, eyeY, eyeZ) {
+    this._euler.set(pitch, yaw, roll);
+    this._bodyQ.setFromEuler(this._euler);
+    // The seat is bolted to the body, so the offset turns with the body and not
+    // with the head. Look over your shoulder and you stay in your seat.
+    this._offset.set(0, eyeY, eyeZ).applyQuaternion(this._bodyQ);
+    this.camera.position.copy(pos).add(this._offset);
+    this._lookEuler.set(this.look.pitch, this.look.yaw, 0);
+    this._lookQ.setFromEuler(this._lookEuler);
+    this.camera.quaternion.copy(this._bodyQ).multiply(this._lookQ);
+  }
+
+  // Face front again, and stop the stick and the drag where they are.
+  _resetLook() {
+    this.look.yaw = 0;
+    this.look.pitch = 0;
+    if (this.touch) this.touch.takeLook();
+  }
+
   toggleFly() {
     if (this.mode === "fly") {
       if (this.lock.isLocked) this.lock.unlock(); // unlock event -> orbit
@@ -96,8 +154,13 @@ export class Nav {
     }
     this.orbit.enabled = false;
     this.mode = "fly";
+    this._resetLook();
+    if (this.touch) this.touch.setActive(true);
     this.onMode("fly");
-    this.lock.lock();
+    // Only ask for the pointer where there is one to take. On a touch screen
+    // the request is refused and the refusal is an unhandled rejection in the
+    // console, and the drag looks about perfectly well without it.
+    if (window.matchMedia("(pointer: fine)").matches) this.lock.lock();
   }
 
   // The nearest place the boat will float, searched outward from where you stand.
@@ -135,6 +198,8 @@ export class Nav {
     b.pos.set(spot.x, 0, spot.z);
     if (this.boatMesh) this.boatMesh.visible = true;
     this.mode = "boat";
+    this._resetLook();
+    if (this.touch) this.touch.setActive(true);
     this.onMode("boat");
   }
 
@@ -234,6 +299,8 @@ export class Nav {
       v.pos.y = Math.max(this.camera.position.y, g + AIR_START_M);
     }
     this.mode = "vehicle";
+    this._resetLook();
+    if (this.touch) this.touch.setActive(true);
     this.onMode("vehicle", spec);
   }
 
@@ -254,21 +321,31 @@ export class Nav {
   _vehicleStep(dt) {
     const spec = this.vehicle, v = this.rider;
     const air = spec.medium === "air";
-    const throttle = this.keys.KeyW ? 1 : 0;
+    const stick = this._stick();
+    // On the ground the stick is what W and S are: push away to go, pull back
+    // to reverse. In the air it is the climb instead, because an ultralight
+    // that cannot change its height is not flying, and a hand on the stick is
+    // taken for an open throttle.
+    const held = this.touch ? this.touch.steering : false;
+    const throttle = air
+      ? ((this.keys.KeyW || held) ? 1 : 0)
+      : Math.max(this.keys.KeyW ? 1 : 0, Math.max(stick.y, 0));
 
     // An aircraft cannot be flown slower than its stall and stay up. Reverse
     // exists only where the real thing has it: a cart does, and you can back up
     // on your own feet; a bicycle and an aircraft cannot.
-    const backing = spec.reverse && this.keys.KeyS && !throttle;
+    const wantBack = this.keys.KeyS || (!air && stick.y < 0);
+    const backing = spec.reverse && wantBack && !throttle;
     const target = air
       ? Math.max(spec.stallSpeed || 0, throttle * spec.maxSpeed)
       : (backing ? -spec.reverse : throttle * spec.maxSpeed);
     const tau = target > v.speed ? spec.accelTau : spec.decelTau;
     v.speed += (target - v.speed) * (1 - Math.exp(-dt / tau));
 
-    // D turns right. That is the opposite of the boat, whose tiller is pushed
-    // the way you do not want to go — a wheel and a pair of feet are not.
-    const steer = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
+    // D turns right, and so does the stick pushed right. That is the opposite
+    // of the boat, whose tiller is pushed the way you do not want to go — a
+    // wheel and a pair of feet are not.
+    const steer = clamp((this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + stick.x, -1, 1);
     // Wheels and wings need to be moving to turn; feet do not. Backing up
     // steers the other way round, the way reversing a car does.
     const bite = spec.pivot ? 1 : smoothstep(0, spec.maxSpeed * 0.35, Math.abs(v.speed));
@@ -281,7 +358,7 @@ export class Nav {
     v.pos.z += fz * v.speed * dt;
 
     if (air) {
-      const lift = (this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0);
+      const lift = clamp((this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0) + stick.y, -1, 1);
       v.pos.y += lift * spec.climb * dt;
       const g = this.seaAt ? this.seaAt(v.pos.x, v.pos.z).y : 0;
       if (v.pos.y < g + AIR_FLOOR_M) v.pos.y = g + AIR_FLOOR_M;
@@ -308,23 +385,26 @@ export class Nav {
       this.vehicleMesh.rotateZ(v.roll);
     }
 
-    this._euler.set(v.pitch, v.yaw, v.roll);
-    this.camera.quaternion.setFromEuler(this._euler);
-    this._offset.set(0, spec.eye.y, spec.eye.z).applyQuaternion(this.camera.quaternion);
-    this.camera.position.copy(v.pos).add(this._offset);
+    this._applyLook();
+    this._seat(v.pitch, v.yaw, v.roll, v.pos, spec.eye.y, spec.eye.z);
   }
 
   _boatStep(dt) {
     const b = this.boat;
 
-    const throttle = this.keys.KeyW ? 1 : 0;
+    const stick = this._stick();
+    // The stick pushed away opens the throttle, and being a stick it opens it
+    // by as much as you push. A 4.5 hp outboard has a twist grip, not a switch.
+    const throttle = Math.max(this.keys.KeyW ? 1 : 0, Math.max(stick.y, 0));
     const target = throttle * BOAT_MAX_MPS;
     const tau = target > b.speed ? BOAT_ACCEL_TAU : BOAT_DECEL_TAU;
     b.speed += (target - b.speed) * (1 - Math.exp(-dt / tau));
 
     // A pushes the tiller handle to port, which turns the boat to starboard.
     // Yaw grows counter-clockwise from above, so starboard is yaw decreasing.
-    const tiller = (this.keys.KeyA ? 1 : 0) - (this.keys.KeyD ? 1 : 0);
+    // The stick is the tiller itself, so it goes the same way round: pushed to
+    // port the boat goes to starboard.
+    const tiller = clamp((this.keys.KeyA ? 1 : 0) - (this.keys.KeyD ? 1 : 0) - stick.x, -1, 1);
     const planing = smoothstep(BOAT_PLANE_MPS, BOAT_MAX_MPS, b.speed);
     b.throttle = throttle;   // the engine note is driven off these
     b.planing = planing;
@@ -388,12 +468,12 @@ export class Nav {
       this.boatMesh.rotateZ(b.bank);
     }
 
-    // The camera is bolted to the transom. It pitches with the hull, which is the
-    // whole point: the bow holds still in the frame and the horizon moves.
-    this._euler.set(b.trim, b.yaw, b.bank);
-    this.camera.quaternion.setFromEuler(this._euler);
-    this._offset.set(0, HELM_EYE_M, HELM_AFT_M).applyQuaternion(this.camera.quaternion);
-    this.camera.position.copy(b.pos).add(this._offset);
+    // The seat is bolted to the transom and pitches with the hull, which is the
+    // whole point: the bow holds still in the frame and the horizon moves. The
+    // head turns on top of that, so you can watch the shore go by without
+    // steering at it.
+    this._applyLook();
+    this._seat(b.trim, b.yaw, b.bank, b.pos, HELM_EYE_M, HELM_AFT_M);
   }
 
   // Put whatever you were in away and go back to looking around.
@@ -409,6 +489,10 @@ export class Nav {
     this.orbit.target.copy(this.camera.position).addScaledVector(this._dir, 300);
     this.orbit.enabled = true;
     this.mode = "orbit";
+    this._resetLook();
+    // Looking around from the bluff is OrbitControls' own, on a finger as much
+    // as on a mouse, so the stick and the drag stand down here.
+    if (this.touch) this.touch.setActive(false);
     this.onMode("orbit");
   }
 
@@ -420,11 +504,28 @@ export class Nav {
   }
 
   _flyStep(dt) {
+    // With the pointer locked the mouse already turns the camera. Without it —
+    // a phone, or a lock the browser would not give — the drag does.
+    if (!this.lock.isLocked && this.touch) {
+      const d = this.touch.takeLook();
+      if (d.dx || d.dy) {
+        this._euler.setFromQuaternion(this.camera.quaternion);
+        this._euler.y -= d.dx * LOOK_RAD_PER_PX;
+        this._euler.x = clamp(this._euler.x - d.dy * LOOK_RAD_PER_PX,
+                              -LOOK_PITCH_MAX, LOOK_PITCH_MAX);
+        this._euler.z = 0;
+        this.camera.quaternion.setFromEuler(this._euler);
+      }
+    }
     const speed = (this.keys.ShiftLeft || this.keys.ShiftRight ? FAST_SPEED : FLY_SPEED) * dt;
     this.camera.getWorldDirection(this._dir);              // includes pitch, so W flies up when looking up
     this._right.crossVectors(this._dir, this.camera.up).normalize();
-    const fwd = (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0);
-    const str = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
+    const stick = this._stick();
+    // Nothing to stand on up here, so the stick flies you along the way you are
+    // looking. Look down and go forward and you descend, which is how a camera
+    // in free flight has always worked.
+    const fwd = clamp((this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0) + stick.y, -1, 1);
+    const str = clamp((this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + stick.x, -1, 1);
     const up = (this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0);
     if (fwd) this.camera.position.addScaledVector(this._dir, fwd * speed);
     if (str) this.camera.position.addScaledVector(this._right, str * speed);

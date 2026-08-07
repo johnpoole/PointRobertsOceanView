@@ -20,6 +20,7 @@ import { buildTrees } from "./scene/trees.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
+import { Touch } from "./touch.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
@@ -230,8 +231,16 @@ function resize() {
   renderer.setSize(w, h);
 }
 
+// The stick and the drag that looks about. Only live while something is being
+// driven; Nav switches it on and off with the mode.
+const touch = new Touch(
+  renderer.domElement,
+  document.getElementById("stick"),
+  document.getElementById("stick-knob"));
+
 // Navigation: a free-fly camera alongside whichever vehicle you are in.
 const nav = new Nav(camera, renderer.domElement, controls, {
+  touch,
   onMode: (m, spec) => {
     document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
     const hint = document.getElementById("boat-hint");
@@ -272,12 +281,27 @@ const modeHint = document.getElementById("boat-hint");
 
 // Each mode says what it actually has. The boat's tiller is backwards on
 // purpose; nothing else is.
-const BOAT_HINT = "W throttle · A/D tiller (A turns right) · M to change";
+// What each mode actually has. On a touch screen the keys are not there, so
+// each says what the stick does instead.
+const TOUCH = window.matchMedia("(pointer: coarse)").matches;
+const LOOK_HINT = TOUCH ? "drag right side to look" : "drag to look";
+const BOAT_HINT = TOUCH
+  ? `stick: push to open the throttle, across for the tiller · ${LOOK_HINT} · M to change`
+  : `W throttle · A/D tiller (A turns right) · ${LOOK_HINT} · M to change`;
 function vehicleHint(spec) {
+  const air = spec.medium === "air";
+  if (TOUCH) {
+    // The stick's fore-and-aft is the climb in the air and the throttle on the
+    // ground, which is the one place it does not mean the same thing.
+    const stick = air ? "stick: push to climb, pull to descend, across to turn"
+                      : "stick: push to go, across to steer";
+    return `${stick} · ${LOOK_HINT} · M to change`;
+  }
   const parts = ["W go"];
   if (spec.reverse) parts.push("S back");
   parts.push("A/D steer");
-  if (spec.medium === "air") parts.push("Q/E down-up");
+  if (air) parts.push("Q/E down-up");
+  parts.push(LOOK_HINT);
   parts.push("M to change");
   return parts.join(" · ");
 }
