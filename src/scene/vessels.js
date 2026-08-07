@@ -4,7 +4,8 @@
 // decks, a tug wheelhouse, funnels and masts. All parts are merged into one
 // vertex-coloured mesh so a strait full of ships stays cheap. Oriented by heading,
 // bobbing on the swell; the hovered vessel shows a DOM tooltip (see main.js).
-// Ships are drawn larger than life so they read from the bluff.
+// Ships too far off to make out are drawn larger than life so they read from
+// the bluff; the ones near enough to see are drawn at the size they are.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -12,14 +13,17 @@ import { toWorld, headingToYaw } from "../geo.js";
 
 const DEFAULT = { length: 30, beam: 8 };
 
-// Ships are drawn larger than life so they read from the bluff, but the boost is
-// size-aware: small craft are lifted to a visibility floor while big ships stay
-// near real size, and the rendered length is capped so tankers don't balloon.
-// Distance adds a modest growth so far traffic stays visible.
-const FLOOR_LEN = 140;   // small vessels scaled up to about this length
-const MAX_LEN = 650;     // no vessel renders longer than this
-const SIZE_REF_M = 2500; // distance growth reference
-const GROWTH_CAP = 2.2;
+// A vessel too small to make out is drawn bigger until it can be made out, and
+// not one metre further. What decides that is how big it lands on the screen,
+// which is its length over its distance — a floor in metres of hull cannot
+// know it, and drew a twelve metre boat in the marina at a hundred and forty.
+//
+// So the floor is a share of the view height. A vessel already filling more
+// than that is left at its real size, which is every ship close enough to see
+// properly. The rest are scaled up to sit exactly on the floor, and since the
+// floor is an angle, that scaling grows with distance on its own.
+const MIN_VIEW_FRAC = 0.024;  // shortest a hull may look, in view heights
+const MAX_LEN = 650;          // no vessel renders longer than this, whatever the floor asks
 
 function classify(type) {
   const t = type == null ? -1 : type;
@@ -232,9 +236,10 @@ export class Vessels {
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
       const L = group.userData.length;
-      const boost = Math.max(FLOOR_LEN / L, 1);                    // lift small craft only
-      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), GROWTH_CAP);
-      const s = Math.max(1, Math.min(boost * grow, MAX_LEN / L));  // cap absolute length
+      // How many metres, at this range, span the whole view from top to bottom.
+      const viewM = camera ? 2 * Math.tan((camera.fov * Math.PI) / 360) * dist : dist;
+      const wanted = MIN_VIEW_FRAC * viewM;   // metres of hull the floor asks for
+      const s = Math.max(1, Math.min(wanted / L, MAX_LEN / L));
       group.scale.setScalar(s);
 
       // Stale: grey and fade via the material (vertex colours are multiplied).

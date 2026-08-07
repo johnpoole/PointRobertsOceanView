@@ -11,11 +11,13 @@ import { toWorld, headingToYaw } from "../geo.js";
 
 const KN = 0.514444;
 // A Beaver is 9 m long and often 300 m up; at that size it would be invisible.
-// Lift everything to a floor and let distance add a little more, capped.
-const FLOOR_LEN = 90;
-const MAX_LEN = 420;
-const SIZE_REF_M = 4000;
-const GROWTH_CAP = 2.4;
+// So there is a floor, and like the one on vessels it is a share of the view
+// rather than a length in metres — what decides whether an aircraft can be made
+// out is how big it lands on the screen, and a floor in metres cannot know it.
+// Anything already over the floor is drawn at its real size. Aircraft read at a
+// smaller size than ships do, being against the sky rather than the water.
+const MIN_VIEW_FRAC = 0.018;  // shortest an aircraft may look, in view heights
+const MAX_LEN = 420;          // nothing renders longer than this
 
 // Rough real lengths, metres, by ICAO type code. Anything unknown is a light
 // single, which is most of what flies over Point Roberts.
@@ -94,9 +96,10 @@ export class Aircraft {
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
       const L = group.userData.length;
-      const boost = Math.max(FLOOR_LEN / L, 1);
-      const grow = Math.min(Math.max(1, dist / SIZE_REF_M), GROWTH_CAP);
-      group.scale.setScalar(Math.max(1, Math.min(boost * grow, MAX_LEN / L)));
+      // How many metres, at this range, span the whole view from top to bottom.
+      const viewM = camera ? 2 * Math.tan((camera.fov * Math.PI) / 360) * dist : dist;
+      const wanted = MIN_VIEW_FRAC * viewM;   // metres of aircraft the floor asks for
+      group.scale.setScalar(Math.max(1, Math.min(wanted / L, MAX_LEN / L)));
 
       const stale = feed.isStale(entry);
       const mat = group.userData.material;
