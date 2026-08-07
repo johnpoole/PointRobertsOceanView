@@ -17,6 +17,7 @@ import { buildTerrain } from "./scene/terrain.js";
 import { buildLand } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
+import { buildBrademy } from "./scene/brademy.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
@@ -114,6 +115,7 @@ let landmarkPicks = [];
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
+let brademy = null;      // the proposed courts. Off until asked for.
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
@@ -125,6 +127,7 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     buildBeach(scene, near.sample, ORIGIN);
     trees = buildTrees(scene, near.sample, near.cover);
     trees.update(camera);
+    brademy = buildBrademy(scene, near.sample);
     return buildLand(scene, near.sample).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;
@@ -361,9 +364,20 @@ chooser.classList.add("hidden");
 
 document.getElementById("mode-btn").addEventListener("click", () => chooser.classList.remove("hidden"));
 document.getElementById("map-btn").addEventListener("click", () => overview.toggle());
+
+// The courts are not there, so they are not drawn until asked for, and they say
+// so on screen the whole time they are.
+function toggleBrademy() {
+  if (!brademy) return;
+  brademy.setVisible(!brademy.visible);
+  document.getElementById("brademy-note").classList.toggle("hidden", !brademy.visible);
+}
+document.getElementById("brademy-btn").addEventListener("click", toggleBrademy);
+
 window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
   if (e.code === "KeyO") overview.toggle();
+  if (e.code === "KeyT") toggleBrademy();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.

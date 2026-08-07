@@ -155,6 +155,24 @@ html, body {
 /* A drag has to reach the canvas rather than scroll or zoom the page. */
 #scene { touch-action: none; }
 
+/* Shown only while the Brademy is. Warning colour, because it is the one thing
+   drawn here that is not there. */
+.brademy-note {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--warn);
+  background: var(--panel);
+  border: 1px solid rgba(255, 206, 84, 0.4);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 7;
+}
+.brademy-note.hidden { display: none; }
+
 .vessel-tip {
   position: fixed;
   z-index: 6;

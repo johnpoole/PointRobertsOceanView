@@ -13,6 +13,11 @@ Nothing is invented. Every feed carries a health value and a source, and a feed 
 so on screen rather than showing stale or made-up numbers. The scraped vessels are labelled
 scraped, in the HUD and on every position. Keep it that way.
 
+There is one exception and it is handled rather than excused. The Brademy, six proposed tennis
+courts on the old Breakers parking lot, does not exist. So it is not drawn until `T` is pressed,
+and while it is drawn the screen says proposed, not built. Issue #14. Anything else of that kind
+gets the same treatment or it does not go in.
+
 ## Deploy
 
 ```
@@ -39,6 +44,7 @@ src/main.js                wires the scene, the camera, the modes
 src/nav.js                 the modes themselves, and the boat's hydrodynamics
 src/touch.js               the on-screen stick, and the drag that looks about
 src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
+src/scene/brademy.js       the proposed tennis courts. The one thing here that is not there.
 assets/                    everything baked. Do not edit by hand.
 ```
 
