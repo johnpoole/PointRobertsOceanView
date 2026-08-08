@@ -35,9 +35,9 @@ const DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 // Assumed share of those groups that come along this shore.
 const LOCAL_SHARE = 0.03;
 
-// Turn this down to 1. Anything above it puts the whales on the water far more
-// often than they are there.
-const RATE_MULTIPLIER = 25000;
+// The rate is the real one. At 1 a group comes past about every four days in
+// August, so the whales button is how you see them when you want to.
+const RATE_MULTIPLIER = 1;
 
 // They run the west shore, from the border down and round the point, at this
 // distance off the beach. Measured from the shoreline and not from the house,
@@ -460,24 +460,54 @@ export function buildOrcas(scene, opts = {}) {
   const pods = [];
   const euler = new THREE.Euler(0, 0, 0, "YXZ");
 
-  function spawn() {
+  // The stretch of shore nearest a point, so the button can put them where the
+  // person pressing it is looking rather than somewhere up the coast.
+  function nearestS(x, z) {
+    let best = 0, bestD = Infinity;
+    for (const p of shore) {
+      const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+      if (d < bestD) { bestD = d; best = p.s; }
+    }
+    return best;
+  }
+
+  // near: { x, z } to put them beside, or null to take the whole shore.
+  function spawn(near = null) {
     // Somewhere along the shore, that far out from it, running up or down the
     // coast, and under water: every whale starts its first breath from below, so
     // none of them appears out of nothing on the surface.
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    let off = 0, s = 0, placed = false;
-    for (let tries = 0; tries < 30 && !placed; tries++) {
-      off = rand(OFFSHORE_M[0], OFFSHORE_M[1]);
-      s = rand(0, shoreLength);
-      // The whole run from here to the end of the shore has to be water, not
-      // just the spot it starts on. A fixed distance off a coast that bends can
-      // cut a corner and put a whale on the beach, and one that does would swim
-      // up it for the next half hour.
-      placed = true;
-      for (let t = s; dir > 0 ? t <= shoreLength : t >= 0; t += dir * SHORE_STEP_M) {
+    // The whole run from here to the end of the shore has to be water, not just
+    // the spot it starts on. A fixed distance off a coast that bends can cut a
+    // corner and put a whale on the beach, and one that does would swim up it
+    // for the next half hour.
+    const clear = (from, off, dir) => {
+      for (let t = from; dir > 0 ? t <= shoreLength : t >= 0; t += dir * SHORE_STEP_M) {
         const p = at(t);
         const w = seaAt(p.x + p.nx * off, p.z + p.nz * off);
-        if (w.aground || w.depth < MIN_DEPTH_M) { placed = false; break; }
+        if (w.aground || w.depth < MIN_DEPTH_M) return false;
+      }
+      return true;
+    };
+
+    let off = 0, s = 0, dir = 1, placed = false;
+    if (near) {
+      // Asked for, they come in as close as the water lets them and from
+      // whichever side lets them come closer, because a whale three kilometres
+      // out is a couple of pixels and pressing a button for that is no good to
+      // anyone. They start up the coast far enough to still be coming.
+      const home = nearestS(near.x, near.z);
+      for (let d = OFFSHORE_M[0]; d <= OFFSHORE_M[1] && !placed; d += 100) {
+        for (const way of [1, -1]) {
+          const from = Math.min(shoreLength, Math.max(0, home - way * rand(300, 700)));
+          if (clear(from, d, way)) { off = d; s = from; dir = way; placed = true; break; }
+        }
+      }
+    } else {
+      dir = Math.random() < 0.5 ? 1 : -1;
+      for (let tries = 0; tries < 30 && !placed; tries++) {
+        off = rand(OFFSHORE_M[0], OFFSHORE_M[1]);
+        s = rand(0, shoreLength);
+        placed = clear(s, off, dir);
       }
     }
     if (!placed) return;
@@ -503,8 +533,9 @@ export function buildOrcas(scene, opts = {}) {
           lag: i === 0 ? 0 : rand(4, 26),
           abeam: i === 0 ? 0 : rand(-22, 22),
           breaths: randInt(SERIES[0], SERIES[1]),
-          // Nobody breathes in step, and everyone starts down.
-          timer: rand(0, DEEP_S[1]),
+          // Nobody breathes in step, and everyone starts down. Asked for, they
+          // are all up inside a few seconds instead of inside five minutes.
+          timer: near ? rand(0, 6) : rand(0, DEEP_S[1]),
           deep: true,
           arc: -1,
           blowT: -1,
@@ -512,6 +543,7 @@ export function buildOrcas(scene, opts = {}) {
       }),
     };
     pods.push(pod);
+    return pod;
   }
 
   function retire(pod) {
@@ -525,6 +557,28 @@ export function buildOrcas(scene, opts = {}) {
 
   return {
     group,
+
+    // Put a group on the water beside where you are, now. Whatever was already
+    // out there stands down first, so pressing it twice does not build a crowd.
+    // Returns false if there was nowhere along the shore deep enough, which is
+    // the only way it can fail.
+    show(x, z) {
+      while (pods.length) {
+        retire(pods[0]);
+        pods.shift();
+      }
+      return spawn({ x, z }) != null;
+    },
+
+    // Where the group is, for aiming the view at it. Null when there is none.
+    centre() {
+      if (!pods.length) return null;
+      const pod = pods[0];
+      const p = at(pod.s);
+      const w = seaAt(p.x + p.nx * pod.off, p.z + p.nz * pod.off);
+      return new THREE.Vector3(p.x + p.nx * pod.off, w.y, p.z + p.nz * pod.off);
+    },
+
     update(dt) {
       if (pods.length < MAX_GROUPS) {
         const r = ratePerSecond(new Date().getMonth());

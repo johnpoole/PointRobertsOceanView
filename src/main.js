@@ -492,6 +492,19 @@ function lookAtBrademy() {
 }
 document.getElementById("brademy-btn").addEventListener("click", toggleBrademy);
 
+// Whales, now, on the water beside wherever you are. They come up within a few
+// seconds of being asked for rather than waiting out a dive, and the view swings
+// onto them, because a group put behind your head is no use to anybody.
+document.getElementById("whales-btn").addEventListener("click", () => {
+  if (!orcas) return;
+  if (!orcas.show(camera.position.x, camera.position.z)) return;
+  const c = orcas.centre();
+  if (!c) return;
+  if (nav.mode === "orbit") controls.target.copy(c);
+  else camera.lookAt(c);
+  controls.update();
+});
+
 // The address bar is the view. Nothing to press: it is rewritten as you move, so
 // whatever is in it is what is on the screen, and copying it out of the bar is
 // the whole of sharing.

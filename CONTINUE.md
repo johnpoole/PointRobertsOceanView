@@ -133,8 +133,14 @@ so the box put most of the water off to the north of anyone standing there.
 along this shore, set at 0.03 because the sightings pile up in Haro Strait and the San Juans and
 Point Roberts sits on the edge of that. Nobody has measured it.
 
-`RATE_MULTIPLIER` is at 25000 so the whales can be looked at. At 1 a group passes about once every
-four days in August and you would never see one in a sitting. Put it back to 1.
+The rate is the real one, so a group comes past about once every four days in August and you will
+not see one in a sitting. The whales button is how you see them: it puts a group on the water beside
+wherever you are standing, as close in as the depth allows and coming from whichever side lets them
+come closer, and they surface within a few seconds instead of waiting out a dive. It swings the view
+onto them, and pressing it again replaces the group rather than adding to it.
+
+Off the park that lands them about 750 m out and off the bluff about 1.2 km. Off the border it is
+2.8 km and cannot be less, because the shelf up there runs out too far to put a whale any closer.
 
 ## After dark
 
