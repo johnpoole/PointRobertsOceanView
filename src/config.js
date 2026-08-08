@@ -7,6 +7,13 @@ export const ORIGIN = { lat: 48.989009, lon: -123.085318 }; // 389 W Bluff Rd, P
 
 export const VIEW_HEADING_DEG = 270; // due west, true
 
+// Magnetic north is not true north here, and a compass that reports the magnetic
+// one means nothing on this map until it is turned by this much. NOAA WMM-2025 at
+// ORIGIN for 2026.6: 15.32° east, uncertainty 0.39°, drifting -0.131° a year. That
+// drift takes a decade to matter and the uncertainty is under half a degree, so it
+// is written down rather than fetched, like everything else here.
+export const MAGNETIC_DECLINATION_DEG = 15.3;
+
 export const BBOX = {
   minLat: 48.8,
   minLon: -123.5,

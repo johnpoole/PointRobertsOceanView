@@ -67,12 +67,16 @@ against a twenty-metre bluff would stand you under the water or in the air, so o
 the latitude and longitude are taken and the eye is set 1.6 m above the baked
 terrain under them.
 
-The bearing has a slider on it. iOS reports a compass heading CoreLocation has
-already corrected to true north; Android reports an absolute orientation referenced
-to magnetic north and corrected by nobody. Declination at Point Roberts is 15.4°
-east and nothing in the event says which one you are holding, so neither is
-corrected — slide `aim` until the shoreline on the glass sits on the shoreline out
-the window.
+Which north the compass means depends on which reading arrives. iOS puts a heading
+on the event that CoreLocation has already turned onto true north. Android gives an
+absolute orientation referenced to magnetic north, so the declination — 15.3° east
+at the house, NOAA WMM-2025 — is taken off that one.
+
+What is left after that is the phone's own compass error: iron nearby, a magnetic
+case, a magnetometer wanting a figure eight. Ten degrees of it is ordinary and no
+constant can be written down for it, so the bearing has a slider. Slide `aim` until
+the shoreline on the glass sits on the shoreline out the window. It is not saved —
+reload and it is 0 again.
 
 ## Who is connected
 

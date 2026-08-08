@@ -9,14 +9,19 @@
 // air — so only the latitude and longitude are taken here and the height comes
 // off the baked terrain. See Nav._liveStep.
 //
-// Direction comes from the orientation event. iOS gives webkitCompassHeading,
-// which CoreLocation has already corrected to true north. Android gives an
-// absolute alpha off the rotation vector, which is referenced to magnetic north
-// and is corrected by nobody. Nothing in the event says which one you are
-// holding, and declination at Point Roberts is 15.4° east, so a guess either way
-// aims the whole view a hand's width off the island in front of you. So neither
-// is corrected and the trim is put on the screen instead: slide it until the
-// shoreline on the glass sits on the shoreline out the window.
+// Direction comes from the orientation event, and which north it is referenced to
+// depends on which one arrives. iOS puts webkitCompassHeading on it, which
+// CoreLocation has already turned onto true north — and live mode cannot start
+// without a position, so Safari has the location permission CoreLocation needs to
+// do it. Android gives an absolute alpha off the rotation vector, referenced to
+// magnetic north and corrected by nobody, so the declination is taken off here.
+// Fifteen degrees is a hand's width at arm's length, which is the difference
+// between the right island and the next one along.
+//
+// What is left after that is the phone's own compass error — iron nearby, a
+// magnetic case, a magnetometer that wants waving in a figure eight — and no
+// constant can be written down for that. So the trim goes on the screen: slide it
+// until the shoreline on the glass sits on the shoreline out the window.
 //
 // An orientation event that is not absolute and carries no compass heading is
 // measured from wherever the phone happened to be lying when the page opened.
@@ -24,6 +29,8 @@
 // opening pointed at nothing in particular.
 
 import * as THREE from "three";
+
+import { MAGNETIC_DECLINATION_DEG } from "./config.js";
 
 const DEG = Math.PI / 180;
 // A phone that has a compass answers in well under a second. This long without
@@ -147,8 +154,12 @@ export class Live {
     if (e.alpha == null || e.beta == null || e.gamma == null) { this._sawRelative = true; return; }
 
     // alpha is the turn about the vertical, counted the other way round from a
-    // compass bearing, so a heading in hand goes back the same way.
-    const alpha = compass === null ? e.alpha * DEG : (360 - compass) * DEG;
+    // compass bearing, so a heading in hand goes back the same way. Taking the
+    // declination off alpha adds it to the bearing, which is what turns a magnetic
+    // reading into a true one.
+    const alpha = compass === null
+      ? (e.alpha - MAGNETIC_DECLINATION_DEG) * DEG
+      : (360 - compass) * DEG;
     const beta = e.beta * DEG;
     const gamma = e.gamma * DEG;
     const screenDeg = screen.orientation && typeof screen.orientation.angle === "number"

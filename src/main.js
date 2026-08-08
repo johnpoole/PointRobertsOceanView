@@ -532,9 +532,9 @@ const live = new Live({
   },
 });
 
-// The hand correction on the bearing. Phone compasses are not all referenced to
-// the same north and none of them says which, so the last few degrees are set by
-// eye against what is out the window.
+// The hand correction on the bearing. Declination is taken off in live.js; what
+// is left is the phone's own compass error, and that is set by eye against what
+// is out the window.
 const trimPanel = document.getElementById("trim");
 const trimRange = document.getElementById("trim-range");
 const trimValue = document.getElementById("trim-value");
