@@ -19,12 +19,24 @@ import { OSM } from "../config.js";
 // lane still reads at a distance, but not so much that the small ones all come
 // out the same: a 9 m floor used to flatten footway, path, service and track
 // into one width, which is two thirds of every way on the peninsula.
-const ROAD_WIDTH = { motorway: 12, trunk: 10, primary: 8, secondary: 7, tertiary: 6,
+export const ROAD_WIDTH = { motorway: 12, trunk: 10, primary: 8, secondary: 7, tertiary: 6,
                      residential: 5.5, unclassified: 5, service: 3.5, track: 3,
                      bridleway: 2, cycleway: 2, path: 1.5, footway: 1.5, steps: 1.2 };
 const ROAD_WIDTH_DEFAULT = 4;
-const ROAD_EXAGGERATION = 1.6;
+export const ROAD_EXAGGERATION = 1.6;
 const ROAD_MIN_M = 2.0;
+
+// The bake is 1.3 MB and both the land and the trees want it, so it is fetched
+// once and the same promise is handed to whoever asks. A failed fetch stays
+// failed: both callers see the one error rather than each trying again.
+let osmPromise = null;
+export function osmFeatures() {
+  if (!osmPromise) osmPromise = fetch(OSM).then((r) => {
+    if (!r.ok) throw new Error(`${OSM} returned ${r.status} ${r.statusText}`);
+    return r.json();
+  });
+  return osmPromise;
+}
 
 // The house against the grey of every other building, and the named places
 // against both.
@@ -223,7 +235,7 @@ function makeDot() {
 // `isolated`, so a caller can hide one building without rebuilding them all —
 // which is what the Brademy needs to put its clubhouse where the Breakers is.
 export async function buildLand(scene, sample, opts = {}) {
-  const data = await (await fetch(OSM)).json();
+  const data = await osmFeatures();
   const isolate = opts.isolate || (() => false);
 
   // Roads, grouped by width class so major roads are wider.

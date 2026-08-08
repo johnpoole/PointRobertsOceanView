@@ -25,6 +25,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld } from "../geo.js";
 import { COVER_ONLY_M } from "./terrain.js";
+import { ROAD_EXAGGERATION, ROAD_WIDTH } from "./land.js";
 
 // Real geometry inside the first, nothing at all past the second, in metres.
 // Three hundred is as far as the near ring can reach before the trees in it
@@ -73,6 +74,74 @@ const CONIFER_TRUNK_TOP = 0.30;
 const BROADLEAF_TRUNK_TOP = 0.45;
 const CONIFER_TRUNK_R_FRAC = 0.020;
 const BROADLEAF_TRUNK_R_FRAC = 0.018;
+
+// The roads a tree has no business standing in. Driveways, tracks and footways
+// run under the canopy all over the peninsula and are left alone: the land
+// cover cell is 30 m and it does not know a two metre path is cut through it.
+const MAIN_ROADS = new Set(["motorway", "trunk", "primary", "secondary",
+                            "tertiary", "residential", "unclassified"]);
+// Clear of the road as land.js draws it, and a metre more, so the verge is bare
+// and the crowns still lean out over the carriageway.
+const ROAD_MARGIN_M = 1.0;
+// Buckets for the road segments. Big enough that most segments land in one or
+// two, small enough that a tree never looks at more than a handful.
+const ROAD_CELL_M = 40;
+
+// A predicate on world x and z: is this in a main road. Built from the OSM
+// ways once, into a uniform grid, because the alternative is walking three
+// hundred ways for each of a hundred and forty thousand trees.
+function roadTest(roads) {
+  const seg = [];   // ax, az, bx, bz, clearance squared, clearance
+  for (const r of roads) {
+    if (!MAIN_ROADS.has(r.kind)) continue;
+    const width = ROAD_WIDTH[r.kind];
+    if (!width) {
+      throw new Error(
+        `trees.js roadTest: MAIN_ROADS says "${r.kind}" is a main road and ` +
+        `land.js ROAD_WIDTH has no width for it, so there is no way to know ` +
+        `how far to hold the trees off. The two lists have gone out of step.`);
+    }
+    const clear = (width * ROAD_EXAGGERATION) / 2 + ROAD_MARGIN_M;
+    let prev = null;
+    for (const [lat, lon] of r.coords) {
+      const w = toWorld(lat, lon);
+      if (prev) seg.push(prev.x, prev.z, w.x, w.z, clear * clear, clear);
+      prev = w;
+    }
+  }
+  const cells = new Map();
+  const key = (i, j) => i * 100000 + j;
+  for (let o = 0; o < seg.length; o += 6) {
+    const c = seg[o + 5];
+    const j0 = Math.floor((Math.min(seg[o], seg[o + 2]) - c) / ROAD_CELL_M);
+    const j1 = Math.floor((Math.max(seg[o], seg[o + 2]) + c) / ROAD_CELL_M);
+    const i0 = Math.floor((Math.min(seg[o + 1], seg[o + 3]) - c) / ROAD_CELL_M);
+    const i1 = Math.floor((Math.max(seg[o + 1], seg[o + 3]) + c) / ROAD_CELL_M);
+    for (let i = i0; i <= i1; i++) {
+      for (let j = j0; j <= j1; j++) {
+        const k = key(i, j);
+        let list = cells.get(k);
+        if (!list) cells.set(k, list = []);
+        list.push(o);
+      }
+    }
+  }
+  return (x, z) => {
+    const list = cells.get(key(Math.floor(z / ROAD_CELL_M),
+                               Math.floor(x / ROAD_CELL_M)));
+    if (!list) return false;
+    for (const o of list) {
+      const ax = seg[o], az = seg[o + 1];
+      const dx = seg[o + 2] - ax, dz = seg[o + 3] - az;
+      const len2 = dx * dx + dz * dz;
+      let t = len2 > 0 ? ((x - ax) * dx + (z - az) * dz) / len2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const ex = x - (ax + t * dx), ez = z - (az + t * dz);
+      if (ex * ex + ez * ez < seg[o + 4]) return true;
+    }
+    return false;
+  };
+}
 
 // One repeatable stream, so the forest is the same forest on every reload.
 function seeded(seed) {
@@ -228,12 +297,17 @@ class Ring {
 }
 
 // sample(lat, lon) -> metres above MLLW. cover is what buildTerrain read:
-// { meta, codes }.
-export function buildTrees(scene, sample, cover) {
+// { meta, codes }. roads is data.roads out of the OSM bake.
+export function buildTrees(scene, sample, cover, roads) {
   if (!cover) {
     throw new Error("buildTrees: no land cover. The near terrain must be built " +
       "with opts.landcover so the trees know where the forest is.");
   }
+  if (!roads) {
+    throw new Error("buildTrees: no roads. Pass data.roads from the OSM bake " +
+      "(osmFeatures() in land.js) so the trees are kept out of the road.");
+  }
+  const inRoad = roadTest(roads);
   const rand = seeded(20260807);
   const { nrows, ncols } = cover.meta.grid;
   const box = cover.meta.box;
@@ -260,6 +334,7 @@ export function buildTrees(scene, sample, cover) {
 
   let count = 0;
   let belowCover = 0;
+  let onRoad = 0;
   for (let i = 0; i < nrows; i++) {
     for (let j = 0; j < ncols; j++) {
       const code = cover.codes[i * ncols + j];
@@ -279,13 +354,14 @@ export function buildTrees(scene, sample, cover) {
         // Below where the land cover starts deciding the ground colour it is
         // beach, whatever a 30 m cell says, and nothing grows on the shingle.
         if (elev < COVER_ONLY_M) { belowCover++; continue; }
+        const w = toWorld(lat, lon, elev);
+        if (inRoad(w.x, w.z)) { onRoad++; continue; }
         const isConifer = rand() < coniferShare;
         const hRange = isConifer ? CONIFER_H_M : BROADLEAF_H_M;
         const rRange = isConifer ? CONIFER_R_FRAC : BROADLEAF_R_FRAC;
         const pal = isConifer ? CONIFER_COLORS : BROADLEAF_COLORS;
         let h = hRange[0] + (hRange[1] - hRange[0]) * rand();
         if (short) h *= SHORT_SCALE;
-        const w = toWorld(lat, lon, elev);
         px[count] = w.x;
         py[count] = w.y;
         pz[count] = w.z;
@@ -468,6 +544,7 @@ export function buildTrees(scene, sample, cover) {
     conifers: farAt[CONIFER],
     broadleaves: farAt[BROADLEAF],
     belowCover,
+    onRoad,
     nearCap,
     update(camera) {
       if (anchor && anchor.distanceToSquared(camera.position) < REBUILD_M * REBUILD_M) return;

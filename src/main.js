@@ -14,7 +14,7 @@ import { Vessels } from "./scene/vessels.js";
 import { Aircraft } from "./scene/aircraft.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
-import { buildLand } from "./scene/land.js";
+import { buildLand, osmFeatures } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
@@ -136,8 +136,13 @@ let breakers = null;     // the old Breakers block, on its own so it can stand d
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
 let lighthouse = null;   // the light on the point, and its flash
-buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
-  .then((near) => {
+// The trees need the roads to keep out of them, so the OSM bake is waited on
+// here rather than left to buildLand further down. It is the same one fetch.
+Promise.all([
+  buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER }),
+  osmFeatures(),
+])
+  .then(([near, osm]) => {
     groundSample = near.sample;
     const { nrows, ncols, cellsize_deg, north_lat, west_lon } = near.meta.grid;
     const nw = toWorld(north_lat, west_lon);
@@ -145,7 +150,7 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
     buildBeach(scene, near.sample, ORIGIN);
-    trees = buildTrees(scene, near.sample, near.cover);
+    trees = buildTrees(scene, near.sample, near.cover, osm.roads);
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
