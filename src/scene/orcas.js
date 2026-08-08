@@ -570,13 +570,18 @@ export function buildOrcas(scene, opts = {}) {
       return spawn({ x, z }) != null;
     },
 
-    // Where the group is, for aiming the view at it. Null when there is none.
+    // Where the group is, which way it is going, and which way is out to sea, so
+    // a caller can get ahead of it and let it come on. Null when there is none.
     centre() {
       if (!pods.length) return null;
       const pod = pods[0];
       const p = at(pod.s);
-      const w = seaAt(p.x + p.nx * pod.off, p.z + p.nz * pod.off);
-      return new THREE.Vector3(p.x + p.nx * pod.off, w.y, p.z + p.nz * pod.off);
+      const x = p.x + p.nx * pod.off, z = p.z + p.nz * pod.off;
+      return {
+        at: new THREE.Vector3(x, seaAt(x, z).y, z),
+        seaward: new THREE.Vector3(p.nx, 0, p.nz),
+        heading: new THREE.Vector3(p.tx * pod.dir, 0, p.tz * pod.dir),
+      };
     },
 
     update(dt) {

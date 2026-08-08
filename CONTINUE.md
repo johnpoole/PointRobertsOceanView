@@ -135,12 +135,19 @@ Point Roberts sits on the edge of that. Nobody has measured it.
 
 The rate is the real one, so a group comes past about once every four days in August and you will
 not see one in a sitting. The whales button is how you see them: it puts a group on the water beside
-wherever you are standing, as close in as the depth allows and coming from whichever side lets them
-come closer, and they surface within a few seconds instead of waiting out a dive. It swings the view
-onto them, and pressing it again replaces the group rather than adding to it.
+wherever you are standing, they surface within a few seconds instead of waiting out a dive, and it
+puts you where you can watch. Pressing it again replaces the group rather than adding to it.
 
-Off the park that lands them about 750 m out and off the bluff about 1.2 km. Off the border it is
-2.8 km and cannot be less, because the shelf up there runs out too far to put a whale any closer.
+Where it puts you is the whole of whether it works, and two measurements settled it. Only about
+1.2 m of an orca is ever out of the water — the back and the fin, no more — so at a kilometre that
+is a three pixel notch and at 300 m it is seven. And a group travelling at 2.2 m/s leaves the frame
+inside a minute. Standing you abeam of them at 300 m, which is what it did first, showed a speck
+that then swam away, which is why John saw nothing at all.
+
+So it gets 170 m ahead of them down their own track and 55 m to the shore side, eye 8 m above the
+water, and they come on. They start about 180 m off and pass within 75, growing the whole way.
+Measured over two minutes: first one showing inside two seconds, twelve to twenty seconds of whale
+actually on the screen, peaking at 21 to 39 px of exposed back and fin.
 
 ## After dark
 
@@ -167,6 +174,20 @@ The lamp stands on the tower rather than at the published focal height of 9 m. T
 above mean high water and everything on this page is metres above MLLW, so driving the lamp from it
 buried the light two metres inside the steelwork. On the tower it comes out at 10.6 m on our datum,
 which agrees with the published figure to inside the tide range.
+
+## The colour of the water
+
+Matched to a photograph off the deck, on the ratio and not on the number. In that photograph the
+strait is silver grey with a little blue in it and sits at about four fifths the brightness of the
+cloud above it. The page renders a dimmer sky than the real one, so matching the water's absolute
+value would have put the sea brighter than the sky it is reflecting. It now comes out at 113 against
+a sky of 145, which is 0.78.
+
+It was `0x2b5566`, a deep slate, which rendered at 46 against that same sky — a third of it. That is
+what made an afternoon in August look like the North Atlantic in February.
+
+`WATER_COLOR` is fixed and does not follow the sky, so it is wrong at sunset and wrong under a black
+squall. What the weather moves is the light on it, not the colour.
 
 ## The datum, which everything depends on
 

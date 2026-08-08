@@ -19,7 +19,24 @@ const FAR_SIZE = 100000;   // reaches beyond the far terrain tile
 
 const BREAKER_GAMMA = 0.78; // depth-limited breaking, H <= gamma * depth
 
-const WATER_COLOR = 0x2b5566;
+// Matched to the view off the deck rather than to what a sea is supposed to look
+// like. This is a shallow strait under a big pale sky and it mirrors it: on the
+// photograph the water is silver grey with a little blue in it and sits at about
+// four fifths the brightness of the cloud above it.
+//
+// Matched on that ratio and not on the number. The photograph's sky is brighter
+// than this page renders one, so matching the water's absolute value would have
+// put the sea brighter than the sky it is reflecting. Measured here: the water
+// comes out at 113 against a sky of 135, which is 0.84.
+//
+// It was 0x2b5566, a deep slate, which rendered at 46 against that same sky —
+// a third of it — and made an afternoon in August look like the North Atlantic
+// in February.
+//
+// It is a fixed colour and does not follow the sky, so it will be wrong at
+// sunset and wrong under a black squall. What the weather moves is the light on
+// it, not this.
+const WATER_COLOR = 0xa8b6bd;
 
 // Rebuild the sea mask when the tide has moved this far. The mask is a flood
 // fill over 2.5 M cells, too heavy for every frame and pointless at every

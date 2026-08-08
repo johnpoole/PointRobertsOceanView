@@ -629,16 +629,37 @@ function lookAtBrademy() {
 }
 document.getElementById("brademy-btn").addEventListener("click", toggleBrademy);
 
-// Whales, now, on the water beside wherever you are. They come up within a few
-// seconds of being asked for rather than waiting out a dive, and the view swings
-// onto them, because a group put behind your head is no use to anybody.
+// Whales, now, on the water beside wherever you are, and then it puts you where
+// you can watch them, the way turning the courts on takes you to the courts.
+//
+// Where it puts you is the whole of whether this works, and two things had to be
+// measured to get it right. Only about 1.2 m of an orca is ever out of the
+// water — the back and the fin, and no more — so at a kilometre that is a
+// three pixel notch and at 300 m it is seven. And a group travelling at 2.2 m/s
+// leaves the frame inside a minute, so standing abeam of them showed a speck
+// that then swam away.
+//
+// So it gets ahead of them and off to one side, and they come on. They start
+// about 180 m off and pass within 60, growing the whole way, and there is a
+// couple of minutes of it.
+const WHALE_AHEAD_M = 170;   // down their track, so they are coming toward you
+const WHALE_SIDE_M = 55;     // and off to the shore side, so they pass rather than hit
+const WHALE_EYE_M = 8;       // low, a look across the water and not down on it
+const WHALE_AIM_M = 60;      // aim between you and them, so they swim into the middle
 document.getElementById("whales-btn").addEventListener("click", () => {
   if (!orcas) return;
   if (!orcas.show(camera.position.x, camera.position.z)) return;
   const c = orcas.centre();
   if (!c) return;
-  if (nav.mode === "orbit") controls.target.copy(c);
-  else camera.lookAt(c);
+  nav.toOrbit();
+  camera.position.set(
+    c.at.x + c.heading.x * WHALE_AHEAD_M - c.seaward.x * WHALE_SIDE_M,
+    c.at.y + WHALE_EYE_M,
+    c.at.z + c.heading.z * WHALE_AHEAD_M - c.seaward.z * WHALE_SIDE_M);
+  controls.target.set(
+    c.at.x + c.heading.x * WHALE_AIM_M,
+    c.at.y,
+    c.at.z + c.heading.z * WHALE_AIM_M);
   controls.update();
 });
 
