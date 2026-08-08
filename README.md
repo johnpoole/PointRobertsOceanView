@@ -49,6 +49,31 @@ Python 3.10+ is required. Node/npm is not.
 
 4. Open http://localhost:8080.
 
+## Live
+
+Pick `live` in the mode chooser on a phone and the view goes where the phone goes.
+Position comes from the browser's geolocation, direction from the phone's compass,
+and the lens is the phone's own — 69.4° across the long side of the frame, a 26 mm
+equivalent — so the screen frames what the camera on the back of it would frame.
+Walk and the view walks with you.
+
+It needs https. A browser hands out neither location nor compass to a page served
+over plain http; localhost counts as secure, so development works. Both sensors are
+asked for on entry, and if either is refused or stays silent the mode does not
+start — it says which one failed and leaves you where you were.
+
+The height is not the phone's. GPS altitude is good to ten or thirty metres, which
+against a twenty-metre bluff would stand you under the water or in the air, so only
+the latitude and longitude are taken and the eye is set 1.6 m above the baked
+terrain under them.
+
+The bearing has a slider on it. iOS reports a compass heading CoreLocation has
+already corrected to true north; Android reports an absolute orientation referenced
+to magnetic north and corrected by nobody. Declination at Point Roberts is 15.4°
+east and nothing in the event says which one you are holding, so neither is
+corrected — slide `aim` until the shoreline on the glass sits on the shoreline out
+the window.
+
 ## Who is connected
 
 `/admin/visitors` lists every address that has connected and marks the ones

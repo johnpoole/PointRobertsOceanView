@@ -133,6 +133,15 @@
   <!-- The stick, drawn where the thumb lands. -->
   <div id="stick" class="stick hidden"><div id="stick-knob" class="stick-knob"></div></div>
 
+  <!-- Live mode's one control: the hand correction on the bearing. Phone
+       compasses are not all referenced to the same north and none of them says
+       which, so the last few degrees are set by eye against what is out the
+       window. -->
+  <div id="trim" class="trim hidden">
+    <label class="trim-label" for="trim-range">aim <span id="trim-value">0°</span></label>
+    <input id="trim-range" class="trim-range" type="range" min="-30" max="30" step="0.5" value="0" />
+  </div>
+
   <div id="fly-hint" class="fly-hint hidden">WASD move · Q/E down-up · Shift fast · mouse or drag to look · Esc exit</div>
   <div id="boat-hint" class="fly-hint hidden">W throttle · A/D tiller · B to step ashore</div>
 

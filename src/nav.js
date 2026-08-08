@@ -5,6 +5,8 @@
 //   boat  - a 12 ft aluminium boat with a 4.5 hp outboard. W throttles, A and D
 //           work the tiller. The camera sits at the transom and cannot leave it,
 //           so the bow is in the view and the horizon moves against it.
+//   live  - the phone's own view. Nothing is driven: the camera stands where the
+//           phone stands and points where it is pointed. See live.js.
 // Both modes are held above the surface. Dropping under the water put the camera
 // inside the ocean plane looking up at the underside, which reads as nothing at
 // all. opts.floor(x, z) gives the height to stay above.
@@ -46,6 +48,11 @@ const AIR_START_M = 60;                    // height an aircraft is entered at
 const AIR_FLOOR_M = 3;                     // and how close to the ground it may fly
 const HELM_AFT_M = 1.25;                   // the tiller seat, aft of centre
 const HELM_EYE_M = 1.00;                   // eye above the waterline, seated
+const LIVE_EYE_M = 1.6;                    // a phone held at eye height, standing
+// A fix wanders a few metres where it stands still, and at eye height that reads
+// as the whole world sliding about. The camera is walked toward the fix instead
+// of set to it, which costs a second of lag on a walking pace.
+const LIVE_POS_TAU = 1.0;                  // s
 
 // Where you are looking is not where the thing is pointed. A helmsman watches
 // the shore go by without steering at it, and a driver checks a mirror. So the
@@ -94,6 +101,10 @@ export class Nav {
     this.rider = { yaw: 0, speed: 0, pos: new THREE.Vector3(), pitch: 0, roll: 0 };
     this.vehicle = null;
     this.vehicleMesh = null;
+    // The phone's sensors, in live mode. Set by enterLive.
+    this.live = null;
+    this.livePos = null;
+    this._liveTarget = new THREE.Vector3();
     // touch: the on-screen stick and the drag that looks about, or null on a
     // machine that has neither.
     this.touch = opts.touch || null;
@@ -314,6 +325,41 @@ export class Nav {
     this._resetLook();
     if (this.touch) this.touch.setActive(true);
     this.onMode("vehicle", spec);
+  }
+
+  // The phone's own view. Nothing is driven here — you move it by walking — so
+  // there is no stick, no keys and no look drag: the phone is the whole of the
+  // control. live is a running Live from live.js, already answering.
+  enterLive(live) {
+    if (!this.hasGround()) return;   // no ground to stand the eye on
+    if (this.mode === "fly" && this.lock.isLocked) this.lock.unlock();
+    this.orbit.enabled = false;
+    if (this.boatMesh) this.boatMesh.visible = false;
+    if (this.hullHole) this.hullHole(null);
+    if (this.vehicleMesh) this.vehicleMesh.visible = false;
+    this.vehicle = null;
+    this.live = live;
+    this.livePos = null;   // snapped to the first fix on the next step
+    this.mode = "live";
+    this._resetLook();
+    if (this.touch) this.touch.setActive(false);
+    this.onMode("live");
+  }
+
+  _liveStep(dt) {
+    const fix = this.live.fix;
+    if (!fix) return;   // the watch has not answered yet
+    const w = toWorld(fix.lat, fix.lon);
+    // Whatever is underfoot, which off the bluff is the ground and on the beach
+    // at high water is the water. The fix's own altitude is not used: see live.js.
+    const y = (this.seaAt ? this.seaAt(w.x, w.z).y : 0) + LIVE_EYE_M;
+    this._liveTarget.set(w.x, y, w.z);
+    if (!this.livePos) this.livePos = this._liveTarget.clone();
+    else this.livePos.lerp(this._liveTarget, 1 - Math.exp(-dt / LIVE_POS_TAU));
+    this.camera.position.copy(this.livePos);
+    // Taken as it comes. The sensor fusion behind it has already done the
+    // smoothing, and a second pass here would only make the view lag the hand.
+    this.camera.quaternion.copy(this.live.orientation);
   }
 
   // Nearest dry ground, the mirror of _launchSpot.
@@ -568,7 +614,9 @@ export class Nav {
 
   update(dt) {
     // No floor clamp in boat mode: the boat already floats on the surface, and the
-    // clamp would shove the camera up off the transom.
+    // clamp would shove the camera up off the transom. Nor in live mode, where
+    // the eye is already set from the ground under the phone.
+    if (this.mode === "live") { this._liveStep(dt); return; }
     if (this.mode === "vehicle") { this._vehicleStep(dt); return; }
     if (this.mode === "boat") { this._boatStep(dt); return; }
     if (this.mode === "fly") { this._flyStep(dt); this._clampFloor(); return; }

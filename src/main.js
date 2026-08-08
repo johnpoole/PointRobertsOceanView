@@ -25,6 +25,7 @@ import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
+import { Live } from "./live.js";
 import { Touch } from "./touch.js";
 import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
@@ -41,8 +42,10 @@ const scene = new THREE.Scene();
 
 // Narrower than a phone's wide lens, closer to how the eye frames the vista, so
 // the islands and mountains across the strait read at the height they feel.
+// Live mode takes the phone's lens instead — see applyFov.
+const LOOK_FOV_DEG = 25;
 const camera = new THREE.PerspectiveCamera(
-  25, window.innerWidth / window.innerHeight, 1, 150000);
+  LOOK_FOV_DEG, window.innerWidth / window.innerHeight, 1, 150000);
 camera.position.set(0, EYE_HEIGHT_M, 0);
 
 // Google Maps' 3D bindings, which is what people already have in their hands:
@@ -404,12 +407,32 @@ function updateHover() {
   tip.classList.remove("hidden");
 }
 
+// The lens. Looking around, it is the narrow one set above. In live mode it is
+// the phone's own: a main camera at 26 mm equivalent covers 69.4° across the long
+// side of the frame, 2·atan(18/26). Portrait stands that long side up the screen
+// and landscape lays it across, and the short side falls out of the aspect ratio,
+// so what is on the glass is what the lens behind it would take.
+const PHONE_LONG_FOV_DEG = 69.4;
+function applyFov() {
+  let fov = LOOK_FOV_DEG;
+  if (nav.mode === "live") {
+    const long = (PHONE_LONG_FOV_DEG * Math.PI) / 180;
+    fov = camera.aspect >= 1
+      ? (2 * Math.atan(Math.tan(long / 2) / camera.aspect) * 180) / Math.PI
+      : PHONE_LONG_FOV_DEG;
+  }
+  if (camera.fov === fov) return;
+  camera.fov = fov;
+  camera.updateProjectionMatrix();
+}
+
 let lastW = 0, lastH = 0;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   if (w === 0 || h === 0 || (w === lastW && h === lastH)) return;
   lastW = w; lastH = h;
   camera.aspect = w / h;
+  applyFov();   // turning the phone changes which side of the frame is the long one
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 }
@@ -427,10 +450,15 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   onMode: (m, spec) => {
     document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
     const hint = document.getElementById("boat-hint");
-    const show = m === "boat" || m === "vehicle";
+    const show = m === "boat" || m === "vehicle" || m === "live";
     hint.classList.toggle("hidden", !show);
     if (m === "boat") hint.textContent = BOAT_HINT;
     else if (m === "vehicle" && spec) hint.textContent = vehicleHint(spec);
+    else if (m === "live") hint.textContent = LIVE_HINT;
+    // The location watch and the compass run only while their view is on screen.
+    if (m !== "live") live.stop();
+    trimPanel.classList.toggle("hidden", m !== "live");
+    applyFov();
   },
   boatMesh: boat,
   hullHole: (h) => ocean.setHull(h),
@@ -491,6 +519,32 @@ document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly
 const chooser = document.getElementById("chooser");
 const chooserBtns = document.getElementById("chooser-btns");
 const modeHint = document.getElementById("boat-hint");
+const chooserNote = document.getElementById("chooser-note");
+
+// The phone's location and compass. A sensor that stops answering takes the view
+// with it: live mode ends and the reason goes on the chooser, rather than the
+// screen sitting on the last reading looking live.
+const live = new Live({
+  onFail: (message) => {
+    nav.toOrbit();
+    chooserNote.textContent = message;
+    chooser.classList.remove("hidden");
+  },
+});
+
+// The hand correction on the bearing. Phone compasses are not all referenced to
+// the same north and none of them says which, so the last few degrees are set by
+// eye against what is out the window.
+const trimPanel = document.getElementById("trim");
+const trimRange = document.getElementById("trim-range");
+const trimValue = document.getElementById("trim-value");
+function readTrim() {
+  const deg = Number(trimRange.value);
+  live.trim = (deg * Math.PI) / 180;
+  trimValue.textContent = `${deg > 0 ? "+" : ""}${deg.toFixed(1)}°`;
+}
+trimRange.addEventListener("input", readTrim);
+readTrim();
 
 // Each mode says what it actually has. The boat's tiller is backwards on
 // purpose; nothing else is.
@@ -501,6 +555,9 @@ const LOOK_HINT = TOUCH ? "drag right side to look" : "drag to look";
 const BOAT_HINT = TOUCH
   ? `stick: push to open the throttle, across for the tiller · ${LOOK_HINT} · M to change`
   : `W throttle · A/D tiller (A turns right) · ${LOOK_HINT} · M to change`;
+// Nothing to drive in live mode: the phone is the control, and walking is the
+// only way to move.
+const LIVE_HINT = "hold the phone up and turn · slide aim until the view lines up · M to change";
 function vehicleHint(spec) {
   const air = spec.medium === "air";
   if (TOUCH) {
@@ -570,12 +627,36 @@ if (shared) toShared();
 // around and free flight need no ground and stay available.
 const needsGround = (id) => id !== "bluff" && id !== "look";
 
+// Two sensors to ask for and either can refuse, so this one is not instant and
+// cannot simply be entered. The chooser stays up until the phone is answering or
+// there is a reason on it.
+// Pressing it twice must not leave a second watch and a second listener running
+// behind the first, so a start already under way and a mode already running both
+// swallow the press.
+let liveStarting = false;
+function startLive() {
+  if (liveStarting) return;
+  if (nav.mode === "live") { chooser.classList.add("hidden"); return; }
+  liveStarting = true;
+  chooserNote.textContent = "asking for the phone's location and compass…";
+  live.start().then(() => {
+    chooserNote.textContent = "";
+    chooser.classList.add("hidden");
+    nav.enterLive(live);
+  }).catch((err) => {
+    chooserNote.textContent = err.message;
+  }).finally(() => {
+    liveStarting = false;
+  });
+}
+
 function chooseMode(id) {
   if (needsGround(id) && !groundSample) {
     document.getElementById("chooser-note").textContent =
       "the ground has not loaded, so there is nothing to travel over yet";
     return;   // chooser stays open, with the reason on it
   }
+  if (id === "live") { startLive(); return; }
   chooser.classList.add("hidden");
   if (id === "bluff") { toBluff(); return; }
   if (id === "look") { toMapView(); return; }
@@ -590,6 +671,7 @@ for (const [id, label, note] of [
   ["cart", "golf cart", "24 km/h"],
   ["boat", "boat", "8 kn"],
   ["ultralight", "ultra light", "90 km/h"],
+  ["live", "live", "where the phone is"],
   ["bluff", "bluff", "looking west"],
   ["look", "look around", "no vehicle"],
 ]) {
