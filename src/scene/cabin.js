@@ -54,25 +54,38 @@ const POST = 0.16;
 const GROUND_UNDER_DECK = 5.6;
 
 // The south side. The top deck returns 3 ft. The one under it is not a
-// rectangle: it runs 12 ft out at the sea end and closes to 3 ft where the bank
-// comes up level with the boards.
+// rectangle: it is 3 ft out at the sea end and opens to 12 ft at the back,
+// where the ground has climbed level with the boards.
 const UPPER_SOUTH_OUT = 0.91;
-const SOUTH_OUT_WEST = 3.66;
-const SOUTH_OUT_EAST = 0.91;
-const SOUTH_END = 1.4;              // where the ground reaches the deck top
-const GROUND_AT_SOUTH_WEST = 4.46;  // the terrain under the two ends of that edge
-const GROUND_AT_SOUTH_END = 8.35;
+const SOUTH_OUT_WEST = 0.91;
+const SOUTH_OUT_EAST = 3.66;
+const SOUTH_END = 2.1;              // where the ground reaches the deck top
+const GROUND_AT_SOUTH_WEST = 4.62;  // the terrain under the two ends of that edge
+const GROUND_AT_SOUTH_END = 8.41;
 
-// The concrete stair up the bank, south of that deck. Its pitch is the pitch of
-// the ground it runs on: 6.62 m at the foot and 9.83 m at the head, off the
-// terrain bake. Anything steeper leaves the top of it standing in the air.
-const STAIR_V = 6.5;         // clear of the deck, which rakes in past this line
+// The way up from the beach, in three pieces: a concrete flight west to east
+// along the south edge, a concrete landing at the level of the lower deck, and
+// timber stairs off it running south to north against the east wall to the top
+// deck. The concrete flight is pitched at the pitch of the ground it runs on,
+// 5.58 m at the foot and 8.47 m at the head off the terrain bake. Anything
+// steeper leaves the head of it standing in the air.
+const STAIR_V = 8.15;        // clear of the deck's back corner, which reaches 7.36
 const STAIR_W = 1.15;
-const RISER = 0.18;
+const RISER = 0.16;
 const GOING = 0.30;
 const STEPS = 18;
-const STAIR_BASE = 6.62;     // the ground it starts off, beside the door
-const STAIR_U0 = -1.2;       // and it climbs east, behind the house, not across it
+const STAIR_BASE = 5.58;
+const STAIR_U0 = -3.0;
+
+const LANDING_Y = LOWER_FLOOR - 0.14;
+const LANDING = { u0: 2.0, u1: 4.1, v0: 7.3, v1: 9.0 };
+
+const WOOD_U = 3.5;          // the timber flight, hard against the east wall
+const WOOD_W = 1.1;
+const WOOD_RISER = 0.204;
+const WOOD_GOING = 0.3325;
+const WOOD_STEPS = 13;
+const WOOD_V0 = 8.6;         // its foot, on the landing, and it climbs north
 
 const SEAM_SPACING = 0.55;   // standing seam, near enough off the roof photograph
 const CHIMNEY_W = 0.85;
@@ -241,9 +254,8 @@ export function buildCabin(scene, sample) {
                    GROUND_UNDER_DECK + skirtH - 0.12, 0, DECK_TIMBER));
 
   // The deck turns the south-west corner and runs back along the south face,
-  // wide at the sea end and closing to nothing much where the bank comes up.
-  // Same boards, same three rails. No rail at the east end, because there you
-  // step off onto the ground.
+  // narrow at the sea end and opening out at the back. Same boards, same three
+  // rails. No rail at the east end, because there you step off onto the ground.
   const sx0 = -hw - LOWER_DECK_OUT;
   const sv0 = hl + SOUTH_OUT_WEST, sv1 = hl + SOUTH_OUT_EAST;
   place(parts, slab([[sx0, hl], [SOUTH_END, hl], [SOUTH_END, sv1], [sx0, sv0]],
@@ -285,9 +297,9 @@ export function buildCabin(scene, sample) {
                      sx0 + fp * du, gp, sv0 + fp * dv, DECK_TIMBER));
   }
 
-  // The concrete stair up the bank, clear of the deck to the south, climbing
-  // from the ground beside the door to the top of the bank. Drawn as a stepped
-  // solid rather than floating slabs, because that is what concrete does.
+  // The concrete flight, clear of the deck to the south, climbing west to east
+  // up the bank. Drawn as a stepped solid rather than floating slabs, because
+  // that is what concrete does.
   const stv = STAIR_V;
   for (let k = 0; k < STEPS; k++) {
     const y = STAIR_BASE + (k + 1) * RISER;
@@ -313,6 +325,38 @@ export function buildCabin(scene, sample) {
     for (let k = 1; k < STEPS; k += 5) {
       place(parts, box(0.1, 0.1, RAIL_H, STAIR_U0 + k * GOING,
                        STAIR_BASE + (k + 1) * RISER, v, DECK_TIMBER));
+    }
+  }
+
+  // The landing it arrives on, cut into the bank at the level of the lower
+  // deck boards, and the timber flight off it climbing north to the top deck.
+  place(parts, box(LANDING.u1 - LANDING.u0, LANDING.v1 - LANDING.v0, 0.2,
+                   (LANDING.u0 + LANDING.u1) / 2, LANDING_Y - 0.2,
+                   (LANDING.v0 + LANDING.v1) / 2, CONCRETE));
+  for (let k = 0; k < WOOD_STEPS; k++) {
+    const v = WOOD_V0 - k * WOOD_GOING;
+    const y = LANDING_Y + (k + 1) * WOOD_RISER;
+    place(parts, box(WOOD_W, WOOD_GOING, 0.1, WOOD_U, y - 0.1, v, DECK_TIMBER));
+    place(parts, box(WOOD_W, 0.08, WOOD_RISER, WOOD_U, y - WOOD_RISER,
+                     v + WOOD_GOING / 2, DECK_TIMBER));
+  }
+  // Its rail runs the other way, so the bar is laid along z and raked about x.
+  const wRun = (WOOD_STEPS - 1) * WOOD_GOING;
+  const wRise = (WOOD_STEPS - 1) * WOOD_RISER;
+  const wRake = Math.atan2(WOOD_RISER, WOOD_GOING);
+  for (const s of [-1, 1]) {
+    const u = WOOD_U + s * (WOOD_W / 2);
+    const yFoot = LANDING_Y + WOOD_RISER + RAIL_H;
+    for (const drop of [0, -RAIL_H * 0.45]) {
+      const g = new THREE.BoxGeometry(0.09, 0.09, Math.hypot(wRun, wRise));
+      g.rotateX(wRake);
+      g.translate(u, yFoot + drop + wRise / 2, WOOD_V0 - wRun / 2);
+      place(parts, tint(g, DECK_TIMBER));
+    }
+    for (let k = 0; k < WOOD_STEPS; k += 4) {
+      place(parts, box(0.1, 0.1, RAIL_H, u,
+                       LANDING_Y + (k + 1) * WOOD_RISER,
+                       WOOD_V0 - k * WOOD_GOING, DECK_TIMBER));
     }
   }
 
