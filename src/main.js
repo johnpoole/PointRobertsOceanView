@@ -416,6 +416,30 @@ function toBluff() {
   controls.update();
 }
 
+// Looking around is Google Maps' 3D view, and that view is an oblique one from
+// above. It has to be, because the drag is a pan: it slides the camera over the
+// ground, so the ground under your hand keeps up only when the ground is what
+// you are looking at. Standing at eye height staring at a strait, the content is
+// 10 to 80 km off and a 400 px drag moved it seven pixels, which is the one
+// setup where Maps' bindings do not work at all.
+//
+// So this opens where Maps opens: over the peninsula, tilted, close enough to
+// the ground that a drag takes hold of it.
+const MAP_RANGE_M = 1200;
+const MAP_TILT_DEG = 55;      // from straight down, so 35° above the ground
+function toMapView() {
+  nav.toOrbit();
+  const groundY = groundSample ? groundSample(ORIGIN.lat, ORIGIN.lon) : 0;
+  const tilt = (MAP_TILT_DEG * Math.PI) / 180;
+  // East of the house, so the water is beyond it and the view still faces west.
+  controls.target.set(0, groundY, 0);
+  camera.position.set(
+    MAP_RANGE_M * Math.sin(tilt),
+    groundY + MAP_RANGE_M * Math.cos(tilt),
+    0);
+  controls.update();
+}
+
 // A link someone was sent. Read once, at load, before the address bar starts
 // being rewritten. Malformed hashes come back null and the page opens as usual.
 const shared = readViewHash(location.hash);
@@ -441,7 +465,7 @@ function chooseMode(id) {
   }
   chooser.classList.add("hidden");
   if (id === "bluff") { toBluff(); return; }
-  if (id === "look") { nav.toOrbit(); return; }
+  if (id === "look") { toMapView(); return; }
   if (id === "boat") { nav.toggleBoat(BOAT_START); return; }
   const spec = vehicleById(id);
   if (spec) nav.enterVehicle(spec, avatars.get(id));

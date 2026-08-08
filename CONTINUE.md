@@ -216,6 +216,15 @@ zoom at whatever the pointer is over. One finger drags, two pinch and twist. Tha
 `MapControls` with `zoomToCursor`, not OrbitControls — the difference that matters is that a plain
 drag pans instead of orbiting.
 
+It opens where Maps opens: 1200 m out from the house, tilted 55° off straight down, looking at the
+ground obliquely from above. That is not decoration. The drag is a pan, which slides the camera over
+the ground, so the thing under your hand keeps up only when the ground is what you are looking at.
+At eye height staring across the strait it did not: the content was 10 to 80 km off, the whole upper
+half of the screen was sky with nothing to take hold of, and a 400 px drag moved the skyline seven
+pixels. From above, the same drag moves the ground between 279 and 485 px anywhere on the screen.
+
+Turning your head — camera still, view swinging — is a different thing and is not built.
+
 The readouts start off and the hamburger at the top left brings them back. At every width, not just
 on a phone: open, the four corner panels cover 21% of a 1280 x 800 screen and 60% of a phone, and
 this page is a window, so the window wins. The keys still work with the panels shut — `M`, `O`, `T`,
