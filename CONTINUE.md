@@ -217,11 +217,30 @@ zoom at whatever the pointer is over. One finger drags, two pinch and twist. Tha
 drag pans instead of orbiting.
 
 It opens where Maps opens: 1200 m out from the house, tilted 55° off straight down, looking at the
-ground obliquely from above. That is not decoration. The drag is a pan, which slides the camera over
-the ground, so the thing under your hand keeps up only when the ground is what you are looking at.
-At eye height staring across the strait it did not: the content was 10 to 80 km off, the whole upper
-half of the screen was sky with nothing to take hold of, and a 400 px drag moved the skyline seven
-pixels. From above, the same drag moves the ground between 279 and 485 px anywhere on the screen.
+ground obliquely from above. At eye height staring across the strait there was nothing a drag could
+take hold of — the content was 10 to 80 km off and the whole upper half of the screen was sky.
+
+The plain left drag is not OrbitControls'. It could not be. OrbitControls pans by
+`2 * targetDistance * tan(fov/2) / height` per pixel, so the only ground that keeps up with your
+hand is the ground at exactly the orbit target's distance; everything nearer runs ahead and
+everything further lags. Scaling `panSpeed` by the range to what you grabbed fixes a sideways drag
+exactly and still leaves an up-and-down one wrong by up to 89 px in 200, because a tilted camera
+foreshortens the ground along one axis and not the other and `panSpeed` is one number for both.
+
+So `main.js` takes the plain drag and does it properly: find the point on the ground under the
+cursor when the button goes down, then on every move slide camera and target together so that same
+point is under the cursor again. Camera and target move by the same vector, so the orbit is
+untouched and `controls.update()` is a no-op. The height never changes, which is what keeps it
+feeling like a map rather than like flying. Measured at 0 px of slip over 35 drags, every direction,
+every part of the screen, and 0 m of height drift.
+
+Two things it has to get right. The listener sits on the **window in the capture phase**, not on the
+canvas: OrbitControls is already listening on the canvas and registered first, and at the target
+phase listeners run in the order they were added regardless of the capture flag, so a second canvas
+listener cannot cut in front. And a drag that starts on the sky is left alone and falls through to
+the controls, because there is nothing out there to hold on to.
+
+Ctrl-drag, right-drag, the wheel and two fingers all still go to the controls untouched.
 
 Turning your head — camera still, view swinging — is a different thing and is not built.
 

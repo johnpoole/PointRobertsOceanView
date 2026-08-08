@@ -245,6 +245,97 @@ function tideLevel() {
   return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
 }
 
+// Whichever is higher under a point, the sea floor or the tide.
+function floorAt(x, z) {
+  if (!groundSample) return tideLevel();
+  const { lat, lon } = fromWorld(x, z);
+  return Math.max(groundSample(lat, lon), tideLevel());
+}
+
+// Dragging means the point you put the cursor on stays under the cursor for the
+// whole drag. OrbitControls cannot do that, and no setting on it can.
+//
+// Its pan moves the camera by 2 * targetDistance * tan(fov/2) / height per
+// pixel, so the only ground that keeps up with your hand is the ground at
+// exactly the orbit target's distance. Scaling that by the range to what you
+// grabbed fixes a sideways drag exactly and leaves an up-and-down one wrong by
+// up to 89 px in 200, because on a tilted camera the ground is foreshortened
+// along one axis and not the other, and panSpeed is one number for both.
+//
+// So the plain left drag is taken over here and done properly: work out the
+// point on the ground under the cursor when the button goes down, and then on
+// every move slide the camera so that same point is under the cursor again. The
+// height never changes, which is what keeps it feeling like a map and not like
+// flying. Everything else — ctrl-drag, right-drag, the wheel, two fingers — is
+// left to the controls untouched.
+const RANGE_MAX_M = 60000;
+
+// How far the thing under the pointer is, by marching the ray until it goes
+// under the ground or the water. The steps grow, so near ground is found finely
+// and the far strait cheaply. Null means the ray went to the sky.
+function rangeUnderPointer() {
+  raycaster.setFromCamera(pointer, camera);
+  const o = raycaster.ray.origin, d = raycaster.ray.direction;
+  let t = 2;
+  for (let i = 0; i < 700 && t < RANGE_MAX_M; i++) {
+    if (o.y + d.y * t <= floorAt(o.x + d.x * t, o.z + d.z * t)) return t;
+    t *= 1.02;
+  }
+  return null;
+}
+
+const grab = { active: false, point: new THREE.Vector3(), id: -1 };
+const grabRay = new THREE.Ray();
+const grabHit = new THREE.Vector3();
+const grabPlane = new THREE.Plane();
+const grabDelta = new THREE.Vector3();
+// A ray this close to level meets the ground plane far enough away that the
+// answer is noise, so the drag holds still rather than throwing the camera.
+const GRAZE = 0.02;
+
+function setPointerFrom(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  pointer.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+}
+
+function grabStart(e) {
+  if (nav.mode !== "orbit") return false;
+  if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return false;
+  setPointerFrom(e);
+  const range = rangeUnderPointer();
+  if (range == null) return false;        // sky: nothing to take hold of
+  raycaster.setFromCamera(pointer, camera);
+  grab.point.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, range);
+  grab.active = true;
+  grab.id = e.pointerId;
+  return true;
+}
+
+function grabMove(e) {
+  if (!grab.active || e.pointerId !== grab.id) return;
+  setPointerFrom(e);
+  raycaster.setFromCamera(pointer, camera);
+  grabRay.copy(raycaster.ray);
+  if (grabRay.direction.y > -GRAZE) return;   // pointing at or above the horizon
+  // Where the cursor now falls on the level plane the grabbed point sits in.
+  grabPlane.set(new THREE.Vector3(0, 1, 0), -grab.point.y);
+  if (!grabRay.intersectPlane(grabPlane, grabHit)) return;
+  // Slide camera and target together, so the orbit is unchanged and only the
+  // ground moves. The height is untouched.
+  grabDelta.subVectors(grab.point, grabHit);
+  grabDelta.y = 0;
+  camera.position.add(grabDelta);
+  controls.target.add(grabDelta);
+  controls.update();
+}
+
+function grabEnd(e) {
+  if (e.pointerId !== grab.id) return;
+  grab.active = false;
+  grab.id = -1;
+}
+
 // Hover picking: the vessel under the cursor shows a tooltip with its AIS data.
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -263,6 +354,28 @@ renderer.domElement.addEventListener("pointerleave", () => {
   pointerInside = false;
   tip.classList.add("hidden");
 });
+// Taking the plain drag off the controls has to happen before they see it, and
+// they are listening on the canvas itself and got there first. A listener on the
+// same element cannot cut in front of one already registered — at the target
+// phase they run in the order they were added, capture flag or not. So this sits
+// on the window in the capture phase, which runs on the way down, before the
+// canvas is reached at all.
+//
+// A modified drag, a right drag or a second finger is none of its business and
+// goes straight through to the controls.
+window.addEventListener("pointerdown", (e) => {
+  if (e.target !== renderer.domElement) return;
+  pointerInside = true;
+  if (e.pointerType === "touch" && grab.active) return;   // second finger: let go
+  if (!grabStart(e)) return;
+  e.stopImmediatePropagation();
+  renderer.domElement.setPointerCapture(e.pointerId);
+}, true);
+// Move and release are watched on the window so a drag that leaves the canvas
+// still tracks and still ends.
+window.addEventListener("pointermove", grabMove, true);
+window.addEventListener("pointerup", grabEnd, true);
+window.addEventListener("pointercancel", grabEnd, true);
 
 function updateHover() {
   if (!pointerInside) return;
