@@ -139,6 +139,25 @@ KNOT_MPS = 0.514444
 # the client interpolates between polls.
 ADSB_URL = "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{nm}"
 ADSB_RADIUS_NM = 30
+# ---- border crossings -------------------------------------------------------
+#
+# Point Roberts can only be reached by driving through Canada, so its trade is
+# Canadians coming down for fuel, parcels, the marina and a meal. Every one of
+# them is counted at the booth. That makes the crossing count the closest thing
+# to a measure of what the place is doing.
+#
+# US Customs hands the counts to the Bureau of Transportation Statistics about
+# once a quarter and BTS publishes them by port and by month, back to 1994. So
+# this is monthly and runs a month or two behind. It is not live and must never
+# be dressed as live: the month it belongs to travels with it.
+#
+# Nothing on the page shows it yet.
+CROSSINGS_URL = "https://data.bts.gov/resource/keg4-3bc2.json"
+CROSSINGS_PORT_CODE = "3017"          # Point Roberts, Washington
+CROSSINGS_MONTHS = 24
+# A figure that changes four times a year does not want asking for more often.
+CROSSINGS_POLL_SECONDS = 6 * 3600
+
 AIRCRAFT_POLL_SECONDS = 6.0
 FT_TO_M = 0.3048
 
@@ -217,6 +236,8 @@ class World:
         self.tide_time: datetime | None = None
         self.current: dict | None = None
         self.current_time: datetime | None = None
+        self.crossings: dict | None = None
+        self.crossings_time: datetime | None = None
         # Why vessels are offline, in the monitor's words. Empty when they are not.
         self.vessels_note = ""
         self.health = {
@@ -225,6 +246,7 @@ class World:
             "currents": "offline",
             "vessels": "offline",
             "aircraft": "offline",
+            "crossings": "offline",
         }
 
 
@@ -370,6 +392,13 @@ def snapshot() -> dict:
                  world.current, None)
         if world.current else None
     )
+    # Monthly, and a month or two behind, so it carries the month it belongs to
+    # rather than an age in seconds. Nothing on the page draws it yet.
+    crossings = (
+        envelope("crossings.state", "bts.gov (US CBP)", world.crossings_time,
+                 world.crossings, None)
+        if world.crossings else None
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "message_type": "initial.snapshot",
@@ -380,6 +409,7 @@ def snapshot() -> dict:
             "weather": weather,
             "tide": tide,
             "current": current,
+            "crossings": crossings,
             "vessels": vessels,
             "aircraft": [
                 envelope("aircraft.state", "adsb.lol",
@@ -1000,6 +1030,92 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
     }
 
 
+# BTS publishes one row per port, month and measure. Fold them into a month.
+CROSSING_MEASURES = {
+    "Personal Vehicles": "personal_vehicles",
+    "Personal Vehicle Passengers": "personal_vehicle_passengers",
+    "Trucks": "trucks",
+    "Truck Containers Full": "truck_containers_full",
+    "Truck Containers Empty": "truck_containers_empty",
+    "Buses": "buses",
+    "Bus Passengers": "bus_passengers",
+    "Pedestrians": "pedestrians",
+}
+
+
+async def fetch_crossings(client: httpx.AsyncClient) -> dict:
+    rows = await client.get(CROSSINGS_URL, params={
+        "$where": f"port_code='{CROSSINGS_PORT_CODE}'",
+        "$order": "date DESC",
+        # Eight measures a month, so ask for enough rows to fill the months.
+        "$limit": CROSSINGS_MONTHS * len(CROSSING_MEASURES),
+    })
+    rows.raise_for_status()
+    data = rows.json()
+    if not data:
+        raise RuntimeError(
+            f"BTS returned no rows for port_code {CROSSINGS_PORT_CODE}. Either the "
+            f"port code has changed or the dataset behind {CROSSINGS_URL} has "
+            "moved; check https://www.bts.gov/border-crossing-entry-data.")
+
+    months: dict[str, dict] = {}
+    for row in data:
+        month = row["date"][:7]
+        key = CROSSING_MEASURES.get(row.get("measure"))
+        if key is None:
+            continue                        # a measure this port does not carry
+        months.setdefault(month, {"month": month})[key] = int(row["value"])
+    if not months:
+        raise RuntimeError(
+            "BTS rows carried no measure this understands. Their names are in "
+            f"CROSSING_MEASURES; the rows said {sorted({r.get('measure') for r in data})}.")
+
+    # This port does not file every measure every month, so the row budget
+    # stretches further than the months asked for. Cut it back to what was asked.
+    ordered = [months[m] for m in sorted(months, reverse=True)][:CROSSINGS_MONTHS]
+    latest = ordered[0]
+    # The month is the reading's own date. It is a month or two behind today and
+    # saying so is the point of carrying it.
+    when = datetime.strptime(latest["month"], "%Y-%m").replace(tzinfo=timezone.utc)
+    return {
+        "state": {
+            "port_name": data[0].get("port_name"),
+            "port_code": CROSSINGS_PORT_CODE,
+            "border": data[0].get("border"),
+            "month": latest["month"],
+            **{k: latest.get(k) for k in CROSSING_MEASURES.values()},
+            "recent_months": ordered,
+        },
+        "time": when,
+    }
+
+
+async def crossings_task() -> None:
+    async with httpx.AsyncClient(timeout=60) as client:
+        while True:
+            ok = False
+            try:
+                result = await fetch_crossings(client)
+                world.crossings = result["state"]
+                world.crossings_time = result["time"]
+                world.health["crossings"] = "live"
+                await clients.broadcast(envelope(
+                    "crossings.state", "bts.gov (US CBP)",
+                    world.crossings_time, world.crossings, None))
+                log.info("Crossings %s: %s personal vehicles, %s passengers, "
+                         "%s trucks, %s on foot",
+                         world.crossings["month"],
+                         world.crossings["personal_vehicles"],
+                         world.crossings["personal_vehicle_passengers"],
+                         world.crossings["trucks"],
+                         world.crossings["pedestrians"])
+                ok = True
+            except Exception as exc:
+                world.health["crossings"] = "offline"
+                log.error("Border crossings fetch failed: %s", exc)
+            await asyncio.sleep(CROSSINGS_POLL_SECONDS if ok else RETRY_SECONDS)
+
+
 async def weather_task() -> None:
     async with httpx.AsyncClient(timeout=30) as client:
         while True:
@@ -1194,6 +1310,7 @@ async def startup() -> None:
                              (current_task(), "current", "currents"),
                              (aircraft_task(), "aircraft", "aircraft"),
                              (weather_task(), "weather", "weather"),
+                             (crossings_task(), "crossings", "crossings"),
                              (heartbeat_task(), "heartbeat", None)):
         _tasks.append(_spawn(coro, name, feed))
 

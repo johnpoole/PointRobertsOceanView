@@ -78,6 +78,7 @@ assets/                    everything baked. Do not edit by hand.
 | aircraft | adsb.lol, 30 nm, no key | live |
 | vessels | shipfinder.com, scraped | live, labelled scraped |
 | vessels | AISStream | dead, see issue #1 |
+| crossings | BTS, from US CBP | live, monthly, nothing drawn from it yet |
 
 The tidal stream is PUG1726, 4.5 nm southwest of the point, 8.1 km off the bluff. Bin 35 is
 9.4 m down and the shallowest of the three the station publishes, so it is the one a boat is in;
@@ -174,6 +175,23 @@ The lamp stands on the tower rather than at the published focal height of 9 m. T
 above mean high water and everything on this page is metres above MLLW, so driving the lamp from it
 buried the light two metres inside the steelwork. On the tower it comes out at 10.6 m on our datum,
 which agrees with the published figure to inside the tide range.
+
+## Border crossings
+
+Point Roberts can only be reached by driving through Canada, so its trade is Canadians coming down
+for fuel, parcels, the marina and a meal, and every one of them is counted at the booth. That makes
+the crossing count the closest thing there is to a measure of what the place is doing.
+
+US Customs hands the counts to the Bureau of Transportation Statistics about once a quarter and BTS
+publishes them by port and by month, back to 1994. Point Roberts is port code 3017. The proxy holds
+the last 24 months and re-asks every six hours, which is often enough for a figure that changes four
+times a year.
+
+It is monthly and runs a month or two behind, so it carries the month it belongs to rather than an
+age in seconds, and it must never be dressed as live. June 2026 was 51,928 personal vehicles, 73,771
+people in them, 677 trucks and 561 on foot; March was 42,400 vehicles, so the season is in it.
+
+Nothing on the page draws it. It goes out on the socket and stops there.
 
 ## The colour of the water
 
