@@ -12,6 +12,10 @@
 //   white window frames, a long band of them facing the water on both floors
 //   an upper deck on posts with a dark wire-mesh rail in a timber frame
 //   a lower deck under it with horizontal timber rails, and lattice below that
+//   both decks turning the south-west corner and running back along the south
+//     face, the top one 3 ft out and the lower one 12 ft at the sea end and
+//     closing to 3 ft where the bank comes up level with it
+//   a concrete stair up the bank south of that deck, timber handrail both sides
 //   a timber stair down the north side to the beach
 //
 // What the ground settles, and it is the whole reason the packet exists: the
@@ -49,6 +53,27 @@ const RAIL_H = 1.05;
 const POST = 0.16;
 const GROUND_UNDER_DECK = 5.6;
 
+// The south side. The top deck returns 3 ft. The one under it is not a
+// rectangle: it runs 12 ft out at the sea end and closes to 3 ft where the bank
+// comes up level with the boards.
+const UPPER_SOUTH_OUT = 0.91;
+const SOUTH_OUT_WEST = 3.66;
+const SOUTH_OUT_EAST = 0.91;
+const SOUTH_END = 1.4;              // where the ground reaches the deck top
+const GROUND_AT_SOUTH_WEST = 4.46;  // the terrain under the two ends of that edge
+const GROUND_AT_SOUTH_END = 8.35;
+
+// The concrete stair up the bank, south of that deck. Its pitch is the pitch of
+// the ground it runs on: 6.62 m at the foot and 9.83 m at the head, off the
+// terrain bake. Anything steeper leaves the top of it standing in the air.
+const STAIR_V = 6.5;         // clear of the deck, which rakes in past this line
+const STAIR_W = 1.15;
+const RISER = 0.18;
+const GOING = 0.30;
+const STEPS = 18;
+const STAIR_BASE = 6.62;     // the ground it starts off, beside the door
+const STAIR_U0 = -1.2;       // and it climbs east, behind the house, not across it
+
 const SEAM_SPACING = 0.55;   // standing seam, near enough off the roof photograph
 const CHIMNEY_W = 0.85;
 const CHIMNEY_TOP = 17.4;
@@ -69,12 +94,36 @@ const DECK_TIMBER = 0x9c8a72;   // weathered cedar, greyed off
 const RAIL_MESH = 0x3d4348;
 const POST_COLOR = 0x2f4a44;  // the green-teal posts under the deck
 const LATTICE = 0x353c41;   // dark, but off black: it is a screen, not a hole
+const CONCRETE = 0x8d8b84;  // the stair treads and the wall they run against
 
 // Turn a part from the cabin's own frame into the world.
 function place(parts, geom) {
   geom.rotateY(YAW);
   geom.translate(AT.x, 0, AT.z);
   parts.push(geom);
+}
+
+// A flat slab of any plan shape, standing on y and thick by t. Corners are
+// [x, z] in the cabin's frame, in order round the outline. Wanted because the
+// lower south deck is a trapezoid and box() only makes rectangles.
+function slab(corners, y, t, color) {
+  const pos = [];
+  const tri = (a, b, c) => pos.push(...a, ...b, ...c);
+  const top = corners.map(([x, z]) => [x, y + t, z]);
+  const bot = corners.map(([x, z]) => [x, y, z]);
+  for (let k = 1; k + 1 < corners.length; k++) {
+    tri(top[0], top[k], top[k + 1]);
+    tri(bot[0], bot[k + 1], bot[k]);
+  }
+  for (let k = 0; k < corners.length; k++) {
+    const j = (k + 1) % corners.length;
+    tri(bot[k], bot[j], top[j]);
+    tri(bot[k], top[j], top[k]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.computeVertexNormals();
+  return tint(g, color);
 }
 
 export function buildCabin(scene, sample) {
@@ -156,7 +205,15 @@ export function buildCabin(scene, sample) {
   };
   railRun(-hw - DECK_OUT, 0, 0.1, L);
   railRun(dx, -hl, DECK_OUT, 0.1);
-  railRun(dx, hl, DECK_OUT, 0.1);
+
+  // And it returns 3 ft along the south face, the whole width of the building.
+  const usx0 = -hw - DECK_OUT, usw = hw - usx0, uscx = usx0 + usw / 2;
+  const usv = hl + UPPER_SOUTH_OUT;
+  place(parts, box(usw, UPPER_SOUTH_OUT, 0.14, uscx, UPPER_FLOOR - 0.14,
+                   hl + UPPER_SOUTH_OUT / 2, DECK_TIMBER));
+  railRun(uscx, usv, usw, 0.1);
+  railRun(usx0, hl + UPPER_SOUTH_OUT / 2, 0.1, UPPER_SOUTH_OUT);
+  railRun(hw, hl + UPPER_SOUTH_OUT / 2, 0.1, UPPER_SOUTH_OUT);
 
   // The lower deck, its horizontal timber rails on posts, and the lattice screen
   // closing the space under it.
@@ -182,6 +239,82 @@ export function buildCabin(scene, sample) {
   }
   place(parts, box(0.18, L, 0.12, -hw - LOWER_DECK_OUT,
                    GROUND_UNDER_DECK + skirtH - 0.12, 0, DECK_TIMBER));
+
+  // The deck turns the south-west corner and runs back along the south face,
+  // wide at the sea end and closing to nothing much where the bank comes up.
+  // Same boards, same three rails. No rail at the east end, because there you
+  // step off onto the ground.
+  const sx0 = -hw - LOWER_DECK_OUT;
+  const sv0 = hl + SOUTH_OUT_WEST, sv1 = hl + SOUTH_OUT_EAST;
+  place(parts, slab([[sx0, hl], [SOUTH_END, hl], [SOUTH_END, sv1], [sx0, sv0]],
+                    LOWER_FLOOR - 0.14, 0.14, DECK_TIMBER));
+
+  // Everything on that outer edge is raked to it. A bar is laid along x and
+  // turned in plan before place() turns the whole cabin into the world.
+  const du = SOUTH_END - sx0, dv = sv1 - sv0;
+  const edge = Math.hypot(du, dv);
+  const turn = Math.atan2(-dv, du);
+  const onEdge = (w, h, t, f, y, color) => {
+    const g = new THREE.BoxGeometry(w, h, t);
+    g.rotateY(turn);
+    g.translate(sx0 + f * du, y + h / 2, sv0 + f * dv);
+    place(parts, tint(g, color));
+  };
+  for (let k = 0; k < 3; k++) {
+    const y = LOWER_FLOOR + 0.32 + k * 0.34;
+    onEdge(edge, 0.09, 0.09, 0.5, y, DECK_TIMBER);
+    place(parts, box(0.09, SOUTH_OUT_WEST, 0.09, sx0, y,
+                     hl + SOUTH_OUT_WEST / 2, DECK_TIMBER));
+  }
+  for (let k = 0; k <= 6; k++) {
+    const f = k / 6;
+    place(parts, box(0.11, 0.11, RAIL_H, sx0 + f * du, LOWER_FLOOR,
+                     sv0 + f * dv, DECK_TIMBER));
+  }
+  // Under it the same lattice screen, in panels that shorten as the ground
+  // climbs. Each panel starts a little under grade, because a panel that stops
+  // short of the ground is a hole and a panel buried in it is nothing at all.
+  const grade = (f) => GROUND_AT_SOUTH_WEST - 0.3 +
+                       f * (GROUND_AT_SOUTH_END - GROUND_AT_SOUTH_WEST);
+  const PANELS = 6;
+  for (let k = 0; k < PANELS; k++) {
+    const f = (k + 0.5) / PANELS, gm = grade(f);
+    onEdge(edge / PANELS, LOWER_FLOOR - 0.14 - gm, 0.1, f, gm, LATTICE);
+    const fp = k / PANELS, gp = grade(fp);
+    place(parts, box(0.16, 0.16, LOWER_FLOOR - 0.14 - gp,
+                     sx0 + fp * du, gp, sv0 + fp * dv, DECK_TIMBER));
+  }
+
+  // The concrete stair up the bank, clear of the deck to the south, climbing
+  // from the ground beside the door to the top of the bank. Drawn as a stepped
+  // solid rather than floating slabs, because that is what concrete does.
+  const stv = STAIR_V;
+  for (let k = 0; k < STEPS; k++) {
+    const y = STAIR_BASE + (k + 1) * RISER;
+    place(parts, box(GOING, STAIR_W, RISER + 0.35, STAIR_U0 + k * GOING,
+                     y - RISER - 0.35, stv, CONCRETE));
+  }
+  // Handrail both sides. The bar is laid flat and raked to the pitch before
+  // place() turns it into the world with everything else.
+  const rake = Math.atan2(RISER, GOING);
+  const raked = (v, y0, dy) => {
+    const g = new THREE.BoxGeometry(Math.hypot(STEPS * GOING, STEPS * RISER),
+                                    0.09, 0.09);
+    g.rotateZ(rake);
+    g.translate(STAIR_U0 + (STEPS * GOING) / 2,
+                y0 + dy + (STEPS * RISER) / 2, v);
+    place(parts, tint(g, DECK_TIMBER));
+  };
+  for (const s of [-1, 1]) {
+    const v = stv + s * (STAIR_W / 2);
+    const y0 = STAIR_BASE + RISER + RAIL_H;
+    raked(v, y0, 0);
+    raked(v, y0, -RAIL_H * 0.45);
+    for (let k = 1; k < STEPS; k += 5) {
+      place(parts, box(0.1, 0.1, RAIL_H, STAIR_U0 + k * GOING,
+                       STAIR_BASE + (k + 1) * RISER, v, DECK_TIMBER));
+    }
+  }
 
   // The stair down the north side.
   for (let k = 0; k < 9; k++) {
