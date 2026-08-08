@@ -19,6 +19,7 @@ import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCabin } from "./scene/cabin.js";
+import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
@@ -131,6 +132,7 @@ let brademy = null;      // the proposed courts. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
+let lighthouse = null;   // the light on the point, and its flash
 buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
   .then((near) => {
     groundSample = near.sample;
@@ -148,12 +150,10 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
     // The cabin is modelled off photographs rather than extruded from its OSM
     // trace, so land.js leaves the home alone and cabin.js puts it there.
     buildCabin(scene, near.sample);
+    lighthouse = buildLighthouse(scene, near.sample);
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.
     drift = buildDrift(scene, { seaAt: nav.seaAt });
-    // Whales ride the same surface, and the same sampler keeps them off the
-    // shallows.
-    orcas = buildOrcas(scene, { seaAt: nav.seaAt });
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
@@ -162,6 +162,13 @@ buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER })
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
+      // The whales run the west shore, so they need the coastline, which only
+      // exists once the land has been built. They ride the same surface the boat
+      // floats on, and the same sampler is what tells them which side is the sea.
+      orcas = buildOrcas(scene, {
+        seaAt: nav.seaAt,
+        coastline: land.features.coastline,
+      });
       // What a shared link asked for, now that there is something to switch on.
       // Set directly rather than through the toggles: toggleBrademy re-aims the
       // camera, which would throw away the view the link carried.
@@ -541,7 +548,10 @@ function frame() {
   const level = tideLevel();
   ocean.setLevel(level);
   ocean.update(t);
-  vessels.update(feed, level, t, camera);
+  // Ships light up as the sun goes down, and so does the point.
+  const night = 1 - weather.dayFactor;
+  vessels.update(feed, level, t, camera, night);
+  if (lighthouse) lighthouse.update(t, night);
   aircraft.update(feed, t, camera);
   updateHover();
   weather.update(dt, camera);

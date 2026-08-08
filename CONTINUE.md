@@ -62,7 +62,9 @@ src/scene/brademy.js       the tennis courts, off unless asked for, and the hedg
 src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
 src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
 src/scene/drift.js         kelp, sticks and foam on the water, so the current can be seen
-src/scene/orcas.js         a group passing, at the rate the month says. Not a feed.
+src/scene/orcas.js         a group running the west shore, at the rate the month says. Not a feed.
+src/scene/lights.js        points that hold their size in pixels, for lights seen a long way off
+src/scene/lighthouse.js    Point Roberts Light on the point, and its two flashes
 assets/                    everything baked. Do not edit by hand.
 ```
 
@@ -110,12 +112,55 @@ December then November then January. The other nine months are fitted to those a
 thing in the file. Bigg's and not the Southern Residents because Bigg's are what passes now: the
 residents were absent from the whole Salish Sea in May, June and August of 2025.
 
+They run the west shore, from the north end of the peninsula down and round the point, holding
+between 500 m and 3 km off the beach. The shore comes out of the baked coastline rather than being
+typed in: the dozen OSM ways are joined end to end into one chain, walked at 50 m, and kept while
+the sea lies to the west. Which side is the sea is not taken from the winding of the trace — each
+point asks the sea sampler how deep it is 150 m to either side and believes the deeper one. It has
+to be the deeper one by half a metre, because north of the bluff the beach shelves so gently that
+there is only a metre of water 150 m out, and a rule that wanted deep water there threw away half
+the coast and left the whales in a 2 km stub off the house.
+
+A group's whole run is checked for water before it is placed, not just the spot it starts on. A
+fixed distance off a coast that bends cuts the corner, and a group that starts on a corner swims up
+the beach for the next half hour.
+
+It was a box centred on the house before this, four kilometres of it, and it was wrong. Lighthouse
+Marine Park is where people actually stand to watch for whales and it is 1.8 km south of the house,
+so the box put most of the water off to the north of anyone standing there.
+
 `LOCAL_SHARE` is an assumption and nothing else. It is the share of Salish Sea groups that come
-within sight of this bluff, set at 0.03 because the sightings pile up in Haro Strait and the San
-Juans and Point Roberts sits on the edge of that. Nobody has measured it.
+along this shore, set at 0.03 because the sightings pile up in Haro Strait and the San Juans and
+Point Roberts sits on the edge of that. Nobody has measured it.
 
 `RATE_MULTIPLIER` is at 25000 so the whales can be looked at. At 1 a group passes about once every
 four days in August and you would never see one in a sitting. Put it back to 1.
+
+## After dark
+
+A light seen at three kilometres is a point, and it is the same size on the screen whether the lamp
+is a metre across or ten, because what you are looking at is the eye's own blur. So the lights are
+points with their size held in pixels rather than in metres, and they add to what is behind them
+instead of covering it. `src/scene/lights.js` is that and nothing else. They come up on `1 -
+weather.dayFactor`, which is the sun's elevation, so they light at dusk and not at a clock time.
+
+Ships carry the masthead, the two sidelights and the stern light, and then the lights somebody left
+on, which is most of what you actually see. A ferry gets 86 of them and a bulker 17, which is the
+whole reason the Tsawwassen boats are the thing you can pick out of a dark strait from the bluff. A
+vessel whose position has gone stale burns at a quarter, because a track that is not trusted should
+not sit out there looking like a ship with its lights on.
+
+Point Roberts Light is on the point at Lighthouse Marine Park. There is no lighthouse: the
+government bought the land for a light station in 1908 and never built the tower, so what stands
+there is a skeleton tower about 25 ft high. It shows two flashes half a second apart every five
+seconds. John timed that from the point. The published light list says fifteen seconds and the
+disagreement is recorded in the file, because a number read off the water beats a number copied out
+of a table.
+
+The lamp stands on the tower rather than at the published focal height of 9 m. That 9 m is measured
+above mean high water and everything on this page is metres above MLLW, so driving the lamp from it
+buried the light two metres inside the steelwork. On the tower it comes out at 10.6 m on our datum,
+which agrees with the published figure to inside the tide range.
 
 ## The datum, which everything depends on
 

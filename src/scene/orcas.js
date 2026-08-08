@@ -26,23 +26,40 @@
 
 import * as THREE from "three";
 
+import { toWorld } from "../geo.js";
+
 // Unique Bigg's killer whale sightings in the Salish Sea by month, 2025.
 const SALISH_2025 = [82, 96, 160, 170, 205, 230, 195, 210, 190, 170, 78, 74];
 const DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-// Assumed share of those groups that pass within sight of the West Bluff.
+// Assumed share of those groups that come along this shore.
 const LOCAL_SHARE = 0.03;
 
 // Turn this down to 1. Anything above it puts the whales on the water far more
 // often than they are there.
 const RATE_MULTIPLIER = 25000;
 
-// The water they are drawn in: west of the house, out to three kilometres, and
-// as far north and south as a group is still worth more than a few pixels.
+// They run the west shore, from the border down and round the point, at this
+// distance off the beach. Measured from the shoreline and not from the house,
+// because whales work a coast and the house is not the middle of it. Lighthouse
+// Marine Park is the place people actually stand to watch them and it is 1.8 km
+// south of the house, so a box centred on the house put most of the water they
+// were in off to the north of anyone standing at the park.
 const OFFSHORE_M = [500, 3000];
-const CORRIDOR_Z = 2000;
-const LEAVE_Z = 2600;
 const MIN_DEPTH_M = 8;
+// The shore is walked at this spacing, which also smooths the tangent enough
+// that the seaward normal does not jitter around a wiggle in the trace.
+const SHORE_STEP_M = 50;
+// How far to either side the water is looked for when deciding which way is out.
+const SEAWARD_PROBE_M = 150;
+// The probe decides by which side is deeper, so what matters is that the two
+// sides differ, not that either is deep. The west shore north of the bluff
+// shelves so gently that there is only a metre or two of water 150 m out, and a
+// rule that wanted deep water there threw away half the coast.
+const PROBE_MARGIN_M = 0.5;
+// A stretch this long facing the wrong way ends the shore. Anything shorter is
+// a wiggle in the trace or a bar, and is crossed rather than stopped at.
+const TURN_M = 600;
 
 // Travelling speed. Bigg's on the move make six to ten kilometres an hour.
 const SPEED_MPS = [1.7, 2.8];
@@ -264,6 +281,125 @@ function whaleGeometry(len, male) {
   return g;
 }
 
+// The OSM coastline arrives as a dozen separate ways. Join the ones whose ends
+// meet into runs, and hand back the longest, which is the whole peninsula.
+function longestChain(ways) {
+  const key = (p) => `${Math.round(p.x)},${Math.round(p.z)}`;
+  const left = ways.filter((w) => w.length > 1);
+  const chains = [];
+  while (left.length) {
+    const chain = left.pop().slice();
+    let joined = true;
+    while (joined) {
+      joined = false;
+      for (let i = 0; i < left.length; i++) {
+        const w = left[i];
+        if (key(w[0]) === key(chain[chain.length - 1])) {
+          chain.push(...w.slice(1));
+        } else if (key(w[w.length - 1]) === key(chain[0])) {
+          chain.unshift(...w.slice(0, -1));
+        } else if (key(w[w.length - 1]) === key(chain[chain.length - 1])) {
+          chain.push(...w.slice(0, -1).reverse());
+        } else if (key(w[0]) === key(chain[0])) {
+          chain.unshift(...w.slice(1).reverse());
+        } else {
+          continue;
+        }
+        left.splice(i, 1);
+        joined = true;
+        break;
+      }
+    }
+    chains.push(chain);
+  }
+  const run = (c) => {
+    let d = 0;
+    for (let i = 1; i < c.length; i++) d += Math.hypot(c[i].x - c[i - 1].x, c[i].z - c[i - 1].z);
+    return d;
+  };
+  return chains.reduce((a, b) => (run(b) > run(a) ? b : a));
+}
+
+// Walk a polyline at an even spacing so the tangent stops jittering on the
+// short segments an OSM trace is full of.
+function resample(chain, step) {
+  const out = [chain[0]];
+  let carry = 0;
+  for (let i = 1; i < chain.length; i++) {
+    const a = chain[i - 1], b = chain[i];
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    if (d < 1e-6) continue;
+    let t = step - carry;
+    while (t <= d) {
+      out.push({ x: a.x + (b.x - a.x) * (t / d), z: a.z + (b.z - a.z) * (t / d) });
+      t += step;
+    }
+    carry = (carry + d) % step;
+  }
+  return out;
+}
+
+// The stretch of shore the whales run: from the north end of the peninsula down
+// the west side and round the point, stopping where the coast has turned back up
+// the east side into Boundary Bay. Which way is out to sea is not assumed from
+// the winding of the trace — it is found by asking the sea sampler which side
+// has water under it.
+function westShore(coastline, seaAt) {
+  const ways = coastline.map((w) => w.coords.map(([lat, lon]) => {
+    const p = toWorld(lat, lon);
+    return { x: p.x, z: p.z };
+  }));
+  const chain = resample(longestChain(ways), SHORE_STEP_M);
+  // The chain runs down one side of the peninsula and back up the other, so both
+  // its ends are at the north. Start from the western one.
+  if (chain[0].x > chain[chain.length - 1].x) chain.reverse();
+
+  const track = [];
+  let gap = 0;
+  for (let i = 0; i < chain.length; i++) {
+    const a = chain[Math.max(0, i - 1)];
+    const b = chain[Math.min(chain.length - 1, i + 1)];
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (len < 1e-6) continue;
+    const tx = (b.x - a.x) / len, tz = (b.z - a.z) / len;
+    // Both perpendiculars. The seaward one is whichever has deeper water on it,
+    // unless neither has water worth the name, in which case this point is not
+    // evidence of anything.
+    const p = chain[i];
+    const left = seaAt(p.x - tz * SEAWARD_PROBE_M, p.z + tx * SEAWARD_PROBE_M);
+    const right = seaAt(p.x + tz * SEAWARD_PROBE_M, p.z - tx * SEAWARD_PROBE_M);
+    const outLeft = left.depth > right.depth;
+    const nx = outLeft ? -tz : tz;
+    const nz = outLeft ? tx : -tx;
+    // West shore: out to sea points west. Round the point the normal swings to
+    // the south and this ends, which is as far as the whales are run.
+    const known = Math.abs(left.depth - right.depth) >= PROBE_MARGIN_M;
+    const facing = known && nx < 0;
+
+    if (!facing) {
+      if (!track.length) continue;      // not started yet, keep looking
+      gap += SHORE_STEP_M;
+      if (gap > TURN_M) break;          // the coast has turned, done
+    } else {
+      gap = 0;
+    }
+    const prev = track[track.length - 1];
+    const s = prev ? prev.s + Math.hypot(p.x - prev.x, p.z - prev.z) : 0;
+    track.push({ x: p.x, z: p.z, tx, tz, nx, nz, s });
+  }
+  // Whatever wrong-facing tail was crossed before the run ended is not shore.
+  while (track.length && gap > 0) { track.pop(); gap -= SHORE_STEP_M; }
+
+  if (track.length < 20) {
+    throw new Error(
+      `buildOrcas: found only ${track.length} points of open-water shore in the ` +
+      "baked coastline, so there is nowhere to run the whales. Check that " +
+      "assets/osm/features.json still carries the coastline ways and that the " +
+      "near terrain has loaded, since which side is the sea is decided by depth.");
+  }
+  return track;
+}
+
 // A Bigg's group: a mother, her offspring, and about a third of the time a grown
 // son travelling with them.
 function groupMembers() {
@@ -278,7 +414,8 @@ function groupMembers() {
   return lens.map((len, i) => ({ len, male: male[i] }));
 }
 
-// opts: seaAt(x,z) -> { y, dx, dz, depth, aground }, the same one the boat floats on.
+// opts: seaAt(x,z) -> { y, dx, dz, depth, aground }, the same one the boat floats
+// on, and coastline, the ways off the baked OSM features.
 export function buildOrcas(scene, opts = {}) {
   const seaAt = opts.seaAt;
   if (!seaAt) {
@@ -286,6 +423,21 @@ export function buildOrcas(scene, opts = {}) {
       "buildOrcas: no seaAt was given, so there is no water surface to put a " +
       "whale on. Build it inside the near-terrain promise in main.js, the way " +
       "buildDrift is.");
+  }
+  if (!opts.coastline || !opts.coastline.length) {
+    throw new Error(
+      "buildOrcas: no coastline was given, so there is no shore to run the " +
+      "whales along. Pass features.coastline from the buildLand result in " +
+      "main.js.");
+  }
+  const shore = westShore(opts.coastline, seaAt);
+  const shoreLength = shore[shore.length - 1].s;
+
+  // Where along the shore a distance falls, and which way the coast runs there.
+  function at(s) {
+    const i = Math.min(shore.length - 1,
+                       Math.max(0, Math.round(s / SHORE_STEP_M)));
+    return shore[i];
   }
 
   const group = new THREE.Group();
@@ -309,22 +461,30 @@ export function buildOrcas(scene, opts = {}) {
   const euler = new THREE.Euler(0, 0, 0, "YXZ");
 
   function spawn() {
-    // Somewhere in the corridor, on a heading up or down the strait, and under
-    // water: every whale starts its first breath from below, so none of them
-    // appears out of nothing on the surface.
-    const heading = (Math.random() < 0.5 ? 0 : Math.PI) + rand(-0.35, 0.35);
-    let x = 0, z = 0, placed = false;
-    for (let tries = 0; tries < 20; tries++) {
-      x = -rand(OFFSHORE_M[0], OFFSHORE_M[1]);
-      z = rand(-CORRIDOR_Z, CORRIDOR_Z);
-      const s = seaAt(x, z);
-      if (!s.aground && s.depth > MIN_DEPTH_M) { placed = true; break; }
+    // Somewhere along the shore, that far out from it, running up or down the
+    // coast, and under water: every whale starts its first breath from below, so
+    // none of them appears out of nothing on the surface.
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    let off = 0, s = 0, placed = false;
+    for (let tries = 0; tries < 30 && !placed; tries++) {
+      off = rand(OFFSHORE_M[0], OFFSHORE_M[1]);
+      s = rand(0, shoreLength);
+      // The whole run from here to the end of the shore has to be water, not
+      // just the spot it starts on. A fixed distance off a coast that bends can
+      // cut a corner and put a whale on the beach, and one that does would swim
+      // up it for the next half hour.
+      placed = true;
+      for (let t = s; dir > 0 ? t <= shoreLength : t >= 0; t += dir * SHORE_STEP_M) {
+        const p = at(t);
+        const w = seaAt(p.x + p.nx * off, p.z + p.nz * off);
+        if (w.aground || w.depth < MIN_DEPTH_M) { placed = false; break; }
+      }
     }
     if (!placed) return;
 
     const members = groupMembers();
     const pod = {
-      x, z, heading,
+      s, dir, off,
       speed: rand(SPEED_MPS[0], SPEED_MPS[1]),
       animals: members.map((m, i) => {
         const mesh = new THREE.Mesh(whaleGeometry(m.len, m.male), skin);
@@ -373,16 +533,19 @@ export function buildOrcas(scene, opts = {}) {
 
       for (let p = pods.length - 1; p >= 0; p--) {
         const pod = pods[p];
-        // Heading is a compass bearing: north is -Z, east is +X.
-        const hx = Math.sin(pod.heading), hz = -Math.cos(pod.heading);
-        pod.x += hx * pod.speed * dt;
-        pod.z += hz * pod.speed * dt;
-        if (Math.abs(pod.z) > LEAVE_Z
-            || pod.x > -OFFSHORE_M[0] * 0.5 || pod.x < -OFFSHORE_M[1] * 1.4) {
+        // Along the coast, holding its distance off the beach.
+        pod.s += pod.dir * pod.speed * dt;
+        if (pod.s < 0 || pod.s > shoreLength) {
           retire(pod);
           pods.splice(p, 1);
           continue;
         }
+        const here = at(pod.s);
+        pod.x = here.x + here.nx * pod.off;
+        pod.z = here.z + here.nz * pod.off;
+        // Heading runs with the coast, or against it.
+        const hx = here.tx * pod.dir, hz = here.tz * pod.dir;
+        pod.heading = Math.atan2(hx, -hz);
 
         for (const a of pod.animals) {
           // Breathing. A series of short surfacings, then a long dive.

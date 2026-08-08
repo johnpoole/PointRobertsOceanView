@@ -10,8 +10,25 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
+import { buildLamps, setLampLevel } from "./lights.js";
 
 const DEFAULT = { length: 30, beam: 8 };
+
+// Lights. A ship at night is a handful of points on black, and a ferry is a
+// great deal more of them than a freighter is — that is the whole of why you can
+// pick the Tsawwassen boats out of the strait from the bluff and cannot always
+// pick out a bulker on the same water.
+//
+// Sizes are in pixels. The sidelights and the masthead are the ones the Rules
+// care about; the rest is somebody having left the lights on, which is most of
+// what you actually see.
+const LAMP = {
+  masthead: { color: 0xfff6e2, size: 7 },
+  side: { port: 0xff3b30, starboard: 0x2fd45e, size: 5 },
+  stern: { color: 0xfff6e2, size: 5 },
+  deck: { color: 0xffe9bd, size: 4 },
+  window: { color: 0xfff2cf, size: 3 },
+};
 
 // How big a vessel is drawn depends on how far away it is and on nothing else.
 // Near to it is its real size. With range it grows, so a ship across the strait
@@ -167,6 +184,57 @@ function buildParts(state) {
   return { parts, length, beam, depth, fb };
 }
 
+// Where the lights sit on a hull of this class and size. Everything is off L, B
+// and the freeboard, the same as the parts are, so the lights land on the ship
+// rather than near it.
+function lampsFor(cls, L, B, fb) {
+  const lamps = [];
+  const add = (x, y, z, color, size) => lamps.push({ x, y, z, color, size });
+
+  // Masthead forward and high, sidelights abreast the bridge, stern light aft.
+  add(0, fb + B * 1.15, -L * 0.24, LAMP.masthead.color, LAMP.masthead.size);
+  add(-B * 0.52, fb + B * 0.55, -L * 0.06, LAMP.side.port, LAMP.side.size);
+  add(B * 0.52, fb + B * 0.55, -L * 0.06, LAMP.side.starboard, LAMP.side.size);
+  add(0, fb + B * 0.3, L * 0.47, LAMP.stern.color, LAMP.stern.size);
+
+  if (cls === "passenger") {
+    // A ferry is lit like a building. Two decks of windows down both sides, and
+    // the car deck throwing light out of the openings under them.
+    for (let deck = 0; deck < 2; deck++) {
+      const y = fb + B * (deck === 0 ? 0.34 : 0.62);
+      for (let i = 0; i < 16; i++) {
+        const z = L * (-0.27 + (i / 15) * 0.58);
+        add(-B * 0.44, y, z, LAMP.window.color, LAMP.window.size);
+        add(B * 0.44, y, z, LAMP.window.color, LAMP.window.size);
+      }
+    }
+    for (let i = 0; i < 8; i++) {
+      const z = L * (-0.24 + (i / 7) * 0.52);
+      add(-B * 0.46, fb + B * 0.12, z, LAMP.deck.color, LAMP.deck.size);
+      add(B * 0.46, fb + B * 0.12, z, LAMP.deck.color, LAMP.deck.size);
+    }
+    // Bridge wings.
+    add(-B * 0.44, fb + B * 0.93, -L * 0.22, LAMP.deck.color, LAMP.deck.size);
+    add(B * 0.44, fb + B * 0.93, -L * 0.22, LAMP.deck.color, LAMP.deck.size);
+    return lamps;
+  }
+
+  // Everyone else: the accommodation block aft, and deck lights along the working
+  // part of the ship.
+  const houseZ = cls === "cargo" ? L * 0.35 : cls === "tanker" ? L * 0.37 : L * 0.1;
+  for (let i = 0; i < 4; i++) {
+    const y = fb + B * (0.3 + i * 0.16);
+    add(-B * 0.36, y, houseZ, LAMP.window.color, LAMP.window.size);
+    add(B * 0.36, y, houseZ, LAMP.window.color, LAMP.window.size);
+  }
+  if (cls === "cargo" || cls === "tanker") {
+    for (let i = 0; i < 5; i++) {
+      add(0, fb + B * 0.25, L * (-0.35 + (i / 4) * 0.55), LAMP.deck.color, LAMP.deck.size);
+    }
+  }
+  return lamps;
+}
+
 function buildVessel(state) {
   const group = new THREE.Group();
   const { parts, length, beam, depth, fb } = buildParts(state);
@@ -183,8 +251,12 @@ function buildVessel(state) {
   proxy.position.y = fb;
   group.add(proxy);
 
+  const lamps = buildLamps(lampsFor(classify(state.vessel_type), length, beam, fb));
+  group.add(lamps);
+
   group.userData.vessel = state;
   group.userData.material = mat;
+  group.userData.lamps = lamps;
   group.userData.placed = false;
   group.userData.target = new THREE.Vector3();
   return group;
@@ -219,7 +291,8 @@ export class Vessels {
     return out;
   }
 
-  update(feed, tideLevel, t, camera) {
+  // night: 0 in full daylight, 1 once the sun is well down.
+  update(feed, tideLevel, t, camera, night = 0) {
     for (const [mmsi, entry] of feed.vessels) {
       const state = entry.data;
       if (state.latitude == null || state.longitude == null) continue;
@@ -259,6 +332,10 @@ export class Vessels {
         mat.opacity = stale ? 0.5 : 1;
         group.userData.stale = stale;
       }
+
+      // The lights come up with the dark. A position we no longer trust does not
+      // get to sit out there looking like a ship with its lights on.
+      setLampLevel(group.userData.lamps, night, stale ? 0.25 : 1);
     }
 
     for (const mmsi of this.groups.keys()) {
