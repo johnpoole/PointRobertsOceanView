@@ -1,8 +1,14 @@
-// Point Roberts land reference from OpenStreetMap (baked to assets/osm). Roads and
-// the coastline drape on the terrain as thin ribbons, buildings stand as extruded
-// blocks, and a few landmarks (lighthouse park, marinas, monument) get labeled
-// markers. Everything is projected with the shared geo transform and sampled onto
-// the near-terrain height, so it sits where it really is.
+// Point Roberts land reference from OpenStreetMap (baked to assets/osm). Roads
+// drape on the terrain as thin ribbons, buildings stand as extruded blocks, and a
+// few landmarks (lighthouse park, marinas, monument) get labeled markers.
+// Everything is projected with the shared geo transform and sampled onto the
+// near-terrain height, so it sits where it really is.
+//
+// The coastline is not drawn. It was, as a six metre sand-coloured strip laid over
+// the whole shoreline, and from any distance it read as a road running round the
+// point. The waterline is already where the tide meets the ground and does not
+// need a line painted on it. The coastline is still baked and still handed out in
+// features, because the whales are run along it.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -262,14 +268,6 @@ export async function buildLand(scene, sample, opts = {}) {
     mesh.userData.landmark = { name: p.name, kind: "ruined pier" };
     scene.add(mesh);
     pierMeshes.push(mesh);
-  }
-
-  // Coastline.
-  if (data.coastline.length) {
-    const mesh = new THREE.Mesh(
-      ribbon(data.coastline.map((c) => c.coords), sample, 6, 0.10),
-      new THREE.MeshStandardMaterial({ color: 0xcbb98f, roughness: 1, side: THREE.DoubleSide }));
-    scene.add(mesh);
   }
 
   // Buildings. The house and the named places are marked in the bake and drawn
