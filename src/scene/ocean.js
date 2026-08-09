@@ -12,6 +12,7 @@
 // taken from the baked bed heights and the current tide.
 
 import * as THREE from "three";
+import { toWorld } from "../geo.js";
 
 const NEAR_SIZE = 24000;   // where waves are worth resolving
 const NEAR_SEG = 512;      // ~47 m spacing
@@ -42,6 +43,70 @@ const WATER_COLOR = 0xa8b6bd;
 // fill over 2.5 M cells, too heavy for every frame and pointless at every
 // millimetre.
 const MASK_TIDE_STEP_M = 0.05;
+
+// Point Roberts Marina. Inside this box the sea is drawn as though it were
+// clear: the sand shows through, eaten by the water standing over it, with a
+// contour drawn on it every metre of depth. The box holds the basin, the
+// channel out and a hundred metres past the entrance. The bottom is painted
+// into the water surface rather than the water made see-through, because at
+// this range the refraction is under a pixel and this needs no re-sorting of
+// two water planes and a terrain against each other.
+const MARINA = { minLat: 48.9730, maxLat: 48.9800,
+                 minLon: -123.0710, maxLon: -123.0600 };
+const MARINA_FADE_M = 12;   // so the edge of the box is not a line on the water
+
+// Sand as it comes back up through the water, and how fast the water eats each
+// channel of it per metre. Red goes first. That is the whole reason shallow
+// water is green and deep water is blue, and it is why depth reads at all.
+const BOTTOM_SAND = [0.62, 0.55, 0.42];
+const BOTTOM_ABSORB = [0.44, 0.17, 0.11];
+const CONTOUR_HEAVY = 5.0;  // every fifth line, drawn harder
+
+// Depth-contour lines, drawn on the bottom in the fragment. marinaK is how far
+// inside the box this pixel is and marinaBottom is what the bottom looks like
+// through the water. Both are read again in the tail of the shader.
+const CLEAR_WATER_GLSL = `
+  uniform vec2 uMarinaMin;
+  uniform vec2 uMarinaMax;
+  uniform float uMarinaFade;
+  uniform float uHasMarina;
+`;
+
+const CLEAR_WATER_COMPUTE = `
+  float marinaK = 0.0;
+  vec3 marinaBottom = vec3(0.0);
+  if (uHasMarina > 0.5 && uHasBed > 0.5) {
+    vec2 inset = min(vSeaXZ - uMarinaMin, uMarinaMax - vSeaXZ);
+    marinaK = clamp(min(inset.x, inset.y) / uMarinaFade, 0.0, 1.0);
+    if (marinaK > 0.0) {
+      vec2 buv = (vSeaXZ - uBedMin) / uBedSize;
+      float depth = max(uLevel - texture2D(uBed, buv).r, 0.0);
+      marinaBottom = vec3(${BOTTOM_SAND.join(", ")})
+                   * exp(-depth * vec3(${BOTTOM_ABSORB.join(", ")}));
+      // How much depth one pixel spans. Past about half a metre the lines are
+      // closer together than the screen can hold them, so they are let go
+      // rather than left to crawl.
+      float g = fwidth(depth);
+      float lineFade = 1.0 - smoothstep(0.25, 0.6, g);
+      float w = g * 1.6 + 0.015;
+      float one = smoothstep(0.5 - w, 0.5, abs(fract(depth) - 0.5));
+      float five = smoothstep(0.5 - w / ${CONTOUR_HEAVY.toFixed(1)}, 0.5,
+                              abs(fract(depth / ${CONTOUR_HEAVY.toFixed(1)}) - 0.5));
+      marinaBottom = mix(marinaBottom, marinaBottom * 0.45, one * 0.60 * lineFade);
+      marinaBottom = mix(marinaBottom, marinaBottom * 0.30, five * 0.85 * lineFade);
+    }
+  }
+`;
+
+// Mixed in after the sea has been lit, so the contours stay lines and do not
+// take the wave shading. A little of the water is left on top so it still has
+// a surface. Alpha goes to one, or the flat far plane shows through the bottom.
+const CLEAR_WATER_MIX = `
+  if (marinaK > 0.0) {
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, marinaBottom, marinaK * 0.88);
+    gl_FragColor.a = mix(gl_FragColor.a, 1.0, marinaK);
+  }
+`;
 
 // Shared by both water planes. A flat plane at the tide height covers every
 // point of ground lower than the tide, including the low fields behind the
@@ -108,7 +173,15 @@ export class Ocean {
       uHullFwd: { value: new THREE.Vector2(0, 1) },
       uHullHalf: { value: new THREE.Vector2() },
       uHasHull: { value: 0 },
+      uMarinaMin: { value: new THREE.Vector2() },
+      uMarinaMax: { value: new THREE.Vector2() },
+      uMarinaFade: { value: MARINA_FADE_M },
+      uHasMarina: { value: 1 },
     };
+    const mA = toWorld(MARINA.minLat, MARINA.minLon);
+    const mB = toWorld(MARINA.maxLat, MARINA.maxLon);
+    this.uniforms.uMarinaMin.value.set(Math.min(mA.x, mB.x), Math.min(mA.z, mB.z));
+    this.uniforms.uMarinaMax.value.set(Math.max(mA.x, mB.x), Math.max(mA.z, mB.z));
     this._bed = null;
     this._maskTide = null;
 
@@ -145,13 +218,21 @@ export class Ocean {
       for (const name of ["uTime", "uDir", "uAmp", "uLen", "uLevel",
                           "uBed", "uBedMin", "uBedSize", "uHasBed",
                           "uSea", "uHasSea",
-                          "uHullPos", "uHullFwd", "uHullHalf", "uHasHull"]) {
+                          "uHullPos", "uHullFwd", "uHullHalf", "uHasHull",
+                          "uMarinaMin", "uMarinaMax", "uMarinaFade", "uHasMarina"]) {
         shader.uniforms[name] = this.uniforms[name];
       }
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", `#include <common>\n ${SEA_MASK_GLSL}`)
+        .replace("#include <common>", `#include <common>
+           ${SEA_MASK_GLSL}
+           ${CLEAR_WATER_GLSL}
+           uniform float uLevel; uniform sampler2D uBed; uniform float uHasBed;`)
         .replace("#include <clipping_planes_fragment>",
-                 `#include <clipping_planes_fragment>\n ${SEA_MASK_DISCARD}`);
+                 `#include <clipping_planes_fragment>
+                  ${SEA_MASK_DISCARD}
+                  ${CLEAR_WATER_COMPUTE}`)
+        .replace("#include <opaque_fragment>",
+                 `#include <opaque_fragment>\n ${CLEAR_WATER_MIX}`);
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
