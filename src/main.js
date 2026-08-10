@@ -456,7 +456,9 @@ const touch = new Touch(
 const nav = new Nav(camera, renderer.domElement, controls, {
   touch,
   onMode: (m, spec) => {
-    document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
+    const flyHint = document.getElementById("fly-hint");
+    flyHint.classList.toggle("hidden", m !== "fly");
+    if (m === "fly") flyHint.textContent = FLY_HINT;
     liftPanel.classList.toggle("hidden", m !== "fly");
     const hint = document.getElementById("boat-hint");
     const show = m === "boat" || m === "vehicle" || m === "live";
@@ -579,6 +581,11 @@ const LOOK_HINT = TOUCH ? "drag right side to look" : "drag to look";
 const BOAT_HINT = TOUCH
   ? `stick: push to open the throttle, across for the tiller · ${LOOK_HINT} · M to change`
   : `W throttle · A/D tiller (A turns right) · ${LOOK_HINT} · M to change`;
+// Free flight. On a touch screen there is no W, no Shift and no Esc, and the
+// height is on the two buttons rather than on Q and E.
+const FLY_HINT = TOUCH
+  ? "stick: push to go, across to slide · ▲▼ up and down · drag right side to look"
+  : "WASD move · Q/E down-up · Shift fast · mouse or drag to look · Esc exit";
 // Nothing to drive in live mode: the phone is the control, and walking is the
 // only way to move.
 const LIVE_HINT = "hold the phone up and turn · slide aim until the view lines up · M to change";
