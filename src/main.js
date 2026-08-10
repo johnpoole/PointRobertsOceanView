@@ -457,6 +457,7 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   touch,
   onMode: (m, spec) => {
     document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
+    liftPanel.classList.toggle("hidden", m !== "fly");
     const hint = document.getElementById("boat-hint");
     const show = m === "boat" || m === "vehicle" || m === "live";
     hint.classList.toggle("hidden", !show);
@@ -521,6 +522,21 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   hasGround: () => groundSample != null,
 });
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
+
+// Up and down in free flight. Held, not tapped: pointerdown puts the lift on and
+// anything that ends the press takes it off, including a thumb that slides away
+// off the button.
+const liftPanel = document.getElementById("lift");
+for (const [id, dir] of [["lift-up", 1], ["lift-down", -1]]) {
+  const b = document.getElementById(id);
+  b.addEventListener("pointerdown", (e) => {
+    b.setPointerCapture(e.pointerId);
+    touch.setLift(dir);
+  });
+  for (const end of ["pointerup", "pointercancel", "pointerleave"]) {
+    b.addEventListener(end, () => touch.setLift(0));
+  }
+}
 // How you are getting about has to be chosen before the world is yours to move
 // in. The free camera stays: "look around" picks it instead of a vehicle, and
 // fly still works once you are in.

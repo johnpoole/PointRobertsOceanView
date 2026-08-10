@@ -23,6 +23,10 @@ export class Touch {
     this.knob = knob;
     this.active = false;
     this.move = { x: 0, y: 0 };
+    // Up and down, from the two buttons. The stick has only the two axes and both
+    // are spoken for, and a second stick would have to sit where the look drag
+    // is, so height gets buttons. -1 down, 0 nothing, 1 up.
+    this.lift = 0;
     this._look = { dx: 0, dy: 0 };
     this._stick = null;   // { id, x, y } of the thumb that opened it
     this._drag = null;    // { id, x, y } of the pointer looking about
@@ -55,11 +59,17 @@ export class Touch {
     return out;
   }
 
+  // Held down by the up and down buttons, let go when the thumb lifts.
+  setLift(v) {
+    this.lift = v;
+  }
+
   _release() {
     this._stick = null;
     this._drag = null;
     this.move.x = 0;
     this.move.y = 0;
+    this.lift = 0;
     this._look.dx = 0;
     this._look.dy = 0;
     this.ring.classList.add("hidden");

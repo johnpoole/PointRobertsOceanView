@@ -111,9 +111,22 @@
 
   <canvas id="overview" class="overview hidden"></canvas>
 
-  <!-- Bottom-right: mode, fly and sound. -->
-  <div class="hud hud-views" id="views">
+  <!-- Fly stands outside the panel and outside the hamburger. On a phone there
+       is no V key and no other way in, so a phone opened with every control
+       hidden behind a button nobody thought to press. -->
+  <div class="controls">
     <button class="view-btn fly-btn" id="fly-btn">fly (V)</button>
+  </div>
+
+  <!-- Up and down in free flight, on a screen with no Q and E. Shown in fly
+       mode only. On the right, where a thumb is already looking about. -->
+  <div id="lift" class="lift hidden">
+    <button class="lift-btn" id="lift-up" aria-label="climb">▲</button>
+    <button class="lift-btn" id="lift-down" aria-label="descend">▼</button>
+  </div>
+
+  <!-- Bottom-right: mode, map, and the rest. -->
+  <div class="hud hud-views" id="views">
     <button class="view-btn fly-btn" id="mode-btn">change mode (M)</button>
     <button class="view-btn fly-btn" id="map-btn">map (O)</button>
     <button class="view-btn fly-btn" id="brademy-btn">the brademy (T)</button>
