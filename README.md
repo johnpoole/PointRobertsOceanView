@@ -128,6 +128,23 @@ of roughly 0.78 of the depth, so the shader reads the baked bed under each verte
 and clamps amplitude to that. The waves shrink to nothing as they shoal and the
 waterline holds at the still-water line.
 
+## The lot
+
+`assets/site/389-w-bluff.json` holds the parcel boundary at the origin — four
+corners in WGS84, from Whatcom County's own parcel mapping. It is cartography,
+not a survey, and runs a foot or two off the deed's calls.
+
+It is baked from the property records, which live in a separate private
+repository along with the deed, the lidar of the lot, the geotechnical work and
+the permits. That repository is the source; this one holds only the baked asset
+and reads no source data. Rebake it from there with:
+
+```bash
+.venv/Scripts/python site/bake-oceanview.py
+```
+
+Nothing in the scene draws it yet.
+
 ## Rebaking the terrain
 
 The heightmaps under `assets/terrain/` are committed, so the app needs no geo

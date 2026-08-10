@@ -1,0 +1,25 @@
+{
+  "parcel": "4053044013240000",
+  "acres": 0.12,
+  "boundary": [
+    [
+      48.9890891,
+      -123.085462
+    ],
+    [
+      48.9889469,
+      -123.0853843
+    ],
+    [
+      48.9889389,
+      -123.0857868
+    ],
+    [
+      48.9890833,
+      -123.0858879
+    ]
+  ],
+  "datum": "WGS84, degrees",
+  "source": "Whatcom County assessor attributes and parcel polygon, retrieved 2026-08-10",
+  "accuracy": "county cartography, not a survey. Runs a foot or two off the deed calls."
+}
