@@ -108,12 +108,21 @@ html, body {
   pointer-events: none;
 }
 
-/* Fly, always on screen. The panel of readouts above it moves up to clear it. */
+/* Fly, on screen without the hamburger — but only where there is no keyboard.
+   A phone has no V key and nothing else to press, so the button has to be there.
+   A desktop has V, and putting the button permanently in the corner only gave
+   the pointer lock somewhere to be clicked by accident, which takes the cursor
+   and stops the map drag dead. So on a mouse it stays with the panel, off until
+   the hamburger, which is where it was. */
 .controls {
   position: fixed;
   bottom: 40px;
   right: 14px;
   z-index: 6;
+}
+@media (pointer: fine) {
+  .controls { display: none; }
+  body.hud-visible .controls { display: block; }
 }
 .hud-views { bottom: 76px; right: 14px; pointer-events: auto; }
 .view-btn {
@@ -171,6 +180,9 @@ html, body {
   z-index: 6;
 }
 .lift.hidden { display: none; }
+/* Same rule as the fly button: they exist because a phone has no Q and E. A
+   desktop has both, and does not need two more things over the water. */
+@media (pointer: fine) { .lift { display: none; } }
 .lift-btn {
   width: 52px;
   height: 52px;
