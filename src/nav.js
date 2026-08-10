@@ -597,9 +597,7 @@ export class Nav {
     // in free flight has always worked.
     const fwd = clamp((this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0) + stick.y, -1, 1);
     const str = clamp((this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + stick.x, -1, 1);
-    // Q and E on a keyboard, the two buttons on a phone, which has neither.
-    const up = clamp((this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0)
-                     + (this.touch ? this.touch.lift : 0), -1, 1);
+    const up = (this.keys.KeyE ? 1 : 0) - (this.keys.KeyQ ? 1 : 0);
     if (fwd) this.camera.position.addScaledVector(this._dir, fwd * speed);
     if (str) this.camera.position.addScaledVector(this._right, str * speed);
     if (up) this.camera.position.y += up * speed;

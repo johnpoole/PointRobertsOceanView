@@ -456,10 +456,7 @@ const touch = new Touch(
 const nav = new Nav(camera, renderer.domElement, controls, {
   touch,
   onMode: (m, spec) => {
-    const flyHint = document.getElementById("fly-hint");
-    flyHint.classList.toggle("hidden", m !== "fly");
-    if (m === "fly") flyHint.textContent = FLY_HINT;
-    liftPanel.classList.toggle("hidden", m !== "fly");
+    document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
     const hint = document.getElementById("boat-hint");
     const show = m === "boat" || m === "vehicle" || m === "live";
     hint.classList.toggle("hidden", !show);
@@ -524,21 +521,6 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   hasGround: () => groundSample != null,
 });
 document.getElementById("fly-btn").addEventListener("click", () => nav.toggleFly());
-
-// Up and down in free flight. Held, not tapped: pointerdown puts the lift on and
-// anything that ends the press takes it off, including a thumb that slides away
-// off the button.
-const liftPanel = document.getElementById("lift");
-for (const [id, dir] of [["lift-up", 1], ["lift-down", -1]]) {
-  const b = document.getElementById(id);
-  b.addEventListener("pointerdown", (e) => {
-    b.setPointerCapture(e.pointerId);
-    touch.setLift(dir);
-  });
-  for (const end of ["pointerup", "pointercancel", "pointerleave"]) {
-    b.addEventListener(end, () => touch.setLift(0));
-  }
-}
 // How you are getting about has to be chosen before the world is yours to move
 // in. The free camera stays: "look around" picks it instead of a vehicle, and
 // fly still works once you are in.
@@ -581,11 +563,6 @@ const LOOK_HINT = TOUCH ? "drag right side to look" : "drag to look";
 const BOAT_HINT = TOUCH
   ? `stick: push to open the throttle, across for the tiller · ${LOOK_HINT} · M to change`
   : `W throttle · A/D tiller (A turns right) · ${LOOK_HINT} · M to change`;
-// Free flight. On a touch screen there is no W, no Shift and no Esc, and the
-// height is on the two buttons rather than on Q and E.
-const FLY_HINT = TOUCH
-  ? "stick: push to go, across to slide · ▲▼ up and down · drag right side to look"
-  : "WASD move · Q/E down-up · Shift fast · mouse or drag to look · Esc exit";
 // Nothing to drive in live mode: the phone is the control, and walking is the
 // only way to move.
 const LIVE_HINT = "hold the phone up and turn · slide aim until the view lines up · M to change";

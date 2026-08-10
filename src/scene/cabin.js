@@ -24,62 +24,28 @@
 // bank and the west stands on posts.
 //
 // The footprint in the bake is an irregular seven-node trace of 55 m². The
-// building here is the rectangle that fits it, turned 18° east of north, because
-// that is what the photographs show and the notch is not something a photograph
-// can place.
-//
-// What the 2023 lidar settles, and it is only the roof. 495 returns over the
-// footprint, 17 a square metre. The roof stands in a band 2.5 m thick with
-// nothing between it and the canopy at 20 m, so it is unmistakable:
-//
-//   ridge   13.29 m MLLW
-//   eave    12.84 at the wall line, 12.73 at the edge of the overhang
-//   pitch   0.139 m per metre, 1.7 in 12, far shallower than drawn
-//   plan    8.49 m along the ridge by 8.17 across, over the eaves
-//   centre  x -34.17, z -7.03
-//
-// Two things fall out of that and neither was put in by hand. Take the overhang
-// off and the walls are 6.79 by 6.47, which is 473 sq ft, and the assessor
-// carries 496. And the eave sits 4.18 m over the lower floor, not the 5.30 drawn
-// — which puts the upper floor at 10.45, and 10.45 is exactly where the lidar
-// finds the ground on the uphill side. You walk in at grade from the road. That
-// is what dug into the bank means, and it was not modelled that way before.
-//
-// What the lidar cannot settle: the way the ridge is turned. At 1.7 in 12 the
-// roof is nearly flat, and the fit is no better at 84° than at 72° — five
-// millimetres of residual across twelve degrees. So the turn stays where the
-// footprint put it. Everything under the eaves stays with the photographs,
-// because an aircraft sees a roof and the ground beside it and nothing else.
-//
-// Heights are MLLW throughout. The lidar is NAVD88 in US survey feet on Geoid18,
-// converted at 0.3048006096 m and lifted 0.411 m, which is where NAVD88 zero
-// sits above MLLW here.
+// building here is the rectangle that fits it — 7.4 by 6.0, turned 18° east of
+// north — because that is what the photographs show and the notch is not
+// something a photograph can place.
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld } from "../geo.js";
 import { box, gableRoof, tint } from "./parts.js";
 
-// World metres. The centre of the roof the lidar measured, and how far the
-// building is turned, which the lidar could not measure and the footprint did.
-const AT = { x: -34.17, z: -7.03 };
+// World metres. The centre of the fitted rectangle, and how far it is turned.
+const AT = { x: -34.8, z: -6.95 };
 const YAW = 0.318;           // 18.2°, off the long edge of the traced footprint
-const OVERHANG = 0.85;       // deep, and unmistakable in every photograph
-// The walls, from the measured roof less the overhang on each side.
-const W = 6.47;              // across the ridge, roughly east to west
-const L = 6.79;              // along it, roughly north to south
+const W = 6.0;               // across, roughly east to west
+const L = 7.4;               // along, roughly north to south
 
-// Levels. The lower floor is where the deck and the ground under it put it. The
-// upper floor is the uphill grade, which is where the lidar finds the ground you
-// walk in from. The eave is measured, and the two storeys are what is left: a
-// low half-buried level under a full one, which is also why the assessor counts
-// 496 sq ft of living space in a 473 sq ft footprint.
+// Levels, off the ground under the uphill side.
 const LOWER_FLOOR = 8.55;
-const UPPER_FLOOR = 10.45;
-const EAVE = 12.84;
-const LOWER_STOREY = UPPER_FLOOR - LOWER_FLOOR;
-const UPPER_STOREY = EAVE - UPPER_FLOOR;
-const RISE = 0.45;           // 1.7 in 12, measured. It was drawn at nearly three times that
+const STOREY = 2.65;
+const UPPER_FLOOR = LOWER_FLOOR + STOREY;
+const EAVE = UPPER_FLOOR + STOREY;
+const RISE = 1.15;           // a shallow pitch, about 3 in 12
+const OVERHANG = 0.85;       // deep, and unmistakable in every photograph
 
 const DECK_OUT = 3.9;        // the upper deck, projecting west over the bank
 const LOWER_DECK_OUT = 3.2;
@@ -118,18 +84,12 @@ const WOOD_U = 3.5;          // the timber flight, hard against the east wall
 const WOOD_W = 1.1;
 const WOOD_RISER = 0.204;
 const WOOD_GOING = 0.3325;
-// It climbs from the landing to the upper floor, so it has as many risers as
-// that takes and not a fixed count. The floor came down 0.75 m and the flight
-// would otherwise have run three steps through it.
-const WOOD_STEPS = Math.round((UPPER_FLOOR - LANDING_Y) / WOOD_RISER);
+const WOOD_STEPS = 13;
 const WOOD_V0 = 8.6;         // its foot, on the landing, and it climbs north
 
 const SEAM_SPACING = 0.55;   // standing seam, near enough off the roof photograph
 const CHIMNEY_W = 0.85;
-// The photographs settle how far it stands over the ridge, not how high it is,
-// so it comes down with the roof.
-const CHIMNEY_ABOVE_RIDGE = 2.4;
-const CHIMNEY_TOP = EAVE + RISE + CHIMNEY_ABOVE_RIDGE;
+const CHIMNEY_TOP = 17.4;
 
 const SIDING = 0.16;         // board exposure, wide, as in the north-face photo
 const WIN_H = 1.35;
@@ -189,7 +149,7 @@ export function buildCabin(scene, sample) {
 
   // Both storeys, and the lap siding drawn as alternating bands so the wall is
   // boards rather than a painted slab.
-  for (const [floor, height] of [[LOWER_FLOOR, LOWER_STOREY], [UPPER_FLOOR, UPPER_STOREY]]) {
+  for (const [floor, height] of [[LOWER_FLOOR, STOREY], [UPPER_FLOOR, STOREY]]) {
     place(parts, box(W, L, height, 0, floor, 0, CLAD));
     for (let y = floor + SIDING; y < floor + height - 0.05; y += SIDING * 2) {
       place(parts, box(W + 0.03, L + 0.03, SIDING, 0, y, 0, CLAD_SHADOW));
@@ -207,24 +167,19 @@ export function buildCabin(scene, sample) {
 
   // Windows. A long band facing the water on both floors, smaller ones on the
   // north and south. Frames stand proud of the wall so they catch a shadow.
-  //
-  // The band is cut to the storey it sits in. The lower level is 1.90 m now that
-  // the roof is measured, and a 1.35 m window on a 1.0 m sill stood 0.45 m
-  // through the floor above it.
-  const bandW = (floor, storey, x, faceX) => {
-    const h = Math.min(WIN_H, storey - WIN_SILL - 0.2);
+  const bandW = (floor, x, faceX) => {
     const along = faceX ? L - 1.6 : W - 1.6;
     const frame = faceX
-      ? box(0.12, along, h + 0.18, x, floor + WIN_SILL - 0.09, 0, TRIM)
-      : box(along, 0.12, h + 0.18, 0, floor + WIN_SILL - 0.09, x, TRIM);
+      ? box(0.12, along, WIN_H + 0.18, x, floor + WIN_SILL - 0.09, 0, TRIM)
+      : box(along, 0.12, WIN_H + 0.18, 0, floor + WIN_SILL - 0.09, x, TRIM);
     place(parts, frame);
     const pane = faceX
-      ? box(0.14, along - 0.22, h, x, floor + WIN_SILL, 0, GLASS)
-      : box(along - 0.22, 0.14, h, 0, floor + WIN_SILL, x, GLASS);
+      ? box(0.14, along - 0.22, WIN_H, x, floor + WIN_SILL, 0, GLASS)
+      : box(along - 0.22, 0.14, WIN_H, 0, floor + WIN_SILL, x, GLASS);
     place(parts, pane);
   };
-  bandW(LOWER_FLOOR, LOWER_STOREY, -hw, true);
-  bandW(UPPER_FLOOR, UPPER_STOREY, -hw, true);
+  bandW(LOWER_FLOOR, -hw, true);
+  bandW(UPPER_FLOOR, -hw, true);
   // One small window each on the north and south gable ends.
   for (const s of [-1, 1]) {
     place(parts, box(1.0, 0.12, 1.0, 1.2, UPPER_FLOOR + WIN_SILL, s * hl, TRIM));
