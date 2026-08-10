@@ -52,7 +52,7 @@ const PLACE_COLOR = 0x3d7a8c;
 // what lets the lift come down to a few centimetres.
 const DRAPE_STEP_M = 4;
 
-function ribbon(coordsList, sample, width, lift) {
+export function ribbon(coordsList, sample, width, lift) {
   // Build a flat draped ribbon (two triangles per segment) for each polyline.
   const pos = [];
   for (const line of coordsList) {
