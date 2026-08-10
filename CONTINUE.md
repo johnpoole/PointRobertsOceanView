@@ -231,6 +231,13 @@ The traced footprint is an irregular seven-node 55 m². What is built is the rec
 7.4 by 6.0 turned 18° east of north, because that is what the photographs show and a photograph
 cannot place the notch.
 
+**The roof drawn here is the wrong shape and it is known to be.** 2023 lidar over that footprint,
+520 returns, puts the ridge at 13.29 m and the eave at 12.84, against 15.00 and 13.85 drawn, and
+the pitch at 1.7 in 12 against 4.6. And 487 of the 520 sit in a band 0.8 m thick: it is not one
+gable, it is three low-slope standing-seam planes at different levels. It was corrected once
+in `2c9f7f7` and reverted with everything else in `b3f522a` when the desktop view broke. The
+numbers and the working are in `../PointRobertsEngineering/CONTINUE.md`.
+
 ## Ground colour
 
 Elevation and slope decide the beach, because a 30 m land cover cell cannot see a twenty metre
@@ -323,6 +330,13 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
 - #11 the moon
 - #12 name the ferry and where it is bound
 - #13 work the currents out from the geography, with NOAA as the far field
+- the lidar as the ground near 389. The terrain here is 3 m CUDEM everywhere including under the
+  house, and against 28,308 lidar ground returns it is good on the flats and out by 0.61 m on the
+  bluff face, 4.52 m at worst, over a metre on 3 percent of the area. Two jobs, agreed and not
+  started: overwrite the ~1,200 cells of `assets/terrain/heightmap.bin` the clip covers with
+  lidar medians, which needs no app code and adds no detail; then a finer half-metre tile over
+  the 106 by 87 m patch sampled ahead of the coarse one, which does. The lidar and the working
+  live in `../PointRobertsEngineering`.
 
 ## Things that have bitten, so they do not again
 
