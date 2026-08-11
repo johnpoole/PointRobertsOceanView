@@ -1,0 +1,249 @@
+{
+  "what": "crowns found in the WA DNR cascades_north_wali_2023 clip of 389 W Bluff Rd. Trunk position, the ground under it, and the height and radius of the crown.",
+  "baked_by": "PointRobertsEngineering site/bake-oceanview-lidar.py",
+  "baked": "2026-08-10",
+  "not_measured": "trunk diameter, and the crown's shape below its top. An aircraft sees the top of a canopy and little under it.",
+  "box": {
+    "min_lon": -123.0863888888889,
+    "max_lon": -123.08488683127574,
+    "min_lat": 48.98861111111112,
+    "max_lat": 48.98942386831276
+  },
+  "outline": [
+    [
+      48.9886116,
+      -123.0863425
+    ],
+    [
+      48.9886429,
+      -123.0848911
+    ],
+    [
+      48.9894186,
+      -123.0849297
+    ],
+    [
+      48.9893873,
+      -123.0863811
+    ]
+  ],
+  "trees": [
+    {
+      "lat": 48.9893416,
+      "lon": -123.085144,
+      "ground_m": 19.7,
+      "height_m": 39.9,
+      "radius_m": 4.7
+    },
+    {
+      "lat": 48.98893,
+      "lon": -123.0854835,
+      "ground_m": 14.03,
+      "height_m": 36.4,
+      "radius_m": 4.9
+    },
+    {
+      "lat": 48.9886523,
+      "lon": -123.0853807,
+      "ground_m": 10.91,
+      "height_m": 36.4,
+      "radius_m": 4.6
+    },
+    {
+      "lat": 48.9886626,
+      "lon": -123.0852572,
+      "ground_m": 16.74,
+      "height_m": 36.0,
+      "radius_m": 4.8
+    },
+    {
+      "lat": 48.9890741,
+      "lon": -123.0855658,
+      "ground_m": 15.7,
+      "height_m": 34.3,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9890021,
+      "lon": -123.0855864,
+      "ground_m": 11.58,
+      "height_m": 34.2,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9887449,
+      "lon": -123.0853395,
+      "ground_m": 14.02,
+      "height_m": 33.4,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9888272,
+      "lon": -123.0849074,
+      "ground_m": 18.83,
+      "height_m": 33.1,
+      "radius_m": 2.3
+    },
+    {
+      "lat": 48.9891564,
+      "lon": -123.0855864,
+      "ground_m": 18.6,
+      "height_m": 32.9,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9890329,
+      "lon": -123.0856276,
+      "ground_m": 12.23,
+      "height_m": 32.8,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9887963,
+      "lon": -123.0854424,
+      "ground_m": 13.24,
+      "height_m": 30.9,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.989321,
+      "lon": -123.0855864,
+      "ground_m": 19.77,
+      "height_m": 30.2,
+      "radius_m": 4.8
+    },
+    {
+      "lat": 48.989393,
+      "lon": -123.0858333,
+      "ground_m": 15.19,
+      "height_m": 29.4,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9893519,
+      "lon": -123.085823,
+      "ground_m": 14.8,
+      "height_m": 28.5,
+      "radius_m": 4.7
+    },
+    {
+      "lat": 48.9890123,
+      "lon": -123.0854733,
+      "ground_m": 15.45,
+      "height_m": 27.8,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9893621,
+      "lon": -123.0858951,
+      "ground_m": 13.81,
+      "height_m": 27.6,
+      "radius_m": 4.5
+    },
+    {
+      "lat": 48.9893827,
+      "lon": -123.0859465,
+      "ground_m": 9.86,
+      "height_m": 27.5,
+      "radius_m": 4.6
+    },
+    {
+      "lat": 48.9887346,
+      "lon": -123.0854835,
+      "ground_m": 9.04,
+      "height_m": 27.4,
+      "radius_m": 4.8
+    },
+    {
+      "lat": 48.988714,
+      "lon": -123.085535,
+      "ground_m": 7.69,
+      "height_m": 27.0,
+      "radius_m": 4.8
+    },
+    {
+      "lat": 48.9891049,
+      "lon": -123.0854527,
+      "ground_m": 19.19,
+      "height_m": 26.5,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9894033,
+      "lon": -123.085607,
+      "ground_m": 19.93,
+      "height_m": 26.0,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9889403,
+      "lon": -123.0856481,
+      "ground_m": 8.26,
+      "height_m": 25.6,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9892181,
+      "lon": -123.084928,
+      "ground_m": 19.38,
+      "height_m": 23.9,
+      "radius_m": 3.5
+    },
+    {
+      "lat": 48.9891152,
+      "lon": -123.085751,
+      "ground_m": 10.52,
+      "height_m": 23.6,
+      "radius_m": 4.6
+    },
+    {
+      "lat": 48.9887654,
+      "lon": -123.085607,
+      "ground_m": 6.98,
+      "height_m": 23.5,
+      "radius_m": 4.7
+    },
+    {
+      "lat": 48.9890535,
+      "lon": -123.0858436,
+      "ground_m": 5.79,
+      "height_m": 22.8,
+      "radius_m": 4.6
+    },
+    {
+      "lat": 48.9890638,
+      "lon": -123.0849177,
+      "ground_m": 19.32,
+      "height_m": 13.2,
+      "radius_m": 4.4
+    },
+    {
+      "lat": 48.9893313,
+      "lon": -123.0857202,
+      "ground_m": 16.29,
+      "height_m": 12.4,
+      "radius_m": 5.1
+    },
+    {
+      "lat": 48.9890021,
+      "lon": -123.0849486,
+      "ground_m": 19.15,
+      "height_m": 11.9,
+      "radius_m": 3.0
+    },
+    {
+      "lat": 48.9892901,
+      "lon": -123.0860391,
+      "ground_m": 3.67,
+      "height_m": 10.0,
+      "radius_m": 4.1
+    },
+    {
+      "lat": 48.9891461,
+      "lon": -123.0849177,
+      "ground_m": 19.22,
+      "height_m": 9.1,
+      "radius_m": 4.6
+    }
+  ]
+}

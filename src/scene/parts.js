@@ -46,20 +46,28 @@ export function box(w, d, h, x, y, z, color) {
 // building. Wants a double sided material, so the soffit shows from below.
 //
 // halfW and halfL are the walls. The slope falls from the ridge to the eave.
-export function gableRoof(halfW, halfL, wallTop, rise, eave, color) {
-  const slope = rise / halfW;
-  const ridgeY = wallTop + rise;
-  const outW = halfW + eave;
-  const eaveY = wallTop - slope * eave;
+//
+// ridge is optional and describes a roof whose ridge is not down the middle and
+// whose two sides do not share a pitch, which is what 389 W Bluff Rd turned out
+// to be: { x, y, slopeE, slopeW } with x the ridge's offset along the width, y
+// its height, and a fall per metre on each side. Left out, the ridge sits at the
+// centre and both sides fall at rise over halfW, which is what every other roof
+// here is.
+export function gableRoof(halfW, halfL, wallTop, rise, eave, color, ridge) {
+  const rx = ridge ? ridge.x : 0;
+  const ridgeY = ridge ? ridge.y : wallTop + rise;
   const outL = halfL + eave;
   const pos = [];
   const tri = (a, b, c) => pos.push(...a, ...b, ...c);
   for (const s of [-1, 1]) {
-    tri([0, ridgeY, -outL], [s * outW, eaveY, -outL], [s * outW, eaveY, outL]);
-    tri([0, ridgeY, -outL], [s * outW, eaveY, outL], [0, ridgeY, outL]);
+    const slope = !ridge ? rise / halfW : s > 0 ? ridge.slopeE : ridge.slopeW;
+    const outW = s * (halfW + eave);
+    const eaveY = ridgeY - slope * Math.abs(outW - rx);
+    tri([rx, ridgeY, -outL], [outW, eaveY, -outL], [outW, eaveY, outL]);
+    tri([rx, ridgeY, -outL], [outW, eaveY, outL], [rx, ridgeY, outL]);
   }
   for (const z of [-halfL, halfL]) {
-    tri([-halfW, wallTop, z], [halfW, wallTop, z], [0, ridgeY, z]);
+    tri([-halfW, wallTop, z], [halfW, wallTop, z], [rx, ridgeY, z]);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));

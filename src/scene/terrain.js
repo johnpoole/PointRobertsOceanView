@@ -290,9 +290,27 @@ export async function buildTerrain(scene, asset, opts = {}) {
   }
   // Cells the tile does not cover, e.g. the far tile's hole under the near tile.
   const nodata = meta.nodata != null ? meta.nodata : null;
-  const isHole = (v) => nodata != null && v <= nodata / 2;
+  const isValueHole = (v) => nodata != null && v <= nodata / 2;
+
+  // Ground a better tile covers, as a test on the point rather than a box: the
+  // fine tile over the lot is a rectangle in Washington South, which is turned
+  // against latitude and longitude, so its edge is not a box here. The far
+  // tile's hole is baked into its own file; this one is applied at load, so a
+  // re-bake of the coarse tile cannot quietly lose it.
+  const inHole = opts.hole || (() => false);
 
   const count = nrows * ncols;
+  // One mask for both reasons a vertex is not drawn, so everything downstream
+  // asks the same question once instead of two different ones.
+  const holed = new Uint8Array(count);
+  for (let i = 0; i < nrows; i++) {
+    const lat = north_lat - i * cellsize_deg;
+    for (let j = 0; j < ncols; j++) {
+      const n = i * ncols + j;
+      if (isValueHole(Z[n]) || inHole(lat, west_lon + j * cellsize_deg)) holed[n] = 1;
+    }
+  }
+  const isHole = (n) => holed[n] === 1;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   // How stony this vertex is, 0 on the sand and 1 on the steep. The fragment
@@ -313,7 +331,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
       // Hole vertices are never indexed, but they still sit in the position
       // buffer, so give them a finite height or the bounding sphere goes bad
       // and three culls the whole mesh.
-      const elev = isHole(raw) ? 0 : raw;
+      const elev = isHole(i * ncols + j) ? 0 : raw;
       const w = toWorld(lat, lon, elev);
       const idx = (i * ncols + j) * 3;
       positions[idx] = w.x;
@@ -323,13 +341,11 @@ export async function buildTerrain(scene, asset, opts = {}) {
       // edge of the tile is nowhere near the beach, so they take zero.
       let slope = 0;
       if (i > 0 && i < nrows - 1 && j > 0 && j < ncols - 1) {
-        const up = Z[(i - 1) * ncols + j];
-        const down = Z[(i + 1) * ncols + j];
-        const left = Z[i * ncols + j - 1];
-        const right = Z[i * ncols + j + 1];
-        if (!isHole(up) && !isHole(down) && !isHole(left) && !isHole(right)) {
-          slope = Math.hypot((up - down) / (2 * cellNorthM),
-                             (right - left) / (2 * cellEastM));
+        const iUp = (i - 1) * ncols + j, iDown = (i + 1) * ncols + j;
+        const iLeft = i * ncols + j - 1, iRight = i * ncols + j + 1;
+        if (!isHole(iUp) && !isHole(iDown) && !isHole(iLeft) && !isHole(iRight)) {
+          slope = Math.hypot((Z[iUp] - Z[iDown]) / (2 * cellNorthM),
+                             (Z[iRight] - Z[iLeft]) / (2 * cellEastM));
         }
       }
       colorForGround(elev, tmp, i, j, slope, coverAt(lat, lon, i, j));
@@ -357,7 +373,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
       const b = a + 1;
       const c = a + ncols;
       const d = c + 1;
-      if (isHole(Z[a]) || isHole(Z[b]) || isHole(Z[c]) || isHole(Z[d])) continue;
+      if (isHole(a) || isHole(b) || isHole(c) || isHole(d)) continue;
       indices[k++] = a; indices[k++] = c; indices[k++] = b;
       indices[k++] = b; indices[k++] = c; indices[k++] = d;
     }

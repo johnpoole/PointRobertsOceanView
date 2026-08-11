@@ -1,0 +1,47 @@
+{
+  "source": "WA DNR cascades_north_wali_2023 lidar, clipped to 389 W Bluff Rd and its 35 m buffer, ground returns only",
+  "baked_by": "PointRobertsEngineering site/bake-oceanview-lidar.py",
+  "baked": "2026-08-10",
+  "vertical_datum": "MLLW",
+  "source_datum": "NAVD88 US survey feet, Geoid18",
+  "datum_shift_m": 0.411,
+  "box": {
+    "min_lon": -123.0863888888889,
+    "max_lon": -123.08488683127574,
+    "min_lat": 48.98861111111112,
+    "max_lat": 48.98942386831276
+  },
+  "outline": [
+    [
+      48.9886116,
+      -123.0863425
+    ],
+    [
+      48.9886429,
+      -123.0848911
+    ],
+    [
+      48.9894186,
+      -123.0849297
+    ],
+    [
+      48.9893873,
+      -123.0863811
+    ]
+  ],
+  "nodata": -3276.8,
+  "grid": {
+    "nrows": 80,
+    "ncols": 147,
+    "cellsize_deg": 1.02880658436214e-05,
+    "north_lat": 48.98942386831276,
+    "west_lon": -123.0863888888889,
+    "dtype": "int16",
+    "scale_m": 0.1,
+    "order": "row-major, north row first"
+  },
+  "elevation_m_mllw": {
+    "min": 1.8,
+    "max": 20.0
+  }
+}

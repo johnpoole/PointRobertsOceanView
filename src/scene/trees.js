@@ -298,7 +298,28 @@ class Ring {
 
 // sample(lat, lon) -> metres above MLLW. cover is what buildTerrain read:
 // { meta, codes }. roads is data.roads out of the OSM bake.
-export function buildTrees(scene, sample, cover, roads) {
+// Where the lidar counted the trees itself, its count stands and the scatter
+// stands down. Everything inside this outline is measured: 31 crowns, each with
+// its own trunk, height and spread, instead of three hundred to the hectare put
+// down by chance.
+function measuredGround(measured) {
+  if (!measured) return () => false;
+  const poly = measured.outline;
+  return (lat, lon) => {
+    let inside = false;
+    for (let i = 0, n = poly.length; i < n; i++) {
+      const [aLat, aLon] = poly[i];
+      const [bLat, bLon] = poly[(i + 1) % n];
+      if ((aLat > lat) !== (bLat > lat)
+          && lon < (bLon - aLon) * (lat - aLat) / (bLat - aLat) + aLon) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+}
+
+export function buildTrees(scene, sample, cover, roads, measured) {
   if (!cover) {
     throw new Error("buildTrees: no land cover. The near terrain must be built " +
       "with opts.landcover so the trees know where the forest is.");
@@ -307,6 +328,17 @@ export function buildTrees(scene, sample, cover, roads) {
     throw new Error("buildTrees: no roads. Pass data.roads from the OSM bake " +
       "(osmFeatures() in land.js) so the trees are kept out of the road.");
   }
+  if (measured && !Array.isArray(measured.trees)) {
+    throw new Error(
+      "buildTrees: the measured trees asset has no trees array. It is written by " +
+      "site/bake-oceanview-lidar.py in PointRobertsEngineering.");
+  }
+  if (measured && !Array.isArray(measured.outline)) {
+    throw new Error(
+      "buildTrees: the measured trees asset has no outline, so there is no way to " +
+      "know where to stand the scattered trees down. Re-run the bake.");
+  }
+  const isMeasured = measuredGround(measured);
   const inRoad = roadTest(roads);
   const rand = seeded(20260807);
   const { nrows, ncols } = cover.meta.grid;
@@ -317,7 +349,7 @@ export function buildTrees(scene, sample, cover, roads) {
 
   // How many could be planted, before elevation turns any of them away. Sizes
   // the arrays once instead of growing them a hundred and forty thousand times.
-  let room = 0;
+  let room = measured ? measured.trees.length : 0;
   for (let n = 0; n < cover.codes.length; n++) {
     const density = DENSITY_PER_HA[cover.codes[n]];
     if (density) room += Math.ceil(density * cellHa);
@@ -335,6 +367,7 @@ export function buildTrees(scene, sample, cover, roads) {
   let count = 0;
   let belowCover = 0;
   let onRoad = 0;
+  let onLidar = 0;
   for (let i = 0; i < nrows; i++) {
     for (let j = 0; j < ncols; j++) {
       const code = cover.codes[i * ncols + j];
@@ -350,6 +383,8 @@ export function buildTrees(scene, sample, cover, roads) {
       for (let k = 0; k < n; k++) {
         const lat = box.max_lat - (i + rand()) * dLat;
         const lon = box.min_lon + (j + rand()) * dLon;
+        // Over the lot the lidar counted them, so nothing is scattered there.
+        if (isMeasured(lat, lon)) { onLidar++; continue; }
         const elev = sample(lat, lon);
         // Below where the land cover starts deciding the ground colour it is
         // beach, whatever a 30 m cell says, and nothing grows on the shingle.
@@ -373,6 +408,27 @@ export function buildTrees(scene, sample, cover, roads) {
         count++;
       }
     }
+  }
+
+  // The measured ones. Trunk, height and crown radius are the lidar's; the ground
+  // is the lidar's too, taken under the trunk rather than sampled off a tile. The
+  // form is the only guess, and on this coast at these heights it is fir.
+  if (measured) {
+    for (const t of measured.trees) {
+      const w = toWorld(t.lat, t.lon, t.ground_m);
+      px[count] = w.x;
+      py[count] = w.y;
+      pz[count] = w.z;
+      height[count] = t.height_m;
+      radius[count] = t.radius_m;
+      yaw[count] = rand() * Math.PI * 2;
+      form[count] = CONIFER;
+      tint[count] = Math.floor(rand() * CONIFER_COLORS.length);
+      count++;
+    }
+    console.info(
+      `trees: ${measured.trees.length} measured off the lidar on the lot, ` +
+      `${onLidar} scattered ones stood down for them`);
   }
 
   // A uniform grid over the trees, so the near ring can ask what is close

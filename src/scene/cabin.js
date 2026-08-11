@@ -28,15 +28,20 @@
 // that is what the photographs show and the notch is not something a photograph
 // can place.
 //
-// What the 2023 lidar settles, and it is only the roof. 495 returns over the
-// footprint, 17 a square metre. The roof stands in a band 2.5 m thick with
-// nothing between it and the canopy at 20 m, so it is unmistakable:
+// What the 2023 lidar settles, and it is only the roof. 466 returns over the
+// footprint and its overhang, 17 a square metre. The roof stands in a band 2.5 m
+// thick with nothing between it and the canopy at 20 m, so it is unmistakable.
 //
-//   ridge   13.29 m MLLW
-//   eave    12.84 at the wall line, 12.73 at the edge of the overhang
-//   pitch   0.139 m per metre, 1.7 in 12, far shallower than drawn
+// It is a gable, but not a symmetric one. Fitted as one surface with two pitches
+// meeting at a ridge, 463 of the 466 returns land inside 4 cm of it:
+//
+//   ridge   13.39 m MLLW, 0.90 m west of centre, level along its length
+//   east    2.11 in 12, falling 4.13 m to an eave of 12.66 at the wall
+//   west    3.15 in 12, falling 2.34 m to an eave of 12.77 at the wall
 //   plan    8.49 m along the ridge by 8.17 across, over the eaves
 //   centre  x -34.17, z -7.03
+//
+// The three left out are the chimney, which stands through this band.
 //
 // Two things fall out of that and neither was put in by hand. Take the overhang
 // off and the walls are 6.79 by 6.47, which is 473 sq ft, and the assessor
@@ -45,10 +50,12 @@
 // finds the ground on the uphill side. You walk in at grade from the road. That
 // is what dug into the bank means, and it was not modelled that way before.
 //
-// What the lidar cannot settle: the way the ridge is turned. At 1.7 in 12 the
-// roof is nearly flat, and the fit is no better at 84° than at 72° — five
-// millimetres of residual across twelve degrees. So the turn stays where the
-// footprint put it. Everything under the eaves stays with the photographs,
+// The way the ridge is turned does come out of the lidar, once the two pitches
+// are fitted separately. One gable at one pitch is insensitive to rotation when
+// the roof is this flat — five millimetres of residual across twelve degrees.
+// Two planes and the line between them are not: that line lands 17° east of
+// north, against the 18° the footprint gives, so the two agree and the turn
+// stays where it was. Everything under the eaves stays with the photographs,
 // because an aircraft sees a roof and the ground beside it and nothing else.
 //
 // Heights are MLLW throughout. The lidar is NAVD88 in US survey feet on Geoid18,
@@ -76,10 +83,15 @@ const L = 6.79;              // along it, roughly north to south
 // 496 sq ft of living space in a 473 sq ft footprint.
 const LOWER_FLOOR = 8.55;
 const UPPER_FLOOR = 10.45;
-const EAVE = 12.84;
+const EAVE = 12.71;          // the wall top: the two measured eaves differ by 11 cm
 const LOWER_STOREY = UPPER_FLOOR - LOWER_FLOOR;
 const UPPER_STOREY = EAVE - UPPER_FLOOR;
-const RISE = 0.45;           // 1.7 in 12, measured. It was drawn at nearly three times that
+// The ridge is off centre and the two sides do not share a pitch. Measured.
+const RIDGE_X = -0.90;       // west of centre, which is the short steep side
+const RIDGE_Y = 13.39;
+const SLOPE_E = 2.11 / 12;
+const SLOPE_W = 3.15 / 12;
+const RIDGE = { x: RIDGE_X, y: RIDGE_Y, slopeE: SLOPE_E, slopeW: SLOPE_W };
 
 const DECK_OUT = 3.9;        // the upper deck, projecting west over the bank
 const LOWER_DECK_OUT = 3.2;
@@ -129,7 +141,7 @@ const CHIMNEY_W = 0.85;
 // The photographs settle how far it stands over the ridge, not how high it is,
 // so it comes down with the roof.
 const CHIMNEY_ABOVE_RIDGE = 2.4;
-const CHIMNEY_TOP = EAVE + RISE + CHIMNEY_ABOVE_RIDGE;
+const CHIMNEY_TOP = RIDGE_Y + CHIMNEY_ABOVE_RIDGE;
 
 const SIDING = 0.16;         // board exposure, wide, as in the north-face photo
 const WIN_H = 1.35;
@@ -232,17 +244,17 @@ export function buildCabin(scene, sample) {
   }
 
   // The roof, and the seams standing up off it.
-  const roof = gableRoof(hw, hl, EAVE, RISE, OVERHANG, ROOF);
+  const roof = gableRoof(hw, hl, EAVE, 0, OVERHANG, ROOF, RIDGE);
   place(parts, roof);
-  const slope = RISE / hw;
+  // The surface, so the seams and the fascia sit on the roof rather than beside it.
+  const roofY = (x) => RIDGE_Y - (x > RIDGE_X ? SLOPE_E : SLOPE_W) * Math.abs(x - RIDGE_X);
   for (let x = -hw - OVERHANG + SEAM_SPACING; x < hw + OVERHANG; x += SEAM_SPACING) {
-    const y = EAVE + RISE - slope * Math.abs(x) + 0.03;
-    place(parts, box(0.05, L + OVERHANG * 2, 0.05, x, y, 0, SEAM));
+    place(parts, box(0.05, L + OVERHANG * 2, 0.05, x, roofY(x) + 0.03, 0, SEAM));
   }
   // Fascia round the eave, dark, which is what makes the overhang read.
   for (const s of [-1, 1]) {
     place(parts, box(0.1, L + OVERHANG * 2, 0.22,
-                     s * (hw + OVERHANG), EAVE - slope * OVERHANG - 0.22, 0, FASCIA));
+                     s * (hw + OVERHANG), roofY(s * (hw + OVERHANG)) - 0.22, 0, FASCIA));
     place(parts, box((hw + OVERHANG) * 2, 0.1, 0.2,
                      0, EAVE - 0.2, s * (hl + OVERHANG), FASCIA));
   }

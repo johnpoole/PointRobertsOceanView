@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_TREES, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -137,13 +137,51 @@ let breakers = null;     // the old Breakers block, on its own so it can stand d
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
 let lighthouse = null;   // the light on the point, and its flash
+// Where the fine tile really has ground, which is not its box: it is a rectangle
+// in Washington South and the corners of a lat/lon box round it hold no lidar.
+// Asked one coarse cell out on all sides as well, so the coarse tile keeps
+// reaching under the fine one's edge rather than pulling back and leaving a gap.
+function fineCovers(fine) {
+  const g = fine.meta.grid;
+  const nodata = fine.meta.nodata;
+  const out = g.cellsize_deg * 4; // about one coarse cell
+  const has = (lat, lon) => {
+    const i = Math.round((g.north_lat - lat) / g.cellsize_deg);
+    const j = Math.round((lon - g.west_lon) / g.cellsize_deg);
+    if (i < 0 || j < 0 || i >= g.nrows || j >= g.ncols) return false;
+    return fine.heights[i * g.ncols + j] > nodata / 2;
+  };
+  return (lat, lon) =>
+    has(lat, lon) && has(lat + out, lon) && has(lat - out, lon)
+    && has(lat, lon + out) && has(lat, lon - out);
+}
+
+// The lot itself, off airborne lidar at about a metre. It is built before the
+// coarse tile because the coarse tile is holed under wherever this one reaches,
+// and only this one knows where that is: its edge is a rectangle in Washington
+// South, which is turned against latitude and longitude.
+//
 // The trees need the roads to keep out of them, so the OSM bake is waited on
 // here rather than left to buildLand further down. It is the same one fetch.
-Promise.all([
-  buildTerrain(scene, TERRAIN.near, { haze: 0, fog: true, landcover: LANDCOVER }),
-  osmFeatures(),
-])
-  .then(([near, osm]) => {
+buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
+  .then((fine) => {
+    const covers = fineCovers(fine);
+    return Promise.all([
+      fine,
+      covers,
+      buildTerrain(scene, TERRAIN.near,
+        { haze: 0, fog: true, landcover: LANDCOVER, hole: covers }),
+      osmFeatures(),
+      fetch(SITE_TREES).then((r) => r.json()),
+    ]);
+  })
+  .then(([fine, covers, near, osm, siteTrees]) => {
+    // Everything standing on the ground asks one sampler, and it answers off the
+    // lidar where the lidar reaches. Otherwise the cabin would sit on CUDEM while
+    // the ground under it was drawn from something else.
+    const coarseSample = near.sample;
+    near.sample = (lat, lon) =>
+      covers(lat, lon) ? fine.sample(lat, lon) : coarseSample(lat, lon);
     groundSample = near.sample;
     const { nrows, ncols, cellsize_deg, north_lat, west_lon } = near.meta.grid;
     const nw = toWorld(north_lat, west_lon);
@@ -151,7 +189,7 @@ Promise.all([
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
     buildBeach(scene, near.sample, ORIGIN);
-    trees = buildTrees(scene, near.sample, near.cover, osm.roads);
+    trees = buildTrees(scene, near.sample, near.cover, osm.roads, siteTrees);
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it

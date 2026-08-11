@@ -42,10 +42,17 @@ export const LANDCOVER = {
 
 // Baked terrain heightmaps, MLLW datum (same zero as the tide feed).
 // near: fine shoreline around the bluff. far: the strait and Gulf Islands skyline.
+// fine: the lot itself off airborne lidar, at 0.75 by 1.15 m. A 3 m cell cannot
+// hold a bank that drops 16 m in 35 m of ground, and this is the bank the whole
+// page looks out over. The near tile is holed under it.
 export const TERRAIN = {
   near: { heightmap: "assets/terrain/heightmap.bin", meta: "assets/terrain/meta.json" },
   far: { heightmap: "assets/terrain/heightmap_far.bin", meta: "assets/terrain/meta_far.json" },
+  fine: { heightmap: "assets/terrain/heightmap_fine.bin", meta: "assets/terrain/meta_fine.json" },
 };
+
+// The trees the lidar found on the lot, as against the ones land cover scatters.
+export const SITE_TREES = "assets/site/389-trees.json";
 
 // Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
 export const OSM = "assets/osm/features.json";
