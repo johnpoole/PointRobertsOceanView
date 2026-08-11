@@ -32,6 +32,7 @@ import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
+import { numberAt, offsetHours, sceneNow, setOffsetHours, shifted, slotAt } from "./clock.js";
 
 const canvas = document.getElementById("scene");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -315,21 +316,16 @@ feed.onChange((kind) => {
     feed.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
   }
   hud.setConnection(feed.connected, feed.connected ? null : "reconnecting…");
-  hud.update(feed);
-  if (feed.weather) weather.apply(feed.weather.data);
+  hud.update(feed, { tide: tideAt(), weather: weatherAt(), current: currentAt() });
+  if (feed.weather) weather.apply(weatherAt());
 });
 
-// The clock the sun runs on. Zero is the real one, and the slider moves it. The
-// sun is the only thing that reads it: the tide, the weather and the vessels are
-// live feeds and there is nothing to run them forward to.
-let clockOffsetMs = 0;
-const sceneNow = () => new Date(Date.now() + clockOffsetMs);
-
+// The slider that drives the scene clock. What reads that clock is in clock.js.
 const clockRange = document.getElementById("clock-range");
 const clockValue = document.getElementById("clock-value");
 
 function setClockOffset(hours) {
-  clockOffsetMs = hours * 3600000;
+  setOffsetHours(hours);
   clockRange.value = String(hours);
   const t = sceneNow();
   const shown = Math.round(hours * 4) / 4;   // #hour= lands on any offset at all
@@ -337,7 +333,11 @@ function setClockOffset(hours) {
     ? "now"
     : `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`
       + ` (${shown > 0 ? "+" : ""}${shown} h)`;
+  // Everything that reads the clock, re-read. The sun and the sky, the water the
+  // shoreline runs at, the stream the drift rides, and the panels.
   updateSun();
+  weather.apply(weatherAt() || {});
+  hud.update(feed, { tide: tideAt(), weather: weatherAt(), current: currentAt() });
 }
 
 // #hour=14 opens at two in the afternoon. It is turned into an offset from now,
@@ -363,7 +363,7 @@ function updateSun() {
   sky.setSun(sunDirection(azimuth, elevation), new THREE.Color(0xfff2d8));
   sun.position.copy(sunDirection(azimuth, elevation)).multiplyScalar(15000);
   weather.dayFactor = Math.max(0, Math.min((elevation + 6) / 12, 1));
-  weather.apply(feed.weather ? feed.weather.data : {});
+  weather.apply(weatherAt() || {});
 }
 setClockOffset(hourFromHash(location.hash) ?? 0);
 setInterval(updateSun, 60000);
@@ -380,8 +380,53 @@ const OFFLINE_GRACE_MS = 6000;
 let downSince = performance.now();
 feed.connect();
 
-function tideLevel() {
+// What the feeds say at the hour the page is standing at.
+//
+// On the present hour that is the feed itself — a measurement. Moved off it, the
+// reading comes out of the run the proxy baked, and it is a forecast. `predicted`
+// says which, and the HUD says it out loud rather than passing a forecast off as
+// a gauge reading.
+function tideAt() {
   const t = feed.tide && feed.tide.data;
+  if (!t || !shifted()) return t;
+  const s = t.series;
+  const m = numberAt(s, s && s.values, sceneNow());
+  if (m == null) return t;
+  // Astronomical only. The surge was measured minutes ago and it is weather.
+  return { ...t, water_level_m: m, surge_m: null, trend: null, predicted: true };
+}
+
+function currentAt() {
+  const c = feed.current && feed.current.data;
+  if (!c || !shifted()) return c;
+  const s = c.series;
+  const row = slotAt(s, s && s.rows, sceneNow());
+  if (!row) return c;
+  const [drift, set, state] = row;
+  return { ...c, drift_mps: drift, drift_kn: drift / 0.514444,
+           set_degrees: set, state, predicted: true };
+}
+
+function weatherAt() {
+  const w = feed.weather && feed.weather.data;
+  if (!w || !shifted()) return w;
+  const s = w.series;
+  if (!s) return w;
+  const when = sceneNow();
+  const out = { ...w, predicted: true };
+  for (const k of ["cloud_cover_percent", "wind_speed_mps", "wind_direction_degrees",
+                   "temperature_c", "relative_humidity_percent", "visibility_m",
+                   "precipitation_probability_percent"]) {
+    const v = numberAt(s, s[k], when);
+    if (v != null) out[k] = v;
+  }
+  const d = slotAt(s, s.description, when);
+  if (d) out.description = d;
+  return out;
+}
+
+function tideLevel() {
+  const t = tideAt();
   return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
 }
 
@@ -605,7 +650,7 @@ const nav = new Nav(camera, renderer.domElement, controls, {
   // offshore stands for the whole tile, which is wrong near the land and is the
   // whole of issue #13. Null when there is no reading, never a guess.
   current: () => {
-    const c = feed.current && feed.current.data;
+    const c = currentAt();
     if (!c || c.set_degrees == null || !c.drift_mps) return null;
     // A set is the compass bearing the water runs toward. North is -Z.
     const set = (c.set_degrees * Math.PI) / 180;
@@ -891,7 +936,7 @@ const share = new Share(camera, () => ({
   // The hour the scene is standing at, so a link opens on the same light. Left
   // off when the clock is the real one. Quartered, or the address bar would be
   // rewritten every minute as the offset clock ran on.
-  hour: clockOffsetMs
+  hour: offsetHours()
     ? Math.round((sceneNow().getHours() + sceneNow().getMinutes() / 60) * 4) / 4
     : 0,
 }));
@@ -954,7 +999,7 @@ function frame() {
 
   nav.update(dt);
   if (trees) trees.update(camera);
-  hud.helm(nav.mode === "boat", nav.boat, feed.current);
+  hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
   if (orcas) orcas.update(dt);
 

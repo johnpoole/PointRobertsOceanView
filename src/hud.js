@@ -45,7 +45,10 @@ export class Hud {
     node.classList.add(status || "offline");
   }
 
-  update(feed) {
+  // `at` is what the feeds say at the hour the page is standing at. On the
+  // present hour it is the feed itself. Moved off it, these are forecasts, and
+  // the panels say so rather than showing a forecast where a gauge reading was.
+  update(feed, at = {}) {
     this._health("ph-weather", feed.providerHealth.weather);
     this._health("ph-tide", feed.providerHealth.tide);
     this._health("ph-currents", feed.providerHealth.currents);
@@ -54,7 +57,7 @@ export class Hud {
     el("ais-why").textContent = feed.vesselsNote || "";
 
     // Weather
-    const wx = feed.weather && feed.weather.data;
+    const wx = at.weather || (feed.weather && feed.weather.data);
     el("wx-station").textContent = wx && wx.station_id ? wx.station_id : "";
     el("wx-desc").textContent = wx && wx.description ? wx.description : "—";
     el("wx-temp").textContent = wx ? num(wx.temperature_c, 1, " °C") : "—";
@@ -78,11 +81,15 @@ export class Hud {
     if (dir != null) arrow.style.transform = `rotate(${dir}deg)`;
 
     // Tide
-    const tide = feed.tide && feed.tide.data;
+    const tide = at.tide || (feed.tide && feed.tide.data);
     el("tide-station").textContent = tide && tide.station_id ? tide.station_id : "";
     el("tide-level").textContent = tide
       ? `${num(tide.water_level_m, 2, " m")} ${tide.datum || ""}`.trim() : "—";
-    el("tide-trend").textContent = tide && tide.trend ? tide.trend : "—";
+    el("tide-trend").textContent = tide && tide.predicted
+      ? "predicted" : (tide && tide.trend ? tide.trend : "—");
+    // A forecast is not a reading and the panel titles say which is on screen.
+    el("wx-station").textContent = wx && wx.predicted
+      ? "forecast" : (wx && wx.station_id ? wx.station_id : "");
 
     el("vessel-count").textContent = String(feed.vessels.size);
     el("aircraft-count").textContent = String(feed.aircraft.size);

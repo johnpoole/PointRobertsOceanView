@@ -759,6 +759,32 @@ async def coops(client: httpx.AsyncClient, station: str,
     return payload
 
 
+def series_block(slots: dict[str, float], step_s: int) -> dict:
+    """A 6-minute prediction dict, as an evenly stepped run the browser can index.
+
+    NOAA hands back {"2026-08-11 13:54": 2.31, ...} in the station's own local
+    time. The gaps have to be even for an index to work, so this checks that they
+    are rather than trusting it: a missing slot would silently shift every value
+    after it by six minutes.
+    """
+    keys = sorted(slots)
+    if len(keys) < 2:
+        raise RuntimeError(
+            f"a prediction series needs at least two slots and this has {len(keys)}")
+    start = datetime.strptime(keys[0], "%Y-%m-%d %H:%M")
+    values = []
+    for i, key in enumerate(keys):
+        when = datetime.strptime(key, "%Y-%m-%d %H:%M")
+        want = start + timedelta(seconds=step_s * i)
+        if when != want:
+            raise RuntimeError(
+                f"prediction series has a gap: slot {i} is {key} and an even "
+                f"{step_s} s step wants {want:%Y-%m-%d %H:%M}. Indexing it would "
+                f"put every value after this one at the wrong time.")
+        values.append(round(slots[key], 3))
+    return {"start": keys[0] + "Z", "step_s": step_s, "values": values}
+
+
 async def fetch_tide(client: httpx.AsyncClient) -> dict:
     """Point Roberts water level: its own prediction plus the surge measured at
     Cherry Point. See the TIDE_STATION comment for why."""
@@ -816,6 +842,12 @@ async def fetch_tide(client: httpx.AsyncClient) -> dict:
             "trend": trend,
             "surge_m": surge_m,
             "gauge_station_id": TIDE_GAUGE_STATION,
+            # The whole prediction, so a page standing at another hour can read
+            # the water there. Astronomical only: the surge is a measurement made
+            # ten minutes ago and it is weather, so carrying it six hours out
+            # would be inventing. A page off the present hour shows this and says
+            # it is a prediction.
+            "series": series_block(series[TIDE_STATION], 360),
         },
         "time": observed_at,
     }
@@ -940,6 +972,17 @@ async def current_task() -> None:
                              series[0][0].strftime("%Y-%m-%d %H:%M"),
                              series[-1][0].strftime("%Y-%m-%d %H:%M"))
                 world.current = current_at(series, now)
+                # The whole prediction, so a page standing at another hour can
+                # read the stream there. Every slot is worked out with the same
+                # rule as the live one, rather than the rule being written twice.
+                world.current["series"] = {
+                    "start": series[0][0].strftime("%Y-%m-%d %H:%M") + "Z",
+                    "step_s": int((series[1][0] - series[0][0]).total_seconds()),
+                    "rows": [
+                        [c["drift_mps"], c["set_degrees"], c["state"]]
+                        for c in (current_at(series, row[0]) for row in series)
+                    ],
+                }
                 world.current_time = now
                 world.health["currents"] = "live"
                 await clients.broadcast(envelope(
@@ -982,13 +1025,54 @@ def hour_index(times: list[str], now: datetime) -> int | None:
     return 0 if times else None
 
 
+# What the hourly run carries through to the browser, under the names the state
+# already uses, so the client reads one shape whichever hour it is standing at.
+HOURLY_FIELDS = {
+    "cloud_cover": "cloud_cover_percent",
+    "wind_speed_10m": "wind_speed_mps",
+    "wind_direction_10m": "wind_direction_degrees",
+    "temperature_2m": "temperature_c",
+    "relative_humidity_2m": "relative_humidity_percent",
+    "visibility": "visibility_m",
+    "precipitation_probability": "precipitation_probability_percent",
+}
+
+
+def hourly_block(hourly: dict) -> dict:
+    """Open-Meteo's hourly run, as an evenly stepped hour the browser can index."""
+    times = hourly.get("time") or []
+    if len(times) < 2:
+        raise RuntimeError(
+            f"Open-Meteo returned {len(times)} hourly samples and a run needs at "
+            f"least two. Check the hourly= parameter on the forecast call.")
+    block = {"start": times[0] + "Z", "step_s": 3600}
+    for src, name in HOURLY_FIELDS.items():
+        run = hourly.get(src)
+        if run is None:
+            raise RuntimeError(
+                f"Open-Meteo hourly has no {src}, which the forecast call asked "
+                f"for. Its parameter list has changed.")
+        if len(run) != len(times):
+            raise RuntimeError(
+                f"Open-Meteo hourly {src} has {len(run)} samples against "
+                f"{len(times)} timestamps.")
+        block[name] = run
+    block["description"] = [WMO_CODES.get(c) for c in hourly.get("weather_code", [])]
+    return block
+
+
 async def fetch_weather(client: httpx.AsyncClient) -> dict:
     forecast = await client.get(FORECAST_URL, params={
         "latitude": POINT[0], "longitude": POINT[1],
         "current": "temperature_2m,relative_humidity_2m,cloud_cover,wind_speed_10m,"
                    "wind_direction_10m,precipitation,weather_code",
-        "hourly": "visibility,precipitation_probability",
-        "wind_speed_unit": "ms", "timezone": "GMT", "forecast_days": 1,
+        # The hourly run as well as the reading for now, so a page standing at
+        # another hour can shade the sky and set the vane for that hour. Two days
+        # covers the twelve hours the clock moves either way.
+        "hourly": "visibility,precipitation_probability,cloud_cover,wind_speed_10m,"
+                  "wind_direction_10m,temperature_2m,relative_humidity_2m,weather_code",
+        "wind_speed_unit": "ms", "timezone": "GMT", "forecast_days": 2,
+        "past_days": 1,
     })
     forecast.raise_for_status()
     data = forecast.json()
@@ -1025,6 +1109,11 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
             "wave_height_m": wave_h,
             "wave_direction_degrees": wave_dir,
             "wave_period_s": wave_period,
+            # The hourly run, for a page standing at another hour. The sea state
+            # is not in it: Open-Meteo's marine call gives the wave now and no
+            # forecast, so a page off the present hour keeps the present sea and
+            # nothing pretends otherwise.
+            "series": hourly_block(hourly),
         },
         "time": parse_time(cur.get("time")) or now,
     }
