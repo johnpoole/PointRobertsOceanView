@@ -231,12 +231,19 @@ The traced footprint is an irregular seven-node 55 m². What is built is the rec
 7.4 by 6.0 turned 18° east of north, because that is what the photographs show and a photograph
 cannot place the notch.
 
-**The roof drawn here is the wrong shape and it is known to be.** 2023 lidar over that footprint,
-520 returns, puts the ridge at 13.29 m and the eave at 12.84, against 15.00 and 13.85 drawn, and
-the pitch at 1.7 in 12 against 4.6. And 487 of the 520 sit in a band 0.8 m thick: it is not one
-gable, it is three low-slope standing-seam planes at different levels. It was corrected once
-in `2c9f7f7` and reverted with everything else in `b3f522a` when the desktop view broke. The
-numbers and the working are in `../PointRobertsEngineering/CONTINUE.md`.
+The roof heights are the lidar's. 495 returns over that footprint put the ridge at 13.29 m and
+the eave at 12.84, against 15.00 and 13.85 drawn, and the pitch at 1.7 in 12 against 4.6. Two
+things fell out of that measurement: the walls less the overhang are 473 sq ft against the
+assessor's 496, and the eave sits 4.18 m over the lower floor rather than 5.30, which puts the
+upper floor at 10.45 — exactly the lidar ground on the uphill side. You walk in at grade from the
+road. So the storeys are no longer two of 2.65 but a low half-buried level under a full one.
+
+**The shape is still wrong.** 487 of 520 returns sit in a band 0.8 m thick: it is not one gable,
+it is three low-slope standing-seam planes at different levels, and one gable is what is drawn.
+The three levels have not been measured. Note also that the two clips disagree — the 495 returns
+above are over the fitted rectangle, and the 520 over the footprint grown a third, which gives
+ridge 13.78 and eave 12.58. Settle which clip before fitting the planes. The lidar and the
+working are in `../PointRobertsEngineering/CONTINUE.md`.
 
 ## Ground colour
 
