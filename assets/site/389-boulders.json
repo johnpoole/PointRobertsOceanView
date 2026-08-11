@@ -1,0 +1,80 @@
+{
+  "what": "rock standing proud of the foreshore west of 389 W Bluff Rd, from the WA DNR cascades_north_wali_2023 tiles",
+  "baked_by": "PointRobertsEngineering site/bake-oceanview-lidar.py",
+  "baked": "2026-08-11",
+  "tide_at_the_flight_m_mllw": "about 1.8. The water surface reads 1.51 to 2.02",
+  "not_captured": "anything that only shows below that tide. Lidar does not see through water, so a rock exposed only at low water is not in this and no flight at this tide will have it.",
+  "kept": "lumps of 0.9 to 30.0 m2 standing over 0.4 m, within 50.0 m of the cabin",
+  "boulders": [
+    {
+      "lat": 48.9893391,
+      "lon": -123.0860538,
+      "base_m": 3.33,
+      "stands_m": 2.56,
+      "radius_m": 0.75
+    },
+    {
+      "lat": 48.9892426,
+      "lon": -123.0859888,
+      "base_m": 3.44,
+      "stands_m": 2.32,
+      "radius_m": 0.56
+    },
+    {
+      "lat": 48.9892617,
+      "lon": -123.0860701,
+      "base_m": 2.9,
+      "stands_m": 0.94,
+      "radius_m": 0.8
+    },
+    {
+      "lat": 48.988997,
+      "lon": -123.0858873,
+      "base_m": 3.01,
+      "stands_m": 0.84,
+      "radius_m": 0.69
+    },
+    {
+      "lat": 48.9889771,
+      "lon": -123.0863242,
+      "base_m": 1.81,
+      "stands_m": 0.73,
+      "radius_m": 0.89
+    },
+    {
+      "lat": 48.9888433,
+      "lon": -123.0858704,
+      "base_m": 2.16,
+      "stands_m": 0.5,
+      "radius_m": 0.63
+    },
+    {
+      "lat": 48.9891754,
+      "lon": -123.0860858,
+      "base_m": 2.36,
+      "stands_m": 0.46,
+      "radius_m": 0.85
+    },
+    {
+      "lat": 48.9888836,
+      "lon": -123.0858494,
+      "base_m": 2.55,
+      "stands_m": 0.46,
+      "radius_m": 0.75
+    },
+    {
+      "lat": 48.9891449,
+      "lon": -123.0860726,
+      "base_m": 2.33,
+      "stands_m": 0.43,
+      "radius_m": 0.56
+    },
+    {
+      "lat": 48.988866,
+      "lon": -123.0858724,
+      "base_m": 2.24,
+      "stands_m": 0.43,
+      "radius_m": 0.69
+    }
+  ]
+}

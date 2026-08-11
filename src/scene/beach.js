@@ -88,8 +88,39 @@ function logGeometry(length, rand) {
   return g;
 }
 
+// The rocks the lidar found on the foreshore west of 389, as against the shingle
+// scattered by rule. Position, plan size and how far each stands over the ground
+// around it are all measured; the shape is the same cobble the rest of the beach
+// uses, scaled up. Bedded so the measured height is what shows.
+//
+// They are not tide-aware. The flight was at about a 1.8 m tide and these are
+// what stood out of the water that day, so at a lower tide there will be rock on
+// this beach that is not drawn. See assets/site/389-boulders.json.
+function measuredBoulders(boulders, rand, push) {
+  if (!boulders) return 0;
+  if (!Array.isArray(boulders.boulders)) {
+    throw new Error(
+      "buildBeach: the boulder asset has no boulders array. It is written by " +
+      "site/bake-oceanview-lidar.py in PointRobertsEngineering.");
+  }
+  let n = 0;
+  for (const b of boulders.boulders) {
+    const w = toWorld(b.lat, b.lon, b.base_m);
+    const g = new THREE.IcosahedronGeometry(1, 0);
+    g.scale(b.radius_m * (0.85 + rand() * 0.3), b.stands_m,
+            b.radius_m * (0.85 + rand() * 0.3));
+    g.rotateY(rand() * Math.PI * 2);
+    g.rotateX((rand() - 0.5) * 0.3);
+    // Centre on the ground, so half is buried and it stands its measured height.
+    g.translate(w.x, w.y, w.z);
+    push(STONE_COLORS, n % STONE_COLORS.length, g);
+    n++;
+  }
+  return n;
+}
+
 // sample(lat, lon) -> metres above MLLW, the near tile's own sampler.
-export function buildBeach(scene, sample, origin) {
+export function buildBeach(scene, sample, origin, boulders) {
   const rand = seeded(20260806);
   const dLatMax = REACH_M / 111320;
   const dLonMax = REACH_M / (111320 * Math.cos((origin.lat * Math.PI) / 180));
@@ -135,6 +166,9 @@ export function buildBeach(scene, sample, origin) {
     }
   }
 
+  const rocks = measuredBoulders(boulders, rand, push);
+  if (rocks) console.info(`beach: ${rocks} boulders measured off the lidar`);
+
   // One mesh per colour: a handful of draw calls for a few thousand stones.
   for (const [color, geoms] of byColor) {
     if (!geoms.length) continue;
@@ -144,5 +178,5 @@ export function buildBeach(scene, sample, origin) {
     mesh.castShadow = false;
     scene.add(mesh);
   }
-  return { stones, logs };
+  return { stones, logs, boulders: rocks };
 }

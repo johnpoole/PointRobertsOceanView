@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_TREES, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_BOULDERS, SITE_TREES, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -227,9 +227,10 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
         { haze: 0, fog: true, landcover: LANDCOVER, hole: covers }),
       osmFeatures(),
       fetch(SITE_TREES).then((r) => r.json()),
+      fetch(SITE_BOULDERS).then((r) => r.json()),
     ]);
   })
-  .then(([fine, covers, near, osm, siteTrees]) => {
+  .then(([fine, covers, near, osm, siteTrees, siteBoulders]) => {
     // Everything standing on the ground asks one sampler, and it answers off the
     // lidar where the lidar reaches. Otherwise the cabin would sit on CUDEM while
     // the ground under it was drawn from something else.
@@ -242,7 +243,7 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
     const se = toWorld(north_lat - (nrows - 1) * cellsize_deg, west_lon + (ncols - 1) * cellsize_deg);
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
-    buildBeach(scene, near.sample, ORIGIN);
+    buildBeach(scene, near.sample, ORIGIN, siteBoulders);
     trees = buildTrees(scene, near.sample, near.cover, osm.roads, siteTrees);
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
