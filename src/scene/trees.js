@@ -363,6 +363,10 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   const yaw = new Float32Array(room);
   const form = new Uint8Array(room);
   const tint = new Uint8Array(room);
+  // Where the live crown starts, in tree heights. The scattered ones all take
+  // the shape's own base; the measured ones carry what the lidar found under
+  // them, which on a stand-grown fir is about half way up.
+  const crownBase = new Float32Array(room).fill(CONIFER_CROWN_BASE);
 
   let count = 0;
   let belowCover = 0;
@@ -421,6 +425,7 @@ export function buildTrees(scene, sample, cover, roads, measured) {
       pz[count] = w.z;
       height[count] = t.height_m;
       radius[count] = t.radius_m;
+      crownBase[count] = t.crown_base_frac;
       yaw[count] = rand() * Math.PI * 2;
       form[count] = CONIFER;
       tint[count] = Math.floor(rand() * CONIFER_COLORS.length);
@@ -515,15 +520,26 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   const col = new THREE.Color();
 
   const palette = (n) => (form[n] === CONIFER ? CONIFER_COLORS : BROADLEAF_COLORS);
+  // The crown geometry spans CONIFER_CROWN_BASE to the top of the tree. Lifting
+  // its base to where the lidar found one means squeezing that span into the
+  // shorter one and dropping the origin to match, so the tip still lands at the
+  // measured height. A tree whose base is the shape's own comes out unchanged.
+  const crownSpanY = (n) =>
+    height[n] * (1 - crownBase[n]) / (1 - CONIFER_CROWN_BASE);
   const crownMatrix = (n) => {
-    pos.set(px[n], py[n], pz[n]);
+    const s = form[n] === CONIFER ? crownSpanY(n) : height[n];
+    pos.set(px[n], py[n] + height[n] - s, pz[n]);
     quat.setFromAxisAngle(up, yaw[n]);
-    scl.set(radius[n], height[n], radius[n]);
+    scl.set(radius[n], s, radius[n]);
     return m.compose(pos, quat, scl);
   };
   const trunkMatrix = (n) => {
     const conifer = form[n] === CONIFER;
-    const top = conifer ? CONIFER_TRUNK_TOP : BROADLEAF_TRUNK_TOP;
+    // The trunk has to reach the crown, or a tree whose branches start half way
+    // up stands on a stump with a gap over it.
+    const top = conifer
+      ? Math.max(CONIFER_TRUNK_TOP, crownBase[n] + 0.05)
+      : BROADLEAF_TRUNK_TOP;
     const rFrac = conifer ? CONIFER_TRUNK_R_FRAC : BROADLEAF_TRUNK_R_FRAC;
     pos.set(px[n], py[n], pz[n]);
     quat.setFromAxisAngle(up, yaw[n]);

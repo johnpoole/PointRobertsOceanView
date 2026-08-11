@@ -50,7 +50,12 @@ export function viewHash(camera, extras = {}) {
   const aim = _dir.multiplyScalar(AIM_M).add(eye);
   const parts = [`eye=${place(eye.x, eye.y, eye.z)}`,
                  `aim=${place(aim.x, aim.y, aim.z)}`];
-  for (const [k, v] of Object.entries(extras)) if (v) parts.push(`${k}=1`);
+  // A switch carries as k=1. Anything else carries its own value, which is how
+  // the clock rides along: it is an hour, not an on.
+  for (const [k, v] of Object.entries(extras)) {
+    if (v === true) parts.push(`${k}=1`);
+    else if (v) parts.push(`${k}=${v}`);
+  }
   return `#${parts.join("&")}`;
 }
 

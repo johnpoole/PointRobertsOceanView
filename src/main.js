@@ -264,17 +264,52 @@ feed.onChange((kind) => {
   if (feed.weather) weather.apply(feed.weather.data);
 });
 
-// Place the sun where it really is for the current time, and re-place it each
+// The clock the sun runs on. Zero is the real one, and the slider moves it. The
+// sun is the only thing that reads it: the tide, the weather and the vessels are
+// live feeds and there is nothing to run them forward to.
+let clockOffsetMs = 0;
+const sceneNow = () => new Date(Date.now() + clockOffsetMs);
+
+const clockRange = document.getElementById("clock-range");
+const clockValue = document.getElementById("clock-value");
+
+function setClockOffset(hours) {
+  clockOffsetMs = hours * 3600000;
+  clockRange.value = String(hours);
+  const t = sceneNow();
+  clockValue.textContent = hours === 0
+    ? "now"
+    : `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`
+      + ` (${hours > 0 ? "+" : ""}${hours} h)`;
+  updateSun();
+}
+
+// #hour=14 opens at two in the afternoon. It is turned into an offset from now,
+// so the slider and the link say the same thing and a share carries it.
+function hourFromHash(hash) {
+  const m = /(?:^#|&)hour=(-?\d+(?:\.\d+)?)/.exec(String(hash || ""));
+  if (!m) return null;
+  const want = Number(m[1]);
+  if (!Number.isFinite(want) || want < 0 || want >= 24) return null;
+  const now = new Date();
+  // Not rounded to the slider's quarter hour: hour=14 should put the sun at two
+  // o'clock, not six minutes short of it. The thumb snaps, the clock does not.
+  return want - (now.getHours() + now.getMinutes() / 60);
+}
+
+clockRange.addEventListener("input", () => setClockOffset(Number(clockRange.value)));
+
+// Place the sun where it really is for the scene's time, and re-place it each
 // minute so the light and sky track the day. Looking west, the morning sun sits
 // behind the camera; only near sunset does it light the water ahead.
 function updateSun() {
-  const { azimuth, elevation } = solarPosition(new Date(), ORIGIN.lat, ORIGIN.lon);
+  const { azimuth, elevation } = solarPosition(sceneNow(), ORIGIN.lat, ORIGIN.lon);
   sky.setSun(sunDirection(azimuth, elevation), new THREE.Color(0xfff2d8));
   sun.position.copy(sunDirection(azimuth, elevation)).multiplyScalar(15000);
   weather.dayFactor = Math.max(0, Math.min((elevation + 6) / 12, 1));
   weather.apply(feed.weather ? feed.weather.data : {});
 }
-updateSun();
+setClockOffset(hourFromHash(location.hash) ?? 0);
 setInterval(updateSun, 60000);
 
 // The corner row says "connecting" from the first frame. The banner does not:
@@ -797,6 +832,12 @@ document.getElementById("whales-btn").addEventListener("click", () => {
 const share = new Share(camera, () => ({
   brademy: brademy ? brademy.visible : false,
   map: overview.visible,
+  // The hour the scene is standing at, so a link opens on the same light. Left
+  // off when the clock is the real one. Quartered, or the address bar would be
+  // rewritten every minute as the offset clock ran on.
+  hour: clockOffsetMs
+    ? Math.round((sceneNow().getHours() + sceneNow().getMinutes() / 60) * 4) / 4
+    : 0,
 }));
 
 window.addEventListener("keydown", (e) => {
