@@ -19,6 +19,11 @@ already have in their hands, and anything else costs them the first minute.
     one finger           drags
     two fingers          pinch and twist
 
+**A swing turns around the ground in the middle of the screen**, not around
+whatever point the camera was last left orbiting. Turning around a point out on
+the water throws the whole world past instead of showing the other side of what
+you are looking at.
+
 No limit on how close the camera may come to what it is looking at.
 
 ## The cabin at 389 W Bluff Rd

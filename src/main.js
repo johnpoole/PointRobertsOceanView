@@ -71,6 +71,54 @@ controls.maxDistance = 8000;
 // screen. This is the half of the Google feel that is not in the bindings.
 controls.zoomToCursor = true;
 
+// Google swings about the ground in the middle of the screen. OrbitControls
+// swings about controls.target, and the target is wherever it was last left —
+// on opening it is 500 m out on the water, so a ctrl-drag threw the whole world
+// past instead of turning around what you were looking at.
+//
+// The fix is to put the target on the ground straight ahead before a swing
+// starts. That point is on the view axis already, so moving the target there
+// changes the distance and not the direction: nothing jumps, and the swing then
+// pivots about what is in front of you.
+const PIVOT_MAX_M = 8000;      // give up past this and leave the target alone
+const PIVOT_STEP_M = 2;        // first crossing to within this, then bisect
+
+function groundUnderCentre() {
+  if (!groundSample) return null;
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const at = (t) => {
+    const p = camera.position.clone().addScaledVector(dir, t);
+    const { lat, lon } = fromWorld(p.x, p.z);
+    const g = groundSample(lat, lon);
+    return { p, above: p.y - (g == null ? 0 : g) };
+  };
+  if (at(0).above <= 0) return null;              // already underground
+  let lo = 0;
+  let hi = 0;
+  for (let t = PIVOT_STEP_M; t <= PIVOT_MAX_M; t *= 1.35) {
+    if (at(t).above <= 0) { hi = t; break; }
+    lo = t;
+  }
+  if (!hi) return null;                            // looking at the sky
+  for (let i = 0; i < 24 && hi - lo > 0.05; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(mid).above <= 0) hi = mid; else lo = mid;
+  }
+  return at((lo + hi) / 2).p;
+}
+
+function pivotOnCentre() {
+  if (!controls.enabled || nav.mode !== "orbit") return;
+  const hit = groundUnderCentre();
+  if (hit) controls.target.copy(hit);
+}
+
+// On every press, not only the ones that swing: a two finger twist has no
+// modifier to test, and a drag over ground that is 20 m under the old target
+// pans at the wrong speed for the same reason.
+canvas.addEventListener("pointerdown", pivotOnCentre);
+
 // World direction pointing toward the sun, from a compass azimuth (0=N, cw) and
 // elevation. World axes: +X east, +Y up, +Z south.
 function sunDirection(azDeg, elevDeg) {
@@ -283,10 +331,11 @@ function setClockOffset(hours) {
   clockOffsetMs = hours * 3600000;
   clockRange.value = String(hours);
   const t = sceneNow();
+  const shown = Math.round(hours * 4) / 4;   // #hour= lands on any offset at all
   clockValue.textContent = hours === 0
     ? "now"
     : `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`
-      + ` (${hours > 0 ? "+" : ""}${hours} h)`;
+      + ` (${shown > 0 ? "+" : ""}${shown} h)`;
   updateSun();
 }
 
