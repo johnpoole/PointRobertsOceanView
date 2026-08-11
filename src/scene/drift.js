@@ -22,7 +22,10 @@
 import * as THREE from "three";
 import { seeded } from "./parts.js";
 
-const POOL = 1200;
+// It was 1200 and the water read as a raft rather than as open sea with things
+// on it. A quarter of that is 165 sticks, 90 pieces of kelp and 45 of foam,
+// which is still enough to read the set off and not enough to cover the strait.
+const POOL = 300;
 const FULL_M = 80;
 const FADE_M = 300;
 // How many frames it takes to ask the whole pool where the sea is. See update().
