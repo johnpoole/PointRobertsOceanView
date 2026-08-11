@@ -36,6 +36,11 @@ const FAR_M = 2500;
 // that a tree pops into detail well before you reach it.
 const REBUILD_M = 20;
 
+// Measured trees closer than this to where the view opens are left out. Twenty
+// five metres is not close, and it is the number because the three standing in
+// the opening view are 11.4, 19.6 and 22.8 m out. It costs six of the thirty one.
+const CLEAR_OF_CAMERA_M = 25;
+
 // Stems per hectare, by NLCD class. Second growth on this coast runs three
 // hundred or so to the hectare once the canopy has closed.
 const DENSITY_PER_HA = {
@@ -372,6 +377,7 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   let belowCover = 0;
   let onRoad = 0;
   let onLidar = 0;
+  let nearCamera = 0;
   for (let i = 0; i < nrows; i++) {
     for (let j = 0; j < ncols; j++) {
       const code = cover.codes[i * ncols + j];
@@ -420,6 +426,11 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   if (measured) {
     for (const t of measured.trees) {
       const w = toWorld(t.lat, t.lon, t.ground_m);
+      // The view opens at the origin looking west, and the lidar found trees
+      // standing in it. The nearest is 11.4 m out and 28 m tall, and with two
+      // behind it they cover 13 degrees of a 25 degree lens — the page opens on
+      // three posts and no sea. They are really there. They are not drawn.
+      if (Math.hypot(w.x, w.z) < CLEAR_OF_CAMERA_M) { nearCamera++; continue; }
       px[count] = w.x;
       py[count] = w.y;
       pz[count] = w.z;
@@ -432,7 +443,9 @@ export function buildTrees(scene, sample, cover, roads, measured) {
       count++;
     }
     console.info(
-      `trees: ${measured.trees.length} measured off the lidar on the lot, ` +
+      `trees: ${measured.trees.length - nearCamera} of ${measured.trees.length} ` +
+      `measured off the lidar on the lot, ${nearCamera} left out for standing ` +
+      `within ${CLEAR_OF_CAMERA_M} m of where the view opens, ` +
       `${onLidar} scattered ones stood down for them`);
   }
 

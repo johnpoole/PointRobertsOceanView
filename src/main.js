@@ -54,12 +54,18 @@ camera.position.set(0, EYE_HEIGHT_M, 0);
 // wheel to zoom at whatever the pointer is over. On a touch screen, one finger
 // drags and two pinch and twist. MapControls is OrbitControls with those bindings
 // and with panning held parallel to the ground instead of to the screen.
+//
+// This is a requirement, not a preference. See REQUIREMENTS.md.
 const controls = new MapControls(camera, canvas);
 controls.target.set(-500, 0, 0); // look west, slightly down to the water
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.maxPolarAngle = Math.PI * 0.52; // don't drop below the sea surface
-controls.minDistance = 20;
+// Google puts no floor under how close you may come, and a floor of 20 m is a
+// floor on looking at a 7 m building: it stopped the camera two storeys off the
+// cabin and would not go in. What is left is the near plane, which is 1 m: any
+// closer and the thing you came to look at is clipped away.
+controls.minDistance = 1;
 controls.maxDistance = 8000;
 // Zoom toward what is under the pointer rather than toward the middle of the
 // screen. This is the half of the Google feel that is not in the bindings.
