@@ -120,6 +120,10 @@ html, body {
   cursor: pointer;
 }
 .view-btn:hover { background: rgba(150, 190, 220, 0.2); }
+/* A button for something that did not start. Greyed rather than taken away, so
+   it is plain that the thing exists and is not here. */
+.view-btn.off { opacity: 0.35; cursor: default; }
+.view-btn.off:hover { background: none; }
 .fly-btn { width: 100%; text-align: center; color: var(--warn); }
 
 /* The helm readout. Above the tide panel on the left; bottom right is taken by

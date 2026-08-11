@@ -279,7 +279,7 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
           seaAt: nav.seaAt,
           coastline: land.features.coastline,
         });
-      });
+      }, "the whales");
       // What a shared link asked for, now that there is something to switch on.
       // Set directly rather than through the toggles: toggleBrademy re-aims the
       // camera, which would throw away the view the link carried.
@@ -301,23 +301,28 @@ buildTerrain(scene, TERRAIN.far,
 // looked like it had loaded and had no beach, no land and no bottom to the sea.
 // Run something once there is a water level to run it against. If the tide is
 // already in, that is now.
+//
+// Whatever is waiting here is a thing on the scene, not the scene. It gets its
+// own catch so a piece that will not start leaves the rest of the page alone.
 const waitingOnTide = [];
-function whenTide(fn) {
-  if (feed.tide) fn();
-  else waitingOnTide.push(fn);
+function runWaiting(fn, what) {
+  try {
+    fn();
+  } catch (err) {
+    console.error(`${what} did not start, and is left off:`, err);
+    return false;
+  }
+  return true;
+}
+function whenTide(fn, what) {
+  if (feed.tide) runWaiting(fn, what);
+  else waitingOnTide.push({ fn, what });
 }
 
-// `ground` is false for things that are on the ground rather than the ground
-// itself. The whales failing is not the ground missing, and the banner said so
-// for a year because everything in that chain shared one catch.
-function failed(what, err, ground = true) {
+function failed(what, err) {
   console.error(`${what} failed to load:`, err);
   const banner = document.getElementById("terrain-fail");
   const said = document.getElementById("terrain-fail-sub");
-  if (!ground && !banner.dataset.ground) {
-    document.getElementById("terrain-fail-title").textContent = "something is missing";
-  }
-  if (ground) banner.dataset.ground = "1";
   // Both tiles can fail, and the second must not erase the first.
   said.textContent = said.textContent
     ? `${said.textContent}; ${what}` : `${what} did not load`;
@@ -340,13 +345,10 @@ feed.onChange((kind) => {
   hud.update(feed, { tide: tideAt(), weather: weatherAt(), current: currentAt() });
   if (feed.weather) weather.apply(weatherAt());
   while (feed.tide && waitingOnTide.length) {
-    const fn = waitingOnTide.shift();
-    try {
-      fn();
-    } catch (err) {
-      failed("the whales", err, false);
-    }
+    const job = waitingOnTide.shift();
+    runWaiting(job.fn, job.what);
   }
+  document.getElementById("whales-btn").classList.toggle("off", !orcas);
 });
 
 // The slider that drives the scene clock. What reads that clock is in clock.js.
