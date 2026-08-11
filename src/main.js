@@ -28,6 +28,7 @@ import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
 import { Live } from "./live.js";
 import { Touch } from "./touch.js";
+import { OrbitStick } from "./orbit-stick.js";
 import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
@@ -626,6 +627,15 @@ const touch = new Touch(
   document.getElementById("stick"),
   document.getElementById("stick-knob"));
 
+// The same stick, in the normal view, turning the camera instead of driving
+// something. Two fingers rotate on a trackpad and they do not on a phone.
+const orbitStick = new OrbitStick(
+  camera, controls,
+  document.getElementById("stick"),
+  document.getElementById("stick-knob"),
+  () => nav.mode === "orbit" && controls.enabled,
+  pivotOnCentre);
+
 // Navigation: a free-fly camera alongside whichever vehicle you are in.
 const nav = new Nav(camera, renderer.domElement, controls, {
   touch,
@@ -998,6 +1008,7 @@ function frame() {
   weather.update(dt, camera);
 
   nav.update(dt);
+  orbitStick.update(dt);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
