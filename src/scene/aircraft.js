@@ -10,17 +10,24 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
 
 const KN = 0.514444;
-// Sized the same way as vessels: real size near to, growing with the square root
-// of the range so a Beaver three kilometres up is not one pixel, and depending on
-// the range and never on the aircraft, so a Cessna can never come out the size of
-// an A330. See the comment in vessels.js for why every floor and cap measured in
-// metres of airframe has been taken out.
+// The drawn length is no longer a flat multiple of the real one. A 737 is 4.8
+// times a Cessna and the two sizes wanted of them are 3.4 apart, so real length
+// is raised to a power under one and the small ones grow more than the large.
 //
-// Aircraft carry their own reference because they are small and always far: an
-// airliner at cruise is twenty-five kilometres off, where a ship would be five.
-const ZOOM_REF_M = 600;
+// The two that set it, at 20 km — the far edge of the feed — on a 900 px screen
+// through the 25 degree lens:
+//
+//   Cessna 172   8.3 m real   197 m drawn    20 px
+//   737         39.5 m real   669 m drawn    68 px
+//
+// LEN_POWER is ln(68/20) / ln(39.5/8.3). Nothing is ever drawn under life size.
+const LEN_POWER = 0.7844;
+const DRAW_AT_REF_M = 197;      // what an 8.3 m aircraft is drawn at SEEN_M
+const DRAW_AT_REF_LEN_M = 8.3;
+const SEEN_M = 20000;
+// Apparent size falls with the square root of range rather than with range, so
+// something at the edge of the feed is still a shape and not a speck.
 const ZOOM_POWER = 0.5;
-const ZOOM_MAX = 6;
 
 // Rough real lengths, metres, by ICAO type code. Anything unknown is a light
 // single, which is most of what flies over Point Roberts.
@@ -77,7 +84,7 @@ export class Aircraft {
         const mesh = new THREE.Mesh(planeGeometry(length), material);
         group = new THREE.Group();
         group.add(mesh);
-        group.userData = { material, target: new THREE.Vector3(), placed: false };
+        group.userData = { material, length, target: new THREE.Vector3(), placed: false };
         this.scene.add(group);
         this.groups.set(icao, group);
       }
@@ -98,8 +105,10 @@ export class Aircraft {
       }
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
-      group.scale.setScalar(Math.min(
-        Math.max(Math.pow(dist / ZOOM_REF_M, ZOOM_POWER), 1), ZOOM_MAX));
+      const real = group.userData.length;
+      const drawn = DRAW_AT_REF_M * Math.pow(real / DRAW_AT_REF_LEN_M, LEN_POWER)
+        * Math.pow(dist / SEEN_M, ZOOM_POWER);
+      group.scale.setScalar(Math.max(drawn / real, 1));
 
       const stale = feed.isStale(entry, "aircraft");
       const mat = group.userData.material;

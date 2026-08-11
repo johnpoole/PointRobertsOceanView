@@ -4,7 +4,7 @@ Serves the static site and bridges four upstream feeds into one browser
 WebSocket at /ws/live:
 
   - vessels  : AISStream.io  (needs AISSTREAM_API_KEY in .env)
-  - aircraft : adsb.lol, community-fed ADS-B, 30 nm around the bluff, no key
+  - aircraft : adsb.lol, community-fed ADS-B, 20 km around the bluff, no key
   - tide     : NOAA CO-OPS 9449639 (Point Roberts) with the surge measured at
                9449424 (Cherry Point) carried onto it, MLLW, metres
   - weather  : Open-Meteo forecast and marine at the exact coordinates
@@ -134,11 +134,12 @@ KNOT_MPS = 0.514444
 # Aircraft from adsb.lol: community-fed, ODbL, no key. A drop-in for the
 # ADSBexchange API that went paid. Their docs say a key may be required in
 # future, earned by feeding the network.
-# 30 nm covers the Vancouver floatplane lanes and the approach to YVR, which is
-# what actually crosses the view. Six seconds is well inside their tolerance and
-# the client interpolates between polls.
+# Twenty kilometres. It was 30 nm, which is 56, and at that range everything was
+# a speck: the far edge sets how big a thing is drawn, so a wide feed makes a
+# small one. Six seconds is well inside their tolerance and the client
+# interpolates between polls.
 ADSB_URL = "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{nm}"
-ADSB_RADIUS_NM = 30
+ADSB_RADIUS_NM = 10.8      # 20 km. It was 30 nm, which is 56.
 # ---- border crossings -------------------------------------------------------
 #
 # Point Roberts can only be reached by driving through Canada, so its trade is
