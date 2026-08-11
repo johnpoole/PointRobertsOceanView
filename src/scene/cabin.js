@@ -156,7 +156,13 @@ const SEAM = 0x7d848a;
 const FASCIA = 0x22282c;
 const BRICK = 0x7d5544;
 const DECK_TIMBER = 0x9c8a72;   // weathered cedar, greyed off
-const RAIL_MESH = 0x3d4348;
+// The upper rail: galvanised wire in a metal frame, both pale. It was one dark
+// colour on a solid panel, and the photographs from the beach show the house
+// through it.
+const RAIL_WIRE = 0xb7c0c4;
+const RAIL_FRAME = 0xa8b1b5;
+const MESH_M = 0.11;         // the grid, off the photographs
+const WIRE_M = 0.012;
 const POST_COLOR = 0x2f4a44;  // the green-teal posts under the deck
 const LATTICE = 0x353c41;   // dark, but off black: it is a screen, not a hole
 const CONCRETE = 0x8d8b84;  // the stair treads and the wall they run against
@@ -268,10 +274,35 @@ export function buildCabin(scene, sample) {
   // The upper deck, out over the bank, with the wire-mesh rail.
   const dx = -hw - DECK_OUT / 2;
   place(parts, box(DECK_OUT, L, 0.14, dx, UPPER_FLOOR - 0.14, 0, DECK_TIMBER));
+  // The rail is a square wire mesh in a metal frame, pale galvanised, and you
+  // see the house through it. It was a solid dark panel, which read as a wall.
+  // The grid is about 110 mm off the photographs from the beach.
   const railRun = (x, z, w, d) => {
-    place(parts, box(w, d, 0.09, x, UPPER_FLOOR + RAIL_H, z, DECK_TIMBER));
-    place(parts, box(w * 0.98, d * 0.98, RAIL_H - 0.18, x,
-                     UPPER_FLOOR + 0.09, z, RAIL_MESH));
+    const alongX = w > d;
+    const run = alongX ? w : d;
+    place(parts, box(w, d, 0.06, x, UPPER_FLOOR + RAIL_H, z, RAIL_FRAME));
+    const top = UPPER_FLOOR + RAIL_H;
+    const bottom = UPPER_FLOOR + 0.09;
+    for (let y = bottom; y <= top - 0.02; y += MESH_M) {
+      place(parts, box(alongX ? run : WIRE_M, alongX ? WIRE_M : run, WIRE_M,
+                       x, y, z, RAIL_WIRE));
+    }
+    const n = Math.max(1, Math.round(run / MESH_M));
+    for (let k = 0; k <= n; k++) {
+      const off = -run / 2 + (k * run) / n;
+      place(parts, box(WIRE_M, WIRE_M, top - bottom,
+                       x + (alongX ? off : 0), bottom, z + (alongX ? 0 : off),
+                       RAIL_WIRE));
+    }
+    // A post at each end and every two metres between, which is what holds the
+    // panels up and what you actually pick out at a distance.
+    const posts = Math.max(1, Math.round(run / 2.0));
+    for (let k = 0; k <= posts; k++) {
+      const off = -run / 2 + (k * run) / posts;
+      place(parts, box(0.07, 0.07, RAIL_H,
+                       x + (alongX ? off : 0), UPPER_FLOOR, z + (alongX ? 0 : off),
+                       RAIL_FRAME));
+    }
   };
   railRun(-hw - DECK_OUT, 0, 0.1, L);
   railRun(dx, -hl, DECK_OUT, 0.1);
