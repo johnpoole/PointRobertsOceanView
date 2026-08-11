@@ -15,7 +15,6 @@ import { Aircraft } from "./scene/aircraft.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain } from "./scene/terrain.js";
 import { buildLand, osmFeatures } from "./scene/land.js";
-import { buildLot } from "./scene/lot.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
@@ -254,8 +253,6 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
     // The cabin is modelled off photographs rather than extruded from its OSM
     // trace, so land.js leaves the home alone and cabin.js puts it there.
     buildCabin(scene, near.sample);
-    // The lot line round the cabin. Draped, so it follows the bluff down.
-    buildLot(scene, near.sample).catch((err) => failed("the lot boundary", err));
     lighthouse = buildLighthouse(scene, near.sample);
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.
