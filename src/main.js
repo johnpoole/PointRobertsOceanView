@@ -268,9 +268,17 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
       // The whales run the west shore, so they need the coastline, which only
       // exists once the land has been built. They ride the same surface the boat
       // floats on, and the same sampler is what tells them which side is the sea.
-      orcas = buildOrcas(scene, {
-        seaAt: nav.seaAt,
-        coastline: land.features.coastline,
+      //
+      // And they need a tide. Which side of the coastline is water is decided by
+      // depth, and with no tide reading the sea sits at chart datum, where the
+      // flats west of the peninsula are dry ground: at 0 m not one of the 131
+      // coastline points can tell its two sides apart, and at 1 m ninety can. So
+      // this waits for the first reading rather than racing it.
+      whenTide(() => {
+        orcas = buildOrcas(scene, {
+          seaAt: nav.seaAt,
+          coastline: land.features.coastline,
+        });
       });
       // What a shared link asked for, now that there is something to switch on.
       // Set directly rather than through the toggles: toggleBrademy re-aims the
@@ -291,10 +299,25 @@ buildTerrain(scene, TERRAIN.far,
 // A feed that goes down says so on screen and the terrain did not, and the
 // terrain is most of what is out there. Losing it quietly left a page that
 // looked like it had loaded and had no beach, no land and no bottom to the sea.
-function failed(what, err) {
+// Run something once there is a water level to run it against. If the tide is
+// already in, that is now.
+const waitingOnTide = [];
+function whenTide(fn) {
+  if (feed.tide) fn();
+  else waitingOnTide.push(fn);
+}
+
+// `ground` is false for things that are on the ground rather than the ground
+// itself. The whales failing is not the ground missing, and the banner said so
+// for a year because everything in that chain shared one catch.
+function failed(what, err, ground = true) {
   console.error(`${what} failed to load:`, err);
   const banner = document.getElementById("terrain-fail");
   const said = document.getElementById("terrain-fail-sub");
+  if (!ground && !banner.dataset.ground) {
+    document.getElementById("terrain-fail-title").textContent = "something is missing";
+  }
+  if (ground) banner.dataset.ground = "1";
   // Both tiles can fail, and the second must not erase the first.
   said.textContent = said.textContent
     ? `${said.textContent}; ${what}` : `${what} did not load`;
@@ -316,6 +339,14 @@ feed.onChange((kind) => {
   hud.setConnection(feed.connected, feed.connected ? null : "reconnecting…");
   hud.update(feed, { tide: tideAt(), weather: weatherAt(), current: currentAt() });
   if (feed.weather) weather.apply(weatherAt());
+  while (feed.tide && waitingOnTide.length) {
+    const fn = waitingOnTide.shift();
+    try {
+      fn();
+    } catch (err) {
+      failed("the whales", err, false);
+    }
+  }
 });
 
 // The slider that drives the scene clock. What reads that clock is in clock.js.
