@@ -852,8 +852,14 @@ function toBluff() {
 const WYZE_EYE = { lat: 48.989022, lon: -123.085925, y: 14.2 };
 const WYZE_AIM = { lat: 48.988010, lon: -123.089597, y: -59.1 };
 const WYZE_FOV_DEG = 70;
+const WYZE_SHOT = "assets/reference/ocean_view-20260812T194848Z.png";
 let wyzeView = false;
 
+const camref = document.getElementById("camref");
+
+// C stands the render where the camera hangs and lays the photograph over it.
+// C again takes the photograph away and leaves the render at the same aim, so
+// the two flip against each other. Esc walks out of it.
 function toWyzeCam() {
   nav.toOrbit();
   const eye = toWorld(WYZE_EYE.lat, WYZE_EYE.lon, WYZE_EYE.y);
@@ -863,6 +869,22 @@ function toWyzeCam() {
   controls.update();
   wyzeView = true;
   applyFov();
+}
+
+function flipWyze() {
+  if (!wyzeView) {
+    toWyzeCam();
+    camref.src = camref.src || WYZE_SHOT;
+    camref.classList.remove("hidden");
+    return;
+  }
+  camref.classList.toggle("hidden");
+}
+
+function leaveWyze() {
+  if (!wyzeView) return;
+  camref.classList.add("hidden");
+  toBluff();
 }
 
 // Looking around is Google Maps' 3D view, and that view is an oblique one from
@@ -1042,7 +1064,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
-  if (e.code === "KeyC") wyzeView ? toBluff() : toWyzeCam();
+  if (e.code === "KeyC") flipWyze();
+  if (e.code === "Escape") leaveWyze();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.

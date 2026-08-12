@@ -16,10 +16,6 @@ scripts/_tiles/
 # checkout. Never committed — a missing name is simply fetched again.
 data/
 
-# Frames grabbed off the cameras, to hold the render against. Megabytes each,
-# and another one is a script away.
-assets/reference/
-
 # Per-host compose settings, for a machine that needs to differ from
 # docker-compose.yml without the difference showing up as a local modification.
 docker-compose.override.yml
