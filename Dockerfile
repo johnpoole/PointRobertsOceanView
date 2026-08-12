@@ -14,7 +14,7 @@ RUN playwright install --with-deps chromium
 COPY server ./server
 COPY src ./src
 COPY assets ./assets
-COPY index.html styles.css ./
+COPY index.html styles.css favicon.svg ./
 
 EXPOSE 8080
 
