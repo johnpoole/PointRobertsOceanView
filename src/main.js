@@ -867,18 +867,18 @@ const WYZE_CAMS = [
   {
     // On the roof, a foot in from the south edge and five feet up the slope
     // from the east edge. Off cabin.js's gable the skin there is 12.78 m MLLW,
-    // and the lens sits 0.15 m over it on the camera's own base.
+    // and the lens sits 0.15 m over it on the camera's own base — the roof here
+    // is a surface with no thickness and the seams stand 3 cm off it, so a lens
+    // laid on the skin looks at the underside of the roof.
     //
-    // That last 0.15 is not measured and it is not slack either. The roof in
-    // this model is a surface with no thickness and the standing seams stand
-    // 3 cm off it, so a lens laid on the skin is inside the roof looking at the
-    // underside of it. And the sight line has to clear the eave: over the 1.5 m
-    // out to the east edge it falls 0.38 m while the roof falls 0.26, so
-    // without the mount it goes into the roof and with it clears by 3 cm. The
-    // photograph has no roof anywhere in it, so the real one clears too.
+    // Level, not tilted down. The bank east of the house climbs: the ground is
+    // up to the lens 4 m out, 9° above it at 6 m and 18° above by 15 m, where it
+    // tops out. A camera on this roof is looking up a hill. Level puts that
+    // skyline a quarter of the way down the frame, which is where the
+    // photograph has it, and clears the eave by 41 cm.
     name: "front door",
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
-    aim: { lat: 48.990391, lon: -123.082323, y: -60.7 },
+    aim: { lat: 48.990434, lon: -123.082215, y: 12.9 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
   },
   {
