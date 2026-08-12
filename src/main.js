@@ -865,9 +865,13 @@ function toBluff() {
 const WYZE_FOV_DEG = 70;
 const WYZE_CAMS = [
   {
+    // On the roof, a foot in from the south edge and five feet up the slope
+    // from the east edge, which off cabin.js's gable is 12.78 m MLLW — 1.3 m
+    // lower than it was standing. The aim is the one that was set by hand,
+    // carried down to the new eye.
     name: "front door",
-    eye: { lat: 48.989050, lon: -123.085748, y: 14.1 },
-    aim: { lat: 48.990395, lon: -123.082334, y: -59.3 },
+    eye: { lat: 48.989046, lon: -123.085735, y: 12.8 },
+    aim: { lat: 48.990391, lon: -123.082323, y: -60.8 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
   },
   {
