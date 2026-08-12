@@ -86,10 +86,6 @@ const UPPER_FLOOR = 10.45;
 const EAVE = 12.71;          // the wall top: the two measured eaves differ by 11 cm
 const LOWER_STOREY = UPPER_FLOOR - LOWER_FLOOR;
 const UPPER_STOREY = EAVE - UPPER_FLOOR;
-
-// Where the house stands and how it is turned, for anything outside that has to
-// hang something on it. The Ocean View camera is on the west wall.
-export const CABIN = { at: AT, yaw: YAW, width: W, lowerFloor: LOWER_FLOOR };
 // The ridge is off centre and the two sides do not share a pitch. Measured.
 const RIDGE_X = -0.90;       // west of centre, which is the short steep side
 const RIDGE_Y = 13.39;

@@ -18,7 +18,7 @@ import { buildLand, osmFeatures } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
-import { CABIN, buildCabin } from "./scene/cabin.js";
+import { buildCabin } from "./scene/cabin.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -838,43 +838,28 @@ function toBluff() {
 }
 
 // Stand the scene camera where the Ocean View camera hangs, with its lens, so a
-// frame off it and the render can be held against each other. Nothing here is
-// measured: it is the west wall of the lower level, a height off that floor, and
-// due west. It is one block on purpose — the way to make it right is to look at
-// the photograph, see what does not line up, and move these numbers.
+// frame off it and the render can be held against each other.
+//
+// The eye and the aim are a viewpoint set by hand in the app and read back out
+// of the address bar, which is the same pair share.js writes: a position and a
+// point three hundred metres down the line of sight. That works out at 14.2 m
+// above MLLW, 112.8° from north and 14.1° below level.
 //
 // A Wyze Cam V3 covers 110° across the diagonal of a 16:9 frame, which is 70°
 // up the short side. That is the vertical angle the render is given, so the
 // horizon sits at the same height in both whatever the window is doing. It is a
 // fisheye and the render is not, so the middle will agree before the edges do.
-const WYZE_EYE_ABOVE_FLOOR_M = 1.70;
-const WYZE_HEADING_DEG = -90;      // from north: -90 is due west
-const WYZE_PITCH_DEG = -10;        // below level
+const WYZE_EYE = { lat: 48.989022, lon: -123.085925, y: 14.2 };
+const WYZE_AIM = { lat: 48.988010, lon: -123.089597, y: -59.1 };
 const WYZE_FOV_DEG = 70;
 let wyzeView = false;
 
-function wyzeCameraPose() {
-  // Out from the middle of the house to the west wall, turned with the house.
-  const out = new THREE.Vector3(-CABIN.width / 2, 0, 0)
-    .applyAxisAngle(new THREE.Vector3(0, 1, 0), CABIN.yaw);
-  return {
-    x: CABIN.at.x + out.x,
-    y: CABIN.lowerFloor + WYZE_EYE_ABOVE_FLOOR_M,
-    z: CABIN.at.z + out.z,
-  };
-}
-
 function toWyzeCam() {
   nav.toOrbit();
-  const p = wyzeCameraPose();
-  const a = (WYZE_HEADING_DEG * Math.PI) / 180;
-  const t = (WYZE_PITCH_DEG * Math.PI) / 180;
-  const far = 500;
-  camera.position.set(p.x, p.y, p.z);
-  controls.target.set(
-    p.x + Math.sin(a) * Math.cos(t) * far,
-    p.y + Math.sin(t) * far,
-    p.z - Math.cos(a) * Math.cos(t) * far);
+  const eye = toWorld(WYZE_EYE.lat, WYZE_EYE.lon, WYZE_EYE.y);
+  const aim = toWorld(WYZE_AIM.lat, WYZE_AIM.lon, WYZE_AIM.y);
+  camera.position.set(eye.x, eye.y, eye.z);
+  controls.target.set(aim.x, aim.y, aim.z);
   controls.update();
   wyzeView = true;
   applyFov();
