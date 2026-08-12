@@ -201,20 +201,6 @@ html, body {
 /* A drag has to reach the canvas rather than scroll or zoom the page. */
 #scene { touch-action: none; }
 
-/* The camera frame over the render. Height of the window, its own aspect, and
-   centred, so a pixel up the frame is the same angle in both. Under the panels
-   and over the scene. */
-.camref {
-  position: fixed;
-  z-index: 3;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 100%;
-  width: auto;
-  pointer-events: none;
-}
-
 .vessel-tip {
   position: fixed;
   z-index: 6;

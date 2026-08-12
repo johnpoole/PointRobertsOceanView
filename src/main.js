@@ -187,6 +187,7 @@ let landmarkPicks = [];
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
+let ground = null;       // the near terrain tile, which the camera frames are thrown on
 let brademy = null;      // the proposed courts. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
@@ -225,7 +226,7 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
       fine,
       covers,
       buildTerrain(scene, TERRAIN.near,
-        { haze: 0, fog: true, landcover: LANDCOVER, hole: covers }),
+        { haze: 0, fog: true, landcover: LANDCOVER, hole: covers, projector: true }),
       osmFeatures(),
       fetch(SITE_TREES).then((r) => r.json()),
       fetch(SITE_BOULDERS).then((r) => r.json()),
@@ -239,6 +240,7 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
     near.sample = (lat, lon) =>
       covers(lat, lon) ? fine.sample(lat, lon) : coarseSample(lat, lon);
     groundSample = near.sample;
+    ground = near;
     const { nrows, ncols, cellsize_deg, north_lat, west_lon } = near.meta.grid;
     const nw = toWorld(north_lat, west_lon);
     const se = toWorld(north_lat - (nrows - 1) * cellsize_deg, west_lon + (ncols - 1) * cellsize_deg);
@@ -830,7 +832,7 @@ function vehicleHint(spec) {
 // looking due west. toOrbit aims the target down the current view, so the
 // position and the target are set after it, not before.
 function toBluff() {
-  wyzeView = false;
+  leaveWyze();
   nav.toOrbit();
   camera.position.set(0, EYE_HEIGHT_M, 0);
   controls.target.set(-500, 0, 0);
@@ -870,46 +872,71 @@ const WYZE_CAMS = [
     shot: "assets/reference/ocean_view-20260812T194848Z.png",
   },
 ];
+// How much of the photograph is laid over the ground. Not all of it: the render
+// showing through is what you are comparing it against.
+const WYZE_MIX = 0.75;
 let wyzeView = false;
 let wyzeCam = 0;
 
-const camref = document.getElementById("camref");
+// The lens the photograph was taken with, standing where it was taken. The
+// terrain reads the ground back through this, so the frame lands where the
+// camera was pointed instead of across the screen.
+const wyzeLens = new THREE.PerspectiveCamera(WYZE_FOV_DEG, 16 / 9, 1, 4000);
+const wyzeShots = new Map();
 
-// C stands the render where a camera hangs and lays its photograph over it. C
-// again takes the photograph away and leaves the render at the same aim, so the
-// two flip against each other. Shift+C moves to the next camera. Esc walks out.
+function wyzeTexture(url) {
+  if (!wyzeShots.has(url)) {
+    const tex = new THREE.TextureLoader().load(url, () => { tex.needsUpdate = true; });
+    tex.colorSpace = THREE.SRGBColorSpace;
+    wyzeShots.set(url, tex);
+  }
+  return wyzeShots.get(url);
+}
+
+// C throws the camera's own photograph onto the ground from where it was taken,
+// and stands you at the camera to start with. C again takes it off. You are not
+// held there: walk away and the picture stays on the ground it was taken of,
+// which is the whole of the test. Shift+C moves to the next camera, Esc leaves.
 function toWyzeCam() {
   const cam = WYZE_CAMS[wyzeCam];
-  nav.toOrbit();
   const eye = toWorld(cam.eye.lat, cam.eye.lon, cam.eye.y);
   const aim = toWorld(cam.aim.lat, cam.aim.lon, cam.aim.y);
+  nav.toOrbit();
   camera.position.set(eye.x, eye.y, eye.z);
   controls.target.set(aim.x, aim.y, aim.z);
   controls.update();
-  camref.src = cam.shot;
+
+  wyzeLens.position.set(eye.x, eye.y, eye.z);
+  wyzeLens.lookAt(aim.x, aim.y, aim.z);
+  wyzeLens.updateProjectionMatrix();
+  ground.project(wyzeTexture(cam.shot), wyzeLens, WYZE_MIX);
+
+  // The measured trees in the opening view are the only things out there with a
+  // trunk the lidar put in a known place, so they are what the photograph has to
+  // be lined up against.
+  if (trees) trees.homeTrees(true);
   wyzeView = true;
   applyFov();
 }
 
 function flipWyze() {
-  if (!wyzeView) {
-    toWyzeCam();
-    camref.classList.remove("hidden");
-    return;
-  }
-  camref.classList.toggle("hidden");
+  if (!ground) return;   // no terrain to throw it on yet
+  if (!wyzeView) { toWyzeCam(); return; }
+  leaveWyze();
 }
 
 function nextWyzeCam() {
+  if (!ground) return;
   wyzeCam = (wyzeCam + 1) % WYZE_CAMS.length;
   toWyzeCam();
-  camref.classList.remove("hidden");
 }
 
 function leaveWyze() {
   if (!wyzeView) return;
-  camref.classList.add("hidden");
-  toBluff();
+  ground.project(null, null, 0);
+  if (trees) trees.homeTrees(false);
+  wyzeView = false;
+  applyFov();
 }
 
 // Looking around is Google Maps' 3D view, and that view is an oblique one from
@@ -1090,7 +1117,6 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
   if (e.code === "KeyC") e.shiftKey ? nextWyzeCam() : flipWyze();
-  if (e.code === "Escape") leaveWyze();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.

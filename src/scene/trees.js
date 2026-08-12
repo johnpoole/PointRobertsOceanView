@@ -372,6 +372,9 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   // the shape's own base; the measured ones carry what the lidar found under
   // them, which on a stand-grown fir is about half way up.
   const crownBase = new Float32Array(room).fill(CONIFER_CROWN_BASE);
+  // The measured trees standing in the opening view. Built like the rest and
+  // held back by the near ring, so they can be asked for without a rebuild.
+  const atHome = new Uint8Array(room);
 
   let count = 0;
   let belowCover = 0;
@@ -427,8 +430,11 @@ export function buildTrees(scene, sample, cover, roads, measured) {
       // The view opens at the origin looking west, and the lidar found trees
       // standing in it. The nearest is 11.4 m out and 28 m tall, and with two
       // behind it they cover 13 degrees of a 25 degree lens — the page opens on
-      // three posts and no sea. They are really there. They are not drawn.
-      if (Math.hypot(w.x, w.z) < CLEAR_OF_CAMERA_M) continue;
+      // three posts and no sea. They are really there, so they are built and
+      // marked, and the near ring leaves them out until something asks for them.
+      // Held against a photograph off the cameras they are the only things in
+      // the scene with a measured trunk in a measured place.
+      atHome[count] = Math.hypot(w.x, w.z) < CLEAR_OF_CAMERA_M ? 1 : 0;
       px[count] = w.x;
       py[count] = w.y;
       pz[count] = w.z;
@@ -595,7 +601,11 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   const crownLo = [0, 0], crownHi = [0, 0];
   let trunkLo = 0, trunkHi = 0;
 
+  // Held back either for standing too far off, or for standing in the opening
+  // view while nothing has asked to see it.
+  let hideHome = true;
   const beyondRing = (n, at, r2) => {
+    if (hideHome && atHome[n]) return true;
     const dx = px[n] - at.x, dy = py[n] - at.y, dz = pz[n] - at.z;
     return dx * dx + dy * dy + dz * dz >= r2;
   };
@@ -701,6 +711,14 @@ export function buildTrees(scene, sample, cover, roads, measured) {
     belowCover,
     onRoad,
     nearCap,
+    // The measured trees standing in the opening view: shown, or put away. The
+    // ring is rewritten on the next update rather than here, so asking twice in
+    // a frame costs nothing.
+    homeTrees(show) {
+      if (hideHome !== show) return;
+      hideHome = !show;
+      anchor = null;
+    },
     update(camera) {
       if (anchor && anchor.distanceToSquared(camera.position) < REBUILD_M * REBUILD_M) return;
       anchor = anchor || new THREE.Vector3();

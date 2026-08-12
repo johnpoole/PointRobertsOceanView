@@ -215,7 +215,65 @@ function walk() {
   return path;
 }
 
+// CLEAR_OF_CAMERA_M in trees.js. The measured trees inside it stand in the
+// opening view and are held out of the near ring until something asks for them.
+const CLEAR_OF_CAMERA_M = 25;
+
+const asLat = (m) => m / M_PER_DEG_LAT;
+const asLon = (m) => m / (M_PER_DEG_LAT * COS_LAT);
+
+// A handful of lidar trees, some of them standing in the view and some not.
+function measuredTrees() {
+  const out = [];
+  for (const north of [8, 14, 21, 60, 90]) {
+    out.push({
+      lat: ORIGIN.lat + asLat(north), lon: ORIGIN.lon,
+      ground_m: GROUND_M, height_m: 28, radius_m: 3.5, crown_base_frac: 0.5,
+    });
+  }
+  return {
+    trees: out,
+    outline: [
+      [ORIGIN.lat - asLat(120), ORIGIN.lon - asLon(120)],
+      [ORIGIN.lat - asLat(120), ORIGIN.lon + asLon(120)],
+      [ORIGIN.lat + asLat(120), ORIGIN.lon + asLon(120)],
+      [ORIGIN.lat + asLat(120), ORIGIN.lon - asLon(120)],
+    ],
+  };
+}
+
+// The trees standing in the opening view: out by default, in when asked for,
+// and out again after.
+function testHomeTrees() {
+  const scene = new Scene();
+  const t = buildTrees(scene, () => GROUND_M, cover, [], measuredTrees());
+  const near = scene.children.slice(0, 3);
+  const at = new Vector3(0, GROUND_M + 1.6, 0);
+
+  // A measured tree is 28 m tall with a 3.5 m crown; nothing scattered here is.
+  const lidar = (mesh) => placed(mesh).filter(([x, y, z]) =>
+    Math.hypot(x, z) < CLEAR_OF_CAMERA_M && Math.abs(y - GROUND_M) < 0.01).length;
+
+  const look = (show, want, where) => {
+    t.homeTrees(show);
+    t.update({ position: at });
+    render(near);
+    const held = lidar(near[TRUNKS]);
+    if (held !== want) {
+      throw new Error(
+        `${where}: ${held} measured trees inside ${CLEAR_OF_CAMERA_M} m are being ` +
+        `drawn, and ${want} should be.`);
+    }
+  };
+
+  look(false, 0, "with the opening view clear");
+  look(true, 3, "with the trees asked for");
+  look(false, 0, "with them put away again");
+  console.log("ok   the trees in the opening view come and go on asking");
+}
+
 function main() {
+  testHomeTrees();
   const walked = build();
   const all = everyTree(walked.far);
   if (all.length !== walked.trees.trees) {

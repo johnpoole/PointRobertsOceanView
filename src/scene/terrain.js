@@ -141,8 +141,42 @@ function colorForGround(elev, target, row, col, slope, cover) {
 // value noise in world metres, one at the size of a pea and one at the size of
 // the patches they gather in, darkening and lightening the ground rather than
 // tinting it — wet stone and dry stone next to each other, not a colour wash.
-function addGravel(material) {
+// A photograph thrown onto the ground from where it was taken, the way a slide
+// projector would. Every fragment is put back into the camera's clip space and
+// reads the frame there, so the picture lies over the terrain in depth instead
+// of across the screen, and you can walk away from the camera and see whether
+// it still sits on the ground it was taken of.
+//
+// There is no depth test against the projector, so ground the camera cannot see
+// — the far side of a bank — is painted as though it could. Nothing to do about
+// that short of a shadow map, and it is obvious enough on the screen.
+const PROJECTOR_GLSL_FRAGMENT = `
+  if (projMix > 0.0) {
+    vec4 pp = projMatrix * vec4(vGroundPos, 1.0);
+    if (pp.w > 0.0) {
+      vec2 puv = (pp.xy / pp.w) * 0.5 + 0.5;
+      if (puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0) {
+        diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(projMap, puv).rgb, projMix);
+      }
+    }
+  }
+`;
+
+// One white pixel, so the sampler has something to point at before a photograph
+// is handed over. A null sampler is a link error, not an empty picture.
+function blankMap() {
+  const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+  t.needsUpdate = true;
+  return t;
+}
+
+function addGravel(material, projector) {
   material.onBeforeCompile = (shader) => {
+    if (projector) {
+      shader.uniforms.projMatrix = projector.matrix;
+      shader.uniforms.projMap = projector.map;
+      shader.uniforms.projMix = projector.mix;
+    }
     shader.uniforms.gravelSize = { value: GRAVEL_M };
     shader.uniforms.gravelCoarse = { value: GRAVEL_COARSE_M };
     shader.uniforms.gravelDepth = { value: GRAVEL_DEPTH };
@@ -172,6 +206,11 @@ function addGravel(material) {
         uniform float gravelCoarse;
         uniform float gravelDepth;
         uniform vec2 gravelFade;
+        ${projector ? `
+        uniform mat4 projMatrix;
+        uniform sampler2D projMap;
+        uniform float projMix;
+        ` : ""}
 
         float hash21(vec2 p) {
           return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -200,10 +239,11 @@ function addGravel(material) {
           float grit = (stones * 0.7 + patches * 0.3) * gravelDepth * vStony * near;
           diffuseColor.rgb = clamp(diffuseColor.rgb * (1.0 + grit * 2.0), 0.0, 1.0);
         }
+        ${projector ? PROJECTOR_GLSL_FRAGMENT : ""}
       `);
   };
   // A material whose shader is rewritten needs its own program.
-  material.customProgramCacheKey = () => "terrain-gravel";
+  material.customProgramCacheKey = () => `terrain-gravel${projector ? "-proj" : ""}`;
 }
 
 // fetch resolves for a 404 and a 500 as happily as for a 200 — only a network
@@ -389,7 +429,13 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 1, metalness: 0, fog,
   });
-  if (opts.gravel !== false) addGravel(mat);
+  // Held here rather than in the shader object, because onBeforeCompile runs
+  // once and whoever hands over a photograph does it long afterwards.
+  const projector = opts.projector
+    ? { matrix: { value: new THREE.Matrix4() }, map: { value: blankMap() },
+        mix: { value: 0 } }
+    : null;
+  if (opts.gravel !== false) addGravel(mat, projector);
   const mesh = new THREE.Mesh(geom, mat);
   mesh.position.y = yOffset;
   scene.add(mesh);
@@ -406,5 +452,22 @@ export async function buildTerrain(scene, asset, opts = {}) {
     const bot = Z[i1 * ncols + j0] * (1 - tj) + Z[i1 * ncols + j1] * tj;
     return top * (1 - ti) + bot * ti;
   };
-  return { mesh, meta, sample, heights: Z, cover };
+  // Throw a photograph on the ground, or take it off with mix 0. camera is a
+  // three camera standing where the photograph was taken, with its lens.
+  const project = (map, camera, mix) => {
+    if (!projector) {
+      throw new Error(
+        "buildTerrain: this tile was not built with opts.projector, so there is " +
+        "no projector in its shader to hand a photograph to.");
+    }
+    if (map) projector.map.value = map;
+    if (camera) {
+      camera.updateMatrixWorld();
+      projector.matrix.value
+        .copy(camera.projectionMatrix)
+        .multiply(camera.matrixWorldInverse);
+    }
+    projector.mix.value = mix;
+  };
+  return { mesh, meta, sample, heights: Z, cover, project };
 }
