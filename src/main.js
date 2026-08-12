@@ -593,6 +593,39 @@ window.addEventListener("pointermove", grabMove, true);
 window.addEventListener("pointerup", grabEnd, true);
 window.addEventListener("pointercancel", grabEnd, true);
 
+function showTip(rows, stale) {
+  if (!rows) { tip.classList.add("hidden"); return; }
+  const html = rows
+    .map(([k, v]) => `<div class="tip-row"><span class="tip-k">${esc(k)}</span><span class="tip-v">${esc(v)}</span></div>`)
+    .join("");
+  tip.innerHTML = html + (stale ? `<div class="tip-stale">stale</div>` : "");
+  tip.style.left = (cursorX + 14) + "px";
+  tip.style.top = (cursorY + 14) + "px";
+  tip.classList.remove("hidden");
+}
+
+// The sounding where the pointer meets the water, over the marina, where the
+// bottom is drawn and the contours are already there to be counted. Two figures,
+// because a boat wants both: what is under the keel now, and what the chart
+// says, which is the same bottom at the datum the soundings are printed on.
+// Null anywhere else.
+function soundingUnderPointer() {
+  if (!groundSample) return null;
+  const t = rangeUnderPointer();
+  if (t === null) return null;   // the ray went to the sky
+  const o = raycaster.ray.origin, d = raycaster.ray.direction;
+  const x = o.x + d.x * t, z = o.z + d.z * t;
+  if (!ocean.inMarina(x, z)) return null;
+  const { lat, lon } = fromWorld(x, z);
+  const bed = groundSample(lat, lon);
+  const depth = tideLevel() - bed;
+  if (depth <= 0) return null;   // the ray stopped on the dry inside the box
+  return [
+    ["depth", `${depth.toFixed(1)} m`],
+    ["MLLW", bed <= 0 ? `${(-bed).toFixed(1)} m` : `dries ${bed.toFixed(1)} m`],
+  ];
+}
+
 function updateHover() {
   if (!pointerInside) return;
   raycaster.setFromCamera(pointer, camera);
@@ -600,7 +633,7 @@ function updateHover() {
   const hits = raycaster.intersectObjects(targets, true);
   let o = hits.length ? hits[0].object : null;
   while (o && !o.userData.vessel && !o.userData.aircraft && !o.userData.landmark) o = o.parent;
-  if (!o) { tip.classList.add("hidden"); return; }
+  if (!o) { showTip(soundingUnderPointer()); return; }
   let rows, stale = false;
   if (o.userData.vessel) {
     rows = Vessels.describe(o.userData.vessel);
@@ -611,13 +644,7 @@ function updateHover() {
   } else {
     rows = [["place", o.userData.landmark.name], ["type", o.userData.landmark.kind]];
   }
-  const html = rows
-    .map(([k, v]) => `<div class="tip-row"><span class="tip-k">${esc(k)}</span><span class="tip-v">${esc(v)}</span></div>`)
-    .join("");
-  tip.innerHTML = html + (stale ? `<div class="tip-stale">stale</div>` : "");
-  tip.style.left = (cursorX + 14) + "px";
-  tip.style.top = (cursorY + 14) + "px";
-  tip.classList.remove("hidden");
+  showTip(rows, stale);
 }
 
 // The lens. Looking around, it is the narrow one set above. In live mode it is

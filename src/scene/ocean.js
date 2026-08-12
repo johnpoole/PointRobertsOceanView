@@ -419,6 +419,14 @@ export class Ocean {
     return { y: level + h, dx: gx, dz: -gy, bed };
   }
 
+  // Inside the box the bottom is drawn up through the water with a contour on
+  // it every metre, so this is where there is a depth to be read off.
+  inMarina(x, z) {
+    if (!this.uniforms.uHasMarina.value) return false;
+    const a = this.uniforms.uMarinaMin.value, b = this.uniforms.uMarinaMax.value;
+    return x >= a.x && x <= b.x && z >= a.y && z <= b.y;
+  }
+
   // h = { x, z, fx, fz, halfLen, halfBeam } or null to fill the water back in.
   setHull(h) {
     if (!h) { this.uniforms.uHasHull.value = 0; return; }
