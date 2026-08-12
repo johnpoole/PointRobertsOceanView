@@ -896,7 +896,7 @@ function wyzeTexture(url) {
 // C throws the camera's own photograph onto the ground from where it was taken,
 // and stands you at the camera to start with. C again takes it off. You are not
 // held there: walk away and the picture stays on the ground it was taken of,
-// which is the whole of the test. Shift+C moves to the next camera, Esc leaves.
+// which is the whole of the test. N moves to the next camera.
 function toWyzeCam() {
   const cam = WYZE_CAMS[wyzeCam];
   const eye = toWorld(cam.eye.lat, cam.eye.lon, cam.eye.y);
@@ -1116,7 +1116,9 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
-  if (e.code === "KeyC") e.shiftKey ? nextWyzeCam() : flipWyze();
+  // Held down, C would strobe the photograph on and off at the key repeat rate.
+  if (e.code === "KeyC" && !e.repeat) flipWyze();
+  if (e.code === "KeyN" && !e.repeat) nextWyzeCam();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.
