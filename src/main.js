@@ -849,24 +849,44 @@ function toBluff() {
 // up the short side. That is the vertical angle the render is given, so the
 // horizon sits at the same height in both whatever the window is doing. It is a
 // fisheye and the render is not, so the middle will agree before the edges do.
-const WYZE_EYE = { lat: 48.989022, lon: -123.085925, y: 14.2 };
-const WYZE_AIM = { lat: 48.988010, lon: -123.089597, y: -59.1 };
+// Each one is a frame off the camera and the viewpoint it was taken from, set
+// by hand in the app and read back out of the address bar — the same eye and
+// aim pair share.js writes, a position and a point 300 m down the line of sight.
+//
+//   ocean view   14.2 m MLLW, 112.8° from north, 14.1° down, west over the beach
+//   front door   14.1 m MLLW,  59.0° from north, 14.2° down, east up the stair
 const WYZE_FOV_DEG = 70;
-const WYZE_SHOT = "assets/reference/ocean_view-20260812T194848Z.png";
+const WYZE_CAMS = [
+  {
+    name: "front door",
+    eye: { lat: 48.989050, lon: -123.085748, y: 14.1 },
+    aim: { lat: 48.990395, lon: -123.082334, y: -59.3 },
+    shot: "assets/reference/front_door-20260812T203304Z.png",
+  },
+  {
+    name: "ocean view",
+    eye: { lat: 48.989022, lon: -123.085925, y: 14.2 },
+    aim: { lat: 48.988010, lon: -123.089597, y: -59.1 },
+    shot: "assets/reference/ocean_view-20260812T194848Z.png",
+  },
+];
 let wyzeView = false;
+let wyzeCam = 0;
 
 const camref = document.getElementById("camref");
 
-// C stands the render where the camera hangs and lays the photograph over it.
-// C again takes the photograph away and leaves the render at the same aim, so
-// the two flip against each other. Esc walks out of it.
+// C stands the render where a camera hangs and lays its photograph over it. C
+// again takes the photograph away and leaves the render at the same aim, so the
+// two flip against each other. Shift+C moves to the next camera. Esc walks out.
 function toWyzeCam() {
+  const cam = WYZE_CAMS[wyzeCam];
   nav.toOrbit();
-  const eye = toWorld(WYZE_EYE.lat, WYZE_EYE.lon, WYZE_EYE.y);
-  const aim = toWorld(WYZE_AIM.lat, WYZE_AIM.lon, WYZE_AIM.y);
+  const eye = toWorld(cam.eye.lat, cam.eye.lon, cam.eye.y);
+  const aim = toWorld(cam.aim.lat, cam.aim.lon, cam.aim.y);
   camera.position.set(eye.x, eye.y, eye.z);
   controls.target.set(aim.x, aim.y, aim.z);
   controls.update();
+  camref.src = cam.shot;
   wyzeView = true;
   applyFov();
 }
@@ -874,11 +894,16 @@ function toWyzeCam() {
 function flipWyze() {
   if (!wyzeView) {
     toWyzeCam();
-    camref.src = camref.src || WYZE_SHOT;
     camref.classList.remove("hidden");
     return;
   }
   camref.classList.toggle("hidden");
+}
+
+function nextWyzeCam() {
+  wyzeCam = (wyzeCam + 1) % WYZE_CAMS.length;
+  toWyzeCam();
+  camref.classList.remove("hidden");
 }
 
 function leaveWyze() {
@@ -1064,7 +1089,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
-  if (e.code === "KeyC") flipWyze();
+  if (e.code === "KeyC") e.shiftKey ? nextWyzeCam() : flipWyze();
   if (e.code === "Escape") leaveWyze();
 });
 
