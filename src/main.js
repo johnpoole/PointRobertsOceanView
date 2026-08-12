@@ -866,12 +866,19 @@ const WYZE_FOV_DEG = 70;
 const WYZE_CAMS = [
   {
     // On the roof, a foot in from the south edge and five feet up the slope
-    // from the east edge, which off cabin.js's gable is 12.78 m MLLW — 1.3 m
-    // lower than it was standing. The aim is the one that was set by hand,
-    // carried down to the new eye.
+    // from the east edge. Off cabin.js's gable the skin there is 12.78 m MLLW,
+    // and the lens sits 0.15 m over it on the camera's own base.
+    //
+    // That last 0.15 is not measured and it is not slack either. The roof in
+    // this model is a surface with no thickness and the standing seams stand
+    // 3 cm off it, so a lens laid on the skin is inside the roof looking at the
+    // underside of it. And the sight line has to clear the eave: over the 1.5 m
+    // out to the east edge it falls 0.38 m while the roof falls 0.26, so
+    // without the mount it goes into the roof and with it clears by 3 cm. The
+    // photograph has no roof anywhere in it, so the real one clears too.
     name: "front door",
-    eye: { lat: 48.989046, lon: -123.085735, y: 12.8 },
-    aim: { lat: 48.990391, lon: -123.082323, y: -60.8 },
+    eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
+    aim: { lat: 48.990391, lon: -123.082323, y: -60.7 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
   },
   {
