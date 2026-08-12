@@ -572,13 +572,89 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   // The near ring is rewritten when the camera has moved REBUILD_M, and
   // ringOrigin moves with it so the far ring hides exactly what the near ring
   // has just taken on.
+  //
+  // Twenty metres of travel changes which trees are inside three hundred by
+  // about one in twelve. So a tree keeps its slot for as long as it is in the
+  // ring and only the ones crossing the edge are written. A tree pulled out has
+  // the last tree in the mesh dropped into its place, which keeps the slots in
+  // use packed at the front, and the upload is the span that was written rather
+  // than the whole buffer — the buffer is sized for the busiest corner of the
+  // tile and is mostly trees that are nowhere near you.
   let anchor = null;
-  const nearAt = [0, 0];
+  const nearAt = [0, 0];            // crowns held, per form
+  let trunkAt = 0;
+  // The slot a tree holds, or -1 for one the ring is not carrying. A tree has a
+  // crown in its own form's mesh and a trunk in the shared one, taken and given
+  // up together.
+  const crownSlot = new Int32Array(count).fill(-1);
+  const trunkSlot = new Int32Array(count).fill(-1);
+  // And the way back: which tree is in each slot.
+  const crownOcc = [new Int32Array(nearCap), new Int32Array(nearCap)];
+  const trunkOcc = new Int32Array(nearCap);
+  // Lowest and highest slot written this pass. hi below lo means nothing moved.
+  const crownLo = [0, 0], crownHi = [0, 0];
+  let trunkLo = 0, trunkHi = 0;
+
+  const beyondRing = (n, at, r2) => {
+    const dx = px[n] - at.x, dy = py[n] - at.y, dz = pz[n] - at.z;
+    return dx * dx + dy * dy + dz * dz >= r2;
+  };
+
+  function writeCrown(f, slot, n) {
+    const crown = near.crowns[f];
+    crown.setMatrixAt(slot, crownMatrix(n));
+    crown.setColorAt(slot, col.setHex(palette(n)[tint[n]]));
+    crownOcc[f][slot] = n;
+    crownSlot[n] = slot;
+    if (slot < crownLo[f]) crownLo[f] = slot;
+    if (slot > crownHi[f]) crownHi[f] = slot;
+  }
+
+  function writeTrunk(slot, n) {
+    near.trunks.setMatrixAt(slot, trunkMatrix(n));
+    trunkOcc[slot] = n;
+    trunkSlot[n] = slot;
+    if (slot < trunkLo) trunkLo = slot;
+    if (slot > trunkHi) trunkHi = slot;
+  }
+
+  function dropCrown(f, slot) {
+    const last = --nearAt[f];
+    crownSlot[crownOcc[f][slot]] = -1;
+    if (slot !== last) writeCrown(f, slot, crownOcc[f][last]);
+  }
+
+  function dropTrunk(slot) {
+    const last = --trunkAt;
+    trunkSlot[trunkOcc[slot]] = -1;
+    if (slot !== last) writeTrunk(slot, trunkOcc[last]);
+  }
+
+  // needsUpdate on its own sends the whole attribute. Name the span instead, or
+  // every step of the camera pushes megabytes of trees that did not move.
+  function uploadSpan(attr, lo, hi, stride) {
+    attr.clearUpdateRanges();
+    attr.addUpdateRange(lo * stride, (hi - lo + 1) * stride);
+    attr.needsUpdate = true;
+  }
+
   function rewriteNear(at) {
-    nearAt[CONIFER] = 0;
-    nearAt[BROADLEAF] = 0;
-    let trunks = 0;
     const r2 = NEAR_M * NEAR_M;
+    crownLo[CONIFER] = crownLo[BROADLEAF] = trunkLo = nearCap;
+    crownHi[CONIFER] = crownHi[BROADLEAF] = trunkHi = -1;
+
+    // Out first. Pulling a tree out fills its slot from the end, so the same
+    // slot has to be read again rather than stepped over.
+    for (let f = 0; f < near.crowns.length; f++) {
+      for (let s = 0; s < nearAt[f];) {
+        const n = crownOcc[f][s];
+        if (!beyondRing(n, at, r2)) { s++; continue; }
+        dropTrunk(trunkSlot[n]);
+        dropCrown(f, s);
+      }
+    }
+
+    // Then in: what is inside the ring and not already held.
     const j0 = Math.max(Math.floor((at.x - NEAR_M - minX) / bucketM), 0);
     const j1 = Math.min(Math.floor((at.x + NEAR_M - minX) / bucketM), bcols - 1);
     const i0 = Math.max(Math.floor((at.z - NEAR_M - minZ) / bucketM), 0);
@@ -588,32 +664,33 @@ export function buildTrees(scene, sample, cover, roads, measured) {
         const b = i * bcols + j;
         for (let s = starts[b]; s < starts[b + 1]; s++) {
           const n = items[s];
-          const dx = px[n] - at.x, dy = py[n] - at.y, dz = pz[n] - at.z;
-          if (dx * dx + dy * dy + dz * dz >= r2) continue;
+          if (crownSlot[n] >= 0) continue;
+          if (beyondRing(n, at, r2)) continue;
           const f = form[n];
-          const crown = near.crowns[f];
-          if (nearAt[f] >= nearCap || trunks >= nearCap) {
+          if (nearAt[f] >= nearCap || trunkAt >= nearCap) {
             throw new Error(
               `buildTrees: the near ring wanted more than ${nearCap} trees at ` +
               `(${at.x.toFixed(0)}, ${at.z.toFixed(0)}), which the busiest ` +
               `three-by-three bucket window said was impossible. The bucket ` +
               `index in trees.js is wrong.`);
           }
-          const slot = nearAt[f]++;
-          crown.setMatrixAt(slot, crownMatrix(n));
-          crown.setColorAt(slot, col.setHex(palette(n)[tint[n]]));
-          near.trunks.setMatrixAt(trunks++, trunkMatrix(n));
+          writeCrown(f, nearAt[f]++, n);
+          writeTrunk(trunkAt++, n);
         }
       }
     }
+
     for (let f = 0; f < near.crowns.length; f++) {
       const crown = near.crowns[f];
       crown.count = nearAt[f];
-      crown.instanceMatrix.needsUpdate = true;
-      crown.instanceColor.needsUpdate = true;
+      if (crownHi[f] < crownLo[f]) continue;
+      uploadSpan(crown.instanceMatrix, crownLo[f], crownHi[f], 16);
+      uploadSpan(crown.instanceColor, crownLo[f], crownHi[f], 3);
     }
-    near.trunks.count = trunks;
-    near.trunks.instanceMatrix.needsUpdate = true;
+    near.trunks.count = trunkAt;
+    if (trunkHi >= trunkLo) {
+      uploadSpan(near.trunks.instanceMatrix, trunkLo, trunkHi, 16);
+    }
     ringOrigin.value.copy(at);
   }
 
