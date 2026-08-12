@@ -187,7 +187,10 @@ let landmarkPicks = [];
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
-let ground = null;       // the near terrain tile, which the camera frames are thrown on
+// The two tiles a camera frame can land on. The lot is a hole cut in the near
+// one, so anything looking over the house lands on the lot and nothing else.
+let ground = null;
+let lot = null;
 let brademy = null;      // the proposed courts. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
@@ -219,7 +222,8 @@ function fineCovers(fine) {
 //
 // The trees need the roads to keep out of them, so the OSM bake is waited on
 // here rather than left to buildLand further down. It is the same one fetch.
-buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
+buildTerrain(scene, TERRAIN.fine,
+             { haze: 0, fog: true, landcover: LANDCOVER, projector: true })
   .then((fine) => {
     const covers = fineCovers(fine);
     return Promise.all([
@@ -241,6 +245,7 @@ buildTerrain(scene, TERRAIN.fine, { haze: 0, fog: true, landcover: LANDCOVER })
       covers(lat, lon) ? fine.sample(lat, lon) : coarseSample(lat, lon);
     groundSample = near.sample;
     ground = near;
+    lot = fine;
     const { nrows, ncols, cellsize_deg, north_lat, west_lon } = near.meta.grid;
     const nw = toWorld(north_lat, west_lon);
     const se = toWorld(north_lat - (nrows - 1) * cellsize_deg, west_lon + (ncols - 1) * cellsize_deg);
@@ -909,7 +914,9 @@ function toWyzeCam() {
   wyzeLens.position.set(eye.x, eye.y, eye.z);
   wyzeLens.lookAt(aim.x, aim.y, aim.z);
   wyzeLens.updateProjectionMatrix();
-  ground.project(wyzeTexture(cam.shot), wyzeLens, WYZE_MIX);
+  const shot = wyzeTexture(cam.shot);
+  ground.project(shot, wyzeLens, WYZE_MIX);
+  lot.project(shot, wyzeLens, WYZE_MIX);
 
   // The measured trees in the opening view are the only things out there with a
   // trunk the lidar put in a known place, so they are what the photograph has to
@@ -934,6 +941,7 @@ function nextWyzeCam() {
 function leaveWyze() {
   if (!wyzeView) return;
   ground.project(null, null, 0);
+  lot.project(null, null, 0);
   if (trees) trees.homeTrees(false);
   wyzeView = false;
   applyFov();
