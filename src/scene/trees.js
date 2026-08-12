@@ -376,8 +376,6 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   let count = 0;
   let belowCover = 0;
   let onRoad = 0;
-  let onLidar = 0;
-  let nearCamera = 0;
   for (let i = 0; i < nrows; i++) {
     for (let j = 0; j < ncols; j++) {
       const code = cover.codes[i * ncols + j];
@@ -394,7 +392,7 @@ export function buildTrees(scene, sample, cover, roads, measured) {
         const lat = box.max_lat - (i + rand()) * dLat;
         const lon = box.min_lon + (j + rand()) * dLon;
         // Over the lot the lidar counted them, so nothing is scattered there.
-        if (isMeasured(lat, lon)) { onLidar++; continue; }
+        if (isMeasured(lat, lon)) continue;
         const elev = sample(lat, lon);
         // Below where the land cover starts deciding the ground colour it is
         // beach, whatever a 30 m cell says, and nothing grows on the shingle.
@@ -430,7 +428,7 @@ export function buildTrees(scene, sample, cover, roads, measured) {
       // standing in it. The nearest is 11.4 m out and 28 m tall, and with two
       // behind it they cover 13 degrees of a 25 degree lens — the page opens on
       // three posts and no sea. They are really there. They are not drawn.
-      if (Math.hypot(w.x, w.z) < CLEAR_OF_CAMERA_M) { nearCamera++; continue; }
+      if (Math.hypot(w.x, w.z) < CLEAR_OF_CAMERA_M) continue;
       px[count] = w.x;
       py[count] = w.y;
       pz[count] = w.z;
@@ -442,11 +440,6 @@ export function buildTrees(scene, sample, cover, roads, measured) {
       tint[count] = Math.floor(rand() * CONIFER_COLORS.length);
       count++;
     }
-    console.info(
-      `trees: ${measured.trees.length - nearCamera} of ${measured.trees.length} ` +
-      `measured off the lidar on the lot, ${nearCamera} left out for standing ` +
-      `within ${CLEAR_OF_CAMERA_M} m of where the view opens, ` +
-      `${onLidar} scattered ones stood down for them`);
   }
 
   // A uniform grid over the trees, so the near ring can ask what is close

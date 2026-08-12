@@ -167,7 +167,6 @@ export function buildBeach(scene, sample, origin, boulders) {
   }
 
   const rocks = measuredBoulders(boulders, rand, push);
-  if (rocks) console.info(`beach: ${rocks} boulders measured off the lidar`);
 
   // One mesh per colour: a handful of draw calls for a few thousand stones.
   for (const [color, geoms] of byColor) {
