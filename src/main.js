@@ -900,19 +900,23 @@ const WYZE_CAMS = [
     // is a surface with no thickness and the seams stand 3 cm off it, so a lens
     // laid on the skin looks at the underside of the roof.
     //
-    // Level, and 57° from north. The bank east of the house climbs — the ground
+    // Level, and 69° from north. The bank east of the house climbs — the ground
     // is up to the lens 4 m out and 18° above it by 15 — so a camera on this
     // roof looks up a hill, and level puts the top of that bank a quarter of the
     // way down the frame where the photograph has it.
     //
-    // The 57 is fitted, against the measured trees beyond 40 m: nearer than that
-    // a crown top stands too far from its own trunk to say anything. It comes
-    // out between 56.5 and 57.25 whatever pitch is assumed, so it is the one
-    // number here the trees really do settle. The pitch they do not — a trunk
-    // hardly moves sideways when the camera tips — and level costs least.
+    // The 69 comes off John's own marks on a screenshot: seven arrows from where
+    // the photograph puts a trunk to where the render puts the same one, 197 px
+    // across on average, which at 16.5 px to the degree is 12°. Fitting the
+    // measured trees said 57 and it was wrong — those are crown apexes, and a
+    // crown stands metres from the trunk under it.
+    //
+    // The arrows pair trunks, which stand up off the ground the photograph is
+    // painted on, so some of that 12 is parallax rather than aim. They also grow
+    // from 134 to 282 px across the frame, which a pure aim error would not do.
     name: "front door",
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
-    aim: { lat: 48.990514, lon: -123.082291, y: 12.9 },
+    aim: { lat: 48.990012, lon: -123.081901, y: 12.9 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
     tide: -0.21,
   },
