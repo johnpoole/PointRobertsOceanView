@@ -955,11 +955,28 @@ function toWyzeCam() {
   applyFov();
 }
 
+// Whichever camera is looking most nearly the way you are. Facing the water it
+// is the one on the lower wall, facing the bank it is the one on the roof.
+function nearestWyzeCam() {
+  const look = new THREE.Vector3();
+  camera.getWorldDirection(look);
+  let best = 0, most = -Infinity;
+  for (let i = 0; i < WYZE_CAMS.length; i++) {
+    const c = WYZE_CAMS[i];
+    const eye = toWorld(c.eye.lat, c.eye.lon, c.eye.y);
+    const aim = toWorld(c.aim.lat, c.aim.lon, c.aim.y);
+    const dot = new THREE.Vector3(aim.x - eye.x, aim.y - eye.y, aim.z - eye.z)
+      .normalize().dot(look);
+    if (dot > most) { most = dot; best = i; }
+  }
+  return best;
+}
+
 // The photograph on and off. Where you are standing and what lens you are
 // standing behind do not move: that is the whole of the comparison.
 function flipWyze() {
   if (!ground) return;   // no terrain to throw it on yet
-  if (!wyzeView) { toWyzeCam(); return; }
+  if (!wyzeView) { wyzeCam = nearestWyzeCam(); toWyzeCam(); return; }
   wyzePhoto = !wyzePhoto;
   const mix = wyzePhoto ? WYZE_MIX : 0;
   ground.project(null, null, mix);
