@@ -19,9 +19,11 @@ roof. The photograph goes onto the ground and the render's own trees come out.
 **C** again flips the photograph off and on without moving anything else.
 **N** moves to the other camera.
 
-While a frame is up, **dragging moves the photograph**, not the view, and the
-top of the screen shows which camera it is and where it is pointed. Those two
-numbers are what to write back into `WYZE_CAMS` once a frame is lined up.
+While a frame is up, **dragging moves the photograph**, not the view, and
+**shift-dragging stretches it** — across for the aspect, up for the corner
+angle. The top of the screen shows which camera it is, where it is pointed and
+what lens it is being read through. The aim goes back into `WYZE_CAMS` and the
+lens into `WYZE_LENS`, once a frame is lined up.
 
 Everything is in `src/main.js` under `WYZE_CAMS`, and the projector itself is in
 `src/scene/terrain.js`.
@@ -35,7 +37,7 @@ Everything is in `src/main.js` under `WYZE_CAMS`, and the projector itself is in
 | front door eye | 12.9 m MLLW | John's description, through the lidar roof in `cabin.js` |
 | front door aim | 69°, level | John's arrows on a screenshot: seven of them, 197 px across, 12° |
 | lens | 61° to the corner, 122° diagonal | fitted on the island skyline, 92 columns, a real minimum |
-| tide, per frame | −0.56 and −0.21 m MLLW | NOAA, at the timestamp on each picture |
+| tide, per frame | 1.82 and −0.21 m MLLW | NOAA, at the timestamp on each picture |
 
 The lens is the only one of these with an honest error bar. The miss is 0.175°
 at a 61° corner and rises either side — 0.182 at 60, 0.177 at 62, 0.201 at 64.
@@ -88,10 +90,9 @@ Do not spend another morning on these.
 
 ## What is worth trying next
 
-- **Sizing, not just dragging.** The drag assumes only the aim is off. It needs
-  to stretch the frame across and up as well — the corner angle for overall
-  scale, the aspect for the difference between the two axes. Then a frame can be
-  lined up by hand completely, and what comes out is a measurement of the lens.
+- **Doing it.** The stretch is in — shift-drag — so a frame can now be lined up
+  by hand completely and what comes out is a measurement of the lens. Nobody has
+  sat down and done it yet.
 - **Landmarks off the horizon.** Everything used so far sits in a narrow band
   near the skyline, which is why heading and lens keep trading against each
   other. Something well above or below at a known place would break it.

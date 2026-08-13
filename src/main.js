@@ -896,7 +896,25 @@ const WYZE_FOV_DEG = 70;
 // the end of the search the way every earlier attempt did. Wyze publish 130° for
 // this camera without saying how it is measured; the 110 that was in here came
 // from nowhere defensible.
+//
+// A shift-drag moves both of these, so this is where the lens starts and not
+// where it stays. Lining a frame up by hand until it sits on the ground and
+// reading these two numbers off the screen is a measurement of the lens.
+//
+// Both cameras are the same V3 and share this one lens, so a stretch fitted on
+// the beach carries over to the bank.
 const WYZE_LENS = { corner: (61 * Math.PI) / 180, aspect: 16 / 9 };
+// What a shift-drag is worth, per pixel. The aim moves a degree for a degree of
+// screen because that is what makes the picture follow the pointer. The lens has
+// no such natural rate, so these are slow: half a screen is ten degrees of
+// corner and a tenth of the aspect, which leaves the last tenth of a degree
+// findable by hand.
+const WYZE_CORNER_PER_PX = 0.02;    // degrees
+const WYZE_ASPECT_PER_PX = 0.0004;
+// Past these the projection is not a lens any more. The readout stops moving at
+// them, which is the only warning there is.
+const WYZE_CORNER_RANGE = [20, 85];
+const WYZE_ASPECT_RANGE = [1.0, 3.0];
 const WYZE_CAMS = [
   {
     // On the roof, a foot in from the south edge and five feet up the slope
@@ -935,11 +953,18 @@ const WYZE_CAMS = [
     // That put the eye at 8.14 rather than the 14.2 it was carrying, which is
     // the lower floor and not six metres above it. The height was the wrong
     // number all along; the aim was only wrong because it was bending to fit it.
+    //
+    // The frame is 08:08:58 on the 13th, near the top of the tide: 1.82 m MLLW,
+    // the Point Roberts prediction of 1.76 with the 0.06 measured at Cherry
+    // Point carried onto it. The beach the earlier frame showed dry is under
+    // water in this one, and the boulder that fixed the height is a cap above
+    // the surface with its foot out of sight. Its waterline is still a line the
+    // render can be held against, but the foot is not.
     name: "ocean view",
     eye: { lat: 48.989022, lon: -123.085925, y: 8.14 },
     aim: { lat: 48.987901, lon: -123.089583, y: -46.7 },
-    shot: "assets/reference/ocean_view-20260812T194848Z.png",
-    tide: -0.56,
+    shot: "assets/reference/ocean_view-20260813T150858Z.png",
+    tide: 1.82,
   },
 ];
 // How much of the photograph is laid over the ground. Not all of it: the render
@@ -992,23 +1017,49 @@ function applyWyzeAim() {
   }
   camAim.textContent =
     `${WYZE_CAMS[wyzeCam].name}  ${((wyzeAim.heading + 360) % 360).toFixed(2)}° from north  `
-    + `${wyzeAim.pitch >= 0 ? "up" : "down"} ${Math.abs(wyzeAim.pitch).toFixed(2)}°  ·  drag to move it`;
+    + `${wyzeAim.pitch >= 0 ? "up" : "down"} ${Math.abs(wyzeAim.pitch).toFixed(2)}°  ·  `
+    + `lens ${((WYZE_LENS.corner * 180) / Math.PI).toFixed(2)}° to the corner, `
+    + `${WYZE_LENS.aspect.toFixed(4)} across  ·  drag to move it, shift-drag to stretch it`;
 }
+
+const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 
 // A drag moves the photograph, not the view. One pixel is one degree scaled by
 // the render's own lens, so the picture follows the pointer.
+//
+// With shift down it stretches the photograph instead of sliding it. Across is
+// the aspect and up is the corner angle, and the two are not the same knob: the
+// corner sets how far the whole picture spreads over the ground, the aspect
+// spreads it across while squeezing it up. Sliding alone assumes the lens is
+// right and only the aim is off, which is the assumption that has to be dropped
+// before a frame can be lined up completely.
+//
+// Which of the two a drag is happens at the button and not after, or letting
+// shift go part way through would turn a stretch into a slide.
 let wyzeDrag = null;
 canvas.addEventListener("pointerdown", (e) => {
   if (!wyzeView) return;
-  wyzeDrag = { x: e.clientX, y: e.clientY };
+  wyzeDrag = { x: e.clientX, y: e.clientY, stretch: e.shiftKey };
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener("pointermove", (e) => {
   if (!wyzeDrag) return;
-  const perPx = camera.fov / window.innerHeight;
-  wyzeAim.heading += (e.clientX - wyzeDrag.x) * perPx;
-  wyzeAim.pitch += (e.clientY - wyzeDrag.y) * perPx;
-  wyzeDrag = { x: e.clientX, y: e.clientY };
+  const dx = e.clientX - wyzeDrag.x;
+  const dy = e.clientY - wyzeDrag.y;
+  if (wyzeDrag.stretch) {
+    // Up for a wider corner and right for a wider aspect, so in both cases
+    // moving away from the middle of the screen spreads the picture that way.
+    const corner = clamp((WYZE_LENS.corner * 180) / Math.PI
+                         - dy * WYZE_CORNER_PER_PX, WYZE_CORNER_RANGE);
+    WYZE_LENS.corner = (corner * Math.PI) / 180;
+    WYZE_LENS.aspect = clamp(WYZE_LENS.aspect + dx * WYZE_ASPECT_PER_PX,
+                             WYZE_ASPECT_RANGE);
+  } else {
+    const perPx = camera.fov / window.innerHeight;
+    wyzeAim.heading += dx * perPx;
+    wyzeAim.pitch += dy * perPx;
+  }
+  wyzeDrag = { x: e.clientX, y: e.clientY, stretch: wyzeDrag.stretch };
   applyWyzeAim();
 });
 for (const ev of ["pointerup", "pointercancel"]) {
