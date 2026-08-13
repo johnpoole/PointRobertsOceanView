@@ -22,8 +22,10 @@ roof. The photograph goes onto the ground and the render's own trees come out.
 While a frame is up, **dragging moves the photograph**, not the view, and
 **shift-dragging stretches it** — across for the aspect, up for the corner
 angle. The top of the screen shows which camera it is, where it is pointed and
-what lens it is being read through. The aim goes back into `WYZE_CAMS` and the
-lens into `WYZE_LENS`, once a frame is lined up.
+what lens it is being read through. **S** writes those numbers out the way the
+source wants them — the aim converted back to a lat/lon 300 m down the line of
+sight, and the `WYZE_LENS` line — and says whether the clipboard took it. Over
+plain http on the LAN there is no clipboard, so select it off the bar instead.
 
 Everything is in `src/main.js` under `WYZE_CAMS`, and the projector itself is in
 `src/scene/terrain.js`.
@@ -33,17 +35,30 @@ Everything is in `src/main.js` under `WYZE_CAMS`, and the projector itself is in
 | | value | how it was got |
 | --- | --- | --- |
 | ocean view eye | 8.14 m MLLW | solved: the boulder 30 m out fixes height, the islands 30 km out fix aim |
-| ocean view aim | 244.97°, 10.53° down | same solve |
+| ocean view aim | 245.69°, 11.66° down | John, by hand, against the screen behind the islands |
 | front door eye | 12.9 m MLLW | John's description, through the lidar roof in `cabin.js` |
-| front door aim | 69°, level | John's arrows on a screenshot: seven of them, 197 px across, 12° |
-| lens | 61° to the corner, 122° diagonal | fitted on the island skyline, 92 columns, a real minimum |
+| front door aim | 71.94°, 11.28° up | John, by hand, with the lens held |
+| lens | 60.26° to the corner, 1.5986 across | John, by hand, on the ocean view frame |
 | tide, per frame | 1.82 and −0.21 m MLLW | NOAA, at the timestamp on each picture |
 
-The lens is the only one of these with an honest error bar. The miss is 0.175°
-at a 61° corner and rises either side — 0.182 at 60, 0.177 at 62, 0.201 at 64.
-Wyze publish 130° for this camera and will not say whether that is measured
-across or corner to corner. The 110 that was in the code for most of the day
-came from nowhere defensible.
+**The lens is measured now, and it holds on both cameras.** It was fitted by
+hand on the beach frame and the bank frame then lined up without it being
+touched, which is what says 1.5986 describes the glass rather than covering for
+an error somewhere on the ocean view side. The corner barely moved from the 61
+the skyline fit gave. The aspect did, from the frame's own 16:9, so the camera
+does not work the same across as it does up:
+
+| | across | up |
+| --- | --- | --- |
+| 61° corner, 16:9 | 106.3° | 59.8° |
+| 60.26° corner, 1.5986 | 102.2° | 63.9° |
+
+Every fit in the list below held the aspect at 16:9. That is why none of them
+could close.
+
+An aim is stored as a lat/lon 300 m down the line of sight, rounded to six
+places, which costs a hundredth of a degree of heading. The bar reads back 245.68
+and 71.95 rather than the 245.69 and 71.94 that were set.
 
 ## The thing that is still wrong
 
@@ -63,8 +78,14 @@ difference does not close. So something that acts differently on near and far is
 wrong: the camera height, or the boulder's position out of the lidar bake, or
 where its foot was read in the frame.
 
-The render currently carries the boulder's answer. The islands are therefore
-about four degrees out.
+The lens holding on the second camera closes one escape route: the aspect is not
+absorbing an ocean view error, or it would not have worked on the bank. So the
+height is what is left, and it is now the only thing between here and an answer.
+
+Note also that the frame this was fitted against is gone. The ocean view camera
+carries the high tide frame from the 13th, where the boulder is a cap above water
+with its foot out of sight. The old low tide frame is still in
+`assets/reference/` if the boulder is wanted again.
 
 ## What was tried and did not work
 
@@ -78,7 +99,13 @@ Do not spend another morning on these.
   the diagonal with 29 px still unaccounted for. Two landmarks nearly above one
   another cannot pin three unknowns.
 - **Fitting on the measured trees.** Those are crown apexes, not trunks — see
-  below. Gave 57° for the front door, which was wrong by 12.
+  below. Gave 57° for the front door, where the hand fit later said 71.94.
+- **Arrows on a screenshot.** Seven marks pairing a trunk in the photograph with
+  the same trunk in the render, 197 px across, called 12° and added to 57 to make
+  69. The hand fit says 71.94, so it was under, and redoing the arithmetic
+  through the measured lens sends it to 67.5, which is further under still. A
+  trunk is painted where its ray meets the dirt behind it. Arrows between trunks
+  cannot measure aim.
 - **Correlating the haze with distance.** John's observation is right: pale means
   far, and the tone along the skyline is a distance profile. Both attempts slid
   to a search boundary, the second after taking out the sun's gradient, which
@@ -90,13 +117,13 @@ Do not spend another morning on these.
 
 ## What is worth trying next
 
-- **Doing it.** The stretch is in — shift-drag — so a frame can now be lined up
-  by hand completely and what comes out is a measurement of the lens. Nobody has
-  sat down and done it yet.
+- **The height.** It is the only thing left holding the boulder and the islands
+  four degrees apart. The lens is measured and the aims are set, so a sweep of
+  the ocean view eye through a metre or two either side of 8.14 is now a
+  one-variable search with everything else nailed down.
 - **Landmarks off the horizon.** Everything used so far sits in a narrow band
   near the skyline, which is why heading and lens keep trading against each
   other. Something well above or below at a known place would break it.
-- **The height.** It is the most likely reason the rock and the islands disagree.
 
 ## Things to know before touching it
 

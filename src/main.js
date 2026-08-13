@@ -929,27 +929,23 @@ const WYZE_CAMS = [
     // is a surface with no thickness and the seams stand 3 cm off it, so a lens
     // laid on the skin looks at the underside of the roof.
     //
-    // Level, and 69° from north. The bank east of the house climbs — the ground
-    // is up to the lens 4 m out and 18° above it by 15 — so a camera on this
-    // roof looks up a hill, and level puts the top of that bank a quarter of the
-    // way down the frame where the photograph has it.
+    // The bank east of the house climbs — the ground is up to the lens 4 m out
+    // and 18° above it by 15 — so a camera on this roof looks up a hill.
     //
-    // The 69 comes off John's own marks on a screenshot: seven arrows from where
-    // the photograph puts a trunk to where the render puts the same one, 197 px
-    // across on average, which at 16.5 px to the degree is 12°. Fitting the
-    // measured trees said 57 and it was wrong — those are crown apexes, and a
-    // crown stands metres from the trunk under it.
+    // Lined up by hand against the frame below: 71.94° from north, 11.28° up.
+    // Not level, which is what it was carried as, and not the 67.5 the arrow
+    // arithmetic pointed at either. That went the wrong way. The arrows were
+    // seven marks on a screenshot pairing a trunk in the photograph with the
+    // same trunk in the render, and a trunk is painted where its ray meets the
+    // dirt behind it, so they were never going to answer this. Fitting the
+    // measured trees said 57 and was worse — those are crown apexes.
     //
-    // The arrows pair trunks, which stand up off the ground the photograph is
-    // painted on, so some of that 12 is parallax rather than aim. They also grow
-    // from 134 to 282 px across the frame, which a pure aim error would not do.
+    // The lens was not touched to get here. It was fitted on the beach camera
+    // and it holds on this one, which is what says 1.5986 is the glass and not a
+    // number covering for something else.
     name: "front door",
-    // 67.5, not the 69 above. The 69 came out of 197 px at 16.5 px to the
-    // degree, and the lens John lined up puts that rate at 18.79 across, which
-    // makes the same 197 px 10.5°. A place to start a drag from, not an answer:
-    // the arrows paired trunks, which are painted behind themselves.
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
-    aim: { lat: 48.990077, lon: -123.081941, y: 12.9 },
+    aim: { lat: 48.989865, lon: -123.081906, y: 71.58 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
     tide: -0.21,
   },
