@@ -861,8 +861,20 @@ function toBluff() {
 // aim pair share.js writes, a position and a point 300 m down the line of sight.
 //
 //   ocean view   14.2 m MLLW, 112.8° from north, 14.1° down, west over the beach
-//   front door   14.1 m MLLW,  59.0° from north, 14.2° down, east up the stair
+//   front door   12.9 m MLLW,  59.0° from north, level, east up the bank
+//
+// A Wyze Cam V3 covers 110° across the diagonal of a 16:9 frame. Half of that,
+// 55°, is how far off the axis the corner of the picture sits, and it is the
+// only number the projector needs: the lens is read as equidistant, angle off
+// the axis carried straight to radius from the middle of the frame.
+//
+// The render itself still gets a plain 70° lens, which is what 110° on the
+// diagonal comes to up the short side if the lens were straight. It is not, so
+// the render's edges stretch where the photograph's do not. That does not stop
+// the two being compared: the photograph is on the ground now, and the ground
+// is where they meet.
 const WYZE_FOV_DEG = 70;
+const WYZE_LENS = { corner: (55 * Math.PI) / 180, aspect: 16 / 9 };
 const WYZE_CAMS = [
   {
     // On the roof, a foot in from the south edge and five feet up the slope
