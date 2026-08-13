@@ -955,6 +955,12 @@ const WYZE_CAMS = [
     aim: { lat: 48.987935, lon: -123.089590, y: -52.49 },
     shot: "assets/reference/ocean_view-20260813T150858Z.png",
     tide: 1.82,
+    // This one alone gets the screen behind the islands. It is the only frame
+    // with anything in it past the terrain. The front door looks up a bank 20 m
+    // off, so every ray above the bank top clears the ground and would land on
+    // the sphere 120 km out — the stair and the trees painted the size of a
+    // mountain range across the sky.
+    screen: true,
   },
 ];
 // How much of the photograph is laid over the ground. Not all of it: the render
@@ -1000,10 +1006,13 @@ function applyWyzeAim() {
                   wyzeEye.y + Math.sin(p) * far,
                   wyzeEye.z - Math.cos(h) * Math.cos(p) * far);
   wyzeLens.updateProjectionMatrix();
-  const shot = wyzeTexture(WYZE_CAMS[wyzeCam].shot);
-  for (const tile of [ground, lot, skylineTile, wyzeScreen]) {
-    if (tile) tile.project(shot, wyzeLens, wyzePhoto ? WYZE_MIX : 0, WYZE_LENS);
+  const cam = WYZE_CAMS[wyzeCam];
+  const shot = wyzeTexture(cam.shot);
+  const mix = wyzePhoto ? WYZE_MIX : 0;
+  for (const tile of [ground, lot, skylineTile]) {
+    if (tile) tile.project(shot, wyzeLens, mix, WYZE_LENS);
   }
+  wyzeScreen.project(shot, wyzeLens, cam.screen ? mix : 0, WYZE_LENS);
 }
 
 function wyzeTexture(url) {
