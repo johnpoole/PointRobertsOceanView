@@ -463,7 +463,15 @@ function weatherAt() {
   return out;
 }
 
+// The sea at the hour a camera frame was taken, while that frame is up. NOAA
+// gives the level at the timestamp on the picture: the Point Roberts prediction
+// with the surge measured at Cherry Point carried onto it, the same sum the feed
+// makes for now. Without this the ocean stands at today's tide over a beach the
+// photograph shows dry, and the picture is under the water rather than missing.
+let heldTide = null;
+
 function tideLevel() {
+  if (heldTide !== null) return heldTide;
   const t = tideAt();
   return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
 }
@@ -892,12 +900,14 @@ const WYZE_CAMS = [
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
     aim: { lat: 48.990434, lon: -123.082215, y: 12.9 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
+    tide: -0.21,
   },
   {
     name: "ocean view",
     eye: { lat: 48.989022, lon: -123.085925, y: 14.2 },
     aim: { lat: 48.988010, lon: -123.089597, y: -59.1 },
     shot: "assets/reference/ocean_view-20260812T194848Z.png",
+    tide: -0.56,
   },
 ];
 // How much of the photograph is laid over the ground. Not all of it: the render
@@ -951,6 +961,7 @@ function toWyzeCam() {
   // trunk the lidar put in a known place, so they are what the photograph has to
   // be lined up against.
   if (trees) trees.homeTrees(true);
+  heldTide = cam.tide;
   wyzeView = true;
   applyFov();
 }
@@ -996,6 +1007,7 @@ function leaveWyze() {
   ground.project(null, null, 0);
   lot.project(null, null, 0);
   if (trees) trees.homeTrees(false);
+  heldTide = null;
   wyzeView = false;
   wyzePhoto = false;
   applyFov();
