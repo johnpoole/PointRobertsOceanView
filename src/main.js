@@ -903,9 +903,14 @@ const WYZE_CAMS = [
     tide: -0.21,
   },
   {
+    // Aimed off the one lidar boulder in the frame rather than by hand: its
+    // foot is on the ground in the photograph and on the ground in the terrain,
+    // so the two mean the same point. Solving for the pair of angles that put
+    // the projector's idea of that foot onto the rock lands it exactly, and
+    // moves the aim 7.3° down and 3.2° across from where it was set by eye.
     name: "ocean view",
     eye: { lat: 48.989022, lon: -123.085925, y: 14.2 },
-    aim: { lat: 48.988010, lon: -123.089597, y: -59.1 },
+    aim: { lat: 48.987921, lon: -123.089360, y: -95.5 },
     shot: "assets/reference/ocean_view-20260812T194848Z.png",
     tide: -0.56,
   },
