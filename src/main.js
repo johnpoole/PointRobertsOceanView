@@ -990,8 +990,16 @@ const wyzeLens = new THREE.PerspectiveCamera(WYZE_FOV_DEG, 16 / 9, 1, 4000);
 // photograph is handed to it, so it costs nothing to have it standing there.
 const wyzeScreen = buildScreen(scene);
 const wyzeShots = new Map();
+const camAim = document.getElementById("cam-aim");
+
+// Editing mode. Off, a camera is something to look through: the photograph goes
+// on the ground and a drag turns the view. On, a drag moves the photograph
+// instead, the ground is banded by height so its shape can be seen under the
+// picture, S writes the aim out, and the bar carries the numbers.
+let wyzeEdit = false;
 
 // Where the projector is pointed, in degrees, off the aim the camera carries.
+// In editing mode it is wherever it has been dragged to since.
 const wyzeAim = { heading: 0, pitch: 0 };
 const wyzeEye = new THREE.Vector3();
 
@@ -1024,6 +1032,32 @@ function applyWyzeAim() {
     if (tile) tile.project(shot, wyzeLens, mix, lens);
   }
   wyzeScreen.project(shot, wyzeLens, cam.screen ? mix : 0, lens);
+  if (!wyzeEdit) return;
+  camAim.classList.remove("saved");   // a drag replaces whatever S put up
+  camAim.textContent =
+    `${cam.name}  ${((wyzeAim.heading + 360) % 360).toFixed(2)}° from north  `
+    + `${wyzeAim.pitch >= 0 ? "up" : "down"} ${Math.abs(wyzeAim.pitch).toFixed(2)}°  ·  `
+    + `drag to move it, S to write it out, E to leave`;
+}
+
+// A drag moves the photograph, not the view, while editing. One pixel is one
+// degree scaled by the render's own lens, so the picture follows the pointer.
+let wyzeDrag = null;
+canvas.addEventListener("pointerdown", (e) => {
+  if (!wyzeEdit) return;
+  wyzeDrag = { x: e.clientX, y: e.clientY };
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!wyzeDrag) return;
+  const perPx = camera.fov / window.innerHeight;
+  wyzeAim.heading += (e.clientX - wyzeDrag.x) * perPx;
+  wyzeAim.pitch += (e.clientY - wyzeDrag.y) * perPx;
+  wyzeDrag = { x: e.clientX, y: e.clientY };
+  applyWyzeAim();
+});
+for (const ev of ["pointerup", "pointercancel"]) {
+  canvas.addEventListener(ev, () => { wyzeDrag = null; });
 }
 
 function wyzeTexture(url) {
@@ -1085,6 +1119,63 @@ function nearestWyzeCam() {
   return best;
 }
 
+// S writes the aim out the way the source wants it. Two angles on a bar are not
+// what WYZE_CAMS holds — it holds a lat/lon 300 m down the line of sight — and
+// doing that conversion by hand at the end of an hour's lining up is how an
+// hour's lining up gets thrown away.
+//
+// The clipboard is not always there. It wants a secure origin and the page is
+// served over plain http on the LAN, so the line goes on the bar as well, and
+// the bar says whether the copy took rather than leaving it to be guessed.
+const WYZE_AIM_M = 300;    // how far down the line of sight the aim point sits
+function saveWyze() {
+  if (!wyzeEdit) return;
+  const h = (wyzeAim.heading * Math.PI) / 180;
+  const p = (wyzeAim.pitch * Math.PI) / 180;
+  const x = wyzeEye.x + Math.sin(h) * Math.cos(p) * WYZE_AIM_M;
+  const y = wyzeEye.y + Math.sin(p) * WYZE_AIM_M;
+  const z = wyzeEye.z - Math.cos(h) * Math.cos(p) * WYZE_AIM_M;
+  const { lat, lon } = fromWorld(x, z);
+  const block =
+    `// ${WYZE_CAMS[wyzeCam].name}\n`
+    + `    aim: { lat: ${lat.toFixed(6)}, lon: ${lon.toFixed(6)}, `
+    + `y: ${y.toFixed(2)} },`;
+
+  const show = (note) => {
+    camAim.classList.add("saved");
+    camAim.textContent = `${block}\n\n${note}`;
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(block)
+      .then(() => show("copied — paste it into src/main.js"))
+      .catch((err) => show(`not copied: ${err.message}. Select it above instead.`));
+  } else {
+    show("not copied: the clipboard wants https or localhost and this is neither. "
+         + "Select it above instead.");
+  }
+}
+
+// E in and out of editing mode. Coming in with nothing up brings a camera up
+// too, because there is nothing to edit otherwise. Going out leaves the
+// photograph where it is: only the tools go away.
+function flipWyzeEdit() {
+  if (!ground) return;
+  if (!wyzeEdit && !wyzeView) { wyzeCam = nearestWyzeCam(); toWyzeCam(); }
+  wyzeEdit = !wyzeEdit;
+  applyWyzeEdit();
+}
+
+function applyWyzeEdit() {
+  const on = wyzeEdit && wyzeView;
+  // A drag cannot move the view and the picture at once.
+  controls.enabled = !on;
+  camAim.classList.toggle("hidden", !on);
+  for (const tile of [ground, lot]) {
+    if (tile) tile.bands(on);
+  }
+  if (on) applyWyzeAim();   // writes the bar
+}
+
 // The photograph on and off. Where you are standing and what lens you are
 // standing behind do not move: that is the whole of the comparison.
 function flipWyze() {
@@ -1112,6 +1203,8 @@ function leaveWyze() {
   heldTide = null;
   wyzeView = false;
   wyzePhoto = false;
+  wyzeEdit = false;
+  applyWyzeEdit();   // the bar away, the bands off, the view free again
   applyFov();
 }
 
@@ -1295,6 +1388,10 @@ window.addEventListener("keydown", (e) => {
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
   if (e.code === "KeyN" && !e.repeat) nextWyzeCam();
+  // E and S are lift and reverse in nav. Editing puts you in orbit and holds you
+  // there, and nav reads neither key in orbit, so the two never meet.
+  if (e.code === "KeyE" && !e.repeat) flipWyzeEdit();
+  if (e.code === "KeyS" && !e.repeat) saveWyze();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.

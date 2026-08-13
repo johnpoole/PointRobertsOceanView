@@ -9,6 +9,11 @@ import { toWorld } from "../geo.js";
 
 const SKYLINE_HAZE = new THREE.Color(0x8295a8);
 
+// Half a metre to a band, while the ground is banded by height. The beach falls
+// about a metre in twenty, so a metre to a band would put two bands on the whole
+// of it; the bank east of the house climbs eighteen degrees and would have forty.
+const BAND_STEP_M = 0.5;
+
 // The flat of the beach is sand. Where it tilts it is shingle: rounded grey and
 // brown stone, no two square metres the same colour. Slope is what sorts them —
 // the sea takes the fines off anything that leans and leaves the stone behind.
@@ -322,6 +327,8 @@ function dressGround(material, projector, gravel) {
       shader.uniforms.projLens = projector.lens;
       shader.uniforms.projMap = projector.map;
       shader.uniforms.projMix = projector.mix;
+      shader.uniforms.projBand = projector.band;
+      shader.uniforms.projBandStep = projector.bandStep;
     }
     if (gravel) {
     shader.uniforms.gravelSize = { value: GRAVEL_M };
@@ -363,6 +370,14 @@ function dressGround(material, projector, gravel) {
         uniform vec3 projLens;   // x: angle to the frame's corner, y: aspect, z: reach
         uniform sampler2D projMap;
         uniform float projMix;
+        uniform float projBand;      // 1 while the ground is banded by height
+        uniform float projBandStep;  // metres to a band
+
+        vec3 hsv2rgb(vec3 c) {
+          vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+          vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+          return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
         ` : ""}
 
         float hash21(vec2 p) {
@@ -402,6 +417,18 @@ function dressGround(material, projector, gravel) {
           float near = 1.0 - smoothstep(gravelFade.x, gravelFade.y, dist);
           float grit = (stones * 0.7 + patches * 0.3) * gravelDepth * vStony * near;
           diffuseColor.rgb = clamp(diffuseColor.rgb * (1.0 + grit * 2.0), 0.0, 1.0);
+        }
+        ` : ""}
+        ${projector ? `
+        // Height in bands, for lining a photograph up. Sand and grass and shingle
+        // all read the same under a photograph laid over them, so the shape of
+        // the ground is invisible where it matters. This throws the ground colour
+        // away and puts the height there instead. The hue jumps a long way each
+        // band so that neighbours never look alike; it says nothing about how
+        // high, only where the ground changes.
+        if (projBand > 0.5) {
+          float band = floor(vGroundPos.y / projBandStep);
+          diffuseColor.rgb = hsv2rgb(vec3(fract(band * 0.137), 0.85, 0.95));
         }
         ` : ""}
         ${projector ? PROJECTOR_GLSL_FRAGMENT : ""}
@@ -607,7 +634,8 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const projector = opts.projector
     ? { view: { value: new THREE.Matrix4() },
         lens: { value: new THREE.Vector3(1, 16 / 9, 0) },
-        map: { value: blankMap() }, mix: { value: 0 } }
+        map: { value: blankMap() }, mix: { value: 0 },
+        band: { value: 0 }, bandStep: { value: BAND_STEP_M } }
     : null;
   const gravel = opts.gravel !== false;
   if (gravel || projector) dressGround(mat, projector, gravel);
@@ -648,6 +676,15 @@ export async function buildTerrain(scene, asset, opts = {}) {
     if (lens) projector.lens.value.set(lens.corner, lens.aspect, lens.range || 0);
     projector.mix.value = mix;
   };
-  return { mesh, meta, sample, heights: Z, cover, project,
+  // Throw the ground colour away and put the height there instead.
+  const bands = (on) => {
+    if (!projector) {
+      throw new Error(
+        "buildTerrain: this tile was not built with opts.projector, so its " +
+        "shader has no height bands to turn on.");
+    }
+    projector.band.value = on ? 1 : 0;
+  };
+  return { mesh, meta, sample, heights: Z, cover, project, bands,
            projector: projector ? { dress: (m) => dressAnything(m, projector) } : null };
 }

@@ -19,13 +19,26 @@ roof. The photograph goes onto the ground and the render's own trees come out.
 **C** again flips the photograph off and on without moving anything else.
 **N** moves to the other camera.
 
-That is all of it. A drag turns the view as it does everywhere else, and the
-photograph stays on the ground it was taken of.
+A drag turns the view as it does everywhere else, and the photograph stays on the
+ground it was taken of.
 
-The controls that moved the picture are gone: dragging it about, a shift-drag to
-stretch it, a readout across the top, and S to write the numbers out. They were
-how the aims and the lens got measured and there is nothing left for them to
-find. They are in the history at `ddd272a` if a third camera ever needs them.
+**E** puts it in editing mode, and again takes it out. With nothing up it brings
+a camera up too. While editing:
+
+- a drag moves the photograph instead of the view
+- the ground is thrown away and painted by height, half a metre to a band, so
+  the shape under the picture can be seen. Sand and grass and shingle all read
+  the same through a photograph laid over them
+- **S** writes the aim out the way `WYZE_CAMS` wants it, as a lat/lon 300 m down
+  the line of sight, and says whether the clipboard took it. Over plain http on
+  the LAN there is no clipboard, so select it off the bar instead
+- the bar across the top carries the numbers
+
+Leaving editing mode leaves the photograph where it is. Only the tools go away.
+
+A shift-drag used to stretch the frame as well, which is how the lens was
+measured. It is out, because the lens is a number both cameras agree on. It is
+in the history at `d8c0f74` if it is ever wanted back.
 
 Everything is in `src/main.js` under `WYZE_CAMS`, and the projector itself is in
 `src/scene/terrain.js`.
