@@ -894,14 +894,19 @@ const WYZE_CAMS = [
     // is a surface with no thickness and the seams stand 3 cm off it, so a lens
     // laid on the skin looks at the underside of the roof.
     //
-    // Level, not tilted down. The bank east of the house climbs: the ground is
-    // up to the lens 4 m out, 9° above it at 6 m and 18° above by 15 m, where it
-    // tops out. A camera on this roof is looking up a hill. Level puts that
-    // skyline a quarter of the way down the frame, which is where the
-    // photograph has it, and clears the eave by 41 cm.
+    // Level, and 57° from north. The bank east of the house climbs — the ground
+    // is up to the lens 4 m out and 18° above it by 15 — so a camera on this
+    // roof looks up a hill, and level puts the top of that bank a quarter of the
+    // way down the frame where the photograph has it.
+    //
+    // The 57 is fitted, against the measured trees beyond 40 m: nearer than that
+    // a crown top stands too far from its own trunk to say anything. It comes
+    // out between 56.5 and 57.25 whatever pitch is assumed, so it is the one
+    // number here the trees really do settle. The pitch they do not — a trunk
+    // hardly moves sideways when the camera tips — and level costs least.
     name: "front door",
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
-    aim: { lat: 48.990434, lon: -123.082215, y: 12.9 },
+    aim: { lat: 48.990514, lon: -123.082291, y: 12.9 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
     tide: -0.21,
   },
