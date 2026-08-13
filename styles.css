@@ -157,6 +157,18 @@ html, body {
 .trim-label span { color: var(--ink); }
 .trim-range { width: 180px; accent-color: var(--live); }
 
+/* Back to the real hour. Sits in the clock bar, not with the view buttons. */
+.clock-now {
+  font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  color: var(--dim);
+  background: rgba(150, 190, 220, 0.08);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.clock-now:hover { background: rgba(150, 190, 220, 0.2); color: var(--ink); }
+
 .fly-hint {
   position: fixed;
   bottom: 14px;

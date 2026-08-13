@@ -395,6 +395,7 @@ function hourFromHash(hash) {
 }
 
 clockRange.addEventListener("input", () => setClockOffset(Number(clockRange.value)));
+document.getElementById("clock-now").addEventListener("click", () => setClockOffset(0));
 
 // Place the sun where it really is for the scene's time, and re-place it each
 // minute so the light and sky track the day. Looking west, the morning sun sits
