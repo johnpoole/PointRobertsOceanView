@@ -1038,14 +1038,8 @@ function toWyzeCam() {
   controls.enabled = false;
   camAim.classList.remove("hidden");
   readWyzeAim(cam);
-  wyzeLens.position.set(eye.x, eye.y, eye.z);
-  wyzeLens.lookAt(aim.x, aim.y, aim.z);
-  wyzeLens.updateProjectionMatrix();
-  const shot = wyzeTexture(cam.shot);
-  for (const tile of [ground, lot, skylineTile]) {
-    if (tile) tile.project(shot, wyzeLens, WYZE_MIX, WYZE_LENS);
-  }
   wyzePhoto = true;
+  applyWyzeAim();     // points the projector, and writes the readout
 
   // The measured trees in the opening view are the only things out there with a
   // trunk the lidar put in a known place, so they are what the photograph has to
