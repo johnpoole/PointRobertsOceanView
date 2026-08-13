@@ -161,6 +161,8 @@ function colorForGround(elev, target, row, col, slope, cover) {
 // model, which is what a wide security lens is built to, and the only number in
 // it is how far off the axis the corner of the frame sits.
 const PROJECTOR_GLSL_FRAGMENT = `
+  vec3 projRgb = vec3(0.0);
+  float projOn = 0.0;
   if (projMix > 0.0) {
     vec3 pc = (projView * vec4(vGroundPos, 1.0)).xyz;
     if (pc.z < 0.0) {                       // in front of the camera, three looks down -z
@@ -172,7 +174,8 @@ const PROJECTOR_GLSL_FRAGMENT = `
         float r = (theta / projLens.x) * 0.5 * sqrt(projLens.y * projLens.y + 1.0);
         vec2 puv = vec2(0.5 + r * dir.x / projLens.y, 0.5 + r * dir.y);
         if (puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0) {
-          diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(projMap, puv).rgb, projMix);
+          projRgb = texture2D(projMap, puv).rgb;
+          projOn = projMix;
         }
       }
     }
@@ -244,6 +247,16 @@ function addGravel(material, projector) {
           float d = hash21(i + vec2(1.0, 1.0));
           return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
         }
+      `)
+      .replace("#include <colorspace_fragment>", `
+        ${projector ? `
+        // After the light, not before it. A photograph taken at noon put into
+        // the diffuse colour is shaded by whatever the sun is doing now, and in
+        // the evening that turns it black — which reads as the photograph
+        // having failed to load.
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, projRgb, projOn);
+        ` : ""}
+        #include <colorspace_fragment>
       `)
       .replace("#include <color_fragment>", `
         #include <color_fragment>
