@@ -929,6 +929,11 @@ const WYZE_CAMS = [
     aim: { lat: 48.989865, lon: -123.081906, y: 71.58 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
     tide: -0.21,
+    // Nothing in this frame is further off than the trees at the top of the
+    // bank. Aimed 11° up it sends most of its rays over the crest, and past the
+    // crest the ground falls away and they graze on until they meet the far side
+    // of the strait — the stair and the shed painted across Vancouver Island.
+    range: 100,
   },
   {
     // Off two things at once: the lidar boulder 30 m out and the islands 30 km
@@ -1009,10 +1014,13 @@ function applyWyzeAim() {
   const cam = WYZE_CAMS[wyzeCam];
   const shot = wyzeTexture(cam.shot);
   const mix = wyzePhoto ? WYZE_MIX : 0;
+  // The glass is the same on both cameras. How far its picture is allowed to
+  // reach is not: that is what is in the frame.
+  const lens = { ...WYZE_LENS, range: cam.range || 0 };
   for (const tile of [ground, lot, skylineTile]) {
-    if (tile) tile.project(shot, wyzeLens, mix, WYZE_LENS);
+    if (tile) tile.project(shot, wyzeLens, mix, lens);
   }
-  wyzeScreen.project(shot, wyzeLens, cam.screen ? mix : 0, WYZE_LENS);
+  wyzeScreen.project(shot, wyzeLens, cam.screen ? mix : 0, lens);
 }
 
 function wyzeTexture(url) {

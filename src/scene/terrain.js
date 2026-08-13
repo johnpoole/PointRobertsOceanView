@@ -160,12 +160,18 @@ function colorForGround(elev, target, row, col, slope, cover) {
 // radius from the centre of the frame, in proportion. That is the equidistant
 // model, which is what a wide security lens is built to, and the only number in
 // it is how far off the axis the corner of the frame sits.
+//
+// projLens.z is how far a ray may run before it stops painting, in metres, or 0
+// for no limit. A camera that looks up a hill sends most of its rays over the
+// crest, and past the crest the ground falls away and the ray grazes on for
+// tens of kilometres before it meets anything. Without a limit a photograph of a
+// bank twenty metres off gets smeared across the far side of the strait.
 const PROJECTOR_GLSL_FRAGMENT = `
   vec3 projRgb = vec3(0.0);
   float projOn = 0.0;
   if (projMix > 0.0) {
     vec3 pc = (projView * vec4(vGroundPos, 1.0)).xyz;
-    if (pc.z < 0.0) {                       // in front of the camera, three looks down -z
+    if (pc.z < 0.0 && (projLens.z <= 0.0 || length(pc) <= projLens.z)) {
       float off = length(pc.xy);
       float theta = atan(off, -pc.z);       // angle off the axis
       if (theta < projLens.x) {
@@ -213,7 +219,7 @@ function dressAnything(material, projector) {
         #include <common>
         varying vec3 vGroundPos;
         uniform mat4 projView;
-        uniform vec2 projLens;
+        uniform vec3 projLens;
         uniform sampler2D projMap;
         uniform float projMix;
       `)
@@ -253,7 +259,7 @@ const SCREEN_RADIUS_M = 120000;
 export function buildScreen(scene) {
   const projector = {
     view: { value: new THREE.Matrix4() },
-    lens: { value: new THREE.Vector2(1, 16 / 9) },
+    lens: { value: new THREE.Vector3(1, 16 / 9, 0) },
     map: { value: blankMap() },
     mix: { value: 0 },
   };
@@ -276,7 +282,7 @@ export function buildScreen(scene) {
     fragmentShader: `
       varying vec3 vGroundPos;
       uniform mat4 projView;
-      uniform vec2 projLens;
+      uniform vec3 projLens;
       uniform sampler2D projMap;
       uniform float projMix;
       void main() {
@@ -303,7 +309,7 @@ export function buildScreen(scene) {
       // frame would land on it stretched to one side.
       mesh.position.setFromMatrixPosition(camera.matrixWorld);
     }
-    if (lens) projector.lens.value.set(lens.corner, lens.aspect);
+    if (lens) projector.lens.value.set(lens.corner, lens.aspect, lens.range || 0);
     projector.mix.value = mix;
   };
   return { mesh, project };
@@ -354,7 +360,7 @@ function dressGround(material, projector, gravel) {
         ` : ""}
         ${projector ? `
         uniform mat4 projView;
-        uniform vec2 projLens;   // x: angle to the corner of the frame, y: aspect
+        uniform vec3 projLens;   // x: angle to the frame's corner, y: aspect, z: reach
         uniform sampler2D projMap;
         uniform float projMix;
         ` : ""}
@@ -600,7 +606,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
   // once and whoever hands over a photograph does it long afterwards.
   const projector = opts.projector
     ? { view: { value: new THREE.Matrix4() },
-        lens: { value: new THREE.Vector2(1, 16 / 9) },
+        lens: { value: new THREE.Vector3(1, 16 / 9, 0) },
         map: { value: blankMap() }, mix: { value: 0 } }
     : null;
   const gravel = opts.gravel !== false;
@@ -624,8 +630,10 @@ export async function buildTerrain(scene, asset, opts = {}) {
   // Throw a photograph on the ground, or take it off with mix 0. camera stands
   // where the photograph was taken and points where it pointed; only where it
   // is and how it is turned are used, because the lens is not a straight one and
-  // is dealt with in the shader. lens is { corner, aspect }: the angle from the
-  // axis out to the corner of the frame, in radians, and the frame's shape.
+  // is dealt with in the shader. lens is { corner, aspect, range }: the angle
+  // from the axis out to the corner of the frame, in radians, the frame's shape,
+  // and how far a ray may run before it stops painting, in metres, or 0 for as
+  // far as there is ground.
   const project = (map, camera, mix, lens) => {
     if (!projector) {
       throw new Error(
@@ -637,7 +645,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
       camera.updateMatrixWorld();
       projector.view.value.copy(camera.matrixWorldInverse);
     }
-    if (lens) projector.lens.value.set(lens.corner, lens.aspect);
+    if (lens) projector.lens.value.set(lens.corner, lens.aspect, lens.range || 0);
     projector.mix.value = mix;
   };
   return { mesh, meta, sample, heights: Z, cover, project,
