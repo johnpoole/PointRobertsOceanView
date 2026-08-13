@@ -50,7 +50,7 @@ Everything is in `src/main.js` under `WYZE_CAMS`, and the projector itself is in
 | ocean view eye | 8.14 m MLLW | solved: the boulder 30 m out fixes height, the islands 30 km out fix aim |
 | ocean view aim | 245.69°, 11.66° down | John, by hand, against the screen behind the islands |
 | front door eye | 12.9 m MLLW | John's description, through the lidar roof in `cabin.js` |
-| front door aim | 71.94°, 11.28° up | John, by hand, with the lens held |
+| front door aim | 72.19°, 0.81° up | John, by hand, over the ground painted by height |
 | lens | 60.26° to the corner, 1.5986 across | John, by hand, on the ocean view frame |
 | tide, per frame | 1.82 and −0.21 m MLLW | NOAA, at the timestamp on each picture |
 
@@ -115,10 +115,15 @@ Do not spend another morning on these.
   below. Gave 57° for the front door, where the hand fit later said 71.94.
 - **Arrows on a screenshot.** Seven marks pairing a trunk in the photograph with
   the same trunk in the render, 197 px across, called 12° and added to 57 to make
-  69. The hand fit says 71.94, so it was under, and redoing the arithmetic
+  69. The hand fit says 72.19, so it was under, and redoing the arithmetic
   through the measured lens sends it to 67.5, which is further under still. A
   trunk is painted where its ray meets the dirt behind it. Arrows between trunks
   cannot measure aim.
+- **Lining the front door up without the bands.** Gave 11.28° up and it was ten
+  degrees out. Pitch is the thing the eye cannot judge on a bank: photograph and
+  render are both green up a slope and slide over one another without ever
+  looking wrong. Nothing is learned from a hand fit on ground whose shape cannot
+  be seen.
 - **Correlating the haze with distance.** John's observation is right: pale means
   far, and the tone along the skyline is a distance profile. Both attempts slid
   to a search boundary, the second after taking out the sun's gradient, which

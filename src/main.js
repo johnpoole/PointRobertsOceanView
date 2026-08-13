@@ -916,20 +916,27 @@ const WYZE_CAMS = [
     // The bank east of the house climbs — the ground is up to the lens 4 m out
     // and 18° above it by 15 — so a camera on this roof looks up a hill.
     //
-    // Lined up by hand against the frame below: 71.94° from north, 11.28° up.
-    // Not level, which is what it was carried as, and not the 67.5 the arrow
-    // arithmetic pointed at either. That went the wrong way. The arrows were
-    // seven marks on a screenshot pairing a trunk in the photograph with the
-    // same trunk in the render, and a trunk is painted where its ray meets the
-    // dirt behind it, so they were never going to answer this. Fitting the
-    // measured trees said 57 and was worse — those are crown apexes.
+    // Lined up by hand against the frame below, over the ground painted by
+    // height: 72.19° from north, 0.81° up. Very nearly level, which is what it
+    // was carried as to begin with.
+    //
+    // An earlier hand fit without the bands said 11.28° up and it was ten
+    // degrees out. Pitch is the thing the eye cannot judge on a bank: the
+    // photograph and the render are both green up a slope and slide over one
+    // another without ever looking wrong. It took painting the ground by height
+    // to see it.
+    //
+    // Before that, 69 came off seven arrows on a screenshot pairing a trunk in
+    // the photograph with the same trunk in the render, and a trunk is painted
+    // where its ray meets the dirt behind it. Fitting the measured trees said 57
+    // and was worse — those are crown apexes.
     //
     // The lens was not touched to get here. It was fitted on the beach camera
     // and it holds on this one, which is what says 1.5986 is the glass and not a
     // number covering for something else.
     name: "front door",
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
-    aim: { lat: 48.989865, lon: -123.081906, y: 71.58 },
+    aim: { lat: 48.989870, lon: -123.081825, y: 17.14 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
     tide: -0.21,
     // Nothing in this frame is further off than the trees at the top of the
