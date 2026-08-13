@@ -191,6 +191,7 @@ let trees = null;        // swaps each tree between near and far detail as you m
 // one, so anything looking over the house lands on the lot and nothing else.
 let ground = null;
 let lot = null;
+let skylineTile = null;   // the Gulf Islands, so the far half of a frame lands too
 let brademy = null;      // the proposed courts. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
@@ -300,7 +301,9 @@ buildTerrain(scene, TERRAIN.fine,
   .catch((err) => failed("the ground under the view", err));
 // No gravel on the far tile: its nearest ground is ten kilometres off.
 buildTerrain(scene, TERRAIN.far,
-  { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5, gravel: false })
+  { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5, gravel: false,
+    projector: true })
+  .then((far) => { skylineTile = far; })
   .catch((err) => failed("the skyline across the strait", err));
 
 // A feed that goes down says so on screen and the terrain did not, and the
@@ -962,8 +965,9 @@ function toWyzeCam() {
   wyzeLens.lookAt(aim.x, aim.y, aim.z);
   wyzeLens.updateProjectionMatrix();
   const shot = wyzeTexture(cam.shot);
-  ground.project(shot, wyzeLens, WYZE_MIX, WYZE_LENS);
-  lot.project(shot, wyzeLens, WYZE_MIX, WYZE_LENS);
+  for (const tile of [ground, lot, skylineTile]) {
+    if (tile) tile.project(shot, wyzeLens, WYZE_MIX, WYZE_LENS);
+  }
   wyzePhoto = true;
 
   // The measured trees in the opening view are the only things out there with a
@@ -999,8 +1003,9 @@ function flipWyze() {
   if (!wyzeView) { wyzeCam = nearestWyzeCam(); toWyzeCam(); return; }
   wyzePhoto = !wyzePhoto;
   const mix = wyzePhoto ? WYZE_MIX : 0;
-  ground.project(null, null, mix);
-  lot.project(null, null, mix);
+  for (const tile of [ground, lot, skylineTile]) {
+    if (tile) tile.project(null, null, mix);
+  }
 }
 
 function nextWyzeCam() {
@@ -1013,8 +1018,9 @@ function nextWyzeCam() {
 // opening view put away, and the app's own lens back.
 function leaveWyze() {
   if (!wyzeView) return;
-  ground.project(null, null, 0);
-  lot.project(null, null, 0);
+  for (const tile of [ground, lot, skylineTile]) {
+    if (tile) tile.project(null, null, 0);
+  }
   if (trees) trees.homeTrees(false);
   heldTide = null;
   wyzeView = false;

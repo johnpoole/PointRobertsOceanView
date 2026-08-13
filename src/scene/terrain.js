@@ -190,7 +190,7 @@ function blankMap() {
   return t;
 }
 
-function addGravel(material, projector) {
+function dressGround(material, projector, gravel) {
   material.onBeforeCompile = (shader) => {
     if (projector) {
       shader.uniforms.projView = projector.view;
@@ -198,35 +198,41 @@ function addGravel(material, projector) {
       shader.uniforms.projMap = projector.map;
       shader.uniforms.projMix = projector.mix;
     }
+    if (gravel) {
     shader.uniforms.gravelSize = { value: GRAVEL_M };
     shader.uniforms.gravelCoarse = { value: GRAVEL_COARSE_M };
     shader.uniforms.gravelDepth = { value: GRAVEL_DEPTH };
     shader.uniforms.gravelFade = {
       value: new THREE.Vector2(GRAVEL_FADE_NEAR_M, GRAVEL_FADE_FAR_M),
     };
+    }
 
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `
         #include <common>
+        ${gravel ? `
         attribute float stony;
         varying float vStony;
+        ` : ""}
         varying vec3 vGroundPos;
       `)
       .replace("#include <begin_vertex>", `
         #include <begin_vertex>
-        vStony = stony;
+        ${gravel ? "vStony = stony;" : ""}
         vGroundPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
       `);
 
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `
         #include <common>
-        varying float vStony;
         varying vec3 vGroundPos;
+        ${gravel ? `
+        varying float vStony;
         uniform float gravelSize;
         uniform float gravelCoarse;
         uniform float gravelDepth;
         uniform vec2 gravelFade;
+        ` : ""}
         ${projector ? `
         uniform mat4 projView;
         uniform vec2 projLens;   // x: angle to the corner of the frame, y: aspect
@@ -260,6 +266,7 @@ function addGravel(material, projector) {
       `)
       .replace("#include <color_fragment>", `
         #include <color_fragment>
+        ${gravel ? `
         if (vStony > 0.001) {
           // Wrapped to a kilometre first: world coordinates run to thousands of
           // metres and a float cannot hold both that and a 25 mm stone.
@@ -271,11 +278,13 @@ function addGravel(material, projector) {
           float grit = (stones * 0.7 + patches * 0.3) * gravelDepth * vStony * near;
           diffuseColor.rgb = clamp(diffuseColor.rgb * (1.0 + grit * 2.0), 0.0, 1.0);
         }
+        ` : ""}
         ${projector ? PROJECTOR_GLSL_FRAGMENT : ""}
       `);
   };
   // A material whose shader is rewritten needs its own program.
-  material.customProgramCacheKey = () => `terrain-gravel${projector ? "-proj" : ""}`;
+  material.customProgramCacheKey = () =>
+    `terrain${gravel ? "-gravel" : ""}${projector ? "-proj" : ""}`;
 }
 
 // fetch resolves for a 404 and a 500 as happily as for a 200 — only a network
@@ -468,7 +477,8 @@ export async function buildTerrain(scene, asset, opts = {}) {
         lens: { value: new THREE.Vector2(1, 16 / 9) },
         map: { value: blankMap() }, mix: { value: 0 } }
     : null;
-  if (opts.gravel !== false) addGravel(mat, projector);
+  const gravel = opts.gravel !== false;
+  if (gravel || projector) dressGround(mat, projector, gravel);
   const mesh = new THREE.Mesh(geom, mat);
   mesh.position.y = yOffset;
   scene.add(mesh);
