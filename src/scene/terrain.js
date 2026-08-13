@@ -474,9 +474,16 @@ export async function buildTerrain(scene, asset, opts = {}) {
         : 0;
       let h = haze;
       if (grade) {
+        // Not a straight ramp. On a clear morning the near island reads almost
+        // its own colour and the far ones wash out to nearly sky, and a straight
+        // line between the two ends puts too much haze on the near one and not
+        // enough on the far — everything comes out the same middling grey and
+        // you cannot tell what is twenty kilometres off from what is sixty.
+        // Eased at both ends instead, which is what the photographs show.
         const d = Math.hypot(w.x, w.z);
         const tg = Math.min(Math.max((d - grade[0]) / (grade[1] - grade[0]), 0), 1);
-        h = grade[2] + (grade[3] - grade[2]) * tg;
+        const ease = tg * tg * (3 - 2 * tg);
+        h = grade[2] + (grade[3] - grade[2]) * ease;
       }
       if (h > 0) tmp.lerp(SKYLINE_HAZE, h); // atmospheric perspective for distance
       colors[idx] = tmp.r;

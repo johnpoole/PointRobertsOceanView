@@ -301,7 +301,7 @@ buildTerrain(scene, TERRAIN.fine,
   .catch((err) => failed("the ground under the view", err));
 // No gravel on the far tile: its nearest ground is ten kilometres off.
 buildTerrain(scene, TERRAIN.far,
-  { hazeGrade: [10000, 80000, 0.15, 0.72], fog: false, yOffset: -0.5, gravel: false,
+  { hazeGrade: [12000, 70000, 0.06, 0.85], fog: false, yOffset: -0.5, gravel: false,
     projector: true })
   .then((far) => { skylineTile = far; })
   .catch((err) => failed("the skyline across the strait", err));
