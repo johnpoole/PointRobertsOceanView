@@ -100,13 +100,20 @@ Do not spend another morning on these.
 
 ## Things to know before touching it
 
-**The projection lands on the ground, and only on the ground.** Three tiles carry
-the projector: the near one, the lidar tile over the lot, and the far islands. A
-ray that leaves the top of the frame goes over the horizon and hits nothing, so
-the top of a photograph disappears when it is shifted up. Anything standing off
-the ground — a trunk, a shed wall — is painted where its ray meets the dirt
-behind it, not where it is. That is why tree trunks are a poor thing to line up
-on and why the boulder's *foot* was used rather than the boulder.
+**The projection lands on the ground, and on a screen behind everything.** Three
+tiles carry the projector — the near one, the lidar tile over the lot, and the
+far islands — and behind them all a sphere 120 km out with the camera at its
+middle, which shows nothing except where the photograph falls on it. Every ray
+hits the sphere, so the whole frame is somewhere; the ground and the islands
+stand in front and cover their own parts, and what is left showing on it is the
+part that used to land nowhere. That is what puts the photographed skyline on a
+surface with the rendered skyline in front of it instead of a few pixels of edge
+against edge.
+
+Anything standing off the ground — a trunk, a shed wall — is still painted where
+its ray meets the dirt behind it, not where it is. That is why tree trunks are a
+poor thing to line up on and why the boulder's *foot* was used rather than the
+boulder.
 
 There is no depth test against the projector either, so ground the camera cannot
 see is painted as though it could.

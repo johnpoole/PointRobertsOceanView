@@ -13,7 +13,7 @@ import { Sky } from "./scene/sky.js";
 import { Vessels } from "./scene/vessels.js";
 import { Aircraft } from "./scene/aircraft.js";
 import { Weather } from "./scene/weather.js";
-import { buildTerrain } from "./scene/terrain.js";
+import { buildTerrain, buildScreen } from "./scene/terrain.js";
 import { buildLand, osmFeatures } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
@@ -982,6 +982,9 @@ let wyzeCam = 0;
 // terrain reads the ground back through this, so the frame lands where the
 // camera was pointed instead of across the screen.
 const wyzeLens = new THREE.PerspectiveCamera(WYZE_FOV_DEG, 16 / 9, 1, 4000);
+// What the rays that clear the skyline land on. It shows nothing until a
+// photograph is handed to it, so it costs nothing to have it standing there.
+const wyzeScreen = buildScreen(scene);
 const wyzeShots = new Map();
 const camAim = document.getElementById("cam-aim");
 
@@ -1012,7 +1015,7 @@ function applyWyzeAim() {
                   wyzeEye.z - Math.cos(h) * Math.cos(p) * far);
   wyzeLens.updateProjectionMatrix();
   const shot = wyzeTexture(WYZE_CAMS[wyzeCam].shot);
-  for (const tile of [ground, lot, skylineTile]) {
+  for (const tile of [ground, lot, skylineTile, wyzeScreen]) {
     if (tile) tile.project(shot, wyzeLens, wyzePhoto ? WYZE_MIX : 0, WYZE_LENS);
   }
   camAim.textContent =
@@ -1141,7 +1144,7 @@ function nextWyzeCam() {
 // opening view put away, and the app's own lens back.
 function leaveWyze() {
   if (!wyzeView) return;
-  for (const tile of [ground, lot, skylineTile]) {
+  for (const tile of [ground, lot, skylineTile, wyzeScreen]) {
     if (tile) tile.project(null, null, 0);
   }
   if (trees) trees.homeTrees(false);

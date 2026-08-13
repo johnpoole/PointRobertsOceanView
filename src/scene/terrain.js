@@ -229,6 +229,86 @@ function dressAnything(material, projector) {
   material.customProgramCacheKey = () => "projected";
 }
 
+// A screen for the half of the frame that lands on nothing.
+//
+// The projection needs ground to fall on, and above the island skyline there is
+// none: those rays go over the horizon and out of the world. So the islands show
+// up in a frame as a band a few pixels deep at the very top of what is painted,
+// which is the worst thing there is to line up on — an edge against an edge,
+// with the whole sky above it blank.
+//
+// This is a sphere the projector sits at the middle of, out past the far tile
+// and inside the camera's far plane, showing nothing except where the photograph
+// falls on it. Every ray hits it, so the whole frame is on it; the ground and
+// the islands stand in front and cover their own parts, and what is left showing
+// is exactly the part that had nowhere to land. The skyline in the photograph
+// then has the rendered skyline in front of it and the two can be read against
+// each other.
+//
+// Being a sphere around the camera rather than a plane means nothing for the
+// comparison: the picture is cast along rays from the eye, so seen from the eye
+// it sits in the right direction whatever shape it lands on.
+const SCREEN_RADIUS_M = 120000;
+
+export function buildScreen(scene) {
+  const projector = {
+    view: { value: new THREE.Matrix4() },
+    lens: { value: new THREE.Vector2(1, 16 / 9) },
+    map: { value: blankMap() },
+    mix: { value: 0 },
+  };
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      projView: projector.view, projLens: projector.lens,
+      projMap: projector.map, projMix: projector.mix,
+    },
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,   // it is behind everything; it must not mask anything
+    vertexShader: `
+      varying vec3 vGroundPos;
+      void main() {
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vGroundPos = world.xyz;
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vGroundPos;
+      uniform mat4 projView;
+      uniform vec2 projLens;
+      uniform sampler2D projMap;
+      uniform float projMix;
+      void main() {
+        ${PROJECTOR_GLSL_FRAGMENT}
+        // Off the frame there is no screen at all, only sky.
+        if (projOn <= 0.0) discard;
+        gl_FragColor = vec4(projRgb, projOn);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(SCREEN_RADIUS_M, 48, 24), material);
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+
+  // Same call as a tile's, so one loop moves the ground and the screen together.
+  const project = (map, camera, mix, lens) => {
+    if (map) projector.map.value = map;
+    if (camera) {
+      camera.updateMatrixWorld();
+      projector.view.value.copy(camera.matrixWorldInverse);
+      // The screen belongs to the camera, so it moves with it. Off centre, the
+      // frame would land on it stretched to one side.
+      mesh.position.setFromMatrixPosition(camera.matrixWorld);
+    }
+    if (lens) projector.lens.value.set(lens.corner, lens.aspect);
+    projector.mix.value = mix;
+  };
+  return { mesh, project };
+}
+
 function dressGround(material, projector, gravel) {
   material.onBeforeCompile = (shader) => {
     if (projector) {
