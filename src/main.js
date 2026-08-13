@@ -535,6 +535,10 @@ function setPointerFrom(e) {
 }
 
 function grabStart(e) {
+  // Not while a camera frame is being lined up. That drag moves the photograph,
+  // and this one takes hold of the ground on the way down — in the capture phase
+  // on the window — so if it answers first the photograph never hears the press.
+  if (wyzeView) return false;
   if (nav.mode !== "orbit") return false;
   if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return false;
   setPointerFrom(e);
