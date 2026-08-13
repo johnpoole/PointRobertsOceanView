@@ -890,37 +890,18 @@ function toBluff() {
 // the two being compared: the photograph is on the ground now, and the ground
 // is where they meet.
 const WYZE_FOV_DEG = 70;
-// 61° to the corner, 122° on the diagonal. Fitted rather than assumed: the
-// island skyline over 92 columns comes flattest against the terrain there,
-// 0.175° of miss, with the error rising either side of it instead of sliding to
-// the end of the search the way every earlier attempt did. Wyze publish 130° for
-// this camera without saying how it is measured; the 110 that was in here came
-// from nowhere defensible.
+// 60.26° to the corner, and 1.5986 across rather than the frame's own 16:9, so
+// the camera does not work the same across as it does up: 102.2° across and
+// 63.9° up. Both numbers came off a frame lined up by hand against the screen
+// behind the islands, and the corner barely moved from the 61 an earlier fit on
+// the skyline gave. Wyze publish 130° for this camera without saying how it is
+// measured.
 //
-// A shift-drag moves both of these, so this is where the lens starts and not
-// where it stays. Lining a frame up by hand until it sits on the ground and
-// reading these two numbers off the screen is a measurement of the lens.
-//
-// Both cameras are the same V3 and share this one lens, so a stretch fitted on
-// the beach carries over to the bank.
-//
-// 60.26 and 1.5986 came off a frame lined up by hand once the screen was there
-// to see the skyline on. The corner barely moved from the 61 the skyline fit
-// gave. The aspect did: 1.5986 against the frame's own 16:9, so the lens does
-// not work the same across as it does up, which is the thing no fit so far could
-// have found because none of them let it.
+// Both cameras are the same V3 and share this one lens. It was fitted on the
+// beach frame and the bank frame then lined up without it being touched, which
+// is what says 1.5986 describes the glass rather than covering for an error on
+// the ocean view side.
 const WYZE_LENS = { corner: (60.26 * Math.PI) / 180, aspect: 1.5986 };
-// What a shift-drag is worth, per pixel. The aim moves a degree for a degree of
-// screen because that is what makes the picture follow the pointer. The lens has
-// no such natural rate, so these are slow: half a screen is ten degrees of
-// corner and a tenth of the aspect, which leaves the last tenth of a degree
-// findable by hand.
-const WYZE_CORNER_PER_PX = 0.02;    // degrees
-const WYZE_ASPECT_PER_PX = 0.0004;
-// Past these the projection is not a lens any more. The readout stops moving at
-// them, which is the only warning there is.
-const WYZE_CORNER_RANGE = [20, 85];
-const WYZE_ASPECT_RANGE = [1.0, 3.0];
 const WYZE_CAMS = [
   {
     // On the roof, a foot in from the south edge and five feet up the slope
@@ -1032,47 +1013,23 @@ function applyWyzeAim() {
     `${WYZE_CAMS[wyzeCam].name}  ${((wyzeAim.heading + 360) % 360).toFixed(2)}° from north  `
     + `${wyzeAim.pitch >= 0 ? "up" : "down"} ${Math.abs(wyzeAim.pitch).toFixed(2)}°  ·  `
     + `lens ${((WYZE_LENS.corner * 180) / Math.PI).toFixed(2)}° to the corner, `
-    + `${WYZE_LENS.aspect.toFixed(4)} across  ·  drag to move it, shift-drag to stretch it`;
+    + `${WYZE_LENS.aspect.toFixed(4)} across  ·  drag to move it`;
 }
-
-const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 
 // A drag moves the photograph, not the view. One pixel is one degree scaled by
 // the render's own lens, so the picture follows the pointer.
-//
-// With shift down it stretches the photograph instead of sliding it. Across is
-// the aspect and up is the corner angle, and the two are not the same knob: the
-// corner sets how far the whole picture spreads over the ground, the aspect
-// spreads it across while squeezing it up. Sliding alone assumes the lens is
-// right and only the aim is off, which is the assumption that has to be dropped
-// before a frame can be lined up completely.
-//
-// Which of the two a drag is happens at the button and not after, or letting
-// shift go part way through would turn a stretch into a slide.
 let wyzeDrag = null;
 canvas.addEventListener("pointerdown", (e) => {
   if (!wyzeView) return;
-  wyzeDrag = { x: e.clientX, y: e.clientY, stretch: e.shiftKey };
+  wyzeDrag = { x: e.clientX, y: e.clientY };
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener("pointermove", (e) => {
   if (!wyzeDrag) return;
-  const dx = e.clientX - wyzeDrag.x;
-  const dy = e.clientY - wyzeDrag.y;
-  if (wyzeDrag.stretch) {
-    // Up for a wider corner and right for a wider aspect, so in both cases
-    // moving away from the middle of the screen spreads the picture that way.
-    const corner = clamp((WYZE_LENS.corner * 180) / Math.PI
-                         - dy * WYZE_CORNER_PER_PX, WYZE_CORNER_RANGE);
-    WYZE_LENS.corner = (corner * Math.PI) / 180;
-    WYZE_LENS.aspect = clamp(WYZE_LENS.aspect + dx * WYZE_ASPECT_PER_PX,
-                             WYZE_ASPECT_RANGE);
-  } else {
-    const perPx = camera.fov / window.innerHeight;
-    wyzeAim.heading += dx * perPx;
-    wyzeAim.pitch += dy * perPx;
-  }
-  wyzeDrag = { x: e.clientX, y: e.clientY, stretch: wyzeDrag.stretch };
+  const perPx = camera.fov / window.innerHeight;
+  wyzeAim.heading += (e.clientX - wyzeDrag.x) * perPx;
+  wyzeAim.pitch += (e.clientY - wyzeDrag.y) * perPx;
+  wyzeDrag = { x: e.clientX, y: e.clientY };
   applyWyzeAim();
 });
 for (const ev of ["pointerup", "pointercancel"]) {
@@ -1156,10 +1113,7 @@ function saveWyze() {
   const block =
     `// ${WYZE_CAMS[wyzeCam].name}\n`
     + `    aim: { lat: ${lat.toFixed(6)}, lon: ${lon.toFixed(6)}, `
-    + `y: ${y.toFixed(2)} },\n`
-    + `const WYZE_LENS = { corner: `
-    + `(${((WYZE_LENS.corner * 180) / Math.PI).toFixed(2)} * Math.PI) / 180, `
-    + `aspect: ${WYZE_LENS.aspect.toFixed(4)} };`;
+    + `y: ${y.toFixed(2)} },`;
 
   const show = (note) => {
     camAim.classList.add("saved");
