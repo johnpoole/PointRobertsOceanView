@@ -337,6 +337,10 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
 - #11 the moon
 - #12 name the ferry and where it is bound
 - #13 work the currents out from the geography, with NOAA as the far field
+- the sun slider run backwards should carry the vessels and the aircraft with it. Moving it into
+  the past moves the light and nothing else: the ships and the planes stay where they are now,
+  which is wrong for any hour but this one. Both feeds arrive as positions at a time, so what is
+  missing is keeping them and reading them back at the hour the slider is standing at.
 - the lidar as the ground near 389. The terrain here is 3 m CUDEM everywhere including under the
   house, and against 28,308 lidar ground returns it is good on the flats and out by 0.61 m on the
   bluff face, 4.52 m at worst, over a metre on 3 percent of the area. Two jobs, agreed and not
