@@ -61,7 +61,10 @@ const controls = new MapControls(camera, canvas);
 controls.target.set(-500, 0, 0); // look west, slightly down to the water
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.maxPolarAngle = Math.PI * 0.52; // don't drop below the sea surface
+// Don't drop below the sea surface. Lifted while standing at a wyze camera,
+// which is the one place the view is meant to look up — see toWyzeCam.
+const MAP_MAX_POLAR = Math.PI * 0.52;
+controls.maxPolarAngle = MAP_MAX_POLAR;
 // Google puts no floor under how close you may come, and a floor of 20 m is a
 // floor on looking at a 7 m building: it stopped the camera two storeys off the
 // cabin and would not go in. What is left is the near plane, which is 1 m: any
@@ -1041,6 +1044,13 @@ function toWyzeCam() {
   const eye = toWorld(cam.eye.lat, cam.eye.lon, cam.eye.y);
   const aim = toWorld(cam.aim.lat, cam.aim.lon, cam.aim.y);
   nav.toOrbit();
+  // The map view may not tip past level, because a drag that goes under the sea
+  // has nothing to hold on to. A camera on the roof looks up a hill, so its
+  // target stands above its eye — and update() would read that as an illegal
+  // angle and swing the view round to a legal one, which put you high over the
+  // cabin looking somewhere else entirely. Lift the stop while standing at a
+  // camera and leaveWyze puts it back.
+  controls.maxPolarAngle = Math.PI;
   camera.position.set(eye.x, eye.y, eye.z);
   controls.target.set(aim.x, aim.y, aim.z);
   controls.update();
@@ -1098,6 +1108,7 @@ function leaveWyze() {
     if (tile) tile.project(null, null, 0);
   }
   if (trees) trees.homeTrees(false);
+  controls.maxPolarAngle = MAP_MAX_POLAR;
   heldTide = null;
   wyzeView = false;
   wyzePhoto = false;

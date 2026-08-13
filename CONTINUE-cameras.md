@@ -145,6 +145,18 @@ boulder.
 There is no depth test against the projector either, so ground the camera cannot
 see is painted as though it could.
 
+**The map view will not tip past level and the front door camera looks up.** Its
+target stands above its eye, and `controls.update()` reads that as an illegal
+angle and swings the view to a legal one — which drops you high over the cabin
+looking somewhere else. `toWyzeCam` lifts `maxPolarAngle` while a camera is up
+and `leaveWyze` puts it back. The projector never cared; only the viewpoint you
+land at was wrong.
+
+**A photograph reaches as far as its camera is given.** `range` on a camera in
+`WYZE_CAMS`, in metres, or none at all. The front door has 100. Aimed 11° up it
+sends most of its rays over the crest of the bank, and past the crest the ground
+falls away and they graze on until they meet the far side of the strait.
+
 **The photograph goes on after the lighting**, not into the diffuse colour. A
 noon frame put in before the light gets shaded by whatever the sun is doing now,
 and in the evening that turns it black — which reads as the picture failing to
