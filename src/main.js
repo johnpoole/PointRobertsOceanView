@@ -903,14 +903,18 @@ const WYZE_CAMS = [
     tide: -0.21,
   },
   {
-    // Aimed off the one lidar boulder in the frame rather than by hand: its
-    // foot is on the ground in the photograph and on the ground in the terrain,
-    // so the two mean the same point. Solving for the pair of angles that put
-    // the projector's idea of that foot onto the rock lands it exactly, and
-    // moves the aim 7.3° down and 3.2° across from where it was set by eye.
+    // Off two things at once: the lidar boulder 30 m out and the islands 30 km
+    // out. How far below level the boulder's foot sits depends on how high the
+    // camera is; the islands do not care how high it is at all. So the near one
+    // fixes the height and the far one fixes the pitch, and with the lens left
+    // at what the maker claims both land exactly.
+    //
+    // That put the eye at 8.14 rather than the 14.2 it was carrying, which is
+    // the lower floor and not six metres above it. The height was the wrong
+    // number all along; the aim was only wrong because it was bending to fit it.
     name: "ocean view",
-    eye: { lat: 48.989022, lon: -123.085925, y: 14.2 },
-    aim: { lat: 48.987921, lon: -123.089360, y: -95.5 },
+    eye: { lat: 48.989022, lon: -123.085925, y: 8.14 },
+    aim: { lat: 48.987901, lon: -123.089583, y: -46.7 },
     shot: "assets/reference/ocean_view-20260812T194848Z.png",
     tide: -0.56,
   },
