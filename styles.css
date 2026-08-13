@@ -231,6 +231,15 @@ html, body {
   -webkit-backdrop-filter: blur(6px);
 }
 .cam-aim.hidden { display: none; }
+/* What S puts up: the block to paste into the source, kept selectable in case
+   the clipboard is not available, which on plain http it is not. */
+.cam-aim.saved {
+  white-space: pre;
+  text-align: left;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
 
 .vessel-tip {
   position: fixed;

@@ -903,7 +903,13 @@ const WYZE_FOV_DEG = 70;
 //
 // Both cameras are the same V3 and share this one lens, so a stretch fitted on
 // the beach carries over to the bank.
-const WYZE_LENS = { corner: (61 * Math.PI) / 180, aspect: 16 / 9 };
+//
+// 60.26 and 1.5986 came off a frame lined up by hand once the screen was there
+// to see the skyline on. The corner barely moved from the 61 the skyline fit
+// gave. The aspect did: 1.5986 against the frame's own 16:9, so the lens does
+// not work the same across as it does up, which is the thing no fit so far could
+// have found because none of them let it.
+const WYZE_LENS = { corner: (60.26 * Math.PI) / 180, aspect: 1.5986 };
 // What a shift-drag is worth, per pixel. The aim moves a degree for a degree of
 // screen because that is what makes the picture follow the pointer. The lens has
 // no such natural rate, so these are slow: half a screen is ten degrees of
@@ -961,8 +967,11 @@ const WYZE_CAMS = [
     // the surface with its foot out of sight. Its waterline is still a line the
     // render can be held against, but the foot is not.
     name: "ocean view",
+    //
+    // Lined up by hand against the frame below, on the screen behind the
+    // islands: 245.69° from north, 11.66° down.
     eye: { lat: 48.989022, lon: -123.085925, y: 8.14 },
-    aim: { lat: 48.987901, lon: -123.089583, y: -46.7 },
+    aim: { lat: 48.987935, lon: -123.089590, y: -52.49 },
     shot: "assets/reference/ocean_view-20260813T150858Z.png",
     tide: 1.82,
   },
@@ -1018,6 +1027,7 @@ function applyWyzeAim() {
   for (const tile of [ground, lot, skylineTile, wyzeScreen]) {
     if (tile) tile.project(shot, wyzeLens, wyzePhoto ? WYZE_MIX : 0, WYZE_LENS);
   }
+  camAim.classList.remove("saved");   // a drag replaces whatever S put up
   camAim.textContent =
     `${WYZE_CAMS[wyzeCam].name}  ${((wyzeAim.heading + 360) % 360).toFixed(2)}° from north  `
     + `${wyzeAim.pitch >= 0 ? "up" : "down"} ${Math.abs(wyzeAim.pitch).toFixed(2)}°  ·  `
@@ -1123,6 +1133,46 @@ function nearestWyzeCam() {
     if (dot > most) { most = dot; best = i; }
   }
   return best;
+}
+
+// The numbers on the bar are the whole point of the exercise, and the place they
+// get lost is between the screen and the source: the aim has to go back as a
+// lat/lon 300 m down the line of sight, not as two angles, and doing that
+// conversion by hand at the end of an hour's lining up is how an hour's lining
+// up gets thrown away. S writes the block the way the source wants it.
+//
+// The clipboard is not always there. It wants a secure origin and the page is
+// served over plain http on the LAN, so the block goes on the bar as well, and
+// the bar says whether the copy took rather than leaving it to be guessed.
+const WYZE_AIM_M = 300;    // how far down the line of sight the aim point sits
+function saveWyze() {
+  if (!wyzeView) return;
+  const h = (wyzeAim.heading * Math.PI) / 180;
+  const p = (wyzeAim.pitch * Math.PI) / 180;
+  const x = wyzeEye.x + Math.sin(h) * Math.cos(p) * WYZE_AIM_M;
+  const y = wyzeEye.y + Math.sin(p) * WYZE_AIM_M;
+  const z = wyzeEye.z - Math.cos(h) * Math.cos(p) * WYZE_AIM_M;
+  const { lat, lon } = fromWorld(x, z);
+  const block =
+    `// ${WYZE_CAMS[wyzeCam].name}\n`
+    + `    aim: { lat: ${lat.toFixed(6)}, lon: ${lon.toFixed(6)}, `
+    + `y: ${y.toFixed(2)} },\n`
+    + `const WYZE_LENS = { corner: `
+    + `(${((WYZE_LENS.corner * 180) / Math.PI).toFixed(2)} * Math.PI) / 180, `
+    + `aspect: ${WYZE_LENS.aspect.toFixed(4)} };`;
+
+  const show = (note) => {
+    camAim.classList.add("saved");
+    camAim.textContent = `${block}\n\n${note}`;
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(block)
+      .then(() => show("copied — paste it into src/main.js"))
+      .catch((err) => show(`not copied: ${err.message}. Select it above instead.`));
+  } else {
+    show("not copied: the clipboard wants https or localhost and this is neither. "
+         + "Select it above instead.");
+  }
 }
 
 // The photograph on and off. Where you are standing and what lens you are
@@ -1336,6 +1386,8 @@ window.addEventListener("keydown", (e) => {
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
   if (e.code === "KeyN" && !e.repeat) nextWyzeCam();
+  // Only while a frame is up. Everywhere else S is reverse, in nav.
+  if (e.code === "KeyS" && !e.repeat) saveWyze();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.
