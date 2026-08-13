@@ -83,13 +83,30 @@ NCEI_IMAGESERVER = (
 CUDEM_TILE = "ncei19_n49x00_w123x25_2024v1"
 NCEI_NODATA = -999999.0
 
-# Elevations are stored as int16 decimetres, not float32. A float32 heightmap is
-# 13 MB and gzips to only 71 % of that, because the low mantissa bits of a metre
-# reading are noise and noise does not compress. Rounding to decimetres throws
-# that noise away and the same file then gzips to 10 %. The 5 cm this costs is
-# far inside the data's own error — the NAVD88 to MLLW shift alone carries 9.4 cm
-# of stated uncertainty.
-ELEV_SCALE_M = 0.1
+# Elevations are stored as int16 counts of this, not float32. A float32
+# heightmap is 13 MB and gzips to only 71 % of that, because the low mantissa
+# bits of a metre reading are noise and noise does not compress. Rounding throws
+# that noise away and the same file gzips to a tenth.
+#
+# Five centimetres, not the ten it was. The tide flat west of the house falls
+# about a metre in forty, so a step in the stored height is four times that
+# along the ground: at ten centimetres the waterline could only ever land on a
+# four-metre grid. At five it is two.
+#
+# It bought less than it looked as though it would. The stretches that read as
+# terraces at ten centimetres — sixty through ninety metres out at 0.30, and a
+# hundred and forty-five through two hundred at −1.00 — came back at five
+# centimetres still flat. That is CUDEM, not the number format. What the step
+# was hiding was decimetre relief on the slope between them, and the waterline
+# moved one metre.
+#
+# It costs 0.8 MB gzipped on the near tile, 1.5 to 2.3. Twice as many distinct
+# values is more entropy and gzip cannot do anything about that.
+#
+# Still finer than the data it carries: the NAVD88 to MLLW shift alone has 9.4 cm
+# of stated uncertainty. Both tiles have room — the near one spans −122 to 74 m
+# and the far one −407 to 1463, and int16 at 5 cm reaches ±1638.
+ELEV_SCALE_M = 0.05
 I16_MIN, I16_MAX = -32768, 32767
 
 # Marks far-tile cells that the near tile covers. Any triangle touching one is

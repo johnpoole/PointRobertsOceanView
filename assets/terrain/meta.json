@@ -21,11 +21,11 @@
     "north_lat": 48.99998456790124,
     "west_lon": -123.12998456790123,
     "dtype": "int16",
-    "scale_m": 0.1,
+    "scale_m": 0.05,
     "order": "row-major, north row first"
   },
   "elevation_m_mllw": {
     "min": -121.80000000000001,
-    "max": 73.7
+    "max": 73.75
   }
 }
