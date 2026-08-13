@@ -1,0 +1,22 @@
+{
+  "what": "the concrete stair east of the house, as one average step",
+  "measured": "off assets/reference/front_door-20260812T203304Z.png, 2026-08-12",
+  "how": "Twelve tread edges traced down the picture become twelve directions from the camera. A flight of nineteen steps covering the 4.4 to 5.4 m of ground John's count and his rough ten inch tread allow is fitted to them, with the bottom step held on the lidar ground.",
+  "not_measured": "the width, taken as 1.2 m, and the difference between one step and the next, which John says is real and this does not know",
+  "checks": {
+    "bottom_is_m_from_the_roof_camera": 2.32,
+    "top_of_the_flight_m_mllw": 14.65,
+    "lidar_ground_at_the_top_m_mllw": 14.4,
+    "residual_deg_per_tread_edge": 0.047
+  },
+  "bottom": {
+    "lat": 48.9890509,
+    "lon": -123.0857045,
+    "ground_m": 11.99
+  },
+  "bearing_deg": 74.0,
+  "steps": 19,
+  "going_m": 0.23,
+  "rise_m": 0.14,
+  "width_m": 1.2
+}

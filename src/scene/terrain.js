@@ -190,6 +190,45 @@ function blankMap() {
   return t;
 }
 
+// Anything drawn as its own geometry that has to catch the same photograph — the
+// stair, and whatever follows it — needs the same few lines in its shader and
+// the same uniform objects, so one project() call moves all of it at once.
+function dressAnything(material, projector) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.projView = projector.view;
+    shader.uniforms.projLens = projector.lens;
+    shader.uniforms.projMap = projector.map;
+    shader.uniforms.projMix = projector.mix;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", `
+        #include <common>
+        varying vec3 vGroundPos;
+      `)
+      .replace("#include <begin_vertex>", `
+        #include <begin_vertex>
+        vGroundPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+      `);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `
+        #include <common>
+        varying vec3 vGroundPos;
+        uniform mat4 projView;
+        uniform vec2 projLens;
+        uniform sampler2D projMap;
+        uniform float projMix;
+      `)
+      .replace("#include <color_fragment>", `
+        #include <color_fragment>
+        ${PROJECTOR_GLSL_FRAGMENT}
+      `)
+      .replace("#include <colorspace_fragment>", `
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, projRgb, projOn);
+        #include <colorspace_fragment>
+      `);
+  };
+  material.customProgramCacheKey = () => "projected";
+}
+
 function dressGround(material, projector, gravel) {
   material.onBeforeCompile = (shader) => {
     if (projector) {
@@ -514,5 +553,6 @@ export async function buildTerrain(scene, asset, opts = {}) {
     if (lens) projector.lens.value.set(lens.corner, lens.aspect);
     projector.mix.value = mix;
   };
-  return { mesh, meta, sample, heights: Z, cover, project };
+  return { mesh, meta, sample, heights: Z, cover, project,
+           projector: projector ? { dress: (m) => dressAnything(m, projector) } : null };
 }
