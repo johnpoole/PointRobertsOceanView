@@ -213,6 +213,25 @@ html, body {
 /* A drag has to reach the canvas rather than scroll or zoom the page. */
 #scene { touch-action: none; }
 
+/* The camera readout, while one is up. Top centre, clear of both HUD corners. */
+.cam-aim {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.cam-aim.hidden { display: none; }
+
 .vessel-tip {
   position: fixed;
   z-index: 6;

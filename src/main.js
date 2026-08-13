@@ -886,7 +886,13 @@ function toBluff() {
 // the two being compared: the photograph is on the ground now, and the ground
 // is where they meet.
 const WYZE_FOV_DEG = 70;
-const WYZE_LENS = { corner: (55 * Math.PI) / 180, aspect: 16 / 9 };
+// 61° to the corner, 122° on the diagonal. Fitted rather than assumed: the
+// island skyline over 92 columns comes flattest against the terrain there,
+// 0.175° of miss, with the error rising either side of it instead of sliding to
+// the end of the search the way every earlier attempt did. Wyze publish 130° for
+// this camera without saying how it is measured; the 110 that was in here came
+// from nowhere defensible.
+const WYZE_LENS = { corner: (61 * Math.PI) / 180, aspect: 16 / 9 };
 const WYZE_CAMS = [
   {
     // On the roof, a foot in from the south edge and five feet up the slope
@@ -948,6 +954,62 @@ let wyzeCam = 0;
 // camera was pointed instead of across the screen.
 const wyzeLens = new THREE.PerspectiveCamera(WYZE_FOV_DEG, 16 / 9, 1, 4000);
 const wyzeShots = new Map();
+const camAim = document.getElementById("cam-aim");
+
+// Where the projector is pointed, in degrees, so a drag can move it. Taken from
+// the aim the camera carries when it is entered; after that it is wherever it
+// has been dragged to.
+const wyzeAim = { heading: 0, pitch: 0 };
+const wyzeEye = new THREE.Vector3();
+
+function readWyzeAim(cam) {
+  const eye = toWorld(cam.eye.lat, cam.eye.lon, cam.eye.y);
+  const aim = toWorld(cam.aim.lat, cam.aim.lon, cam.aim.y);
+  const d = new THREE.Vector3(aim.x - eye.x, aim.y - eye.y, aim.z - eye.z).normalize();
+  wyzeEye.set(eye.x, eye.y, eye.z);
+  wyzeAim.heading = (Math.atan2(d.x, -d.z) * 180) / Math.PI;
+  wyzeAim.pitch = (Math.asin(d.y) * 180) / Math.PI;
+}
+
+// Point the projector where wyzeAim says, and put the numbers on screen. They
+// are what to write back into WYZE_CAMS once a frame is lined up by hand.
+function applyWyzeAim() {
+  const h = (wyzeAim.heading * Math.PI) / 180;
+  const p = (wyzeAim.pitch * Math.PI) / 180;
+  const far = 300;
+  wyzeLens.position.copy(wyzeEye);
+  wyzeLens.lookAt(wyzeEye.x + Math.sin(h) * Math.cos(p) * far,
+                  wyzeEye.y + Math.sin(p) * far,
+                  wyzeEye.z - Math.cos(h) * Math.cos(p) * far);
+  wyzeLens.updateProjectionMatrix();
+  const shot = wyzeTexture(WYZE_CAMS[wyzeCam].shot);
+  for (const tile of [ground, lot, skylineTile]) {
+    if (tile) tile.project(shot, wyzeLens, wyzePhoto ? WYZE_MIX : 0, WYZE_LENS);
+  }
+  camAim.textContent =
+    `${WYZE_CAMS[wyzeCam].name}  ${((wyzeAim.heading + 360) % 360).toFixed(2)}° from north  `
+    + `${wyzeAim.pitch >= 0 ? "up" : "down"} ${Math.abs(wyzeAim.pitch).toFixed(2)}°  ·  drag to move it`;
+}
+
+// A drag moves the photograph, not the view. One pixel is one degree scaled by
+// the render's own lens, so the picture follows the pointer.
+let wyzeDrag = null;
+canvas.addEventListener("pointerdown", (e) => {
+  if (!wyzeView) return;
+  wyzeDrag = { x: e.clientX, y: e.clientY };
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!wyzeDrag) return;
+  const perPx = camera.fov / window.innerHeight;
+  wyzeAim.heading += (e.clientX - wyzeDrag.x) * perPx;
+  wyzeAim.pitch += (e.clientY - wyzeDrag.y) * perPx;
+  wyzeDrag = { x: e.clientX, y: e.clientY };
+  applyWyzeAim();
+});
+for (const ev of ["pointerup", "pointercancel"]) {
+  canvas.addEventListener(ev, () => { wyzeDrag = null; });
+}
 
 function wyzeTexture(url) {
   if (!wyzeShots.has(url)) {
@@ -971,6 +1033,11 @@ function toWyzeCam() {
   controls.target.set(aim.x, aim.y, aim.z);
   controls.update();
 
+  // The scene camera stays put while a photograph is being lined up, or a drag
+  // would move the view and the picture at once.
+  controls.enabled = false;
+  camAim.classList.remove("hidden");
+  readWyzeAim(cam);
   wyzeLens.position.set(eye.x, eye.y, eye.z);
   wyzeLens.lookAt(aim.x, aim.y, aim.z);
   wyzeLens.updateProjectionMatrix();
@@ -1012,10 +1079,7 @@ function flipWyze() {
   if (!ground) return;   // no terrain to throw it on yet
   if (!wyzeView) { wyzeCam = nearestWyzeCam(); toWyzeCam(); return; }
   wyzePhoto = !wyzePhoto;
-  const mix = wyzePhoto ? WYZE_MIX : 0;
-  for (const tile of [ground, lot, skylineTile]) {
-    if (tile) tile.project(null, null, mix);
-  }
+  applyWyzeAim();
 }
 
 function nextWyzeCam() {
@@ -1032,6 +1096,8 @@ function leaveWyze() {
     if (tile) tile.project(null, null, 0);
   }
   if (trees) trees.homeTrees(false);
+  controls.enabled = true;
+  camAim.classList.add("hidden");
   heldTide = null;
   wyzeView = false;
   wyzePhoto = false;
