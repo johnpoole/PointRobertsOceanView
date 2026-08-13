@@ -944,8 +944,12 @@ const WYZE_CAMS = [
     // painted on, so some of that 12 is parallax rather than aim. They also grow
     // from 134 to 282 px across the frame, which a pure aim error would not do.
     name: "front door",
+    // 67.5, not the 69 above. The 69 came out of 197 px at 16.5 px to the
+    // degree, and the lens John lined up puts that rate at 18.79 across, which
+    // makes the same 197 px 10.5°. A place to start a drag from, not an answer:
+    // the arrows paired trunks, which are painted behind themselves.
     eye: { lat: 48.989046, lon: -123.085735, y: 12.9 },
-    aim: { lat: 48.990012, lon: -123.081901, y: 12.9 },
+    aim: { lat: 48.990077, lon: -123.081941, y: 12.9 },
     shot: "assets/reference/front_door-20260812T203304Z.png",
     tide: -0.21,
   },
