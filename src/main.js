@@ -931,8 +931,8 @@ function toWyzeCam() {
   wyzeLens.lookAt(aim.x, aim.y, aim.z);
   wyzeLens.updateProjectionMatrix();
   const shot = wyzeTexture(cam.shot);
-  ground.project(shot, wyzeLens, WYZE_MIX);
-  lot.project(shot, wyzeLens, WYZE_MIX);
+  ground.project(shot, wyzeLens, WYZE_MIX, WYZE_LENS);
+  lot.project(shot, wyzeLens, WYZE_MIX, WYZE_LENS);
   wyzePhoto = true;
 
   // The measured trees in the opening view are the only things out there with a

@@ -141,22 +141,39 @@ function colorForGround(elev, target, row, col, slope, cover) {
 // value noise in world metres, one at the size of a pea and one at the size of
 // the patches they gather in, darkening and lightening the ground rather than
 // tinting it — wet stone and dry stone next to each other, not a colour wash.
+//
 // A photograph thrown onto the ground from where it was taken, the way a slide
-// projector would. Every fragment is put back into the camera's clip space and
-// reads the frame there, so the picture lies over the terrain in depth instead
-// of across the screen, and you can walk away from the camera and see whether
-// it still sits on the ground it was taken of.
+// projector would, so the picture lies over the terrain in depth instead of
+// across the screen and you can walk away from the camera and see whether it
+// still sits on the ground it was taken of.
 //
 // There is no depth test against the projector, so ground the camera cannot see
 // — the far side of a bank — is painted as though it could. Nothing to do about
 // that short of a shadow map, and it is obvious enough on the screen.
+//
+// The camera is a fisheye and a straight lens cannot undo that by being given a
+// wider angle: the two disagree by more the further out you look, which is why
+// the middle of a frame can sit right on the ground while the edges are metres
+// off. So the ground is not put through a lens at all. Every fragment is turned
+// into a direction from the camera, and the direction is read straight off the
+// picture the way the lens laid it down — angle from the axis carried to a
+// radius from the centre of the frame, in proportion. That is the equidistant
+// model, which is what a wide security lens is built to, and the only number in
+// it is how far off the axis the corner of the frame sits.
 const PROJECTOR_GLSL_FRAGMENT = `
   if (projMix > 0.0) {
-    vec4 pp = projMatrix * vec4(vGroundPos, 1.0);
-    if (pp.w > 0.0) {
-      vec2 puv = (pp.xy / pp.w) * 0.5 + 0.5;
-      if (puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0) {
-        diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(projMap, puv).rgb, projMix);
+    vec3 pc = (projView * vec4(vGroundPos, 1.0)).xyz;
+    if (pc.z < 0.0) {                       // in front of the camera, three looks down -z
+      float off = length(pc.xy);
+      float theta = atan(off, -pc.z);       // angle off the axis
+      if (theta < projLens.x) {
+        vec2 dir = off > 1e-6 ? pc.xy / off : vec2(0.0);
+        // Radius in frame heights: the corner of the frame is the far edge.
+        float r = (theta / projLens.x) * 0.5 * sqrt(projLens.y * projLens.y + 1.0);
+        vec2 puv = vec2(0.5 + r * dir.x / projLens.y, 0.5 + r * dir.y);
+        if (puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0) {
+          diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(projMap, puv).rgb, projMix);
+        }
       }
     }
   }
@@ -173,7 +190,8 @@ function blankMap() {
 function addGravel(material, projector) {
   material.onBeforeCompile = (shader) => {
     if (projector) {
-      shader.uniforms.projMatrix = projector.matrix;
+      shader.uniforms.projView = projector.view;
+      shader.uniforms.projLens = projector.lens;
       shader.uniforms.projMap = projector.map;
       shader.uniforms.projMix = projector.mix;
     }
@@ -207,7 +225,8 @@ function addGravel(material, projector) {
         uniform float gravelDepth;
         uniform vec2 gravelFade;
         ${projector ? `
-        uniform mat4 projMatrix;
+        uniform mat4 projView;
+        uniform vec2 projLens;   // x: angle to the corner of the frame, y: aspect
         uniform sampler2D projMap;
         uniform float projMix;
         ` : ""}
@@ -432,8 +451,9 @@ export async function buildTerrain(scene, asset, opts = {}) {
   // Held here rather than in the shader object, because onBeforeCompile runs
   // once and whoever hands over a photograph does it long afterwards.
   const projector = opts.projector
-    ? { matrix: { value: new THREE.Matrix4() }, map: { value: blankMap() },
-        mix: { value: 0 } }
+    ? { view: { value: new THREE.Matrix4() },
+        lens: { value: new THREE.Vector2(1, 16 / 9) },
+        map: { value: blankMap() }, mix: { value: 0 } }
     : null;
   if (opts.gravel !== false) addGravel(mat, projector);
   const mesh = new THREE.Mesh(geom, mat);
@@ -452,9 +472,12 @@ export async function buildTerrain(scene, asset, opts = {}) {
     const bot = Z[i1 * ncols + j0] * (1 - tj) + Z[i1 * ncols + j1] * tj;
     return top * (1 - ti) + bot * ti;
   };
-  // Throw a photograph on the ground, or take it off with mix 0. camera is a
-  // three camera standing where the photograph was taken, with its lens.
-  const project = (map, camera, mix) => {
+  // Throw a photograph on the ground, or take it off with mix 0. camera stands
+  // where the photograph was taken and points where it pointed; only where it
+  // is and how it is turned are used, because the lens is not a straight one and
+  // is dealt with in the shader. lens is { corner, aspect }: the angle from the
+  // axis out to the corner of the frame, in radians, and the frame's shape.
+  const project = (map, camera, mix, lens) => {
     if (!projector) {
       throw new Error(
         "buildTerrain: this tile was not built with opts.projector, so there is " +
@@ -463,10 +486,9 @@ export async function buildTerrain(scene, asset, opts = {}) {
     if (map) projector.map.value = map;
     if (camera) {
       camera.updateMatrixWorld();
-      projector.matrix.value
-        .copy(camera.projectionMatrix)
-        .multiply(camera.matrixWorldInverse);
+      projector.view.value.copy(camera.matrixWorldInverse);
     }
+    if (lens) projector.lens.value.set(lens.corner, lens.aspect);
     projector.mix.value = mix;
   };
   return { mesh, meta, sample, heights: Z, cover, project };
