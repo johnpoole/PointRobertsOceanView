@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_BOULDERS, SITE_STAIR, SITE_TREES, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_BOULDERS, SITE_TREES, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -19,7 +19,6 @@ import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCabin } from "./scene/cabin.js";
-import { buildStair } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -262,11 +261,6 @@ buildTerrain(scene, TERRAIN.fine,
     // The cabin is modelled off photographs rather than extruded from its OSM
     // trace, so land.js leaves the home alone and cabin.js puts it there.
     buildCabin(scene, near.sample);
-    // Drawn as steps because the terrain cannot hold them: see stair.js.
-    fetch(SITE_STAIR)
-      .then((r) => r.json())
-      .then((spec) => buildStair(scene, spec, near.projector))
-      .catch((err) => failed("the stair east of the house", err));
     lighthouse = buildLighthouse(scene, near.sample);
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.

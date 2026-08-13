@@ -53,7 +53,6 @@ export const TERRAIN = {
 
 // The trees the lidar found on the lot, as against the ones land cover scatters.
 export const SITE_TREES = "assets/site/389-trees.json";
-export const SITE_STAIR = "assets/site/389-stair.json";
 // The rock the lidar found on the foreshore, as against the shingle put down by rule.
 export const SITE_BOULDERS = "assets/site/389-boulders.json";
 
