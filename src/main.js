@@ -891,7 +891,12 @@ const WYZE_CAMS = [
 // How much of the photograph is laid over the ground. Not all of it: the render
 // showing through is what you are comparing it against.
 const WYZE_MIX = 0.75;
-let wyzeView = false;
+// Standing at a camera is one thing and the photograph being up is another.
+// Flipping the photograph used to leave the camera as well, which put the lens
+// back to the app's own 25° — so the flip was comparing a 70° photograph
+// against a quarter of the view, and nothing could ever line up.
+let wyzeView = false;    // standing at a camera, with its lens
+let wyzePhoto = false;   // and the photograph thrown on the ground
 let wyzeCam = 0;
 
 // The lens the photograph was taken with, standing where it was taken. The
@@ -928,6 +933,7 @@ function toWyzeCam() {
   const shot = wyzeTexture(cam.shot);
   ground.project(shot, wyzeLens, WYZE_MIX);
   lot.project(shot, wyzeLens, WYZE_MIX);
+  wyzePhoto = true;
 
   // The measured trees in the opening view are the only things out there with a
   // trunk the lidar put in a known place, so they are what the photograph has to
@@ -937,10 +943,15 @@ function toWyzeCam() {
   applyFov();
 }
 
+// The photograph on and off. Where you are standing and what lens you are
+// standing behind do not move: that is the whole of the comparison.
 function flipWyze() {
   if (!ground) return;   // no terrain to throw it on yet
   if (!wyzeView) { toWyzeCam(); return; }
-  leaveWyze();
+  wyzePhoto = !wyzePhoto;
+  const mix = wyzePhoto ? WYZE_MIX : 0;
+  ground.project(null, null, mix);
+  lot.project(null, null, mix);
 }
 
 function nextWyzeCam() {
@@ -949,12 +960,15 @@ function nextWyzeCam() {
   toWyzeCam();
 }
 
+// Out of the camera altogether: the photograph off, the trees standing in the
+// opening view put away, and the app's own lens back.
 function leaveWyze() {
   if (!wyzeView) return;
   ground.project(null, null, 0);
   lot.project(null, null, 0);
   if (trees) trees.homeTrees(false);
   wyzeView = false;
+  wyzePhoto = false;
   applyFov();
 }
 
