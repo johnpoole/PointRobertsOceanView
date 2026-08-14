@@ -1,8 +1,8 @@
 {
   "what": "the concrete stair east of the house, as one average step",
-  "where_it_stands": "John, 2026-08-14. The bottom step is level with the floor of the upper level, 10.45 m. The flight was standing 1.50 m above that. It was slid 2.02 m back down its own line, which is where the lidar reaches 10.45, and the bearing and the placement across the flight were not touched.",
-  "how_that_was_applied": "cabin.js puts the roof at (-34.17, -7.03) turned 18.2 deg, 8.17 m across the ridge by 8.49 along, eaves included. The flight's north edge was laid on the south edge of that roof and it stays there to inside 0.08 m, which is the 2.3 deg between the roof edge and the flight over the 2.02 m the foot moved. The foot now sits off the south-east corner of the house, 0.47 m clear of the south edge of the upper deck, so you step off the deck onto the bottom tread.",
-  "what_is_left_of_the_photograph_fit": "nothing. It fixed how far along the flight the foot sat, and that is now the ground reaching 10.45. The bearing, the placement across the flight, the tread and the rise are all John's, or solved against the ground from them.",
+  "where_it_stands": "John, 2026-08-14. The bottom step is level with the floor of the upper level, 10.45 m, and the flight stands three of its own widths further east than the slide down the bank had left it. Moved 3.60 m due east. The height, the bearing and the placement across the flight were not touched.",
+  "how_that_was_applied": "cabin.js puts the roof at (-34.17, -7.03) turned 18.2 deg, 8.17 m across the ridge by 8.49 along, eaves included. The foot sits 6.27 m east of the roof centre in the cabin's own frame and 5.89 m south, so it is off the south-east corner of the house and clear of the upper deck.",
+  "what_is_left_of_the_photograph_fit": "nothing. It fixed how far along the flight the foot sat, and the foot is John's now. The bearing, the placement across the flight, the tread and the rise are all John's, or solved against the ground from them.",
   "measured": "off assets/reference/front_door-20260812T203304Z.png, 2026-08-12",
   "not_measured": "the width, taken as 1.2 m, and the difference between one step and the next, which John says is real and this does not know",
   "steps_and_tread_are_John's": "nineteen steps, tread about ten inches. Those two were never fitted.",
@@ -13,19 +13,19 @@
     "run_m": 4.57,
     "total_rise_m": 3.01,
     "top_m_mllw": 13.46,
-    "bank_bulge_the_carve_removes_m": 0.41
+    "deepest_cut_m": 2.2
   },
   "bottom": {
     "lat": 48.9890395,
-    "lon": -123.0857283,
+    "lon": -123.0856790,
     "ground_m": 10.45,
-    "ground_m_note": "The floor of the upper level, off cabin.js. John, 2026-08-14: the bottom step is level with it. The lidar reaches 10.45 here, so the tread top is at grade."
+    "ground_m_note": "The floor of the upper level, off cabin.js. John, 2026-08-14: the bottom step is level with it. The lidar here is 12.65, so the bottom step is 2.20 m under the bank and the carve takes the bank away."
   },
   "bearing_deg": 74.0,
   "steps": 19,
   "going_m": 0.254,
   "rise_m": 0.1674,
   "width_m": 1.2,
-  "the_slope": "The tread is John's ten inches and the rise is what lands the top step on the ground with the foot held at 10.45. 33.4 deg, against 26.7 when the foot stood 1.50 m higher up the bank. A 6.6 in riser on a 10 in tread.",
-  "the_ground_is_cut_for_it": "The bank is convex here, steep for four metres and flat after, so it bulges 0.41 m above the straight line of the flight and buries its middle. stairCarve cuts the ground down to the underside of the treads along the flight and leaves it alone elsewhere. It only cuts, never fills."
+  "the_slope": "The tread is John's ten inches. The rise was solved to land the top step on the ground when the foot stood 3.60 m west of here, and it was kept when the flight moved east. 33.4 deg, a 6.6 in riser on a 10 in tread.",
+  "the_ground_is_cut_for_it": "The whole flight now runs under the lidar bank — 2.20 m under at the foot and 1.02 m at the head. stairCarve cuts the ground down to the underside of the treads along the flight and 0.3 m past each end, and leaves it alone elsewhere, so what is drawn is a channel 1.5 m wide dug into the bank with the stair standing in it. It only cuts, never fills. The lidar cannot see a cut this narrow: its cells are 1.14 m and the flight is 1.2 m wide, so a real cut for a real stair is smoothed away in the bake and has to be put back here."
 }
