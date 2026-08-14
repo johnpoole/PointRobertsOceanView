@@ -1,0 +1,25 @@
+{
+  "what": "the concrete stair east of the house, as one average step",
+  "measured": "off assets/reference/front_door-20260812T203304Z.png, 2026-08-12",
+  "how": "Twelve tread edges traced down the picture become twelve directions from the camera. A flight of nineteen steps covering the 4.4 to 5.4 m of ground John's count and his rough ten inch tread allow is fitted to them.",
+  "the_placement_is_wrong": "This was fitted against the front door camera aimed 11.28 deg up. The aim was corrected to 0.81 deg up on 2026-08-13 and it was ten degrees out, so every traced ray landed metres from where it should. Projecting this flight through the corrected camera puts its nosings left of the real treads, out in the grass. The bearing and the foot are both unsettled. It is on screen to be looked at and corrected, not because it is right.",
+  "not_measured": "the width, taken as 1.2 m, and the difference between one step and the next, which John says is real and this does not know",
+  "steps_and_tread_are_John's": "nineteen steps, tread about ten inches. Those two are the only numbers here that were not fitted.",
+  "checks": {
+    "lidar_along_the_flight_deg": 32.6,
+    "stair_itself_deg": 31.3,
+    "median_burial_of_the_original_foot_m": -0.41,
+    "steps_standing_proud_after_the_lift": 9
+  },
+  "bottom": {
+    "lat": 48.9890509,
+    "lon": -123.0857045,
+    "ground_m": 12.05,
+    "ground_m_note": "The lidar at this point is 11.65, which is a dip in the smoothed ramp; pinned there the whole flight ran under the ground and nothing showed. Lifted 0.40 m to sit on the ramp instead, so it can be seen and judged."
+  },
+  "bearing_deg": 74.0,
+  "steps": 19,
+  "going_m": 0.23,
+  "rise_m": 0.14,
+  "width_m": 1.2
+}
