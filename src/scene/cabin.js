@@ -146,7 +146,8 @@ const CHIMNEY_ABOVE_RIDGE = 2.4;
 const CHIMNEY_TOP = RIDGE_Y + CHIMNEY_ABOVE_RIDGE;
 
 const SIDING = 0.16;         // board exposure, wide, as in the north-face photo
-const WIN_H = 1.35;
+// The north gable's small window. The west face and the south gable carry their
+// own numbers, off the photographs of each.
 const WIN_SILL = 1.0;
 
 const CLAD = 0x2b3238;       // near-black, with the blue in it the photos show
@@ -225,26 +226,44 @@ export function buildCabin(scene, sample) {
     }
   }
 
-  // Windows. A long band facing the water on both floors, smaller ones on the
-  // north and south. Frames stand proud of the wall so they catch a shadow.
+  // The west face, off John's photograph from the beach, 2026-08-14. Both floors
+  // face the water and both are mostly glass, but they are not the same thing.
   //
-  // The band is cut to the storey it sits in. The lower level is 1.90 m now that
-  // the roof is measured, and a 1.35 m window on a 1.0 m sill stood 0.45 m
-  // through the floor above it.
-  const bandW = (floor, storey, x, faceX) => {
-    const h = Math.min(WIN_H, storey - WIN_SILL - 0.2);
+  // Upstairs is sliding doors: the glass starts just off the deck boards and
+  // runs up under the eave, near enough the whole height of the storey. It was
+  // drawn as a 1.06 m band on a 1.0 m sill, which is a window, and it left a
+  // metre of blank siding under it that is not there.
+  //
+  // Downstairs is windows: shorter, on a real sill, with siding under them down
+  // to the lattice.
+  //
+  // Scaled against the storey, which is measured: 2.26 m from the upper floor to
+  // the eave and 1.90 m from the lower floor to the upper.
+  const WEST_UPPER = { sill: 0.10, h: 1.90, bays: 5 };
+  const WEST_LOWER = { sill: 0.55, h: 1.15, bays: 3 };
+
+  // Frames stand proud of the wall so they catch a shadow. The bays are the
+  // uprights between the doors: five metres of unbroken glass reads as a
+  // shopfront, and it is the frames between that make it a wall of doors.
+  const bandW = (floor, x, faceX, spec) => {
     const along = faceX ? L - 1.6 : W - 1.6;
     const frame = faceX
-      ? box(0.12, along, h + 0.18, x, floor + WIN_SILL - 0.09, 0, TRIM)
-      : box(along, 0.12, h + 0.18, 0, floor + WIN_SILL - 0.09, x, TRIM);
+      ? box(0.12, along, spec.h + 0.18, x, floor + spec.sill - 0.09, 0, TRIM)
+      : box(along, 0.12, spec.h + 0.18, 0, floor + spec.sill - 0.09, x, TRIM);
     place(parts, frame);
     const pane = faceX
-      ? box(0.14, along - 0.22, h, x, floor + WIN_SILL, 0, GLASS)
-      : box(along - 0.22, 0.14, h, 0, floor + WIN_SILL, x, GLASS);
+      ? box(0.14, along - 0.22, spec.h, x, floor + spec.sill, 0, GLASS)
+      : box(along - 0.22, 0.14, spec.h, 0, floor + spec.sill, x, GLASS);
     place(parts, pane);
+    for (let i = 1; i < spec.bays; i++) {
+      const t = -along / 2 + (along * i) / spec.bays;
+      place(parts, faceX
+        ? box(0.15, 0.09, spec.h, x, floor + spec.sill, t, TRIM)
+        : box(0.09, 0.15, spec.h, t, floor + spec.sill, x, TRIM));
+    }
   };
-  bandW(LOWER_FLOOR, LOWER_STOREY, -hw, true);
-  bandW(UPPER_FLOOR, UPPER_STOREY, -hw, true);
+  bandW(LOWER_FLOOR, -hw, true, WEST_LOWER);
+  bandW(UPPER_FLOOR, -hw, true, WEST_UPPER);
   // The north gable end: one small window, still unphotographed.
   place(parts, box(1.0, 0.12, 1.0, 1.2, UPPER_FLOOR + WIN_SILL, -hl, TRIM));
   place(parts, box(0.8, 0.14, 0.8, 1.2, UPPER_FLOOR + WIN_SILL + 0.1, -hl, GLASS));
