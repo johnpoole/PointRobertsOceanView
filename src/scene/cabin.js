@@ -10,6 +10,8 @@
 //   a low-pitched gable, new standing-seam metal, grey, with very deep eaves
 //   a brick chimney through the middle, standing well above the ridge
 //   white window frames, a long band of them facing the water on both floors
+//   one wide picture window on the upper south gable, west of centre and up
+//     under the eave, with plain siding east of it
 //   an upper deck on posts with a dark wire-mesh rail in a timber frame
 //   a lower deck under it with horizontal timber rails, and lattice below that
 //   both decks turning the south-west corner and running back along the south
@@ -243,11 +245,25 @@ export function buildCabin(scene, sample) {
   };
   bandW(LOWER_FLOOR, LOWER_STOREY, -hw, true);
   bandW(UPPER_FLOOR, UPPER_STOREY, -hw, true);
-  // One small window each on the north and south gable ends.
-  for (const s of [-1, 1]) {
-    place(parts, box(1.0, 0.12, 1.0, 1.2, UPPER_FLOOR + WIN_SILL, s * hl, TRIM));
-    place(parts, box(0.8, 0.14, 0.8, 1.2, UPPER_FLOOR + WIN_SILL + 0.1, s * hl, GLASS));
-  }
+  // The north gable end: one small window, still unphotographed.
+  place(parts, box(1.0, 0.12, 1.0, 1.2, UPPER_FLOOR + WIN_SILL, -hl, TRIM));
+  place(parts, box(0.8, 0.14, 0.8, 1.2, UPPER_FLOOR + WIN_SILL + 0.1, -hl, GLASS));
+
+  // The south gable end, off John's photograph of it, 2026-08-14. Not the small
+  // square that was here: one wide picture window, set well west of centre and
+  // carried up close under the eave, with plain siding the whole way east of it.
+  //
+  // Scaled against the two things in the frame that are measured — the wall is
+  // 6.47 m across and the storey 2.26 m from floor to eave — so the numbers are
+  // read off the picture and not guessed. Sized to about a fifth of a metre.
+  const SOUTH_WIN_W = 2.10;
+  const SOUTH_WIN_H = 1.05;
+  const SOUTH_WIN_X = -1.70;   // west of centre, and 0.5 m clear of the corner
+  const SOUTH_WIN_SILL = 0.90; // above the upper floor, head 0.31 under the eave
+  place(parts, box(SOUTH_WIN_W, 0.12, SOUTH_WIN_H,
+                   SOUTH_WIN_X, UPPER_FLOOR + SOUTH_WIN_SILL, hl, TRIM));
+  place(parts, box(SOUTH_WIN_W - 0.2, 0.14, SOUTH_WIN_H - 0.2,
+                   SOUTH_WIN_X, UPPER_FLOOR + SOUTH_WIN_SILL + 0.1, hl, GLASS));
 
   // The roof, and the seams standing up off it.
   const roof = gableRoof(hw, hl, EAVE, 0, OVERHANG, ROOF, RIDGE);
