@@ -26,17 +26,25 @@ import argparse
 import base64
 import json
 import os
+import socket
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "assets" / "reference"
 
-# The Pi at the Calgary house, over Tailscale. The LAN name resolves badly.
-HA_URL = "http://100.87.94.99:8123"
+# The Pi at the Calgary house. On the house LAN it is 192.168.1.95; from
+# anywhere else it is the same Pi over Tailscale. The LAN name resolves badly,
+# so both are addresses and not names.
+#
+# Tried in order and the one that answers is used and said out loud. Tailscale
+# being logged out is not a reason to be unable to reach a machine three metres
+# away, and it took an evening to notice that was what had happened.
+HA_URLS = ["http://192.168.1.95:8123", "http://100.87.94.99:8123"]
 
 # Long enough for the camera to wake, the P2P path to come up and a keyframe to
 # arrive. A cold camera is slow; ten seconds is not enough and looks like a bug.
@@ -246,6 +254,24 @@ def token_from_env() -> str:
         f"It is a credential; .env is already out of the repo.")
 
 
+def reachable_ha() -> str:
+    """Whichever address answers, said out loud. Neither and it stops with both."""
+    tried = []
+    for url in HA_URLS:
+        host, port = urlsplit(url).hostname, urlsplit(url).port or 80
+        try:
+            with socket.create_connection((host, port), timeout=2):
+                print(f"home assistant: {url}", flush=True)
+                return url
+        except OSError as exc:
+            tried.append(f"{url}: {exc}")
+    raise SystemExit(
+        "grab_camera_frame: no route to Home Assistant.\n  "
+        + "\n  ".join(tried)
+        + "\nOn the house LAN the Pi is the first address. From anywhere else "
+          "it is the second, which needs Tailscale logged in.")
+
+
 def grab(entity: str, token: str, headed: bool) -> tuple[bytes, int, int]:
     with sync_playwright() as p:
         # Playwright's own Chromium build ships without H.264, which is what
@@ -266,7 +292,7 @@ def grab(entity: str, token: str, headed: bool) -> tuple[bytes, int, int]:
         # Not the front page: that one redirects itself to the login flow and
         # the navigation tears down the script half way through the handshake.
         # /api/ is a two-line JSON reply on the same origin that sits still.
-        page.goto(f"{HA_URL}/api/", wait_until="domcontentloaded")
+        page.goto(f"{reachable_ha()}/api/", wait_until="domcontentloaded")
         result = page.evaluate(
             GRAB_JS,
             {"token": token, "entityId": entity, "timeoutMs": GRAB_TIMEOUT_MS})
