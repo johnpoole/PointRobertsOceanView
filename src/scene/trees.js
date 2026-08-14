@@ -36,10 +36,20 @@ const FAR_M = 2500;
 // that a tree pops into detail well before you reach it.
 const REBUILD_M = 20;
 
-// Measured trees closer than this to where the view opens are left out. Twenty
+// Measured trees closer than this to where the view opens are marked. Twenty
 // five metres is not close, and it is the number because the three standing in
-// the opening view are 11.4, 19.6 and 22.8 m out. It costs six of the thirty one.
+// the opening view are 11.4, 19.6 and 22.8 m out. It marks six of the thirty one.
 const CLEAR_OF_CAMERA_M = 25;
+// And they are held back only while you are standing where the view opens. From
+// the bluff those six cover thirteen degrees of a twenty five degree lens, which
+// is the whole sea, so the page would open on three posts. Walk away and they
+// are drawn, because they are really there and the lidar measured them: three of
+// the six are the firs beside the stair, 33 to 34 m tall and 6 to 10 m off it,
+// and standing at the stair with those missing is a hole in the world.
+//
+// Fifteen metres, which is well inside the stair at 28 m and well outside the
+// bluff at nothing.
+const OPENING_M = 15;
 
 // Stems per hectare, by NLCD class. Second growth on this coast runs three
 // hundred or so to the hectare once the canopy has closed.
@@ -602,10 +612,12 @@ export function buildTrees(scene, sample, cover, roads, measured) {
   let trunkLo = 0, trunkHi = 0;
 
   // Held back either for standing too far off, or for standing in the opening
-  // view while nothing has asked to see it.
+  // view while the eye is still at the opening and nothing has asked to see it.
   let hideHome = true;
+  let lastAtOpening = true;
+  const atOpening = (at) => Math.hypot(at.x, at.z) < OPENING_M;
   const beyondRing = (n, at, r2) => {
-    if (hideHome && atHome[n]) return true;
+    if (hideHome && atHome[n] && atOpening(at)) return true;
     const dx = px[n] - at.x, dy = py[n] - at.y, dz = pz[n] - at.z;
     return dx * dx + dy * dy + dz * dz >= r2;
   };
@@ -720,7 +732,13 @@ export function buildTrees(scene, sample, cover, roads, measured) {
       anchor = null;
     },
     update(camera) {
-      if (anchor && anchor.distanceToSquared(camera.position) < REBUILD_M * REBUILD_M) return;
+      // Crossing in or out of the opening changes which trees belong in the
+      // ring, and the eye can cross it inside the rebuild step, so that counts
+      // as having moved whatever the distance says.
+      const opening = atOpening(camera.position);
+      if (anchor && opening === lastAtOpening
+          && anchor.distanceToSquared(camera.position) < REBUILD_M * REBUILD_M) return;
+      lastAtOpening = opening;
       anchor = anchor || new THREE.Vector3();
       anchor.copy(camera.position);
       rewriteNear(anchor);

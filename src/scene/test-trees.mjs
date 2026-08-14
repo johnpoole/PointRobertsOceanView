@@ -270,6 +270,31 @@ function testHomeTrees() {
   look(true, 3, "with the trees asked for");
   look(false, 0, "with them put away again");
   console.log("ok   the trees in the opening view come and go on asking");
+
+  // And they are held back only while the eye is at the opening. Walk out to
+  // where the stair is, 28 m, and they are drawn without being asked for —
+  // they are really there, and standing among them with them missing is a hole.
+  const away = new Vector3(28, GROUND_M + 1.6, 0);
+  t.homeTrees(false);
+  t.update({ position: away });
+  render(near);
+  const heldAway = lidar(near[TRUNKS]);
+  if (heldAway !== 3) {
+    throw new Error(
+      `standing ${Math.hypot(away.x, away.z)} m out: ${heldAway} of the 3 measured ` +
+      `trees inside ${CLEAR_OF_CAMERA_M} m are drawn, and all 3 should be. They are ` +
+      `held back only while the eye is at the opening — see OPENING_M in trees.js.`);
+  }
+  // Back to the opening and they stand down again.
+  t.update({ position: at });
+  render(near);
+  const heldBack = lidar(near[TRUNKS]);
+  if (heldBack !== 0) {
+    throw new Error(
+      `back at the opening: ${heldBack} measured trees inside ${CLEAR_OF_CAMERA_M} m ` +
+      `are drawn, and none should be. The page would open on three posts.`);
+  }
+  console.log("ok   they stand up when you walk out to them and down when you return");
 }
 
 function main() {
