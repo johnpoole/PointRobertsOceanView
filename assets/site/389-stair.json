@@ -1,7 +1,7 @@
 {
   "what": "the concrete stair east of the house, as one average step",
-  "where_it_stands": "John, 2026-08-14. The bottom step is level with the floor of the upper level, 10.45 m, and the flight stands three of its own widths further east than the slide down the bank had left it. Moved 3.60 m due east. The height, the bearing and the placement across the flight were not touched.",
-  "how_that_was_applied": "cabin.js puts the roof at (-34.17, -7.03) turned 18.2 deg, 8.17 m across the ridge by 8.49 along, eaves included. The foot sits 6.27 m east of the roof centre in the cabin's own frame and 5.89 m south, so it is off the south-east corner of the house and clear of the upper deck.",
+  "where_it_stands": "John, 2026-08-14. The bottom step is level with the floor of the upper level, 10.45 m. The north edge of the flight is in line with the south edge of the roof, which is John's setting and is not to be disturbed. The foot sits 1.44 m further up the flight than he first had it.",
+  "how_that_was_applied": "cabin.js puts the roof at (-34.17, -7.03) turned 18.2 deg, 8.17 m across the ridge by 8.49 along, eaves included. Its south edge runs from world (-36.72, -1.72) to (-28.96, -4.28) and the flight's north edge lies on that line, extended east, to under a millimetre. It had crept 1.052 m south of it: 0.08 m from sliding the foot down a flight whose bearing is 2.3 deg off the roof edge, and 0.99 m from moving it 3.60 m due east when the flight runs at 74 deg, so a sixth of that move went sideways. Corrected across the flight's own axis, which leaves the foot where it was along the line. Any move along the flight must be along 74 deg, not along a compass point, or it walks off the roof line again.",
   "what_is_left_of_the_photograph_fit": "nothing. It fixed how far along the flight the foot sat, and the foot is John's now. The bearing, the placement across the flight, the tread and the rise are all John's, or solved against the ground from them.",
   "measured": "off assets/reference/front_door-20260812T203304Z.png, 2026-08-12",
   "not_measured": "the width, taken as 1.2 m, and the difference between one step and the next, which John says is real and this does not know",
@@ -16,8 +16,8 @@
     "deepest_cut_m": 2.2
   },
   "bottom": {
-    "lat": 48.9890395,
-    "lon": -123.0856790,
+    "lat": 48.9890486,
+    "lon": -123.0856830,
     "ground_m": 10.45,
     "ground_m_note": "The floor of the upper level, off cabin.js. John, 2026-08-14: the bottom step is level with it, and the bank there is cut away. The lidar reads 12.65 because it cannot see the cut, so the bottom step comes out 2.20 m under the bake and the carve takes that bank off."
   },
