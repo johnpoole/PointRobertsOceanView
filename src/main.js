@@ -1556,9 +1556,12 @@ function scanWaterDistance() {
 const audio = new Audio();
 const soundBtn = document.getElementById("sound-btn");
 soundBtn.addEventListener("click", () => audio.toggle());
-// The icon carries it, so the label is the title and the slash is the state.
+// Two ways of saying the same thing, because the button is a word on a desktop
+// and a drawing on a phone: the label carries it there, the slash carries it here.
+const soundLabel = document.getElementById("sound-label");
 const showSound = (on) => {
   soundBtn.classList.toggle("muted", !on);
+  soundLabel.textContent = on ? "sound on" : "sound off";
   soundBtn.title = on ? "sound on" : "sound off";
 };
 audio.onChange(showSound);

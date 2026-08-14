@@ -109,72 +109,51 @@ html, body {
 }
 
 /* --- The buttons -----------------------------------------------------------
-   Bottom right, where a thumb reaches without the hand changing its grip, and
-   not behind the hamburger: the readouts can wait and how you are getting about
-   cannot. Targets are 44 px, which is the smallest a thumb hits reliably. */
+   On a desktop these are what they always were: words, in a panel in the bottom
+   right corner, behind the hamburger with the readouts. The phone rules are in
+   the media query at the foot of this file and they stay there. */
 .views {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
+  bottom: 40px;
+  right: 14px;
   z-index: 6;
-  max-width: calc(100vw - 24px);
-  display: flex;
+  display: none;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  user-select: none;
-}
-.view-icons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.icon-btn {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  color: var(--ink);
+  gap: 6px;
   background: var(--panel);
   border: 1px solid var(--edge);
-  border-radius: 10px;
-  cursor: pointer;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 180px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  user-select: none;
 }
-.icon-btn svg {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+body.hud-visible .views { display: flex; }
+.view-icons { display: flex; flex-direction: column; gap: 6px; }
+.icon-btn, .mode-pill {
+  font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  width: 100%;
+  color: var(--ink);
+  background: rgba(150, 190, 220, 0.08);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  padding: 4px 8px;
+  text-align: center;
+  cursor: pointer;
 }
-.icon-btn:hover { background: rgba(150, 190, 220, 0.2); }
+.mode-pill { color: var(--warn); }
+.icon-btn:hover, .mode-pill:hover { background: rgba(150, 190, 220, 0.2); }
 /* A button for something that did not start. Greyed rather than taken away, so
    it is plain that the thing exists and is not here. */
 .icon-btn.off { opacity: 0.35; cursor: default; }
-.icon-btn.off:hover { background: var(--panel); }
-/* Switched on, as against merely present. Tilting is the one button whose
-   effect a still hand cannot see, so it says which way it is set. */
-.icon-btn.on { color: var(--live); border-color: rgba(111, 224, 138, 0.5); }
-.snd-slash { display: none; }
-.icon-btn.muted .snd-wave { display: none; }
-.icon-btn.muted .snd-slash { display: inline; }
-
-.mode-pill {
-  font: 13px/1 ui-monospace, Menlo, Consolas, monospace;
-  min-height: 44px;
-  padding: 0 24px;
-  color: var(--warn);
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  border-radius: 22px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.mode-pill:hover { background: rgba(150, 190, 220, 0.2); }
+.icon-btn.off:hover { background: rgba(150, 190, 220, 0.08); }
+.icon-btn.on { color: var(--live); }
+/* The words carry it here, so the drawings stand down. */
+.icon-btn svg { display: none; }
+.btn-short { display: none; }
+/* Nothing on a desktop to tilt. */
+#gyro-btn { display: none; }
 
 /* Only filled when tilting was asked for and refused, and it says why. Stands
    over the button that was pressed rather than in the middle, so it is plain
@@ -417,11 +396,79 @@ body.chrome-dim .trim,
 body.chrome-dim .clock,
 body.chrome-dim .fly-hint { opacity: 0.22; }
 
-/* --- Narrow screens ---------------------------------------------------------
-   The button group stands 96 px off the bottom right and the sliders and the
-   hint are centred on the bottom. On a wide screen they never meet. On a phone
-   there is no width to share, so the centred ones stack above the buttons. */
-@media (max-width: 700px) {
+/* --- A phone ----------------------------------------------------------------
+   Everything below here is the phone and nothing above it is. Six lines of text
+   down the corner cover the water on a small screen, and how you are getting
+   about is the one control a stranger has to find — a hamburger in the far
+   corner from a right thumb is not where it goes. So the words become drawings,
+   the group leaves the hamburger, and the mode button is the widest thing on the
+   glass. Targets are 44 px, the smallest a thumb hits without looking.
+
+   Gated on a coarse pointer as well as on width, because a laptop dragged narrow
+   is still a laptop and wants its words. */
+@media (max-width: 700px), (pointer: coarse) {
+  .views {
+    display: flex;
+    align-items: flex-end;
+    bottom: 12px;
+    right: 12px;
+    gap: 8px;
+    min-width: 0;
+    max-width: calc(100vw - 24px);
+    padding: 0;
+    background: none;
+    border: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .view-icons { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .icon-btn:hover { background: var(--panel); }
+  .icon-btn.off:hover { background: var(--panel); }
+  .icon-btn.on { border-color: rgba(111, 224, 138, 0.5); }
+  .icon-btn svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  #gyro-btn { display: flex; }
+  .btn-label { display: none; }
+  .btn-short { display: inline; }
+  .snd-slash { display: none; }
+  .icon-btn.muted .snd-wave { display: none; }
+  .icon-btn.muted .snd-slash { display: inline; }
+  .mode-pill {
+    width: auto;
+    min-height: 44px;
+    padding: 0 24px;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    border-radius: 22px;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .mode-pill:hover { background: var(--panel); }
+
+  /* The button group stands 96 px off the bottom right and the sliders and the
+     hint are centred on the bottom. On a wide screen they never meet. Here there
+     is no width to share, so the centred ones stack above the buttons. */
   .fly-hint { bottom: 116px; max-width: calc(100vw - 24px); }
   .trim { bottom: 158px; }
   .clock { bottom: 200px; }
