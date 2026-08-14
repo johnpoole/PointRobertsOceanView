@@ -19,7 +19,7 @@
     "lat": 48.9890395,
     "lon": -123.0856790,
     "ground_m": 10.45,
-    "ground_m_note": "The floor of the upper level, off cabin.js. John, 2026-08-14: the bottom step is level with it. The lidar here is 12.65, so the bottom step is 2.20 m under the bank and the carve takes the bank away."
+    "ground_m_note": "The floor of the upper level, off cabin.js. John, 2026-08-14: the bottom step is level with it, and the bank there is cut away. The lidar reads 12.65 because it cannot see the cut, so the bottom step comes out 2.20 m under the bake and the carve takes that bank off."
   },
   "bearing_deg": 74.0,
   "steps": 19,
@@ -27,5 +27,5 @@
   "rise_m": 0.1674,
   "width_m": 1.2,
   "the_slope": "The tread is John's ten inches. The rise was solved to land the top step on the ground when the foot stood 3.60 m west of here, and it was kept when the flight moved east. 33.4 deg, a 6.6 in riser on a 10 in tread.",
-  "the_ground_is_cut_for_it": "The whole flight now runs under the lidar bank — 2.20 m under at the foot and 1.02 m at the head. stairCarve cuts the ground down to the underside of the treads along the flight and 0.3 m past each end, and leaves it alone elsewhere, so what is drawn is a channel 1.5 m wide dug into the bank with the stair standing in it. It only cuts, never fills. The lidar cannot see a cut this narrow: its cells are 1.14 m and the flight is 1.2 m wide, so a real cut for a real stair is smoothed away in the bake and has to be put back here."
+  "the_ground_is_cut_for_it": "John, 2026-08-14: the bank is cut away there. It is not in the bake — the lidar cells are 1.14 m and the flight is 1.2 m wide, so a cut this narrow is smoothed out and the bake runs a bank across it. Against that bake the whole flight sits under the ground, 2.20 m at the foot and 1.02 m at the head. stairCarve puts the cut back: it takes the ground down to the underside of the treads along the flight and 0.3 m past each end and leaves it alone elsewhere. It only cuts, never fills. What is drawn is a channel 1.5 m wide, which is the flight and its cheeks and no more, so from the front door camera the near wall of it hides most of the treads."
 }
