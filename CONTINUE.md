@@ -4,7 +4,7 @@ A three.js page that stands on the West Bluff at Point Roberts and looks west ov
 Sea, with a FastAPI proxy behind it bridging live feeds. It is built and deployed. This file is
 for picking it up cold.
 
-Deployed at https://oceanview.johnpoole.ca, on the Basement server (Tailscale `yarbo-server`),
+Deployed at https://oceanview.johnpoole.ca, on the Basement server (`ssh basement`),
 from a git checkout at `~/pointroberts-oceanview`.
 
 ## The rule that matters most
@@ -35,12 +35,12 @@ way in is.
 
 ```
 git push origin main
-ssh yarbo-docker 'cd ~/pointroberts-oceanview && git pull --ff-only && docker compose build && docker compose up -d'
+ssh basement 'cd ~/pointroberts-oceanview && git pull --ff-only && docker compose build && docker compose up -d'
 ```
 
-`yarbo-docker` is the alias in `~/.ssh/config` and points at 192.168.1.90 on the
-LAN. Use it. `yarbo-server` is the same machine's Tailscale name and it resolves
-only while Tailscale is logged in, which is not a thing to find out mid-deploy.
+`basement` is the alias in `~/.ssh/config` and points at 192.168.1.90 on the LAN.
+Use it. `yarbo-server` is the same machine's Tailscale name and it resolves only
+while Tailscale is logged in, which is not a thing to find out mid-deploy.
 
 The server holds two files git does not: `.env` (the AISStream key and
 `OCEANVIEW_ADMIN_PASSWORD`) and `docker-compose.override.yml`. Never overwrite them. Port 8091,
