@@ -35,8 +35,12 @@ way in is.
 
 ```
 git push origin main
-ssh yarbo-server 'cd ~/pointroberts-oceanview && git pull --ff-only && docker compose build && docker compose up -d'
+ssh yarbo-docker 'cd ~/pointroberts-oceanview && git pull --ff-only && docker compose build && docker compose up -d'
 ```
+
+`yarbo-docker` is the alias in `~/.ssh/config` and points at 192.168.1.90 on the
+LAN. Use it. `yarbo-server` is the same machine's Tailscale name and it resolves
+only while Tailscale is logged in, which is not a thing to find out mid-deploy.
 
 The server holds two files git does not: `.env` (the AISStream key and
 `OCEANVIEW_ADMIN_PASSWORD`) and `docker-compose.override.yml`. Never overwrite them. Port 8091,
