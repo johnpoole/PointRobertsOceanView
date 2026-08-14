@@ -25,11 +25,30 @@ const CONCRETE = 0xa8a49b;
 const RISER_SHADE = 0.88;
 // Each step is a slab: the tread you walk on and the face under its nose.
 const TREAD_THICK_M = 0.12;
-// How much wider than the flight the ground is cut, so no bank pokes through a
-// tread at the edge.
-const CHEEK_M = 0.15;
-// How far past each end the cut runs, so the bottom step is not stood in a wall.
+// How far under the treads the ground sits. Cutting to the underside of a tread
+// leaves the ground flush with the bottom of every step and the flight standing
+// in nothing. In the frame the risers show and there is shadow under the noses,
+// so the ground is below them. John, 2026-08-14: the stairs are above the
+// ground. Read off the photograph by eye, not fitted.
+const GROUND_DROP_M = 0.15;
+// How far out from the edge of the flight the ground is taken down at full
+// depth, and over what further distance it climbs back to the bake. At 0.15 m —
+// the flight and no more — what is drawn is a slot, and from the front door
+// camera you look into its near wall instead of at the steps. Both eyeballed off
+// the same photograph, which cannot do better: the camera stands at the foot and
+// looks along the flight, so a ray beside it grazes the ground and half a metre
+// of assumed offset moves the answer by a metre.
+const CUT_M = 1.2;
+const FADE_M = 2.5;
+// How far past the head the cut runs, so the top step is not stood in a wall.
 const ENDS_M = 0.3;
+// And how far past the foot. Not the same number. The bottom step is level with
+// the floor of the upper storey, so the ground you cross from the house to reach
+// it is level with it too, and the bake does not know that — it runs the bank
+// straight through. 3.6 m is where the bake falls back to the foot's own height,
+// which is where the flight stood before John moved it three widths east.
+// Without this the ridge between the camera and the bottom step hides the flight.
+const FOOT_M = 3.6;
 
 // Where the stair stands, the stair is the ground.
 //
@@ -53,19 +72,23 @@ export function stairCarve(spec) {
   const fx = Math.sin(b), fz = -Math.cos(b);
   const rx = Math.cos(b), rz = Math.sin(b);
   const run = spec.going_m * (spec.steps - 1);
-  const halfW = spec.width_m / 2 + CHEEK_M;
+  const halfW = spec.width_m / 2 + CUT_M;
   const pitch = spec.rise_m / spec.going_m;
   return (lat, lon, y) => {
     const p = toWorld(lat, lon, 0);
     const dx = p.x - foot.x, dz = p.z - foot.z;
-    const across = dx * rx + dz * rz;
-    if (Math.abs(across) > halfW) return y;
+    const across = Math.abs(dx * rx + dz * rz);
+    if (across > halfW + FADE_M) return y;
     const along = dx * fx + dz * fz;
-    if (along < -ENDS_M || along > run + ENDS_M) return y;
+    if (along < -FOOT_M || along > run + ENDS_M) return y;
     // The flight's own line, held level past each end so the cut does not run
     // away up the bank or down it.
     const t = Math.min(Math.max(along, 0), run);
-    return Math.min(y, foot.y + pitch * t - TREAD_THICK_M);
+    const floor = foot.y + pitch * t - TREAD_THICK_M - GROUND_DROP_M;
+    // Full depth beside the flight, then back to the bake across the fade, so
+    // the cut has a bank at its edge rather than a wall.
+    const k = across <= halfW ? 0 : (across - halfW) / FADE_M;
+    return Math.min(y, floor + (y - floor) * k);
   };
 }
 
