@@ -85,8 +85,14 @@ export class Hud {
     el("tide-station").textContent = tide && tide.station_id ? tide.station_id : "";
     el("tide-level").textContent = tide
       ? `${num(tide.water_level_m, 2, " m")} ${tide.datum || ""}`.trim() : "—";
-    el("tide-trend").textContent = tide && tide.predicted
-      ? "predicted" : (tide && tide.trend ? tide.trend : "—");
+    // Held beats predicted beats measured. While a photograph is on the ground
+    // the sea stands at the tide that photograph was taken on, and the number
+    // here has to be that one and say so — otherwise the panel reads the live
+    // tide while the water is a metre somewhere else, and the slider appears
+    // broken because nothing it does can move a held sea.
+    el("tide-trend").textContent = tide && tide.held
+      ? "held to the frame" : (tide && tide.predicted
+        ? "predicted" : (tide && tide.trend ? tide.trend : "—"));
     // A forecast is not a reading and the panel titles say which is on screen.
     el("wx-station").textContent = wx && wx.predicted
       ? "forecast" : (wx && wx.station_id ? wx.station_id : "");

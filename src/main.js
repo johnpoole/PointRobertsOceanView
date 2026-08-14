@@ -345,6 +345,39 @@ function failed(what, err) {
 const hud = new Hud();
 const feed = new Feed();
 
+// The sea at the hour a camera frame was taken, while that frame is on the
+// ground. NOAA gives the level at the timestamp on the picture: the Point
+// Roberts prediction with the surge measured at Cherry Point carried onto it,
+// the same sum the feed makes for now. Without this the ocean stands at today's
+// tide over a beach the photograph shows dry, and the picture is under the water
+// rather than missing.
+//
+// It follows the photograph and not the camera. Standing at a camera with no
+// picture up, there is nothing to hold the sea still for, and a sea that will
+// not move is a sea the sun slider cannot reach — which reads as the slider
+// being broken and the tide being wrong by a metre, with nothing on screen
+// saying otherwise.
+let heldTide = null;
+
+function applyHeldTide() {
+  heldTide = wyzeView && wyzePhoto ? WYZE_CAMS[wyzeCam].tide : null;
+}
+
+function tideLevel() {
+  if (heldTide !== null) return heldTide;
+  const t = tideAt();
+  return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
+}
+
+// What the panel shows. Held, it has to be the number the water is actually at,
+// flagged, rather than the live reading the sea is ignoring.
+function tideShown() {
+  const t = tideAt();
+  if (heldTide === null) return t;
+  return { ...(t || {}), water_level_m: heldTide, datum: "MLLW",
+           trend: null, predicted: false, held: true };
+}
+
 feed.onChange((kind) => {
   if (kind === "close") {
     // Feed down: blank the world rather than show last-known as if it were live.
@@ -355,7 +388,7 @@ feed.onChange((kind) => {
     feed.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
   }
   hud.setConnection(feed.connected, feed.connected ? null : "reconnecting…");
-  hud.update(feed, { tide: tideAt(), weather: weatherAt(), current: currentAt() });
+  hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
   if (feed.weather) weather.apply(weatherAt());
   while (feed.tide && waitingOnTide.length) {
     const job = waitingOnTide.shift();
@@ -381,7 +414,7 @@ function setClockOffset(hours) {
   // shoreline runs at, the stream the drift rides, and the panels.
   updateSun();
   weather.apply(weatherAt() || {});
-  hud.update(feed, { tide: tideAt(), weather: weatherAt(), current: currentAt() });
+  hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
 }
 
 // #hour=14 opens at two in the afternoon. It is turned into an offset from now,
@@ -468,19 +501,6 @@ function weatherAt() {
   const d = slotAt(s, s.description, when);
   if (d) out.description = d;
   return out;
-}
-
-// The sea at the hour a camera frame was taken, while that frame is up. NOAA
-// gives the level at the timestamp on the picture: the Point Roberts prediction
-// with the surge measured at Cherry Point carried onto it, the same sum the feed
-// makes for now. Without this the ocean stands at today's tide over a beach the
-// photograph shows dry, and the picture is under the water rather than missing.
-let heldTide = null;
-
-function tideLevel() {
-  if (heldTide !== null) return heldTide;
-  const t = tideAt();
-  return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
 }
 
 // Whichever is higher under a point, the sea floor or the tide.
@@ -1104,8 +1124,8 @@ function toWyzeCam() {
   // trunk the lidar put in a known place, so they are what the photograph has to
   // be lined up against.
   if (trees) trees.homeTrees(true);
-  heldTide = cam.tide;
   wyzeView = true;
+  applyHeldTide();
   applyFov();
 }
 
@@ -1189,6 +1209,7 @@ function flipWyze() {
   if (!ground) return;   // no terrain to throw it on yet
   if (!wyzeView) { wyzeCam = nearestWyzeCam(); toWyzeCam(); return; }
   wyzePhoto = !wyzePhoto;
+  applyHeldTide();     // no picture on the ground, no reason to stop the sea
   applyWyzeAim();
 }
 
@@ -1207,9 +1228,9 @@ function leaveWyze() {
   }
   if (trees) trees.homeTrees(false);
   controls.maxPolarAngle = MAP_MAX_POLAR;
-  heldTide = null;
   wyzeView = false;
   wyzePhoto = false;
+  applyHeldTide();
   wyzeEdit = false;
   applyWyzeEdit();   // the bar away, the bands off, the view free again
   applyFov();
