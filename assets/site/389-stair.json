@@ -1,21 +1,23 @@
 {
   "what": "the concrete stair east of the house, as one average step",
+  "where_it_stands": "John, 2026-08-14. The bearing is right. The flight sits half its width south of where the photograph fit put it, and its north edge is in line with the south edge of the roof.",
+  "how_that_was_applied": "cabin.js puts the roof at (-34.17, -7.03) turned 18.2 deg, 8.17 m across the ridge by 8.49 along, eaves included. Its south edge runs from world (-36.72, -1.72) to (-28.96, -4.28). The flight was moved along its own across axis until its north edge lay on that line: 0.74 m toward 164 deg, against the 0.60 half-width John judged by eye.",
+  "the_step_itself_is_still_the_old_fit": "going, rise and the position along the flight come from tracing twelve tread edges off the frame below, and that trace used the front door camera aimed 11.28 deg up. The aim was corrected to 0.81 on 2026-08-13. Across the flight the placement is now John's; along it and in the size of a step it is not settled, and the projected nosings do not yet sit on the photographed ones.",
   "measured": "off assets/reference/front_door-20260812T203304Z.png, 2026-08-12",
-  "how": "Twelve tread edges traced down the picture become twelve directions from the camera. A flight of nineteen steps covering the 4.4 to 5.4 m of ground John's count and his rough ten inch tread allow is fitted to them.",
-  "the_placement_is_wrong": "This was fitted against the front door camera aimed 11.28 deg up. The aim was corrected to 0.81 deg up on 2026-08-13 and it was ten degrees out, so every traced ray landed metres from where it should. Projecting this flight through the corrected camera puts its nosings left of the real treads, out in the grass. The bearing and the foot are both unsettled. It is on screen to be looked at and corrected, not because it is right.",
   "not_measured": "the width, taken as 1.2 m, and the difference between one step and the next, which John says is real and this does not know",
-  "steps_and_tread_are_John's": "nineteen steps, tread about ten inches. Those two are the only numbers here that were not fitted.",
+  "steps_and_tread_are_John's": "nineteen steps, tread about ten inches. Those two were never fitted.",
   "checks": {
-    "lidar_along_the_flight_deg": 32.6,
+    "lidar_along_the_flight_deg": 27.8,
     "stair_itself_deg": 31.3,
-    "median_burial_of_the_original_foot_m": -0.41,
-    "steps_standing_proud_after_the_lift": 9
+    "steps_standing_proud": 9,
+    "worst_above_ground_m": 0.25,
+    "worst_below_ground_m": -0.10
   },
   "bottom": {
-    "lat": 48.9890509,
-    "lon": -123.0857045,
-    "ground_m": 12.05,
-    "ground_m_note": "The lidar at this point is 11.65, which is a dip in the smoothed ramp; pinned there the whole flight ran under the ground and nothing showed. Lifted 0.40 m to sit on the ramp instead, so it can be seen and judged."
+    "lat": 48.9890445,
+    "lon": -123.0857017,
+    "ground_m": 11.95,
+    "ground_m_note": "The lidar at the foot is 12.04. The flight is set 0.09 lower so it rides the ramp rather than climbing off it, which puts every step within a quarter of a metre of the ground."
   },
   "bearing_deg": 74.0,
   "steps": 19,
