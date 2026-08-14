@@ -133,6 +133,41 @@ Do not spend another morning on these.
   columns carry both, and they sit tens of pixels apart, so they are effectively
   one curve. Ran to the opposite boundary, 70°.
 
+## Solving an aim instead of dragging it
+
+Two scripts, and they replace the hand fit for any camera pointed at something
+built. [fSpy](https://fspy.io/) runs the parallel edges of a building out to
+their vanishing points and gives back where the photograph was taken from.
+
+```
+python scripts/undistort_wyze.py assets/reference/<frame>.png straight.png
+# open straight.png in fSpy, set the field of view it printed, solve, export
+python scripts/fspy_to_wyze.py front_door.fspy --origin -3.235,10.45,3.395
+```
+
+`undistort_wyze.py` exists because fSpy solves a **pinhole** camera and this is a
+fisheye. It remaps a frame to what a straight lens would have taken, reading the
+lens out of `WYZE_LENS` in `src/main.js` rather than keeping a second copy. It
+costs the edges: 80° across fits inside the lens with nothing lost, 100° throws
+away 1.9% to black.
+
+`fspy_to_wyze.py` turns the solve into the `eye:`/`aim:` block, reading the
+cabin's `AT` and `YAW` out of `cabin.js` and `ORIGIN` out of `config.js`. It
+refuses a solve with no reference distance, because without a real length fSpy
+gives a direction and not a place.
+
+Set fSpy's origin on a corner of the cabin and say where that corner is in the
+cabin's own metres. The south-west corner of the upper floor is
+`-3.235,10.45,3.395`.
+
+`scripts/test_fspy_to_wyze.py` winds the front door camera backwards into a solve
+and asks the script to find it again. It comes back to nine decimal places on the
+lat and lon and lands on 72.19° and 0.81°.
+
+**This does nothing for the ocean view camera.** Vanishing points need straight
+man-made edges converging, and that frame is sea, islands and sky. It stays on
+the boulder and the skyline, which is the fit that is still open below.
+
 ## What is worth trying next
 
 - **The height.** It is the only thing left holding the boulder and the islands
