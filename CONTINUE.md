@@ -56,6 +56,7 @@ scripts/build_landcover.py bakes NLCD 2021 land cover for the near tile
 src/main.js                wires the scene, the camera, the modes
 src/nav.js                 the modes themselves, and the boat's hydrodynamics
 src/touch.js               the on-screen stick, and the drag that looks about
+src/gyro.js                how far the phone has turned, for the modes that look
 src/share.js               puts the view in the address bar, and reads it back
 src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
 src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not

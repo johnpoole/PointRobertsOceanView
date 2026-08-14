@@ -27,7 +27,7 @@ import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { Nav } from "./nav.js";
 import { Live } from "./live.js";
 import { Touch } from "./touch.js";
-import { OrbitStick } from "./orbit-stick.js";
+import { Gyro } from "./gyro.js";
 import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
@@ -52,12 +52,17 @@ camera.position.set(0, EYE_HEIGHT_M, 0);
 
 // Google Maps' 3D bindings, which is what people already have in their hands:
 // drag to pull the ground about, ctrl-drag or right-drag to swing round and tilt,
-// wheel to zoom at whatever the pointer is over. On a touch screen, one finger
-// drags and two pinch and twist. MapControls is OrbitControls with those bindings
-// and with panning held parallel to the ground instead of to the screen.
+// wheel to zoom at whatever the pointer is over. MapControls is OrbitControls
+// with those bindings and with panning held parallel to the ground instead of to
+// the screen.
 //
 // This is a requirement, not a preference. See REQUIREMENTS.md.
 const controls = new MapControls(camera, canvas);
+// A finger is not a mouse. On a phone one finger turns the view and two pan and
+// zoom it — a man standing on a bluff turns his head, he does not slide the
+// bluff — and that also takes the left half of the screen back from a thumb
+// stick which had to be there only because one finger was a pan.
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 controls.target.set(-500, 0, 0); // look west, slightly down to the water
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -524,8 +529,14 @@ function floorAt(x, z) {
 // point on the ground under the cursor when the button goes down, and then on
 // every move slide the camera so that same point is under the cursor again. The
 // height never changes, which is what keeps it feeling like a map and not like
-// flying. Everything else — ctrl-drag, right-drag, the wheel, two fingers — is
-// left to the controls untouched.
+// flying. Everything else — ctrl-drag, right-drag, the wheel — is left to the
+// controls untouched.
+//
+// A finger never comes here. One finger turns the view now and two pan it, and
+// the two-finger pan is the controls' own: it is only exact at the target's
+// range, and the target is put on the ground in the middle of the screen before
+// every press, so it is close enough for a thumb and nowhere near worth a second
+// implementation.
 const RANGE_MAX_M = 60000;
 
 // How far the thing under the pointer is, by marching the ray until it goes
@@ -563,6 +574,7 @@ function grabStart(e) {
   // on the window — so if it answers first the photograph never hears the press.
   if (wyzeView) return false;
   if (nav.mode !== "orbit") return false;
+  if (e.pointerType === "touch") return false;   // one finger turns, it does not pan
   if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return false;
   setPointerFrom(e);
   const range = rangeUnderPointer();
@@ -616,6 +628,22 @@ renderer.domElement.addEventListener("pointerleave", () => {
   pointerInside = false;
   tip.classList.add("hidden");
 });
+// Everything drawn over the view steps back once nothing has been touched for a
+// few seconds, and comes back on the next touch. It never goes away and never
+// stops taking a press: the tap that brings it back is the same tap that works
+// whatever button it landed on.
+const CHROME_IDLE_MS = 4000;
+let chromeIdle = null;
+function wakeChrome() {
+  document.body.classList.remove("chrome-dim");
+  clearTimeout(chromeIdle);
+  chromeIdle = setTimeout(() => document.body.classList.add("chrome-dim"), CHROME_IDLE_MS);
+}
+for (const ev of ["pointermove", "wheel", "keydown"]) {
+  window.addEventListener(ev, wakeChrome, { passive: true, capture: true });
+}
+wakeChrome();
+
 // Taking the plain drag off the controls has to happen before they see it, and
 // they are listening on the canvas itself and got there first. A listener on the
 // same element cannot cut in front of one already registered — at the target
@@ -623,12 +651,16 @@ renderer.domElement.addEventListener("pointerleave", () => {
 // on the window in the capture phase, which runs on the way down, before the
 // canvas is reached at all.
 //
-// A modified drag, a right drag or a second finger is none of its business and
-// goes straight through to the controls.
+// A modified drag, a right drag or a finger is none of its business and goes
+// straight through to the controls.
+//
+// The wake is registered first on purpose. The grab below stops its event dead
+// where it takes hold, and a listener added after it on the same element and
+// phase would never run — the chrome would stay faded through every drag.
+window.addEventListener("pointerdown", () => wakeChrome(), true);
 window.addEventListener("pointerdown", (e) => {
   if (e.target !== renderer.domElement) return;
   pointerInside = true;
-  if (e.pointerType === "touch" && grab.active) return;   // second finger: let go
   if (!grabStart(e)) return;
   e.stopImmediatePropagation();
   renderer.domElement.setPointerCapture(e.pointerId);
@@ -731,18 +763,74 @@ const touch = new Touch(
   document.getElementById("stick"),
   document.getElementById("stick-knob"));
 
-// The same stick, in the normal view, turning the camera instead of driving
-// something. Two fingers rotate on a trackpad and they do not on a phone.
-const orbitStick = new OrbitStick(
-  camera, controls,
-  document.getElementById("stick"),
-  document.getElementById("stick-knob"),
-  () => nav.mode === "orbit" && controls.enabled,
-  pivotOnCentre);
+// The phone turning the view. Off until it is asked for, and asked for on a tap
+// because that is the only place iOS hands the sensor out.
+//
+// Where the turning is applied depends on what is carrying you: Nav lays it on
+// the head in the driving modes and on the camera itself in free flight, and
+// looking around from the bluff there is no head, so it swings the camera about
+// the pivot here. Exactly one of them reads it each frame, which is what keeps
+// take() honest.
+const gyro = new Gyro();
+const gyroBtn = document.getElementById("gyro-btn");
+const gyroNote = document.getElementById("gyro-note");
+const gyroOffset = new THREE.Vector3();
+const gyroSpherical = new THREE.Spherical();
+let gyroStarting = false;
+
+function showGyroNote(message) {
+  gyroNote.textContent = message;
+  gyroNote.classList.toggle("hidden", !message);
+}
+
+function setGyro(on) {
+  if (!on) {
+    gyro.stop();
+    gyroBtn.classList.remove("on");
+    showGyroNote("");
+    return;
+  }
+  if (gyroStarting || gyro.running) return;
+  gyroStarting = true;
+  gyro.start().then(() => {
+    gyroBtn.classList.add("on");
+    showGyroNote("");
+    // Turn about what is in front of you, not about wherever the target was
+    // last left — the same reason a press does it.
+    pivotOnCentre();
+  }).catch((err) => {
+    gyroBtn.classList.remove("on");
+    showGyroNote(err.message);
+  }).finally(() => {
+    gyroStarting = false;
+  });
+}
+gyroBtn.addEventListener("click", () => setGyro(!gyro.running));
+
+// Looking around, tilting swings the camera about the ground in the middle of
+// the screen. Below this it is sensor noise and not a turn of the wrist.
+const GYRO_MIN_RAD = 1e-4;
+function gyroOrbit() {
+  if (!gyro.running || nav.mode !== "orbit" || !controls.enabled) return;
+  const g = gyro.take();
+  if (Math.abs(g.yaw) < GYRO_MIN_RAD && Math.abs(g.pitch) < GYRO_MIN_RAD) return;
+  gyroOffset.copy(camera.position).sub(controls.target);
+  gyroSpherical.setFromVector3(gyroOffset);
+  gyroSpherical.theta += g.yaw;
+  gyroSpherical.phi = Math.min(
+    Math.max(gyroSpherical.phi + g.pitch, controls.minPolarAngle),
+    controls.maxPolarAngle);
+  gyroSpherical.makeSafe();
+  camera.position.copy(controls.target).add(
+    gyroOffset.setFromSpherical(gyroSpherical));
+  camera.lookAt(controls.target);
+  controls.update();
+}
 
 // Navigation: a free-fly camera alongside whichever vehicle you are in.
 const nav = new Nav(camera, renderer.domElement, controls, {
   touch,
+  gyro,
   onMode: (m, spec) => {
     document.getElementById("fly-hint").classList.toggle("hidden", m !== "fly");
     const hint = document.getElementById("boat-hint");
@@ -753,6 +841,10 @@ const nav = new Nav(camera, renderer.domElement, controls, {
     else if (m === "live") hint.textContent = LIVE_HINT;
     // The location watch and the compass run only while their view is on screen.
     if (m !== "live") live.stop();
+    // In live mode the phone is already the whole of the control, so a second
+    // reading of the same sensor has nothing to add and nobody to take it: the
+    // deltas would simply pile up until the mode changed.
+    if (m === "live" && gyro.running) setGyro(false);
     trimPanel.classList.toggle("hidden", m !== "live");
     applyFov();
   },
@@ -1449,7 +1541,11 @@ function scanWaterDistance() {
 const audio = new Audio();
 const soundBtn = document.getElementById("sound-btn");
 soundBtn.addEventListener("click", () => audio.toggle());
-const showSound = (on) => { soundBtn.textContent = on ? "sound on" : "sound off"; };
+// The icon carries it, so the label is the title and the slash is the state.
+const showSound = (on) => {
+  soundBtn.classList.toggle("muted", !on);
+  soundBtn.title = on ? "sound on" : "sound off";
+};
 audio.onChange(showSound);
 showSound(audio.enabled);
 
@@ -1472,8 +1568,10 @@ function frame() {
   updateHover();
   weather.update(dt, camera);
 
+  // Ahead of nav, so the floor clamp in there catches a tilt that swung the
+  // camera into the water on the same frame it happened.
+  gyroOrbit();
   nav.update(dt);
-  orbitStick.update(dt);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);

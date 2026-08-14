@@ -108,23 +108,94 @@ html, body {
   pointer-events: none;
 }
 
-.hud-views { bottom: 40px; right: 14px; pointer-events: auto; }
-.view-btn {
-  font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
-  color: var(--ink);
-  background: rgba(150, 190, 220, 0.08);
-  border: 1px solid var(--edge);
-  border-radius: 5px;
-  padding: 4px 8px;
-  text-align: left;
-  cursor: pointer;
+/* --- The buttons -----------------------------------------------------------
+   Bottom right, where a thumb reaches without the hand changing its grip, and
+   not behind the hamburger: the readouts can wait and how you are getting about
+   cannot. Targets are 44 px, which is the smallest a thumb hits reliably. */
+.views {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  user-select: none;
 }
-.view-btn:hover { background: rgba(150, 190, 220, 0.2); }
+.view-icons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-btn:hover { background: rgba(150, 190, 220, 0.2); }
 /* A button for something that did not start. Greyed rather than taken away, so
    it is plain that the thing exists and is not here. */
-.view-btn.off { opacity: 0.35; cursor: default; }
-.view-btn.off:hover { background: none; }
-.fly-btn { width: 100%; text-align: center; color: var(--warn); }
+.icon-btn.off { opacity: 0.35; cursor: default; }
+.icon-btn.off:hover { background: var(--panel); }
+/* Switched on, as against merely present. Tilting is the one button whose
+   effect a still hand cannot see, so it says which way it is set. */
+.icon-btn.on { color: var(--live); border-color: rgba(111, 224, 138, 0.5); }
+.snd-slash { display: none; }
+.icon-btn.muted .snd-wave { display: none; }
+.icon-btn.muted .snd-slash { display: inline; }
+
+.mode-pill {
+  font: 13px/1 ui-monospace, Menlo, Consolas, monospace;
+  min-height: 44px;
+  padding: 0 24px;
+  color: var(--warn);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 22px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.mode-pill:hover { background: rgba(150, 190, 220, 0.2); }
+
+/* Only filled when tilting was asked for and refused, and it says why. Stands
+   over the button that was pressed rather than in the middle, so it is plain
+   which one it is answering for. */
+.gyro-note {
+  position: fixed;
+  right: 12px;
+  bottom: 116px;
+  z-index: 7;
+  max-width: calc(100vw - 24px);
+  color: var(--warn);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.gyro-note.hidden { display: none; }
 
 /* The helm readout. Above the tide panel on the left; bottom right is taken by
    the buttons and bottom centre by the hint. */
@@ -333,3 +404,26 @@ body.hud-visible .hamburger { background: rgba(80, 140, 180, 0.5); }
 /* The button sits in the top left corner and so does the first panel. Move the
    panel down out from under it rather than the button off the corner. */
 body.hud-visible .hud-tl { top: 60px; }
+
+/* --- Everything steps back --------------------------------------------------
+   The view is what the page is for, so what is drawn over it fades once nothing
+   has been touched for a few seconds. It stays where it is and stays pressable:
+   the tap that brings it back is the same tap that works the button it landed
+   on, which is what a map app does and what a hand expects. */
+.views, .hamburger, .trim, .clock, .fly-hint { transition: opacity 0.5s ease; }
+body.chrome-dim .views,
+body.chrome-dim .hamburger,
+body.chrome-dim .trim,
+body.chrome-dim .clock,
+body.chrome-dim .fly-hint { opacity: 0.22; }
+
+/* --- Narrow screens ---------------------------------------------------------
+   The button group stands 96 px off the bottom right and the sliders and the
+   hint are centred on the bottom. On a wide screen they never meet. On a phone
+   there is no width to share, so the centred ones stack above the buttons. */
+@media (max-width: 700px) {
+  .fly-hint { bottom: 116px; max-width: calc(100vw - 24px); }
+  .trim { bottom: 158px; }
+  .clock { bottom: 200px; }
+  .trim-range { width: 130px; }
+}

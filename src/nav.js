@@ -108,6 +108,11 @@ export class Nav {
     // touch: the on-screen stick and the drag that looks about, or null on a
     // machine that has neither.
     this.touch = opts.touch || null;
+    // gyro: a running Gyro from gyro.js, or null. It reports how far the phone
+    // has turned and the head takes it on top of the drag, so the thumb makes
+    // the big move and the wrist makes the small one. Live mode never reads it —
+    // there the phone is already the whole of the control.
+    this.gyro = opts.gyro || null;
     // Where the head is turned, in the frame of whatever is carrying it.
     this.look = { yaw: 0, pitch: 0 };
     this._euler = new THREE.Euler(0, 0, 0, "YXZ");
@@ -134,15 +139,31 @@ export class Nav {
     return this.touch ? this.touch.move : { x: 0, y: 0 };
   }
 
-  // Turn the accumulated drag into a head angle. Drag right and you look right,
-  // drag down and you look down, the way a mouse does.
+  // How far the head has been asked to turn this step, from the drag and from
+  // the phone being tilted. Drag right and you look right, drag down and you
+  // look down, the way a mouse does. The gyro already answers in radians about
+  // the same axes, so the two simply add.
+  _lookDelta() {
+    let yaw = 0, pitch = 0;
+    if (this.touch) {
+      const d = this.touch.takeLook();
+      yaw -= d.dx * LOOK_RAD_PER_PX;
+      pitch -= d.dy * LOOK_RAD_PER_PX;
+    }
+    if (this.gyro) {
+      const g = this.gyro.take();
+      yaw += g.yaw;
+      pitch += g.pitch;
+    }
+    return { yaw, pitch };
+  }
+
+  // Turn that into a head angle, as far as a neck goes and no further.
   _applyLook() {
-    if (!this.touch) return;
-    const d = this.touch.takeLook();
-    if (!d.dx && !d.dy) return;
-    this.look.yaw = clamp(this.look.yaw - d.dx * LOOK_RAD_PER_PX,
-                          -LOOK_YAW_MAX, LOOK_YAW_MAX);
-    this.look.pitch = clamp(this.look.pitch - d.dy * LOOK_RAD_PER_PX,
+    const d = this._lookDelta();
+    if (!d.yaw && !d.pitch) return;
+    this.look.yaw = clamp(this.look.yaw + d.yaw, -LOOK_YAW_MAX, LOOK_YAW_MAX);
+    this.look.pitch = clamp(this.look.pitch + d.pitch,
                             -LOOK_PITCH_MAX, LOOK_PITCH_MAX);
   }
 
@@ -160,11 +181,13 @@ export class Nav {
     this.camera.quaternion.copy(this._bodyQ).multiply(this._lookQ);
   }
 
-  // Face front again, and stop the stick and the drag where they are.
+  // Face front again, and drop whatever the drag and the phone had banked up so
+  // the new mode does not open mid-turn.
   _resetLook() {
     this.look.yaw = 0;
     this.look.pitch = 0;
     if (this.touch) this.touch.takeLook();
+    if (this.gyro) this.gyro.take();
   }
 
   toggleFly() {
@@ -575,18 +598,27 @@ export class Nav {
   }
 
   _flyStep(dt) {
-    // With the pointer locked the mouse already turns the camera. Without it —
-    // a phone, or a lock the browser would not give — the drag does.
+    // Nothing is carrying you up here, so there is no body to turn the head on:
+    // the drag and the tilt move the camera itself. With the pointer locked the
+    // mouse has already done the turning, so the drag stands down and only the
+    // tilt is left.
+    let yaw = 0, pitch = 0;
     if (!this.lock.isLocked && this.touch) {
       const d = this.touch.takeLook();
-      if (d.dx || d.dy) {
-        this._euler.setFromQuaternion(this.camera.quaternion);
-        this._euler.y -= d.dx * LOOK_RAD_PER_PX;
-        this._euler.x = clamp(this._euler.x - d.dy * LOOK_RAD_PER_PX,
-                              -LOOK_PITCH_MAX, LOOK_PITCH_MAX);
-        this._euler.z = 0;
-        this.camera.quaternion.setFromEuler(this._euler);
-      }
+      yaw -= d.dx * LOOK_RAD_PER_PX;
+      pitch -= d.dy * LOOK_RAD_PER_PX;
+    }
+    if (this.gyro) {
+      const g = this.gyro.take();
+      yaw += g.yaw;
+      pitch += g.pitch;
+    }
+    if (yaw || pitch) {
+      this._euler.setFromQuaternion(this.camera.quaternion);
+      this._euler.y += yaw;
+      this._euler.x = clamp(this._euler.x + pitch, -LOOK_PITCH_MAX, LOOK_PITCH_MAX);
+      this._euler.z = 0;
+      this.camera.quaternion.setFromEuler(this._euler);
     }
     const speed = (this.keys.ShiftLeft || this.keys.ShiftRight ? FAST_SPEED : FLY_SPEED) * dt;
     this.camera.getWorldDirection(this._dir);              // includes pitch, so W flies up when looking up

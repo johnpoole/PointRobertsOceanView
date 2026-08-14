@@ -14,12 +14,14 @@ commits. These checks are the reading of the file that nobody was doing.
 
 from __future__ import annotations
 
+import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "index.html"
+SRC = ROOT / "src"
 
 # The only elements in the head whose text belongs to them rather than to the
 # page. Anything else with words in it is a comment that got loose.
@@ -106,6 +108,43 @@ def test_no_comment_tail_is_left_standing_as_text() -> None:
         "comment punctuation in index.html that the parser read as page text: "
         + "; ".join(f"line {n}: {said!r}" for n, said in stray)
     )
+
+
+def page_ids(markup: str) -> set[str]:
+    """Every id the markup carries."""
+    return set(re.findall(r'\bid="([^"]+)"', markup))
+
+
+def wanted_ids() -> dict[str, set[str]]:
+    """Every id the scripts reach for, and which file reaches for it."""
+    out: dict[str, set[str]] = {}
+    for js in sorted(SRC.rglob("*.js")):
+        for name in re.findall(r"""getElementById\(\s*["']([^"']+)["']\s*\)""",
+                               js.read_text(encoding="utf-8")):
+            out.setdefault(name, set()).add(js.relative_to(ROOT).as_posix())
+    return out
+
+
+def test_every_id_the_scripts_reach_for_is_in_the_page() -> None:
+    """A button renamed in the markup is a null in the script, and says nothing.
+
+    getElementById on an id that is not there returns null. The page loads, the
+    scene renders, and the failure waits in the console until somebody presses
+    the thing.
+    """
+    have = page_ids(PAGE.read_text(encoding="utf-8"))
+    missing = {name: who for name, who in wanted_ids().items() if name not in have}
+    assert not missing, (
+        "ids the scripts ask index.html for and index.html does not carry: "
+        + "; ".join(f"{name} (from {', '.join(sorted(who))})"
+                    for name, who in sorted(missing.items()))
+    )
+
+
+def test_the_id_check_catches_a_button_that_was_renamed() -> None:
+    """A guard that passes on a page missing the button is worth nothing."""
+    assert "mode-btn" in wanted_ids(), "main.js no longer asks for #mode-btn"
+    assert "mode-btn" not in page_ids('<button id="mode-pill">mode</button>')
 
 
 def test_the_checks_catch_the_comment_that_shipped_broken() -> None:
