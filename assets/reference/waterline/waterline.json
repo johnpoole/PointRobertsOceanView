@@ -1,0 +1,22 @@
+{
+  "camera": "camera.ocean_view",
+  "site": {
+    "lat": 48.989009,
+    "lon": -123.085318
+  },
+  "tide_station": "9449639",
+  "gauge_station": "9449424",
+  "frames": [
+    {
+      "file": "ocean_view-20260814T041115Z.png",
+      "grabbed_utc": "2026-08-14T04:11:15.838082Z",
+      "width": 1920,
+      "height": 1080,
+      "water_level_m": 2.944,
+      "prediction_m": 2.949,
+      "surge_m": -0.005,
+      "surge_measured_at": "2026-08-14 04:00Z",
+      "datum": "MLLW"
+    }
+  ]
+}
