@@ -19,7 +19,7 @@ import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCabin } from "./scene/cabin.js";
-import { buildStair } from "./scene/stair.js";
+import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -232,11 +232,22 @@ function fineCovers(fine) {
 //
 // The trees need the roads to keep out of them, so the OSM bake is waited on
 // here rather than left to buildLand further down. It is the same one fetch.
-buildTerrain(scene, TERRAIN.fine,
-             { haze: 0, fog: true, landcover: LANDCOVER, projector: true })
-  .then((fine) => {
+// The stair is read before the ground is built, because it cuts the ground.
+// A stair that will not load says so and the bank is left whole, rather than
+// taking the whole terrain down with it.
+const stairSpec = fetch(SITE_STAIR)
+  .then((r) => r.json())
+  .catch((err) => { failed("the stair east of the house", err); return null; });
+
+stairSpec
+  .then((stair) => buildTerrain(scene, TERRAIN.fine,
+      { haze: 0, fog: true, landcover: LANDCOVER, projector: true,
+        carve: stair ? stairCarve(stair) : null })
+    .then((fine) => ({ stair, fine })))
+  .then(({ stair, fine }) => {
     const covers = fineCovers(fine);
     return Promise.all([
+      stair,
       fine,
       covers,
       buildTerrain(scene, TERRAIN.near,
@@ -246,7 +257,7 @@ buildTerrain(scene, TERRAIN.fine,
       fetch(SITE_BOULDERS).then((r) => r.json()),
     ]);
   })
-  .then(([fine, covers, near, osm, siteTrees, siteBoulders]) => {
+  .then(([stair, fine, covers, near, osm, siteTrees, siteBoulders]) => {
     // Everything standing on the ground asks one sampler, and it answers off the
     // lidar where the lidar reaches. Otherwise the cabin would sit on CUDEM while
     // the ground under it was drawn from something else.
@@ -270,12 +281,9 @@ buildTerrain(scene, TERRAIN.fine,
     // The cabin is modelled off photographs rather than extruded from its OSM
     // trace, so land.js leaves the home alone and cabin.js puts it there.
     buildCabin(scene, near.sample);
-    // Drawn as steps because the terrain cannot hold them: see stair.js. Where
-    // it stands is not settled — the asset says so and says why.
-    fetch(SITE_STAIR)
-      .then((r) => r.json())
-      .then((spec) => buildStair(scene, spec, near.projector))
-      .catch((err) => failed("the stair east of the house", err));
+    // Drawn as steps because the terrain cannot hold them, and standing in the
+    // channel stairCarve cut for it above: see stair.js.
+    if (stair) buildStair(scene, stair, near.projector);
     lighthouse = buildLighthouse(scene, near.sample);
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.

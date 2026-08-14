@@ -525,6 +525,25 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const nodata = meta.nodata != null ? meta.nodata : null;
   const isValueHole = (v) => nodata != null && v <= nodata / 2;
 
+  // Something the bake could not hold, cut into the ground before anything reads
+  // it. carve(lat, lon, height) hands back the height it wants there. The stair
+  // is the case it exists for: see stairCarve in stair.js.
+  //
+  // Here rather than on the mesh, because the mesh is not the only thing that
+  // asks. sample() is built off this same array below, and that is what the
+  // floor, the trees, the beach and the boat all read. A cut in the mesh alone
+  // would draw a channel and leave the sampler swearing the bank was still there.
+  if (opts.carve) {
+    for (let i = 0; i < nrows; i++) {
+      const lat = north_lat - i * cellsize_deg;
+      for (let j = 0; j < ncols; j++) {
+        const n = i * ncols + j;
+        if (isValueHole(Z[n])) continue;
+        Z[n] = opts.carve(lat, west_lon + j * cellsize_deg, Z[n]);
+      }
+    }
+  }
+
   // Ground a better tile covers, as a test on the point rather than a box: the
   // fine tile over the lot is a rectangle in Washington South, which is turned
   // against latitude and longitude, so its edge is not a box here. The far

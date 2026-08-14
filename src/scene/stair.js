@@ -25,6 +25,49 @@ const CONCRETE = 0xa8a49b;
 const RISER_SHADE = 0.88;
 // Each step is a slab: the tread you walk on and the face under its nose.
 const TREAD_THICK_M = 0.12;
+// How much wider than the flight the ground is cut, so no bank pokes through a
+// tread at the edge.
+const CHEEK_M = 0.15;
+// How far past each end the cut runs, so the bottom step is not stood in a wall.
+const ENDS_M = 0.3;
+
+// Where the stair stands, the stair is the ground.
+//
+// The bank is convex here — steep for the first four metres and flat after —
+// so it bulges above the straight line of a flight and buries its middle. That
+// is not the stair being in the wrong place. It is the lidar at 1.15 m cells
+// running a smooth ramp through treads a quarter of that, which is the same
+// reason the stair has to be drawn at all.
+//
+// So the ground is cut down to the underside of the treads along the flight and
+// left alone everywhere else. It only ever cuts, never fills: ground already
+// below the flight is what the bottom step sits on.
+//
+// Handed to buildTerrain, which applies it above both the mesh and sample(), so
+// the drawn ground, the floor the camera is held over, the trees, the beach and
+// the camera projector all see the same cut. Cutting the mesh alone would leave
+// the sampler answering with a bank that is no longer there.
+export function stairCarve(spec) {
+  const foot = toWorld(spec.bottom.lat, spec.bottom.lon, spec.bottom.ground_m);
+  const b = (spec.bearing_deg * Math.PI) / 180;
+  const fx = Math.sin(b), fz = -Math.cos(b);
+  const rx = Math.cos(b), rz = Math.sin(b);
+  const run = spec.going_m * (spec.steps - 1);
+  const halfW = spec.width_m / 2 + CHEEK_M;
+  const pitch = spec.rise_m / spec.going_m;
+  return (lat, lon, y) => {
+    const p = toWorld(lat, lon, 0);
+    const dx = p.x - foot.x, dz = p.z - foot.z;
+    const across = dx * rx + dz * rz;
+    if (Math.abs(across) > halfW) return y;
+    const along = dx * fx + dz * fz;
+    if (along < -ENDS_M || along > run + ENDS_M) return y;
+    // The flight's own line, held level past each end so the cut does not run
+    // away up the bank or down it.
+    const t = Math.min(Math.max(along, 0), run);
+    return Math.min(y, foot.y + pitch * t - TREAD_THICK_M);
+  };
+}
 
 function slab(w, h, d, x, y, z, yaw) {
   const g = new THREE.BoxGeometry(w, h, d);
