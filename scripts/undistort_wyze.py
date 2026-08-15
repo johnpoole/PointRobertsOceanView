@@ -19,8 +19,9 @@ falls outside the lens comes back black, and the count is printed.
 Run:
     python scripts/undistort_wyze.py assets/reference/front_door-20260812T203304Z.png out.png
 
-Then in fSpy, load out.png, set the horizontal field of view to the same number
-this printed, and set the two axes on edges you know are square.
+Then in fSpy, load out.png, set Number of vanishing points to 1, and type the
+focal length this printed into the box that appears. Set the axes on edges you
+know are square.
 
 Needs numpy and pillow: pip install -r scripts/requirements-terrain.txt
 """
@@ -38,6 +39,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN_JS = ROOT / "src/main.js"
+# fSpy's default sensor, the 35 mm film preset. A focal length means nothing
+# without it, and the pair is what the GUI asks for.
+SENSOR_MM = 36.0
 
 
 def read_lens() -> tuple[float, float]:
@@ -153,9 +157,21 @@ def main() -> int:
     print(f"black       {dropped} px of {out_w * out_h} fell outside the lens "
           f"({100 * dropped / (out_w * out_h):.1f}%)")
     print()
-    print(f"In fSpy, set the horizontal field of view to {across:.2f} degrees.")
-    print("Then set the origin on a corner of the cabin, put the two axes on "
-          "edges you know are square, and give it one real length.")
+    # fSpy has no field for an angle. It takes a focal length in millimetres
+    # against a sensor width, and it only takes one at all when it is not
+    # solving for one — which is the one vanishing point mode.
+    focal_mm = (SENSOR_MM / 2) / math.tan(math.radians(across) / 2)
+    print(f"In fSpy, set Number of vanishing points to 1. Leave the sensor at "
+          f"the 35 mm preset, {SENSOR_MM:.0f} mm wide, and set the focal length "
+          f"to {focal_mm:.2f} mm. That is the {across:.2f} degrees across this "
+          f"frame covers.")
+    print("With two vanishing points fSpy solves the focal length itself and "
+          "throws away whatever you type. Both of this frame's far vanishing "
+          "points sit tens of image widths off the picture, where that solve is "
+          "the difference of two large numbers, and it comes out wrong.")
+    print("Then set the origin on a corner of the thing you are placing, put "
+          "the two axes on edges you know are square, and give it one real "
+          "length.")
     return 0
 
 
