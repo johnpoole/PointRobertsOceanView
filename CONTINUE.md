@@ -103,38 +103,59 @@ this out of the background" and it covered three kilometres of ground saying so.
 A region where the camp is inaudible is not an impact and must not be coloured
 like one.
 
-**It is the worst night, not an average one.** A campground is not a nuisance on
-the median evening, it is a nuisance on the still warm one when the place is full
-and everybody is up late. Three things make it the worst case: every site
-occupied and sounding at once, a raised voice rather than a quiet one at 70 dB a
-metre off, and a nocturnal inversion.
+**It is the worst night, not an average one**, and it follows ISO 9613-2:1996
+rather than being made up. That standard is not an afternoon model needing a
+night added: its own scope says it predicts levels under conditions favourable to
+propagation, and names those as downwind or, equivalently, under a
+well-developed moderate ground-based temperature inversion, such as commonly
+occurs on clear, calm nights. That is the night in question.
 
-The inversion is the term that matters. After sunset the ground cools faster than
-the air over it, so a ray climbing out of the camp is bent back down. Past the
-range where that returns it to the ground the sound spreads over a cylinder
-rather than a sphere, and the falloff goes from 6 dB per doubling of distance to
-3. That is why you hear a road at night that you cannot hear at noon. It is worth
-7 dB at a kilometre here. The duct is closed at 200 m and loses 3 dB a kilometre
-to the air and to bouncing off soft ground, and without that second term it would
-never fall silent at all.
+Every term is the standard's and every source is checked, not remembered:
+
+| term | value | where from |
+| --- | --- | --- |
+| spreading | 6 dB a doubling, spherical, at every distance | ISO 9613-2 eq. (7) |
+| air | 1.9 dB/km | ISO 9613-2 table 2, 500 Hz, 10 °C, 70% |
+| ground | 4.8 − (2·1.5/d)(17 + 300/d), floored at 0 | ISO 9613-2 eq. (10) |
+| 55 and 45 dBA | Class A to Class A, less 10 at night | WAC 173-60-040 |
+| 70 dB a site | raised voice, cross-checked below | speech tables + USBR |
+
+The source level is the only figure not read off a document, and it is checked
+against one: the US Bureau of Reclamation's noise appendix for the Navajo
+Reservoir plan puts developed recreation areas — campgrounds and day-use areas —
+at an Ldn of 50 to 65 dBA as a class. At 70 dB a site this model reads 56 dB
+standing in the middle of the camp, mid-band. At 60 it reads 46, below it. The
+test asserts that.
 
 | | worst night |
 | --- | --- |
-| 40 ft east, over the boundary | 54.1 dB |
-| 800 ft west, nearest house | 42.8 dB |
-| how far the 45 dBA night limit reaches | 150 m off the camp's east edge |
-| back into the night by | 1.2 km |
+| standing in the camp | 56.2 dB |
+| 40 ft east, over the boundary | 52.1 dB |
+| 800 ft west, nearest house | 36.4 dB |
+| how far the 45 dBA night limit reaches | 60 m off the camp's east edge |
+| back into the night by | 390 m |
 
-Still left out: the wind, which adds as much again downwind — but a worst night
-is a calm one, which is what the duct wants, so leaving it out is the right way
-round. The trees, worth 1 to 3 dB per 10 m of belt and no more, since a screen
-you cannot see through is not a screen you cannot hear through. And the terrain,
-which on this plateau shields nothing from anything.
+**An earlier version of this was wrong and the way it was wrong is worth
+keeping.** It carried a home-made surface duct — spherical spreading to 200 m
+and cylindrical after, 6 dB a doubling becoming 3 — on the reasoning that a night
+inversion bends sound back down. The reasoning is sound, the arithmetic was
+right, and the conclusion was still wrong: ISO 9613-2 already *is* the inversion
+case, and its divergence term is spherical at every distance. The duct was the
+inversion counted twice. It put the 35 dB contour at 1170 m where the standard
+puts it at 390. The same version had the ground losing 3 dB a kilometre; the
+standard has it climbing fast to just under 4.8 dB and then staying there.
 
-It is an upper bound on the shape of the falloff, not a prediction of a level.
-A real assessment measures the background at the houses over several nights and
-models it under ISO 9613-2 — which is itself a downwind model for much the same
-reason this is a night model. Nothing read off it belongs in a comment to the
+Still left out: the trees. ISO 9613-2 table A.1 gives 1 dB for a 10 to 20 m path
+through dense foliage at speech frequencies and 0.05 dB/m from 20 to 200 m. The
+30 ft perimeter buffer is 9 m, shorter than the shortest path in the table, so it
+is worth about a decibel. It gets argued as noise mitigation and it is not.
+Barriers and housing are left out too, which is the right way round for a worst
+case, and the terrain shields nothing on this plateau.
+
+It is an upper bound — the level ISO calls one that is seldom exceeded. It is not
+a typical night and it is not a measurement. A real assessment measures the
+background at the houses over several nights and runs the full octave-band method
+with the real source spectrum. Nothing read off it belongs in a comment to the
 county.
 
 The colours are one hue stepped, quietest deepest, run through the data-viz

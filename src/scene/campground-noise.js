@@ -2,73 +2,95 @@
 //
 // Worst case is the case that matters. A campground is not a nuisance on the
 // median evening, it is a nuisance on the still warm one when the place is full
-// and everybody is up late, and that is the night this models. Three choices
-// make it the worst case and each is written down below: every site occupied and
-// sounding at once, people talking at a raised voice rather than a quiet one,
-// and a nocturnal inversion holding the sound down on the ground.
+// and everybody is up late.
 //
-// The level at a point is the energy sum over every site,
+// This follows ISO 9613-2:1996. That standard is not an afternoon model that has
+// to have a night added to it — its own scope says it predicts levels "under
+// meteorological conditions favourable to propagation", and names those
+// conditions as downwind propagation or, equivalently, propagation under a
+// well-developed moderate ground-based temperature inversion, such as commonly
+// occurs on clear, calm nights. That is exactly the night in question, and it is
+// what the standard is for.
 //
-//     10 log10 ( sum over sites of 10^((SITE_DB - loss(r)) / 10) )
+//     L(d) = SITE_DB - 20 log10(d) - Aatm - Agr
 //
-// and loss(r) is where the inversion lives.
+// summed in energy over every site. Every term below is out of the standard and
+// the clause it comes from is written beside it.
 //
-// THE INVERSION. After sunset the ground cools faster than the air over it, so
-// the air a hundred metres up is warmer than the air at head height. Sound
-// travels faster in warm air, so a ray climbing out of the camp is bent back
-// down. Past the range where the bending returns it to the ground, the sound
-// stops spreading over a sphere and starts spreading over a cylinder, and the
-// falloff goes from 6 dB per doubling of distance to 3. That is a surface duct
-// and it is why you can hear a road at night that you cannot hear at noon.
-//
-// The duct does not run for ever. Every bounce off soft ground takes something
-// out and the air itself absorbs the high end, so a term proportional to
-// distance is carried alongside. Without it the model would never fall silent.
+// AN EARLIER VERSION OF THIS FILE WAS WRONG AND THE WAY IT WAS WRONG IS WORTH
+// KEEPING. It carried a home-made surface duct: spherical spreading to 200 m and
+// then cylindrical, 6 dB per doubling of distance becoming 3, on the reasoning
+// that a night inversion bends the sound back down. The reasoning is sound and
+// the arithmetic was right and the conclusion was still wrong, because ISO 9613-2
+// already is the inversion case and its geometrical divergence term is spherical
+// at every distance. The duct was the inversion counted twice. It put the 35 dB
+// contour at 1170 m where the standard puts it at 390.
 //
 // WHAT IS STILL NOT IN IT:
 //
-//   Wind, which adds about as much again downwind and takes it away upwind. On
-//   the worst night the wind is calm, which is the condition the duct wants, so
-//   leaving it out is the right way round for a worst case.
+//   The trees. ISO 9613-2 table A.1 gives 1 dB for a path of 10 to 20 m through
+//   dense foliage at speech frequencies, and 0,05 dB/m from 20 to 200 m, capped
+//   at the 200 m value. The perimeter buffer the permit requires is 30 ft, which
+//   is 9 m, shorter than the shortest path in the table. It is worth about a
+//   decibel. A screen you cannot see through is not a screen you cannot hear
+//   through, and leaving it out costs almost nothing.
 //
-//   The trees, worth 1 to 3 dB per 10 m of belt and no more. A screen you cannot
-//   see through is not a screen you cannot hear through, and leaving it out
-//   costs a couple of decibels.
+//   Barriers and housing, which is the right way round for a worst case.
 //
 //   The terrain, which on this plateau shields nothing from anything anyway.
 //
-// So this is an upper bound on the shape of the falloff, not a prediction of a
-// level. A real assessment measures the background at the houses over several
-// nights and models it under ISO 9613-2, which is itself a downwind model for
-// much the same reason this one is a night model. Nothing read off this belongs
-// in a comment to the county.
+// So this is an upper bound: the level ISO calls one that is seldom exceeded. It
+// is not a prediction of a typical night and it is not a measurement. A real
+// assessment measures the background at the houses over several nights and runs
+// the full octave-band method with the real source spectrum. Nothing read off
+// this belongs in a comment to the county.
 
 // One occupied site, at a metre. A raised voice, which is how people talk
-// outdoors around a fire with others talking near them — not a shout, and not
-// the 60 dB of ordinary indoor conversation.
+// outdoors around a fire with others talking nearby.
+//
+// Checked two ways rather than taken off a speech table alone. Speech tables put
+// ordinary conversation near 60 dB at a metre and a raised voice near 70. And
+// the US Bureau of Reclamation's noise appendix for the Navajo Reservoir plan
+// puts developed recreation areas — campgrounds and day-use areas — at an Ldn of
+// 50 to 65 dBA, as a class. At 70 dB a site this model comes out at 56 dB
+// standing in the middle of the camp, which sits mid-band of that range. At 60
+// it comes out at 46, below it.
 export const SITE_DB = 70;
 
-// Where the duct closes: how far a ray climbing out of the camp travels before
-// the inversion has bent it back to the ground. A few hundred metres under a
-// clear-sky nocturnal inversion. Inside it the sound has not yet been turned
-// and the spreading is ordinary.
-export const DUCT_M = 200;
+// Atmospheric absorption, ISO 9613-2:1996 table 2: the coefficient at 500 Hz,
+// 10 °C and 70% relative humidity, which is the band speech sits in and the
+// coolest, dampest row the table carries. The whole row, for the record:
+// 63 Hz 0,1 · 125 Hz 0,4 · 250 Hz 1,0 · 500 Hz 1,9 · 1 kHz 3,7 · 2 kHz 9,7 ·
+// 4 kHz 32,8 · 8 kHz 117 dB/km.
+export const AIR_DB_PER_KM = 1.9;
 
-// What the duct still loses per kilometre, from the air absorbing the high end
-// and from each bounce off soft ground. Without this the cylinder never dies and
-// the camp is audible in Vancouver.
-export const ALPHA_DB_PER_KM = 3;
-
-// Where the bands are cut. The first two are the law — WAC 173-60 allows 55 dBA
-// at a residence and 45 dBA between ten at night and seven in the morning, which
-// is condition 49. The last is the night itself: a quiet rural night sits at 25
-// to 35 dB, so 35 is where the camp starts to stand out of it.
+// Ground effect, ISO 9613-2:1996 equation (10) — the alternative method, which
+// applies when only the A-weighted level is wanted, the ground is porous and the
+// sound is not a tone. All three hold here: the lot is forest and pasture and
+// the sound is people.
 //
-// Nothing is drawn below 35. There was a 25 dB band and it was wrong to paint:
-// 25 is under what the night already sounds like, so that band meant "you cannot
-// pick this out of the background" and it covered three kilometres of ground
-// saying so. A region where the camp is inaudible is not an impact and should
-// not be coloured like one.
+//     Agr = 4,8 - (2 hm / d) [17 + (300 / d)]  >= 0 dB
+//
+// hm is the mean height of the path above the ground. A person at a campsite and
+// a person outside a house are both about this far up. Note what this term does:
+// it climbs quickly and then sits just under 4,8 dB for ever. It is not a loss
+// per kilometre, which is what an earlier version of this file made it.
+export const GROUND_PATH_H_M = 1.5;
+
+// Where the bands are cut. The first two are the law — WAC 173-60-040 sets 55
+// dBA for a Class A source at a Class A receiving property, and reduces it by 10
+// between ten at night and seven in the morning for Class A receiving property,
+// which is what condition 49 of the permit invokes. Both figures read off the
+// regulation. It also allows short exceedances above those: 5 dBA for 15 minutes
+// in an hour, 10 dBA for 5 minutes, 15 dBA for 1,5 minutes. None of that is
+// drawn — these bands are the steady limits.
+//
+// The last band is the night itself: a quiet rural night sits at 25 to 35 dB, so
+// 35 is where the camp starts to stand out of it.
+//
+// Nothing is drawn below 35. There was a 25 dB band and it was wrong to paint: a
+// region where the camp cannot be picked out of the background is not an impact
+// and must not be coloured like one.
 //
 // One hue, stepped, quietest deepest. Run through the data-viz validator on both
 // surfaces it is drawn on — the map panel's dark background and the ground — and
@@ -82,15 +104,18 @@ export const BANDS = [
   { min: 35, label: "35", color: "#843150" },
 ];
 
-// How much is lost getting r metres from a source, in decibels. Spherical while
-// the ray is still climbing, cylindrical once the inversion has turned it, and
-// the ground and the air taking their cut the whole way.
+// ISO 9613-2 equation (10). Floored at zero, as the standard says.
+export function groundLoss(d) {
+  return Math.max(0, 4.8 - ((2 * GROUND_PATH_H_M) / d) * (17 + 300 / d));
+}
+
+// How much is lost getting r metres from a source, in decibels: spherical
+// spreading, the air, and the ground. The standard's own divergence term carries
+// a further 11 dB because it starts from sound power; SITE_DB is already a
+// pressure at a metre, so that conversion is done.
 export function spreadingLoss(r) {
   const d = Math.max(r, 1);
-  const geometric = d <= DUCT_M
-    ? 20 * Math.log10(d)
-    : 20 * Math.log10(DUCT_M) + 10 * Math.log10(d / DUCT_M);
-  return geometric + (ALPHA_DB_PER_KM * d) / 1000;
+  return 20 * Math.log10(d) + (AIR_DB_PER_KM * d) / 1000 + groundLoss(d);
 }
 
 // The level at a point, in decibels, from sites given as { pad } rectangles.

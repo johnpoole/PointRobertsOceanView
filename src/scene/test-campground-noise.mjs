@@ -43,8 +43,8 @@ function asDataUrl(file) {
 }
 
 const {
-  ALPHA_DB_PER_KM, BANDS, DUCT_M, SITE_DB,
-  bandOf, levelAt, noiseField, reachM, spreadingLoss,
+  AIR_DB_PER_KM, BANDS, GROUND_PATH_H_M, SITE_DB,
+  bandOf, groundLoss, levelAt, noiseField, reachM, spreadingLoss,
 } = await import(asDataUrl(path.join(HERE, "campground-noise.js")));
 const { FT, planCampground } =
   await import(asDataUrl(path.join(HERE, "campground-plan.js")));
@@ -61,37 +61,43 @@ function near(got, want, tol, what) {
 
 // A site is a rectangle, and the model takes its middle.
 const at = (x, z) => ({ pad: { x0: x, x1: x, z0: z, z1: z } });
-// The loss with the ground and the air taken back out, which is the part the
-// inversion changes.
-const geo = (d) => spreadingLoss(d) - (ALPHA_DB_PER_KM * d) / 1000;
+// The spreading on its own, with the air and the ground taken back out.
+const geo = (d) => spreadingLoss(d) - (AIR_DB_PER_KM * d) / 1000 - groundLoss(d);
 
-// ---- the inversion ---------------------------------------------------------
-// Inside the duct the ray is still climbing and the spreading is spherical: 6 dB
-// every doubling.
-near(geo(1), 0, 1e-9, "the geometric loss at one metre");
-for (const d of [2, 10, 100]) {
-  near(geo(d), 20 * Math.log10(d), 1e-9, `the geometric loss at ${d} m`);
+// ---- the terms, each against the standard ----------------------------------
+// Geometrical divergence, ISO 9613-2 equation (7): spherical, at every distance.
+// Six decibels a doubling and no duct — a night inversion does not change this,
+// because the standard's whole method is already the inversion case.
+near(geo(1), 0, 1e-9, "the spreading at one metre");
+for (const d of [2, 10, 100, 200, 1000, 3000]) {
+  near(geo(d), 20 * Math.log10(d), 1e-9, `the spreading at ${d} m`);
 }
-near(geo(100) - geo(50), 6.02, 0.01, "the drop over a doubling inside the duct");
-
-// Past it the inversion has turned the ray back down, the wave spreads over a
-// cylinder instead of a sphere, and the doubling costs half as much.
-for (const d of [DUCT_M, 400, 1000]) {
-  near(geo(2 * d) - geo(d), 3.01, 0.01, `the drop over a doubling from ${d} m`);
+for (const d of [50, 200, 1000]) {
+  near(geo(2 * d) - geo(d), 6.02, 0.01, `the drop over a doubling from ${d} m`);
 }
-// And the two halves meet, rather than the level jumping at the seam.
-near(geo(DUCT_M + 1e-6), geo(DUCT_M), 1e-4, "the loss across the duct's edge");
 
-// What the inversion is worth: how much louder a kilometre out than it would be
-// on an afternoon with no duct at all.
-const gain = 20 * Math.log10(1000) - geo(1000);
-near(gain, 6.99, 0.01, "what the inversion is worth at a kilometre");
-ok(gain > 0, "the inversion made the camp quieter, which is the wrong way round");
+// Atmospheric absorption, ISO 9613-2 equation (8): a d / 1000, and nothing else.
+near(spreadingLoss(1000) - spreadingLoss(1000 - 1e-9)
+     - (groundLoss(1000) - groundLoss(1000 - 1e-9)), 0, 1e-6, "a continuous loss");
+for (const d of [500, 1000, 2000]) {
+  near(spreadingLoss(d) - geo(d) - groundLoss(d), (AIR_DB_PER_KM * d) / 1000, 1e-9,
+       `what the air takes out over ${d} m`);
+}
 
-// The ground and the air take their cut over the whole path, which is the only
-// reason the duct ever falls silent.
-near(spreadingLoss(1000) - geo(1000), ALPHA_DB_PER_KM, 1e-9,
-     "what the ground and the air take out over a kilometre");
+// Ground effect, ISO 9613-2 equation (10). It climbs fast and then sits just
+// under 4,8 dB for ever. It is not a loss per kilometre, and the whole reason
+// this test exists is that an earlier version of the model made it one.
+ok(groundLoss(5) === 0, "the ground is already taking something out at five metres");
+for (const d of [400, 1000, 4000]) {
+  near(groundLoss(d), 4.8 - ((2 * GROUND_PATH_H_M) / d) * (17 + 300 / d), 1e-12,
+       `the ground effect at ${d} m`);
+}
+// Ten times the distance may not buy more than a fraction of a decibel. A loss
+// of 3 dB a kilometre, which is what this used to be, would buy 3,6.
+ok(groundLoss(4000) - groundLoss(400) < 0.2,
+   `the ground took ${(groundLoss(4000) - groundLoss(400)).toFixed(2)} dB more ` +
+   `over ten times the distance, so it is behaving like a per-kilometre loss`);
+ok(groundLoss(1e6) < 4.8, "the ground effect went over its own ceiling");
 
 // ---- one source ------------------------------------------------------------
 for (const d of [1, 2, 50, 200, 1000, 3000]) {
@@ -169,9 +175,18 @@ while (levelAt(plan.sites, plan.block.x1 + nightM, mid) > 45 && nightM < 5000) n
 
 const drawn = [...field.bands].filter((b) => b >= 0);
 ok(drawn.length, "the field came out empty");
+// The camp measured from inside itself, against the US Bureau of Reclamation's
+// figure for developed recreation areas as a class: an Ldn of 50 to 65 dBA. This
+// is what calibrates the source level, so it is checked rather than assumed.
+const inCamp = levelAt(plan.sites, (plan.block.x0 + plan.block.x1) / 2, mid);
+ok(inCamp >= 50 && inCamp <= 65,
+   `standing in the camp reads ${inCamp.toFixed(1)} dB, and a developed ` +
+   `recreation area is 50 to 65 dBA Ldn. The source level is off`);
+
 console.log(
-  `${SITE_DB} dB a site, ${plan.sites.length} sites, duct from ${DUCT_M} m, ` +
-  `${ALPHA_DB_PER_KM} dB a km out of it`);
+  `${SITE_DB} dB a site, ${plan.sites.length} sites, spherical throughout, ` +
+  `${AIR_DB_PER_KM} dB a km of air, ${groundLoss(1000).toFixed(1)} dB of ground`);
+console.log(`standing in the camp: ${inCamp.toFixed(1)} dB`);
 console.log(
   `${east.toFixed(1)} dB at the 40 ft east, ${west.toFixed(1)} dB at the 800 ft ` +
   `west, quiet by ${field.reach.toFixed(0)} m`);
