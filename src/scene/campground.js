@@ -19,7 +19,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld } from "../geo.js";
 import {
-  BUILDINGS, CABIN_WIDTH_M, PLINTH_M, planCampground,
+  BUILDINGS, PLINTH_M, ROAD_ONE_WAY_M, planCampground,
 } from "./campground-plan.js";
 import { box, gableRoof, tint } from "./parts.js";
 
@@ -130,10 +130,12 @@ export function buildCampground(scene, parcel, sample) {
   const built = [];
   for (const s of plan.sites) {
     if (s.kind === "cabin") {
-      // The cabin is the site. Nothing is laid under it but its own footing.
-      const cz = (s.pad.z0 + s.pad.z1) / 2;
-      built.push(...building(BUILDINGS.cabin, CABIN_WIDTH_M, s.pad.z1 - s.pad.z0,
-                             s.x, cz, groundAt(s.x, cz), CLAD_CABIN));
+      // The park model is the site. Nothing is laid under it but its own footing.
+      // Its long axis runs east and west, across the rank, so that is the width
+      // the building is given and the ridge follows it.
+      const cx = (s.pad.x0 + s.pad.x1) / 2, cz = (s.pad.z0 + s.pad.z1) / 2;
+      built.push(...building(BUILDINGS.cabin, s.pad.x1 - s.pad.x0, s.pad.z1 - s.pad.z0,
+                             cx, cz, groundAt(cx, cz), CLAD_CABIN));
     } else {
       surfaces.push(slab(s.pad, sample,
                          s.kind === "tent" ? TENT_PAD_COLOR : PAD_COLOR, 5));
@@ -143,10 +145,12 @@ export function buildCampground(scene, parcel, sample) {
     built.push(...building(b.spec, b.w, b.d, b.x, b.z, groundAt(b.x, b.z), CLAD));
   }
 
+  // Beside the rung it stands on, which runs north and south, so it steps aside
+  // in x.
   const hydrants = plan.hydrants.map((h) => {
-    const z = h.z + h.wide / 4;
+    const x = h.x + ROAD_ONE_WAY_M / 2 + 1.2;
     const g = new THREE.CylinderGeometry(0.13, 0.15, HYDRANT_H, 8, 1, true);
-    g.translate(h.x, groundAt(h.x, z) + HYDRANT_H / 2, z);
+    g.translate(x, groundAt(x, h.z) + HYDRANT_H / 2, h.z);
     return tint(g, HYDRANT_COLOR);
   });
 

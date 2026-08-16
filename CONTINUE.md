@@ -42,21 +42,41 @@ it is there for the modes that drive about.
 
 Two kinds of number live in it and they must not be confused. **The lot is
 surveyed.** It comes out of Whatcom County's own parcel layer and its largest
-ring measures 46.53 acres against the 46.31 the decision states. **The layout is
-not.** The site plan set is Exhibit 22 and Exhibit 22 is not in the decision, so
-nobody here knows where the applicant's roads run. What is drawn is worked by
-rule from the counts and the areas the decision does give: the lot gridded and
-the largest rectangle standing 30 ft clear of its own boundary found, that
-rectangle shrunk about its south edge to the 16.5 acres approved, a spine down
-the east side toward Johnson Road and Mill Road, rungs west off it, and the 18
-RVs, 12 park models and 136 tents ranked along both sides of each rung from the
-entrance inward. It is a campground of the size and shape approved standing on
-the lot approved. It is not the applicant's drawing.
+ring measures 46.53 acres against the 46.31 the decision states. **The
+applicant's drawing is not here.** The site plan set is Exhibit 22 and Exhibit 22
+is not in the decision, so nobody here has seen where their roads run.
 
-One number the rule cannot honour. The decision has five hydrants no more than
-600 ft apart along their loop. This loop runs 1,408 m, so five come out 282 m
-apart. Five is the decision's number and it is kept; the spacing is handed back
-rather than quietly fixed.
+But the staff report describes the layout in prose, on pages 14 and 15, and
+every word of it is obeyed rather than invented around: clustered in the eastern
+third of the lot; the store, the manager's residence and the community building
+on the south side by the entrance off Johnson Road; the park models on the
+western side, the RVs central, the tents through the remainder; a gated
+secondary access off Mill Road. So the rule takes the eastern 16.5 acres of the
+lot, runs four rows north and south across it, and gives the westmost rank to
+the park models, the rank nearest the middle to the RVs, and the six others to
+the tents.
+
+The report also states three distances, and they are the check on the rule
+rather than inputs to it. Only the tightest is used — sites stand 40 ft off the
+boundary, which is the report's tent-to-east-boundary figure and more than the
+code's 30 ft. The other two fall out and are read back:
+
+| the report says | this comes out at |
+| --- | --- |
+| about 800 ft from the camp sites to the nearest residence west | 820 ft |
+| RV sites over 200 ft off the eastern boundary | 316 ft |
+| the store 57 ft off the southern boundary | 57 ft, by construction |
+
+Nothing was tuned to make the first two land. The 820 is what you get by taking
+the eastern 16.5 acres and nothing else, and it is the strongest evidence that
+the eastern-third reading is the right one.
+
+Two numbers the rule cannot honour, both because a rule cannot see a drawing.
+Five hydrants no more than 600 ft apart: this run is 1,416 m, so five come out
+283 m apart. Five is the decision's number and it is kept. And the nearest site
+lands further than 40 ft off the eastern boundary, because that boundary steps
+nine metres west partway up the lot and one straight row cannot follow a step.
+Both are handed back on the plan rather than quietly fixed.
 
 The trees on the lot are neither drawn nor cleared here. It is forest in the land
 cover and `trees.js` has already scattered it, and the decision keeps 66% of the
@@ -64,9 +84,10 @@ canopy and says the campsite area keeps canopy too. The firs standing among the
 sites are the retained canopy.
 
 `node src/scene/test-campground.mjs` walks the layout: every site and stall inside
-the buffer line, no two on the same ground, the counts against the permit, and no
-building over the 25 ft the Special District allows. None of that shows on screen
-at any range this is seen from, which is why it is a test.
+the setback, no two on the same ground, the counts against the permit, the three
+distances above, a rank carrying one kind of site and no other, and no building
+over the 25 ft the Special District allows. None of that shows on screen at any
+range this is seen from, which is why it is a test.
 
 ## Deploy
 
