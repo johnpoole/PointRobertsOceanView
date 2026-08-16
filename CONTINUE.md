@@ -31,6 +31,43 @@ group. With the courts off you get a hedge round an empty lot, which is what is 
 of 3 m is assumed rather than measured, and it is drawn unbroken because nobody has said where the
 way in is.
 
+## The campground
+
+The Nielson Campground, 166 sites on 16.5 acres of a 46.31-acre wooded lot off
+Dogwood Way, granted by the Whatcom County Hearing Examiner on 7 July 2026 as
+CUP2024-00005. Not built, so it is off until asked for on `G`, the same way the
+courts are off until asked for on `T`. It stands 1.9 km east-northeast of the
+house on ground 50 m above the sea, so nothing on the bluff will ever see it —
+it is there for the modes that drive about.
+
+Two kinds of number live in it and they must not be confused. **The lot is
+surveyed.** It comes out of Whatcom County's own parcel layer and its largest
+ring measures 46.53 acres against the 46.31 the decision states. **The layout is
+not.** The site plan set is Exhibit 22 and Exhibit 22 is not in the decision, so
+nobody here knows where the applicant's roads run. What is drawn is worked by
+rule from the counts and the areas the decision does give: the lot gridded and
+the largest rectangle standing 30 ft clear of its own boundary found, that
+rectangle shrunk about its south edge to the 16.5 acres approved, a spine down
+the east side toward Johnson Road and Mill Road, rungs west off it, and the 18
+RVs, 12 park models and 136 tents ranked along both sides of each rung from the
+entrance inward. It is a campground of the size and shape approved standing on
+the lot approved. It is not the applicant's drawing.
+
+One number the rule cannot honour. The decision has five hydrants no more than
+600 ft apart along their loop. This loop runs 1,408 m, so five come out 282 m
+apart. Five is the decision's number and it is kept; the spacing is handed back
+rather than quietly fixed.
+
+The trees on the lot are neither drawn nor cleared here. It is forest in the land
+cover and `trees.js` has already scattered it, and the decision keeps 66% of the
+canopy and says the campsite area keeps canopy too. The firs standing among the
+sites are the retained canopy.
+
+`node src/scene/test-campground.mjs` walks the layout: every site and stall inside
+the buffer line, no two on the same ground, the counts against the permit, and no
+building over the 25 ft the Special District allows. None of that shows on screen
+at any range this is seen from, which is why it is a test.
+
 ## Deploy
 
 ```
@@ -57,6 +94,7 @@ server/test_*.py           plain asserts, no runner: python server/test_shipfind
 scripts/build_terrain.py   bakes the two heightmaps from NOAA CUDEM and GMRT
 scripts/build_osm.py       bakes roads, buildings, coastline, landmarks from Overpass
 scripts/build_landcover.py bakes NLCD 2021 land cover for the near tile
+scripts/build_parcel.py    bakes the campground's lot from Whatcom County's parcel layer
 src/main.js                wires the scene, the camera, the modes
 src/nav.js                 the modes themselves, and the boat's hydrodynamics
 src/touch.js               the on-screen stick, and the drag that looks about
@@ -64,6 +102,8 @@ src/gyro.js                how far the phone has turned, for the modes that look
 src/share.js               puts the view in the address bar, and reads it back
 src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, vessels, aircraft, sky
 src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not
+src/scene/campground-plan.js  where the proposed campground goes, in metres. No three, no meshes
+src/scene/campground.js    that plan drawn. Off unless asked for
 src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
 src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
 src/scene/drift.js         kelp, sticks and foam on the water, so the current can be seen

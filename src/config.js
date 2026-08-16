@@ -61,3 +61,8 @@ export const SITE_BOULDERS = "assets/site/389-boulders.json";
 
 // Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
 export const OSM = "assets/osm/features.json";
+
+// The lot the proposed Nielson Campground would stand on, off Whatcom County's
+// parcel layer. The lot is surveyed; the campground on it is not — see
+// src/scene/campground.js.
+export const SITE_CAMPGROUND = "assets/site/nielson-campground.json";

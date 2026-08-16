@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_BOULDERS, SITE_STAIR, SITE_TREES, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_STAIR, SITE_TREES, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -18,6 +18,7 @@ import { buildLand, osmFeatures } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
+import { buildCampground } from "./scene/campground.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
@@ -202,6 +203,7 @@ let ground = null;
 let lot = null;
 let skylineTile = null;   // the Gulf Islands, so the far half of a frame lands too
 let brademy = null;      // the proposed courts. Off until asked for.
+let campground = null;   // the proposed campground off Dogwood Way. Off until asked for.
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
@@ -255,9 +257,15 @@ stairSpec
       osmFeatures(),
       fetch(SITE_TREES).then((r) => r.json()),
       fetch(SITE_BOULDERS).then((r) => r.json()),
+      // fetch resolves for a 404 as happily as for a 200, and a missing parcel
+      // would arrive as an error page with no rings in it.
+      fetch(SITE_CAMPGROUND).then((r) => {
+        if (!r.ok) throw new Error(`${SITE_CAMPGROUND}: HTTP ${r.status}`);
+        return r.json();
+      }),
     ]);
   })
-  .then(([stair, fine, covers, near, osm, siteTrees, siteBoulders]) => {
+  .then(([stair, fine, covers, near, osm, siteTrees, siteBoulders, parcel]) => {
     // Everything standing on the ground asks one sampler, and it answers off the
     // lidar where the lidar reaches. Otherwise the cabin would sit on CUDEM while
     // the ground under it was drawn from something else.
@@ -276,6 +284,7 @@ stairSpec
     trees = buildTrees(scene, near.sample, near.cover, osm.roads, siteTrees);
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
+    campground = buildCampground(scene, parcel, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
     // while the courts are up.
     // The cabin is modelled off photographs rather than extruded from its OSM
@@ -318,6 +327,7 @@ stairSpec
         brademy.setVisible(true);
         if (breakers) breakers.visible = false;
       }
+      if (shared && shared.campground) campground.setVisible(true);
       if (shared && shared.map) overview.toggle();
     });
   })
@@ -1468,6 +1478,23 @@ function lookAtBrademy() {
 }
 document.getElementById("brademy-btn").addEventListener("click", toggleBrademy);
 
+// The campground is 1.9 km east-northeast and there is nothing to see from here,
+// so turning it on takes you to it the same way the courts do.
+function toggleCampground() {
+  if (!campground) return;
+  const on = !campground.visible;
+  campground.setVisible(on);
+  if (!on) return;
+  const c = campground.centre;
+  const fov = (camera.fov * Math.PI) / 360;
+  const range = (campground.span / 2) / Math.tan(fov) * 1.25;
+  nav.toOrbit();
+  camera.position.set(c.x, c.y + range * 0.62, c.z + range * 0.78);
+  controls.target.copy(c);
+  controls.update();
+}
+document.getElementById("campground-btn").addEventListener("click", toggleCampground);
+
 // Whales, now, on the water beside wherever you are, and then it puts you where
 // you can watch them, the way turning the courts on takes you to the courts.
 //
@@ -1507,6 +1534,7 @@ document.getElementById("whales-btn").addEventListener("click", () => {
 // the whole of sharing.
 const share = new Share(camera, () => ({
   brademy: brademy ? brademy.visible : false,
+  campground: campground ? campground.visible : false,
   map: overview.visible,
   // The hour the scene is standing at, so a link opens on the same light. Left
   // off when the clock is the real one. Quartered, or the address bar would be
@@ -1520,6 +1548,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyM") chooser.classList.remove("hidden");
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
+  if (e.code === "KeyG") toggleCampground();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
   if (e.code === "KeyN" && !e.repeat) nextWyzeCam();

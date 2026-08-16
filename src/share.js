@@ -72,7 +72,12 @@ export function readViewHash(hash) {
   const eye = readPlace(got.eye);
   const aim = readPlace(got.aim);
   if (!eye || !aim) return null;
-  return { eye, aim, brademy: got.brademy === "1", map: got.map === "1" };
+  return {
+    eye, aim,
+    brademy: got.brademy === "1",
+    campground: got.campground === "1",
+    map: got.map === "1",
+  };
 }
 
 // Keeps the address bar on the current view, and hands out the link.
