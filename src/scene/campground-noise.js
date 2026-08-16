@@ -61,21 +61,25 @@ export const ALPHA_DB_PER_KM = 3;
 
 // Where the bands are cut. The first two are the law — WAC 173-60 allows 55 dBA
 // at a residence and 45 dBA between ten at night and seven in the morning, which
-// is condition 49. The other two are what a quiet rural night sounds like: it
-// sits at 25 to 35 dB, so 35 is where the camp stands out of it and 25 is where
-// it joins it.
+// is condition 49. The last is the night itself: a quiet rural night sits at 25
+// to 35 dB, so 35 is where the camp starts to stand out of it.
+//
+// Nothing is drawn below 35. There was a 25 dB band and it was wrong to paint:
+// 25 is under what the night already sounds like, so that band meant "you cannot
+// pick this out of the background" and it covered three kilometres of ground
+// saying so. A region where the camp is inaudible is not an impact and should
+// not be coloured like one.
 //
 // One hue, stepped, quietest deepest. Run through the data-viz validator on both
-// surfaces it is drawn on — this panel's dark background and the terrain — and
+// surfaces it is drawn on — the map panel's dark background and the ground — and
 // it holds monotone lightness, visible gaps and one hue on all of them. The
-// quietest step does not clear the 2:1 floor against mid terrain, and that is
-// the intended behaviour rather than a miss: this is a sequential field and its
-// low end means "barely anything", which is allowed to recede toward the ground.
+// quietest step does not clear the 2:1 floor against mid ground, which is the
+// documented behaviour of a sequential ramp rather than a miss: its low end is
+// allowed to recede toward the surface.
 export const BANDS = [
   { min: 55, label: "55+", color: "#e79ab6" },
-  { min: 45, label: "45", color: "#da6690" },
-  { min: 35, label: "35", color: "#b4446d" },
-  { min: 25, label: "25", color: "#843150" },
+  { min: 45, label: "45", color: "#cc4e7c" },
+  { min: 35, label: "35", color: "#843150" },
 ];
 
 // How much is lost getting r metres from a source, in decibels. Spherical while

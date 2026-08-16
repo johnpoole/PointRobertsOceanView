@@ -120,7 +120,7 @@ function building(spec, w, d, cx, cz, ground, clad) {
 // the map.
 //
 // The bands are a texture and not a colour per vertex. The mesh has to be coarse
-// enough to be affordable over three kilometres of ground, and a coarse mesh
+// enough to be affordable over a kilometre and a half of ground, and a coarse mesh
 // carrying the colour in its corners would blend one band into the next and turn
 // four thresholds into a smear. In a nearest-filtered texture the edge between
 // 45 and 35 dB stays where the arithmetic put it however few triangles are
@@ -259,9 +259,9 @@ export function buildCampground(scene, parcel, sample, box) {
       vertexColors: true, roughness: 0.6, metalness: 0.2 })));
   scene.add(group);
 
-  // The sound layer goes in its own group. It reaches three kilometres and the
-  // campground reaches four hundred metres, so aiming the camera at one must not
-  // be made to frame the other.
+  // The sound layer goes in its own group. It reaches more than a kilometre and
+  // the campground reaches four hundred metres, so aiming the camera at one must
+  // not be made to frame the other.
   const noise = buildNoiseLayer(plan.sites, sample, box);
   const noiseGroup = new THREE.Group();
   noiseGroup.visible = false;

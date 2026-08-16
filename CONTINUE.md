@@ -92,10 +92,16 @@ range this is seen from, which is why it is a test.
 ### How far it carries
 
 Both the ground itself and the overview map shade by sound level while the
-campground is up. Four bands: 55 dB, which is what WAC 173-60 allows at a
+campground is up. Three bands: 55 dB, which is what WAC 173-60 allows at a
 residence by day; 45, which is what it allows between ten at night and seven in
-the morning, condition 49; 35, where the camp stands out of a quiet rural night;
-and 25, where it joins it.
+the morning, condition 49; and 35, where the camp starts to stand out of a quiet
+rural night.
+
+Nothing is drawn below 35. There was a 25 dB band and it was wrong to paint: a
+quiet rural night is 25 to 35 dB on its own, so that band meant "you cannot pick
+this out of the background" and it covered three kilometres of ground saying so.
+A region where the camp is inaudible is not an impact and must not be coloured
+like one.
 
 **It is the worst night, not an average one.** A campground is not a nuisance on
 the median evening, it is a nuisance on the still warm one when the place is full
@@ -117,7 +123,7 @@ never fall silent at all.
 | 40 ft east, over the boundary | 54.1 dB |
 | 800 ft west, nearest house | 42.8 dB |
 | how far the 45 dBA night limit reaches | 150 m off the camp's east edge |
-| quiet again by | 3.1 km |
+| back into the night by | 1.2 km |
 
 Still left out: the wind, which adds as much again downwind — but a worst night
 is a calm one, which is what the duct wants, so leaving it out is the right way

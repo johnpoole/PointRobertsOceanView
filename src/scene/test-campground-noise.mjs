@@ -125,6 +125,12 @@ for (let i = 1; i < BANDS.length; i++) {
 ok(bandOf(BANDS[0].min) === 0, "the loudest band does not claim its own edge");
 ok(bandOf(BANDS[BANDS.length - 1].min - 0.001) === -1,
    "something below the quietest band was still given a colour");
+// A quiet rural night is 25 to 35 dB on its own. Nothing under that may be
+// drawn: the camp cannot be picked out of the background there, and a region
+// where it is inaudible is not an impact and must not be coloured like one.
+ok(BANDS[BANDS.length - 1].min >= 35,
+   `the quietest band starts at ${BANDS[BANDS.length - 1].min} dB, which is ` +
+   `inside what a quiet rural night already sounds like`);
 
 // ---- the reach -------------------------------------------------------------
 // The distance the field is drawn out to is where every site together falls to
