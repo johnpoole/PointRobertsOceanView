@@ -8,6 +8,7 @@
 // keeps a 40 000-point drawing off the per-frame path.
 
 import { toWorld } from "./geo.js";
+import { BANDS, noiseField } from "./scene/campground-noise.js";
 
 const BASE_PX = 1400;      // resolution the static map is drawn at
 const MARGIN_M = 120;      // breathing room around the outermost feature
@@ -29,6 +30,8 @@ export class OverviewMap {
     this.base = null;
     this.bounds = null;
     this.landmarks = [];
+    this.noise = null;      // how far the campground carries. Built by setNoise.
+    this.showNoise = false; // up with the campground, since it is the campground's
   }
 
   get visible() { return !this.canvas.classList.contains("hidden"); }
@@ -80,6 +83,66 @@ export class OverviewMap {
     this.base = base;
   }
 
+  // The sound layer, off the campground's own site positions. Drawn once into a
+  // canvas of its own at the field's resolution and blitted under the road
+  // drawing, so the map's line work stays on top of it and stays readable.
+  //
+  // Painted at full opacity on purpose. The bands were validated for contrast
+  // against this panel's own background, and laying them on at half alpha would
+  // fade the quietest one back into it and make that check a lie.
+  setNoise(sites) {
+    if (!this.bounds) {
+      throw new Error(
+        "OverviewMap.setNoise: called before build(), so there is no projection " +
+        "to place the field in. Call build() with the OSM features first.");
+    }
+    const field = noiseField(sites);
+    if (!field) return;
+    const c = document.createElement("canvas");
+    c.width = c.height = field.cells;
+    const g = c.getContext("2d");
+    const img = g.createImageData(field.cells, field.cells);
+    const rgb = BANDS.map((b) => [
+      parseInt(b.color.slice(1, 3), 16),
+      parseInt(b.color.slice(3, 5), 16),
+      parseInt(b.color.slice(5, 7), 16),
+    ]);
+    for (let k = 0; k < field.bands.length; k++) {
+      const b = field.bands[k];
+      if (b < 0) continue;
+      img.data[k * 4] = rgb[b][0];
+      img.data[k * 4 + 1] = rgb[b][1];
+      img.data[k * 4 + 2] = rgb[b][2];
+      img.data[k * 4 + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    this.noise = { canvas: c, x0: field.x0, z0: field.z0, span: field.span };
+  }
+
+  // The key. Four swatches and the decibels they stand for, which is the whole
+  // of what the shading means.
+  drawNoiseKey(ctx) {
+    const sw = 9, row = 12, pad = 6, inset = 6;
+    const head = 12;
+    const h = head + BANDS.length * row + inset;
+    const w = 50;
+    ctx.fillStyle = "rgba(8,16,24,0.82)";
+    ctx.fillRect(pad, pad, w, h);
+    ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(232,223,200,0.65)";
+    ctx.fillText("dB", pad + inset, pad + head / 2 + 1);
+    BANDS.forEach((b, i) => {
+      const y = pad + head + i * row;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(pad + inset, y, sw, sw);
+      ctx.fillStyle = "rgba(232,223,200,0.9)";
+      ctx.fillText(b.label, pad + inset + sw + 5, y + sw / 2);
+    });
+    ctx.textBaseline = "alphabetic";
+  }
+
   // Where you are, and which way you are pointing.
   update(x, z, yaw) {
     if (!this.base || !this.visible) return;
@@ -89,10 +152,22 @@ export class OverviewMap {
     if (c.width !== size * dpr) { c.width = c.height = Math.round(size * dpr); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, size, size);
-    ctx.drawImage(this.base, 0, 0, size, size);
 
     const { x0, z0, span } = this.bounds;
     const toPx = (wx, wz) => [((wx - x0) / span) * size, ((wz - z0) / span) * size];
+
+    // Under the roads, and hard-edged: the bands are four colours and smoothing
+    // the blit would invent every shade between them.
+    if (this.noise && this.showNoise) {
+      const n = this.noise;
+      const [nx, nz] = toPx(n.x0, n.z0);
+      const was = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(n.canvas, nx, nz, (n.span / span) * size, (n.span / span) * size);
+      ctx.imageSmoothingEnabled = was;
+    }
+
+    ctx.drawImage(this.base, 0, 0, size, size);
 
     ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
     ctx.fillStyle = "rgba(255,206,84,0.95)";
@@ -123,5 +198,7 @@ export class OverviewMap {
     ctx.strokeStyle = "rgba(8,16,24,0.9)";
     ctx.stroke();
     ctx.restore();
+
+    if (this.noise && this.showNoise) this.drawNoiseKey(ctx);
   }
 }

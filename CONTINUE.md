@@ -89,6 +89,38 @@ distances above, a rank carrying one kind of site and no other, and no building
 over the 25 ft the Special District allows. None of that shows on screen at any
 range this is seen from, which is why it is a test.
 
+### How far it carries
+
+The overview map shades by sound level while the campground is up. Four bands:
+55 dB, which is what WAC 173-60 allows at a residence by day; 45, which is what
+it allows between ten at night and seven in the morning, condition 49; 35, where
+the camp starts to stand out of a quiet rural night; and 25, where it joins it.
+
+The model is geometric spreading and nothing else. Every one of the 166 sites is
+a point source of 60 dB at a metre — ordinary conversation — they all sound at
+once, and their energies add. That gives 31.6 dB at the 800 ft west and 44.3 dB
+at the 40 ft east, and it dies into a quiet night at 725 m.
+
+**It leaves out everything that matters more than distance.** The night
+inversion over a flat plateau is worth 5 to 10 dB at a few hundred metres and is
+the largest term there is. Wind adds or takes about as much. Ground effect takes
+several dB back out. The trees are worth 1 to 3 dB per 10 m of belt and no more —
+a screen you cannot see through is not a screen you cannot hear through. It is
+the shape of the falloff, not a prediction of a level, and nothing read off it
+belongs in a comment to the county.
+
+The four colours are one hue stepped for this panel's own dark background, and
+they were run through the data-viz validator: monotone in lightness, visible gaps
+between steps, and the quietest band clearing the panel at 2.58:1 so it does not
+sink into it. They are laid on at full opacity under the road drawing for the
+same reason — half alpha would fade that band back into the background and make
+the check a lie.
+
+`node src/scene/test-campground-noise.mjs` checks the model against the closed
+form it is supposed to obey: 6 dB per doubling from one source, 10 log10(n) for n
+of them at the same range, finite on top of a site, and the two staff-report
+distances landing where the prose says they should.
+
 ## Deploy
 
 ```
@@ -125,6 +157,7 @@ src/scene/                 terrain, trees, ocean, land, beach, boat, vehicles, v
 src/scene/brademy.js       the tennis courts, off unless asked for, and the hedge, which is not
 src/scene/campground-plan.js  where the proposed campground goes, in metres. No three, no meshes
 src/scene/campground.js    that plan drawn. Off unless asked for
+src/scene/campground-noise.js  how far it carries, by distance alone. Shades the map
 src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
 src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
 src/scene/drift.js         kelp, sticks and foam on the water, so the current can be seen

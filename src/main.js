@@ -305,6 +305,9 @@ stairSpec
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
+      // The sound layer is the campground's, so it needs the campground's sites
+      // and it goes up and down with it.
+      overview.setNoise(campground.plan.sites);
       // The whales run the west shore, so they need the coastline, which only
       // exists once the land has been built. They ride the same surface the boat
       // floats on, and the same sampler is what tells them which side is the sea.
@@ -327,7 +330,10 @@ stairSpec
         brademy.setVisible(true);
         if (breakers) breakers.visible = false;
       }
-      if (shared && shared.campground) campground.setVisible(true);
+      if (shared && shared.campground) {
+        campground.setVisible(true);
+        overview.showNoise = true;
+      }
       if (shared && shared.map) overview.toggle();
     });
   })
@@ -1484,6 +1490,7 @@ function toggleCampground() {
   if (!campground) return;
   const on = !campground.visible;
   campground.setVisible(on);
+  overview.showNoise = on;
   if (!on) return;
   const c = campground.centre;
   const fov = (camera.fov * Math.PI) / 360;
