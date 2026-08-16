@@ -91,35 +91,67 @@ range this is seen from, which is why it is a test.
 
 ### How far it carries
 
-The overview map shades by sound level while the campground is up. Four bands:
-55 dB, which is what WAC 173-60 allows at a residence by day; 45, which is what
-it allows between ten at night and seven in the morning, condition 49; 35, where
-the camp starts to stand out of a quiet rural night; and 25, where it joins it.
+Both the ground itself and the overview map shade by sound level while the
+campground is up. Four bands: 55 dB, which is what WAC 173-60 allows at a
+residence by day; 45, which is what it allows between ten at night and seven in
+the morning, condition 49; 35, where the camp stands out of a quiet rural night;
+and 25, where it joins it.
 
-The model is geometric spreading and nothing else. Every one of the 166 sites is
-a point source of 60 dB at a metre — ordinary conversation — they all sound at
-once, and their energies add. That gives 31.6 dB at the 800 ft west and 44.3 dB
-at the 40 ft east, and it dies into a quiet night at 725 m.
+**It is the worst night, not an average one.** A campground is not a nuisance on
+the median evening, it is a nuisance on the still warm one when the place is full
+and everybody is up late. Three things make it the worst case: every site
+occupied and sounding at once, a raised voice rather than a quiet one at 70 dB a
+metre off, and a nocturnal inversion.
 
-**It leaves out everything that matters more than distance.** The night
-inversion over a flat plateau is worth 5 to 10 dB at a few hundred metres and is
-the largest term there is. Wind adds or takes about as much. Ground effect takes
-several dB back out. The trees are worth 1 to 3 dB per 10 m of belt and no more —
-a screen you cannot see through is not a screen you cannot hear through. It is
-the shape of the falloff, not a prediction of a level, and nothing read off it
-belongs in a comment to the county.
+The inversion is the term that matters. After sunset the ground cools faster than
+the air over it, so a ray climbing out of the camp is bent back down. Past the
+range where that returns it to the ground the sound spreads over a cylinder
+rather than a sphere, and the falloff goes from 6 dB per doubling of distance to
+3. That is why you hear a road at night that you cannot hear at noon. It is worth
+7 dB at a kilometre here. The duct is closed at 200 m and loses 3 dB a kilometre
+to the air and to bouncing off soft ground, and without that second term it would
+never fall silent at all.
 
-The four colours are one hue stepped for this panel's own dark background, and
-they were run through the data-viz validator: monotone in lightness, visible gaps
-between steps, and the quietest band clearing the panel at 2.58:1 so it does not
-sink into it. They are laid on at full opacity under the road drawing for the
-same reason — half alpha would fade that band back into the background and make
-the check a lie.
+| | worst night |
+| --- | --- |
+| 40 ft east, over the boundary | 54.1 dB |
+| 800 ft west, nearest house | 42.8 dB |
+| how far the 45 dBA night limit reaches | 150 m off the camp's east edge |
+| quiet again by | 3.1 km |
+
+Still left out: the wind, which adds as much again downwind — but a worst night
+is a calm one, which is what the duct wants, so leaving it out is the right way
+round. The trees, worth 1 to 3 dB per 10 m of belt and no more, since a screen
+you cannot see through is not a screen you cannot hear through. And the terrain,
+which on this plateau shields nothing from anything.
+
+It is an upper bound on the shape of the falloff, not a prediction of a level.
+A real assessment measures the background at the houses over several nights and
+models it under ISO 9613-2 — which is itself a downwind model for much the same
+reason this is a night model. Nothing read off it belongs in a comment to the
+county.
+
+The colours are one hue stepped, quietest deepest, run through the data-viz
+validator on both surfaces they are drawn on: full opacity on the map panel,
+where all four checks pass and the quietest band clears the background at 2.24:1;
+and composited over the ground at 0.6, where monotone lightness, visible gaps and
+one hue hold on dark forest, mid grass and pale pasture alike. 0.6 is the
+lightest that does — at 0.55 the two quiet bands close to under the 0.06
+lightness gap and stop being two bands. The quietest step does not clear the 2:1
+floor against mid ground, and that is meant: this is a sequential field whose low
+end means barely anything, and a low end is allowed to recede.
+
+On the ground the bands are a nearest-filtered texture on a coarse draped sheet,
+not a colour per vertex. Three kilometres of ground has to be cut coarsely to be
+affordable, and a coarse mesh carrying the colour in its corners would blend one
+band into the next and turn four thresholds into a smear. The sheet is clipped to
+the near tile, because outside it the sampler clamps to the edge and the sheet
+would hang in the air over the water.
 
 `node src/scene/test-campground-noise.mjs` checks the model against the closed
-form it is supposed to obey: 6 dB per doubling from one source, 10 log10(n) for n
-of them at the same range, finite on top of a site, and the two staff-report
-distances landing where the prose says they should.
+forms it must obey: 6 dB per doubling inside the duct, 3 outside, the two halves
+meeting at the seam, 10 log10(n) for n sources at one range, finite standing on a
+site, and the two staff-report distances landing where the prose says.
 
 ## Deploy
 

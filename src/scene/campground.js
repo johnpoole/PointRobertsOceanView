@@ -21,6 +21,7 @@ import { fromWorld } from "../geo.js";
 import {
   BUILDINGS, PLINTH_M, ROAD_ONE_WAY_M, planCampground,
 } from "./campground-plan.js";
+import { BANDS, noiseField } from "./campground-noise.js";
 import { box, gableRoof, tint } from "./parts.js";
 
 const LIFT_M = 0.06;       // how far a made surface stands over the ground
@@ -115,8 +116,99 @@ function building(spec, w, d, cx, cz, ground, clad) {
   return parts;
 }
 
+// How far the campground carries, laid on the ground itself rather than only on
+// the map.
+//
+// The bands are a texture and not a colour per vertex. The mesh has to be coarse
+// enough to be affordable over three kilometres of ground, and a coarse mesh
+// carrying the colour in its corners would blend one band into the next and turn
+// four thresholds into a smear. In a nearest-filtered texture the edge between
+// 45 and 35 dB stays where the arithmetic put it however few triangles are
+// under it.
+//
+// Clipped to the near tile, because the sampler has no ground outside it and
+// clamps to the edge — over water that would hang a coloured sheet in the air.
+const NOISE_LIFT_M = 0.35;   // clear of the ground, under everything built on it
+const NOISE_STEP_M = 25;     // how finely the sheet is cut to follow the ground
+// How much of the ground the bands cover. Not a taste: at 0.55 and below the
+// composite of the two quietest bands over mid terrain closes to under the 0.06
+// lightness gap the data-viz validator wants and they stop being two bands. 0.6
+// is the lightest that still holds them apart on dark forest, mid grass and pale
+// pasture alike. A ramp on the alpha as well as the lightness was tried and is
+// worse: it fades the quiet band so far into the ground that it changes hue.
+const NOISE_ALPHA = 0.6;
+
+function buildNoiseLayer(sites, sample, box) {
+  const field = noiseField(sites);
+  if (!field) return null;
+
+  const tex = new THREE.DataTexture(
+    new Uint8Array(field.cells * field.cells * 4), field.cells, field.cells);
+  const rgb = BANDS.map((b) => [
+    parseInt(b.color.slice(1, 3), 16),
+    parseInt(b.color.slice(3, 5), 16),
+    parseInt(b.color.slice(5, 7), 16),
+  ]);
+  for (let k = 0; k < field.bands.length; k++) {
+    const b = field.bands[k];
+    if (b < 0) continue;
+    tex.image.data[k * 4] = rgb[b][0];
+    tex.image.data[k * 4 + 1] = rgb[b][1];
+    tex.image.data[k * 4 + 2] = rgb[b][2];
+    tex.image.data[k * 4 + 3] = 255;
+  }
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+
+  // The sheet, cut into steps and hung on the terrain. Cells whose ground the
+  // near tile does not hold are dropped rather than clamped.
+  const n = Math.max(1, Math.round(field.span / NOISE_STEP_M));
+  const at = (x, z) => {
+    const { lat, lon } = fromWorld(x, z);
+    if (lat < box.min_lat || lat > box.max_lat || lon < box.min_lon || lon > box.max_lon) {
+      return null;
+    }
+    return sample(lat, lon) + NOISE_LIFT_M;
+  };
+  const pos = [], uv = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const x0 = field.x0 + (field.span * j) / n, x1 = field.x0 + (field.span * (j + 1)) / n;
+      const z0 = field.z0 + (field.span * i) / n, z1 = field.z0 + (field.span * (i + 1)) / n;
+      const y = [at(x0, z0), at(x1, z0), at(x1, z1), at(x0, z1)];
+      if (y.some((v) => v === null)) continue;
+      const u0 = j / n, u1 = (j + 1) / n, v0 = i / n, v1 = (i + 1) / n;
+      pos.push(x0, y[0], z0, x1, y[1], z0, x1, y[2], z1);
+      pos.push(x0, y[0], z0, x1, y[2], z1, x0, y[3], z1);
+      uv.push(u0, v0, u1, v0, u1, v1);
+      uv.push(u0, v0, u1, v1, u0, v1);
+    }
+  }
+  if (!pos.length) {
+    throw new Error(
+      "campground: the sound layer came out empty. Every cell of the field fell " +
+      "outside the near terrain tile, which means the campground is not on it.");
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uv), 2));
+  g.computeVertexNormals();
+  const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, opacity: NOISE_ALPHA,
+    // Over the ground and under everything standing on it, and it must not stop
+    // what is behind it being drawn: a three-kilometre sheet writing depth would
+    // cut the horizon out of the view.
+    depthWrite: false, side: THREE.DoubleSide, fog: true,
+  }));
+  mesh.renderOrder = 1;
+  return { mesh, field };
+}
+
 // parcel is the baked asset. sample(lat, lon) -> metres above MLLW.
-export function buildCampground(scene, parcel, sample) {
+// box is the near tile's lat/lon box, which is as far as the ground reaches.
+export function buildCampground(scene, parcel, sample, box) {
   const plan = planCampground(parcel);
   const groundAt = (x, z) => {
     const { lat, lon } = fromWorld(x, z);
@@ -167,6 +259,15 @@ export function buildCampground(scene, parcel, sample) {
       vertexColors: true, roughness: 0.6, metalness: 0.2 })));
   scene.add(group);
 
+  // The sound layer goes in its own group. It reaches three kilometres and the
+  // campground reaches four hundred metres, so aiming the camera at one must not
+  // be made to frame the other.
+  const noise = buildNoiseLayer(plan.sites, sample, box);
+  const noiseGroup = new THREE.Group();
+  noiseGroup.visible = false;
+  noiseGroup.add(noise.mesh);
+  scene.add(noiseGroup);
+
   const centre = new THREE.Vector3(
     plan.centre.x, groundAt(plan.centre.x, plan.centre.z), plan.centre.z);
 
@@ -175,7 +276,8 @@ export function buildCampground(scene, parcel, sample) {
     plan,
     centre,
     span: plan.span,
+    reach: noise.field.reach,
     get visible() { return group.visible; },
-    setVisible(on) { group.visible = on; },
+    setVisible(on) { group.visible = on; noiseGroup.visible = on; },
   };
 }

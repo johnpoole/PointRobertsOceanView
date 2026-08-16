@@ -284,7 +284,7 @@ stairSpec
     trees = buildTrees(scene, near.sample, near.cover, osm.roads, siteTrees);
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
-    campground = buildCampground(scene, parcel, near.sample);
+    campground = buildCampground(scene, parcel, near.sample, near.meta.box);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
     // while the courts are up.
     // The cabin is modelled off photographs rather than extruded from its OSM
