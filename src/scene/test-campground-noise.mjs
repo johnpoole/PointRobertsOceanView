@@ -175,24 +175,39 @@ while (levelAt(plan.sites, plan.block.x1 + nightM, mid) > 45 && nightM < 5000) n
 
 const drawn = [...field.bands].filter((b) => b >= 0);
 ok(drawn.length, "the field came out empty");
-// The camp measured from inside itself, against the US Bureau of Reclamation's
-// figure for developed recreation areas as a class: an Ldn of 50 to 65 dBA. This
-// is what calibrates the source level, so it is checked rather than assumed.
-const inCamp = levelAt(plan.sites, (plan.block.x0 + plan.block.x1) / 2, mid);
-ok(inCamp >= 50 && inCamp <= 65,
-   `standing in the camp reads ${inCamp.toFixed(1)} dB, and a developed ` +
-   `recreation area is 50 to 65 dBA Ldn. The source level is off`);
+// The source level is the one term with nothing measured behind it. All that can
+// be asserted about it is that it is a raised voice and not something else:
+// speech tables put ordinary conversation near 60 dB at a metre and a shout near
+// 85. Anything outside this band is a different claim and should be argued for.
+ok(SITE_DB >= 66 && SITE_DB <= 72,
+   `the source is ${SITE_DB} dB at a metre, and a raised voice is 66 to 72. ` +
+   `Outside that it is a quiet conversation or a shout, either of which needs ` +
+   `saying out loud`);
 
 console.log(
   `${SITE_DB} dB a site, ${plan.sites.length} sites, spherical throughout, ` +
   `${AIR_DB_PER_KM} dB a km of air, ${groundLoss(1000).toFixed(1)} dB of ground`);
-console.log(`standing in the camp: ${inCamp.toFixed(1)} dB`);
 console.log(
   `${east.toFixed(1)} dB at the 40 ft east, ${west.toFixed(1)} dB at the 800 ft ` +
   `west, quiet by ${field.reach.toFixed(0)} m`);
 console.log(
   `the 45 dBA night limit reaches ${nightM} m off the east edge of the camp; ` +
   `bands drawn run ${BANDS[Math.min(...drawn)].label} to ${BANDS[Math.max(...drawn)].label} dB`);
+
+// What the unmeasured number costs. Printed every run, because a reader who sees
+// only the line above will take 60 m for a finding, and it is an assumption
+// wearing a finding's clothes.
+const reach45 = (S) => {
+  let m = 0;
+  while (10 * Math.log10(plan.sites.reduce((e, s) => {
+    const sx = (s.pad.x0 + s.pad.x1) / 2, sz = (s.pad.z0 + s.pad.z1) / 2;
+    return e + Math.pow(10, (S - spreadingLoss(Math.hypot(plan.block.x1 + m - sx, mid - sz))) / 10);
+  }, 0)) > 45 && m < 9000) m += 5;
+  return m;
+};
+console.log(
+  `move the source and it moves: ${[64, 70, 76, 82]
+    .map((S) => `${S} dB -> ${reach45(S)} m`).join(", ")}`);
 
 if (failures) {
   console.error(`${failures} failed`);

@@ -45,16 +45,36 @@
 // the full octave-band method with the real source spectrum. Nothing read off
 // this belongs in a comment to the county.
 
-// One occupied site, at a metre. A raised voice, which is how people talk
-// outdoors around a fire with others talking nearby.
+// THE ONE NUMBER HERE WITH NOTHING MEASURED BEHIND IT, and the one that decides
+// the answer. Every other term above is read off a standard. This is a speech
+// table: ordinary conversation is about 60 dB at a metre and a raised voice about
+// 70, which is how people talk outdoors with others talking nearby.
 //
-// Checked two ways rather than taken off a speech table alone. Speech tables put
-// ordinary conversation near 60 dB at a metre and a raised voice near 70. And
-// the US Bureau of Reclamation's noise appendix for the Navajo Reservoir plan
-// puts developed recreation areas — campgrounds and day-use areas — at an Ldn of
-// 50 to 65 dBA, as a class. At 70 dB a site this model comes out at 56 dB
-// standing in the middle of the camp, which sits mid-band of that range. At 60
-// it comes out at 46, below it.
+// It is a level per site, not per person, and that cuts both ways. A site with
+// four people talking at once is 6 dB over one, so 70 is low. Against that, this
+// model has all 166 sites sounding at once, which no evening does, so 70 is
+// high. Neither error has been measured and they are not known to cancel.
+//
+// What it costs to be wrong, from this layout:
+//
+//     source     45 dB reaches     35 dB reaches
+//      64 dB          20 m             130 m
+//      70 dB          60 m             310 m
+//      76 dB         175 m             640 m
+//      82 dB         395 m            1180 m
+//
+// Six decibels on this constant roughly triples the distance the night limit
+// carries. Nothing else in the file is anywhere near that sensitive, so if one
+// figure is ever worth going and measuring, it is this one.
+//
+// A published measurement inside an occupied campground would settle it and none
+// was found. The nearest thing is the US Bureau of Reclamation's noise appendix
+// for the Navajo Reservoir plan, and it does not do the job: it says heavy
+// recreational use areas could be compared to residential areas at an Ldn of 50
+// to 65 dBA. That is an analogy rather than a measurement, and Ldn is a 24-hour
+// average carrying a 10 dB penalty on the hours after ten at night, so it cannot
+// be set against an instantaneous worst case at all. An earlier version of this
+// file used it as a calibration. It was not one.
 export const SITE_DB = 70;
 
 // Atmospheric absorption, ISO 9613-2:1996 table 2: the coefficient at 500 Hz,

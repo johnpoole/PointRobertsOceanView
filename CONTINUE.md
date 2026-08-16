@@ -120,16 +120,36 @@ Every term is the standard's and every source is checked, not remembered:
 | 55 and 45 dBA | Class A to Class A, less 10 at night | WAC 173-60-040 |
 | 70 dB a site | raised voice, cross-checked below | speech tables + USBR |
 
-The source level is the only figure not read off a document, and it is checked
-against one: the US Bureau of Reclamation's noise appendix for the Navajo
-Reservoir plan puts developed recreation areas — campgrounds and day-use areas —
-at an Ldn of 50 to 65 dBA as a class. At 70 dB a site this model reads 56 dB
-standing in the middle of the camp, mid-band. At 60 it reads 46, below it. The
-test asserts that.
+**The source level is the only figure with nothing measured behind it, and it is
+the one that decides the answer.** It is a speech table: ordinary conversation is
+about 60 dB at a metre, a raised voice about 70. It is per site, not per person,
+and that cuts both ways — four people at one site is 6 dB over one, so 70 is low;
+all 166 sites sounding at once is an evening that never happens, so 70 is high.
+Neither has been measured and they are not known to cancel.
+
+What being wrong costs:
+
+| source | 45 dB reaches | 35 dB reaches |
+| --- | --- | --- |
+| 64 dB | 20 m | 130 m |
+| **70 dB** | **60 m** | **310 m** |
+| 76 dB | 175 m | 640 m |
+| 82 dB | 395 m | 1180 m |
+
+Six decibels roughly triples how far the night limit carries. Nothing else here
+is close to that sensitive. The test prints that table on every run so nobody
+reads the 60 m as a finding.
+
+No published measurement inside an occupied campground was found. The nearest
+thing, the US Bureau of Reclamation's Navajo Reservoir noise appendix, will not
+do the job: it likens heavy recreation areas to residential areas at an Ldn of 50
+to 65 dBA, which is an analogy rather than a measurement, and Ldn is a 24-hour
+average carrying a 10 dB penalty after ten at night, so it cannot be set against
+an instantaneous worst case. An earlier version of this file used it as a
+calibration. It was not one.
 
 | | worst night |
 | --- | --- |
-| standing in the camp | 56.2 dB |
 | 40 ft east, over the boundary | 52.1 dB |
 | 800 ft west, nearest house | 36.4 dB |
 | how far the 45 dBA night limit reaches | 60 m off the camp's east edge |
