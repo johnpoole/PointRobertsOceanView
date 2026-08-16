@@ -434,6 +434,11 @@ Ctrl-drag, right-drag, the wheel and two fingers all still go to the controls un
 
 Turning your head — camera still, view swinging — is a different thing and is not built.
 
+The sun slider is behind the hamburger too. It lies across the middle of the window, the window is
+what the page is for, and the hour is a thing you set once and then want out of the way. The aim trim
+just above it is not behind the hamburger and must not be: it is the one control live mode cannot do
+without.
+
 The readouts start off and the hamburger at the top left brings them back. At every width, not just
 on a phone: open, the four corner panels cover 21% of a 1280 x 800 screen and 60% of a phone, and
 this page is a window, so the window wins. The keys still work with the panels shut — `M`, `O`, `T`,
