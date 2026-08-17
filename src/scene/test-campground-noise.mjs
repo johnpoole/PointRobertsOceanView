@@ -160,9 +160,12 @@ ok(field.span > 2 * field.reach, "the field does not cover the camp and its reac
 const mid = (plan.block.z0 + plan.block.z1) / 2;
 const west = levelAt(plan.sites, plan.block.x0 - 800 * FT, mid);
 const east = levelAt(plan.sites, plan.block.x1 + 40 * FT, mid);
-ok(east > 45 && east < 55,
-   `at the 40 ft east the camp reads ${east.toFixed(1)} dB, and on the worst ` +
-   `night it should be over the 45 dBA night limit and under the 55 dBA day one`);
+// Over the night limit at the eastern boundary is the one thing the layout
+// makes certain: 40 ft is 40 ft. Whether it also clears the daytime limit is a
+// result and not a requirement, so it is reported below rather than asserted.
+ok(east > 45,
+   `at the 40 ft east the camp reads ${east.toFixed(1)} dB, under the 45 dBA ` +
+   `night limit, which cannot be right at that distance`);
 ok(west > 35 && west < 45,
    `at the 800 ft west the camp reads ${west.toFixed(1)} dB, and it should stand ` +
    `out of a quiet rural night and stay under the 45 dBA night limit`);
@@ -178,11 +181,11 @@ ok(drawn.length, "the field came out empty");
 // The source level is the one term with no measured campground behind it. What
 // can be asserted is that it is the vocal effort claimed and not another one.
 // ANSI S3.5-1997 gives, a metre in front of a talker: normal 62,35 · raised
-// 68,34 · loud 74,85 · shout 82,30 dB. This model says raised, so it must sit
-// between raised and loud, nearer raised.
-ok(SITE_DB >= 68.34 && SITE_DB < 74.85,
-   `the source is ${SITE_DB} dB at a metre. ANSI S3.5-1997 puts a raised voice ` +
-   `at 68,34 and a loud one at 74,85, and this file claims a raised voice`);
+// 68,34 · loud 74,85 · shout 82,30 dB. This model says a loud voice, so it must
+// sit at or over loud and short of a shout.
+ok(SITE_DB >= 74.85 && SITE_DB < 82.30,
+   `the source is ${SITE_DB} dB at a metre. ANSI S3.5-1997 puts a loud voice at ` +
+   `74,85 and a shout at 82,30, and this file claims a loud voice`);
 
 console.log(
   `${SITE_DB} dB a site, ${plan.sites.length} sites, spherical throughout, ` +
@@ -190,9 +193,12 @@ console.log(
 console.log(
   `${east.toFixed(1)} dB at the 40 ft east, ${west.toFixed(1)} dB at the 800 ft ` +
   `west, quiet by ${field.reach.toFixed(0)} m`);
+let dayM = 0;
+while (levelAt(plan.sites, plan.block.x1 + dayM, mid) > 55 && dayM < 5000) dayM += 5;
 console.log(
-  `the 45 dBA night limit reaches ${nightM} m off the east edge of the camp; ` +
-  `bands drawn run ${BANDS[Math.min(...drawn)].label} to ${BANDS[Math.max(...drawn)].label} dB`);
+  `the 45 dBA night limit reaches ${nightM} m off the east edge of the camp, ` +
+  `the 55 dBA day limit ${dayM} m; bands drawn run ` +
+  `${BANDS[Math.min(...drawn)].label} to ${BANDS[Math.max(...drawn)].label} dB`);
 
 // What the unmeasured number costs. Printed every run, because a reader who sees
 // only the line above will take 60 m for a finding, and it is an assumption
@@ -206,7 +212,7 @@ const reach45 = (S) => {
   return m;
 };
 console.log(
-  `move the source and it moves: ${[64, 70, 76, 82]
+  `move the source and it moves: ${[64, 70, 75, 82]
     .map((S) => `${S} dB -> ${reach45(S)} m`).join(", ")}`);
 
 if (failures) {

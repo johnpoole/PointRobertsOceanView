@@ -8,7 +8,7 @@
 // keeps a 40 000-point drawing off the per-frame path.
 
 import { toWorld } from "./geo.js";
-import { BANDS, noiseField } from "./scene/campground-noise.js";
+import { BANDS, SITE_DB, noiseField } from "./scene/campground-noise.js";
 
 const BASE_PX = 1400;      // resolution the static map is drawn at
 const MARGIN_M = 120;      // breathing room around the outermost feature
@@ -119,16 +119,19 @@ export class OverviewMap {
     this.noise = { canvas: c, x0: field.x0, z0: field.z0, span: field.span };
   }
 
-  // The key. Four swatches and the decibels they stand for, which is the whole
-  // of what the shading means.
+  // The key. The swatches and the decibels they stand for, and under them the
+  // level every campsite was given, because the whole picture is built on that
+  // one number and it is the only one in the model that is not read off a
+  // standard. A reader who cannot see it cannot argue with it.
   drawNoiseKey(ctx) {
     const sw = 9, row = 12, pad = 6, inset = 6;
-    const head = 12;
-    const h = head + BANDS.length * row + inset;
-    const w = 50;
+    const head = 12, foot = 14;
+    const source = `${SITE_DB} dB a site`;
+    const h = head + BANDS.length * row + foot;
+    ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
+    const w = Math.max(50, ctx.measureText(source).width + inset * 2);
     ctx.fillStyle = "rgba(8,16,24,0.82)";
     ctx.fillRect(pad, pad, w, h);
-    ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "rgba(232,223,200,0.65)";
@@ -140,6 +143,8 @@ export class OverviewMap {
       ctx.fillStyle = "rgba(232,223,200,0.9)";
       ctx.fillText(b.label, pad + inset + sw + 5, y + sw / 2);
     });
+    ctx.fillStyle = "rgba(232,223,200,0.55)";
+    ctx.fillText(source, pad + inset, pad + head + BANDS.length * row + foot / 2);
     ctx.textBaseline = "alphabetic";
   }
 

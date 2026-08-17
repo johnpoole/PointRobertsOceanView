@@ -54,26 +54,29 @@
 //
 //     normal 62,35 · raised 68,34 · loud 74,85 · shout 82,30 dB
 //
-// measured a metre in front of the talker. So 70 is a raised voice and a little
-// over — the way people talk outdoors with others talking nearby — and it sits
-// well below loud and nowhere near a shout.
+// measured a metre in front of the talker. So 75 is a loud voice — the standard's
+// own third step, not a shout — and that is what a site of people talking over
+// each other outdoors in the evening comes to.
 //
 // It is a level per site, not per person, and that cuts both ways. A site with
-// four people talking at once is 6 dB over one, so 70 is low. Against that, this
-// model has all 166 sites sounding at once, which no evening does, so 70 is
-// high. Neither error has been measured and they are not known to cancel.
+// four people talking at once is 6 dB over one, so 75 is low for a full site.
+// Against that, this model has all 166 sites sounding at once, which no evening
+// does, so 75 is high for a whole camp. Neither error has been measured and they
+// are not known to cancel.
 //
-// What it costs to be wrong, from this layout:
+// What it costs to be wrong. The test prints this every run, off the real
+// layout, so nobody reads a contour as a finding.
 //
 //     source     45 dB reaches     35 dB reaches
 //      64 dB          20 m             130 m
 //      70 dB          60 m             310 m
-//      76 dB         175 m             640 m
+//      75 dB         150 m             570 m
 //      82 dB         395 m            1180 m
 //
 // Six decibels on this constant roughly triples the distance the night limit
 // carries. Nothing else in the file is anywhere near that sensitive, so if one
-// figure is ever worth going and measuring, it is this one.
+// figure is ever worth going and measuring, it is this one. It is on the map key
+// for the same reason.
 //
 // A measurement inside an occupied campground would settle it. Three were looked
 // for and none of the three serves:
@@ -95,7 +98,7 @@
 //   only vehicles arriving. It notes that noise from people and recreation is
 //   outside the scope of BS 4142 altogether, which is part of why this number is
 //   so hard to come by.
-export const SITE_DB = 70;
+export const SITE_DB = 75;
 
 // Atmospheric absorption, ISO 9613-2:1996 table 2: the coefficient at 500 Hz,
 // 10 °C and 70% relative humidity, which is the band speech sits in and the

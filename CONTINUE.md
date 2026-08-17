@@ -124,25 +124,26 @@ Every term is the standard's and every source is checked, not remembered:
 it is the one that decides the answer.** It does have a standard behind it, which
 is not the same thing. ANSI S3.5-1997 gives the overall level of a talker a metre
 away at each vocal effort: normal 62.3, raised 68.3, loud 74.9, shout 82.3 dB. So
-70 is a raised voice and a shade over.
+75 dB is a loud voice — the standard's own third step, not a shout.
 
 It is per site, not per person, and that cuts both ways — four people at one site
-is 6 dB over one, so 70 is low; all 166 sites sounding at once is an evening that
-never happens, so 70 is high. Neither has been measured and they are not known to
-cancel.
+is 6 dB over one, so 75 is low for a full site; all 166 sites sounding at once is
+an evening that never happens, so 75 is high for a whole camp. Neither has been
+measured and they are not known to cancel.
 
 What being wrong costs:
 
 | source | 45 dB reaches | 35 dB reaches |
 | --- | --- | --- |
 | 64 dB | 20 m | 130 m |
-| **70 dB** | **60 m** | **310 m** |
-| 76 dB | 175 m | 640 m |
+| 70 dB | 60 m | 310 m |
+| **75 dB** | **150 m** | **570 m** |
 | 82 dB | 395 m | 1180 m |
 
 Six decibels roughly triples how far the night limit carries. Nothing else here
-is close to that sensitive. The test prints that table on every run so nobody
-reads the 60 m as a finding.
+is close to that sensitive. The test prints that table on every run, and the
+source level is on the map key, so nobody reads a contour as a finding without
+seeing what it rests on.
 
 No measurement inside an occupied campground was found. Three were looked for and
 none serves:
@@ -162,10 +163,11 @@ none serves:
 
 | | worst night |
 | --- | --- |
-| 40 ft east, over the boundary | 52.1 dB |
-| 800 ft west, nearest house | 36.4 dB |
-| how far the 45 dBA night limit reaches | 60 m off the camp's east edge |
-| back into the night by | 390 m |
+| 40 ft east, over the boundary | 57.1 dB |
+| 800 ft west, nearest house | 41.4 dB |
+| how far the 45 dBA night limit reaches | 150 m off the camp's east edge |
+| how far the 55 dBA day limit reaches | 20 m |
+| back into the night by | 650 m |
 
 **An earlier version of this was wrong and the way it was wrong is worth
 keeping.** It carried a home-made surface duct — spherical spreading to 200 m
