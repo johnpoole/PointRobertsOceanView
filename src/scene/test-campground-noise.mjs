@@ -175,14 +175,14 @@ while (levelAt(plan.sites, plan.block.x1 + nightM, mid) > 45 && nightM < 5000) n
 
 const drawn = [...field.bands].filter((b) => b >= 0);
 ok(drawn.length, "the field came out empty");
-// The source level is the one term with nothing measured behind it. All that can
-// be asserted about it is that it is a raised voice and not something else:
-// speech tables put ordinary conversation near 60 dB at a metre and a shout near
-// 85. Anything outside this band is a different claim and should be argued for.
-ok(SITE_DB >= 66 && SITE_DB <= 72,
-   `the source is ${SITE_DB} dB at a metre, and a raised voice is 66 to 72. ` +
-   `Outside that it is a quiet conversation or a shout, either of which needs ` +
-   `saying out loud`);
+// The source level is the one term with no measured campground behind it. What
+// can be asserted is that it is the vocal effort claimed and not another one.
+// ANSI S3.5-1997 gives, a metre in front of a talker: normal 62,35 · raised
+// 68,34 · loud 74,85 · shout 82,30 dB. This model says raised, so it must sit
+// between raised and loud, nearer raised.
+ok(SITE_DB >= 68.34 && SITE_DB < 74.85,
+   `the source is ${SITE_DB} dB at a metre. ANSI S3.5-1997 puts a raised voice ` +
+   `at 68,34 and a loud one at 74,85, and this file claims a raised voice`);
 
 console.log(
   `${SITE_DB} dB a site, ${plan.sites.length} sites, spherical throughout, ` +

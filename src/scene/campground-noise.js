@@ -45,10 +45,18 @@
 // the full octave-band method with the real source spectrum. Nothing read off
 // this belongs in a comment to the county.
 
-// THE ONE NUMBER HERE WITH NOTHING MEASURED BEHIND IT, and the one that decides
-// the answer. Every other term above is read off a standard. This is a speech
-// table: ordinary conversation is about 60 dB at a metre and a raised voice about
-// 70, which is how people talk outdoors with others talking nearby.
+// THE ONE NUMBER HERE WITH NO MEASUREMENT OF A CAMPGROUND BEHIND IT, and the one
+// that decides the answer. It does now have a standard behind it, which is not
+// the same thing.
+//
+// ANSI S3.5-1997, the speech intelligibility index standard, gives the overall
+// sound pressure level of a talker at each vocal effort:
+//
+//     normal 62,35 · raised 68,34 · loud 74,85 · shout 82,30 dB
+//
+// measured a metre in front of the talker. So 70 is a raised voice and a little
+// over — the way people talk outdoors with others talking nearby — and it sits
+// well below loud and nowhere near a shout.
 //
 // It is a level per site, not per person, and that cuts both ways. A site with
 // four people talking at once is 6 dB over one, so 70 is low. Against that, this
@@ -67,14 +75,26 @@
 // carries. Nothing else in the file is anywhere near that sensitive, so if one
 // figure is ever worth going and measuring, it is this one.
 //
-// A published measurement inside an occupied campground would settle it and none
-// was found. The nearest thing is the US Bureau of Reclamation's noise appendix
-// for the Navajo Reservoir plan, and it does not do the job: it says heavy
-// recreational use areas could be compared to residential areas at an Ldn of 50
-// to 65 dBA. That is an analogy rather than a measurement, and Ldn is a 24-hour
-// average carrying a 10 dB penalty on the hours after ten at night, so it cannot
-// be set against an instantaneous worst case at all. An earlier version of this
-// file used it as a calibration. It was not one.
+// A measurement inside an occupied campground would settle it. Three were looked
+// for and none of the three serves:
+//
+//   The US Bureau of Reclamation's Navajo Reservoir noise appendix likens heavy
+//   recreation areas to residential areas at an Ldn of 50 to 65 dBA. An analogy,
+//   not a measurement, and Ldn is a 24-hour average carrying a 10 dB penalty on
+//   the hours after ten at night, so it cannot be set against an instantaneous
+//   worst case at all. An earlier version of this file used it as a calibration.
+//   It was not one.
+//
+//   The National Park Service's acoustic monitoring publishes park ambient
+//   levels — what a place sounds like — not what a full campground emits.
+//
+//   NOVA Acoustics' 2025 noise assessment of Oak Tree Holiday Park for North
+//   Lincolnshire is a real survey with a microphone overlooking 63 caravan
+//   pitches, and it measured 51 dBA by day and 49 by night. But it ran in
+//   January with the park largely empty and road noise dominant, and it models
+//   only vehicles arriving. It notes that noise from people and recreation is
+//   outside the scope of BS 4142 altogether, which is part of why this number is
+//   so hard to come by.
 export const SITE_DB = 70;
 
 // Atmospheric absorption, ISO 9613-2:1996 table 2: the coefficient at 500 Hz,
