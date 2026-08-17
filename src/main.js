@@ -19,6 +19,7 @@ import { buildBeach } from "./scene/beach.js";
 import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCampground } from "./scene/campground.js";
+import { buildPeople } from "./scene/people.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
@@ -204,6 +205,7 @@ let lot = null;
 let skylineTile = null;   // the Gulf Islands, so the far half of a frame lands too
 let brademy = null;      // the proposed courts. Off until asked for.
 let campground = null;   // the proposed campground off Dogwood Way. Off until asked for.
+let people = null;       // everyone else with the page open, as a ball each
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
@@ -285,6 +287,9 @@ stairSpec
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
     campground = buildCampground(scene, parcel, near.sample, near.meta.box);
+    // Needs the sampler, because a ball stands on the ground rather than at the
+    // eye height whoever it is happens to be looking from.
+    people = buildPeople(scene, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
     // while the courts are up.
     // The cabin is modelled off photographs rather than extruded from its OSM
@@ -1605,6 +1610,10 @@ showSound(audio.enabled);
 
 const lookDir = new THREE.Vector3();
 const clock = new THREE.Clock();
+// How often this browser says where it is. Twice the rate the server sends the
+// list round, so a marker is never waiting on us.
+const PRESENCE_TELL_S = 0.5;
+let presenceDue = 0;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
   const t = clock.elapsedTime;
@@ -1630,6 +1639,22 @@ function frame() {
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
   if (orcas) orcas.update(dt);
+
+  // Where we are, out to everyone else, and everyone else drawn where they are.
+  // The telling is throttled because a position a frame is sixty a second and
+  // the server sends the list round once a second; the drawing is every frame
+  // because that is what makes a ball slide instead of jump.
+  if (people) {
+    if (t >= presenceDue) {
+      presenceDue = t + PRESENCE_TELL_S;
+      const eye = camera.position;
+      const { lat, lon } = fromWorld(eye.x, eye.z);
+      camera.getWorldDirection(lookDir);
+      feed.here(lat, lon, eye.y,
+                (Math.atan2(-lookDir.x, -lookDir.z) * 180) / Math.PI);
+    }
+    people.update(feed.presence, dt);
+  }
 
   const wall = performance.now();
   share.update(wall);

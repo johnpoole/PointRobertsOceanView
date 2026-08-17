@@ -13,7 +13,11 @@ services:
     # on 8090, and nginx proxies oceanview.johnpoole.ca here.
     ports:
       - "8091:8080"
-    # What a ship is does not change, so the lookups survive a redeploy.
+    # What survives a redeploy. Two things live in here now: the ship lookups,
+    # because what a ship is does not change, and the visitor record, because a
+    # deploy forgetting who has been is the whole reason it is on disk. The
+    # volume keeps its old name — renaming it would orphan the ships already in
+    # it — so read the mount point rather than the name.
     volumes:
       - shipfinder-ships:/app/data
 

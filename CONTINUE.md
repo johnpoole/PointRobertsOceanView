@@ -214,6 +214,56 @@ forms it must obey: 6 dB per doubling inside the duct, 3 outside, the two halves
 meeting at the seam, 10 log10(n) for n sources at one range, finite standing on a
 site, and the two staff-report distances landing where the prose says.
 
+## Who else is here
+
+Anyone else with the page open is a ball standing where they are. Their browser
+tells the server its position twice a second over the socket that was already
+open, the server sends the whole list round once a second, and each browser draws
+everyone but itself.
+
+**The position and the address must never meet.** The same socket that carries a
+position into the broadcast carries an address into the admin's list at
+`/admin/visitors`. The server gives each connection a random name and that is all
+that ever goes out — no address, no count of tabs, nothing that says who. There
+are checks in `server/test_presence.py` whose only job is to assert that an
+address is not in the broadcast.
+
+Everything a browser sends is range-checked before it is passed on. This is the
+only path on the site that takes a number from one browser and hands it to every
+other browser, so a value that would stand a marker in orbit is dropped and the
+socket stays open — a browser with a bug is not a reason to hang up on it.
+
+One list a second against sixty frames a second, so nothing is drawn where the
+last message put it: each ball is eased toward where it was last said to be.
+The easing can only lag the truth, never lead it — nothing is extrapolated, so a
+ball never runs on past somebody who has stopped.
+
+A backgrounded tab stops sending, because the browser stops giving it frames.
+Its marker stands still until the socket closes, which is right: they are still
+there, they have just stopped moving.
+
+## What survives a deploy
+
+The visitor record is written to `data/visitors.json`, in the directory
+docker-compose mounts as a named volume, so a rebuild and a recreate of the
+container leave it alone. It holds first seen, last seen and a visit count per
+address. It does **not** hold how many sockets were open: that counts live
+connections, and after a restart there are none, so persisting it would show a
+permanent crowd.
+
+Written on a thirty-second timer, and only when something has changed — a write
+per page load would be a file rewrite per visitor, and a write per tick would
+rewrite an unchanged file all day. The shutdown hook catches the last half
+minute, because a deploy is a shutdown and that is the case this exists for.
+Replaced rather than written through, so a kill halfway leaves the old record
+whole instead of half a new one.
+
+A missing file is a first run. A corrupt one raises and says which file and what
+to do about it, rather than quietly starting the count again.
+
+The volume is still called `shipfinder-ships` because renaming it would orphan
+the ship cache already in it. Read the mount point, not the name.
+
 ## Deploy
 
 ```
@@ -257,6 +307,7 @@ src/scene/drift.js         kelp, sticks and foam on the water, so the current ca
 src/scene/orcas.js         a group running the west shore, at the rate the month says. Not a feed.
 src/scene/lights.js        points that hold their size in pixels, for lights seen a long way off
 src/scene/lighthouse.js    Point Roberts Light on the point, and its two flashes
+src/scene/people.js        a ball where each other browser is, eased between updates
 assets/                    everything baked. Do not edit by hand.
 ```
 

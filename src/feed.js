@@ -17,6 +17,10 @@ export class Feed {
                             vessels: "offline", aircraft: "offline" };
     this.vesselsNote = "";   // why vessels are offline, in the monitor's words
     this.lastMessageAt = 0;
+    // Everyone else with the page open, by the name the server gave them. Never
+    // an address: the server sends a random id per connection and nothing else.
+    this.presence = new Map();  // id -> { lat, lon, y, heading }
+    this.selfId = null;         // what the server called us, so we can skip it
 
     this._ws = null;
     this._backoff = 1000;
@@ -63,6 +67,10 @@ export class Feed {
     ws.onclose = () => {
       this.connected = false;
       this._ws = null;
+      // Nobody is here any more as far as this page knows. Leaving the last
+      // list up would stand markers where people are not.
+      this.presence.clear();
+      this.selfId = null;
       this._emit("close");
       this._scheduleReconnect();
     };
@@ -71,6 +79,18 @@ export class Feed {
       // onclose follows; reconnect is handled there.
       try { ws.close(); } catch (err) { /* already closing */ }
     };
+  }
+
+  // Where this browser is standing, for everyone else's screen. Dropped on the
+  // floor when the socket is not open: this is a nicety and it must never be the
+  // thing that throws in the render loop.
+  here(lat, lon, y, heading) {
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+    try {
+      this._ws.send(JSON.stringify({ type: "here", lat, lon, y, heading }));
+    } catch (err) {
+      /* the socket is going; onclose will deal with it */
+    }
   }
 
   _scheduleReconnect() {
@@ -110,6 +130,16 @@ export class Feed {
       case "vessel.position":
         this._applyVessel(msg);
         this._emit("vessel");
+        break;
+      case "presence.you":
+        this.selfId = msg.data.id;
+        break;
+      case "presence.state":
+        this.presence.clear();
+        for (const p of msg.data.here || []) {
+          if (p.id !== this.selfId) this.presence.set(p.id, p);
+        }
+        this._emit("presence");
         break;
       default:
         break;

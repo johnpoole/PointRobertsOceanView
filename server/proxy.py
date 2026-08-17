@@ -31,6 +31,7 @@ import binascii
 import html
 import json
 import logging
+import math
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -258,13 +259,26 @@ world = World()
 
 
 class Clients:
-    def __init__(self) -> None:
-        self._sockets: set[WebSocket] = set()
+    """Everyone with the page open, and where each of them is standing.
 
-    async def add(self, ws: WebSocket) -> None:
+    The position is held here rather than in Visitors on purpose. Visitors is
+    keyed by address and is written to disk; this is keyed by socket and is
+    thrown away when the socket closes. The two must not meet: a visitor's
+    address is the admin's business and nobody else's, and where somebody is
+    looking goes out to every other browser on the site."""
+
+    def __init__(self) -> None:
+        self._sockets: dict[WebSocket, dict] = {}
+
+    async def add(self, ws: WebSocket) -> str:
         await ws.accept()
-        self._sockets.add(ws)
+        # What every other browser will call this one. Random per connection, so
+        # it says nothing about who or where they are, and a reconnection is a
+        # new stranger rather than the same one recognised.
+        who = secrets.token_hex(4)
+        self._sockets[ws] = {"id": who, "at": None}
         visitors.opened(client_ip(ws))
+        return who
 
     @property
     def count(self) -> int:
@@ -272,8 +286,18 @@ class Clients:
 
     def remove(self, ws: WebSocket) -> None:
         if ws in self._sockets:
-            self._sockets.discard(ws)
+            del self._sockets[ws]
             visitors.closed(client_ip(ws))
+
+    def place(self, ws: WebSocket, at: dict | None) -> None:
+        seat = self._sockets.get(ws)
+        if seat is not None:
+            seat["at"] = at
+
+    def placed(self) -> list[dict]:
+        """Everyone who has said where they are. Id and position, nothing else."""
+        return [dict(seat["at"], id=seat["id"])
+                for seat in self._sockets.values() if seat["at"]]
 
     async def broadcast(self, message: dict) -> None:
         dead = []
@@ -287,6 +311,41 @@ class Clients:
 
 
 clients = Clients()
+
+
+# What a browser may say about itself, and what is done with anything else it
+# says. The socket was read-only until now and it is worth keeping the reason it
+# stopped being read-only narrow: one message type, four numbers, all bounded.
+PRESENCE_SECONDS = 1.0
+
+
+def read_position(text: str) -> dict | None:
+    """A browser's "here I am", or None if it was anything else.
+
+    Everything is range-checked. This is the only thing on the site that takes a
+    number from a browser and hands it to every other browser, so a value that
+    would put a marker in orbit or off the map is dropped rather than passed on."""
+    try:
+        msg = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(msg, dict) or msg.get("type") != "here":
+        return None
+    try:
+        lat = float(msg["lat"])
+        lon = float(msg["lon"])
+        y = float(msg.get("y", 0.0))
+        heading = float(msg.get("heading", 0.0))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        return None
+    if not (-1000.0 <= y <= 100000.0):
+        return None
+    if not all(map(math.isfinite, (lat, lon, y, heading))):
+        return None
+    return {"lat": round(lat, 6), "lon": round(lon, 6),
+            "y": round(y, 1), "heading": round(heading % 360.0, 1)}
 
 
 # ---- who is here ------------------------------------------------------------
@@ -303,14 +362,22 @@ def client_ip(ws: WebSocket) -> str:
     return ws.client.host if ws.client else "unknown"
 
 
-# Held in memory, so a restart forgets everyone. Bounded because an address is
-# one dictionary entry and nothing else prunes them.
+# Bounded because an address is one dictionary entry and nothing else prunes
+# them.
 VISITOR_LIMIT = 500
+
+# Where the record lives between restarts. The same directory the ship cache
+# uses, which docker-compose mounts as a named volume, so a rebuild and a
+# recreate of the container leave it where it is. Deploying the site no longer
+# forgets who has been.
+VISITORS_PATH = REPO_ROOT / "data" / "visitors.json"
+VISITORS_SAVE_SECONDS = 30.0
 
 
 class Visitors:
     def __init__(self) -> None:
         self._by_ip: dict[str, dict] = {}
+        self._dirty = False
 
     def opened(self, ip: str) -> None:
         now = utcnow()
@@ -321,6 +388,7 @@ class Visitors:
         seen["last_seen"] = now
         seen["visits"] += 1
         seen["open"] += 1
+        self._dirty = True
         self._prune()
 
     def closed(self, ip: str) -> None:
@@ -329,6 +397,60 @@ class Visitors:
             return
         seen["last_seen"] = utcnow()
         seen["open"] = max(0, seen["open"] - 1)
+        self._dirty = True
+
+    # ---- surviving a deploy --------------------------------------------------
+    #
+    # open is not written. It counts sockets, and after a restart there are none,
+    # so persisting it would show everybody as still here for ever. first_seen,
+    # last_seen and visits are the record; open is the moment.
+
+    def load(self, path: Path = VISITORS_PATH) -> None:
+        if not path.exists():
+            return
+        try:
+            rows = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise RuntimeError(
+                f"The visitor record at {path} could not be read: {exc}. It is a "
+                f"log and not a source of truth — delete it to start over — but "
+                f"nothing here will silently drop it."
+            ) from exc
+        for ip, row in rows.items():
+            try:
+                self._by_ip[ip] = {
+                    "first_seen": datetime.fromisoformat(row["first_seen"]),
+                    "last_seen": datetime.fromisoformat(row["last_seen"]),
+                    "visits": int(row["visits"]),
+                    "open": 0,
+                }
+            except (KeyError, TypeError, ValueError) as exc:
+                raise RuntimeError(
+                    f"The visitor record at {path} holds a row for {ip} that "
+                    f"cannot be read: {exc}. Delete the file to start over."
+                ) from exc
+        log.info("Visitors: %d addresses read from %s", len(self._by_ip), path)
+
+    def save(self, path: Path = VISITORS_PATH) -> None:
+        rows = {
+            ip: {
+                "first_seen": iso(seen["first_seen"]),
+                "last_seen": iso(seen["last_seen"]),
+                "visits": seen["visits"],
+            }
+            for ip, seen in self._by_ip.items()
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(rows), encoding="utf-8")
+        # Replace rather than write in place, so a kill halfway through leaves
+        # the old record whole instead of half a new one.
+        tmp.replace(path)
+        self._dirty = False
+
+    def save_if_dirty(self, path: Path = VISITORS_PATH) -> None:
+        if self._dirty:
+            self.save(path)
 
     def listing(self) -> list[dict]:
         rows = [dict(seen, ip=ip) for ip, seen in self._by_ip.items()]
@@ -1347,6 +1469,49 @@ async def heartbeat_task() -> None:
         await asyncio.sleep(HEARTBEAT_SECONDS)
 
 
+# ---- who else is here -------------------------------------------------------
+
+
+async def presence_task() -> None:
+    """Everyone's position out to everyone, once a second.
+
+    Sent on a tick rather than on arrival: a dozen browsers each moving would
+    otherwise be a dozen broadcasts a frame. One list a second is a marker that
+    slides rather than jumps, and the client does the sliding.
+
+    Sent even when it is empty, so a browser whose only company just left is told
+    so rather than being left with a marker standing where nobody is."""
+    was = -1
+    while True:
+        here = clients.placed()
+        if here or was != 0:
+            await clients.broadcast({
+                "schema_version": SCHEMA_VERSION,
+                "message_type": "presence.state",
+                "server_time": iso(utcnow()),
+                "data": {"here": here},
+            })
+        was = len(here)
+        await asyncio.sleep(PRESENCE_SECONDS)
+
+
+# ---- the visitor record on disk ---------------------------------------------
+
+
+async def visitors_task() -> None:
+    """The record written out when it has changed, and not more often.
+
+    Every open and close marks it dirty. Writing on each of those would be a file
+    rewrite per page load; writing on a timer alone would rewrite an unchanged
+    file all day. The shutdown hook catches whatever the last tick missed."""
+    while True:
+        await asyncio.sleep(VISITORS_SAVE_SECONDS)
+        try:
+            visitors.save_if_dirty()
+        except OSError as exc:
+            log.error("Visitors: could not write %s: %r", VISITORS_PATH, exc)
+
+
 # ---- app --------------------------------------------------------------------
 
 app = FastAPI()
@@ -1392,6 +1557,9 @@ def _spawn(coro, name: str, feed: str | None = None) -> asyncio.Task:
 
 @app.on_event("startup")
 async def startup() -> None:
+    # Before any socket opens, or the first visitor of the new container would be
+    # counted against an empty table and then overwrite the old one.
+    visitors.load()
     # The third column is the health key the task owns, so its death takes that
     # reading down with it. The heartbeat owns none: it is not a feed.
     for coro, name, feed in ((ais_task(), "ais", "vessels"),
@@ -1401,7 +1569,9 @@ async def startup() -> None:
                              (aircraft_task(), "aircraft", "aircraft"),
                              (weather_task(), "weather", "weather"),
                              (crossings_task(), "crossings", "crossings"),
-                             (heartbeat_task(), "heartbeat", None)):
+                             (heartbeat_task(), "heartbeat", None),
+                             (presence_task(), "presence", None),
+                             (visitors_task(), "visitors", None)):
         _tasks.append(_spawn(coro, name, feed))
 
 
@@ -1409,15 +1579,35 @@ async def startup() -> None:
 async def shutdown() -> None:
     for task in _tasks:
         task.cancel()
+    # Whatever the last save tick missed. A deploy is a shutdown, and a deploy
+    # losing the last half minute of the record is the thing this is here to
+    # stop.
+    try:
+        visitors.save_if_dirty()
+    except OSError as exc:
+        log.error("Visitors: could not write %s on the way out: %r",
+                  VISITORS_PATH, exc)
 
 
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket) -> None:
-    await clients.add(ws)
+    who = await clients.add(ws)
     try:
+        # Its own name first, so it can leave itself out of the crowd it is about
+        # to be sent. Without this every browser draws a marker on its own head.
+        await ws.send_text(json.dumps({
+            "schema_version": SCHEMA_VERSION,
+            "message_type": "presence.you",
+            "data": {"id": who},
+        }))
         await ws.send_text(json.dumps(snapshot()))
         while True:
-            await ws.receive_text()  # ignore client input; keep the socket open
+            at = read_position(await ws.receive_text())
+            # Anything that is not a position is dropped and the socket stays
+            # open. A browser sending nonsense is a browser with a bug, not a
+            # reason to close on it.
+            if at:
+                clients.place(ws, at)
     except WebSocketDisconnect:
         clients.remove(ws)
     except Exception:
