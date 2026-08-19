@@ -56,16 +56,14 @@ const GROUND = (x, z) => 4.9 - 0.32 * (1.8 - x) - 0.1 * (2.3 - z) / 2;
 
 const shape = plan(GROUND);
 
-// The deck is level and stands clear of the highest ground under it.
+// The floor is bedded on the ground, not lifted off it. John: it does not need
+// stilts. So it sits a sleeper and a plank over the highest corner and no more,
+// and a high tide runs under it and over it.
 const highest = Math.max(...shape.posts.map((p) => p.ground));
-ok(Math.abs(shape.deckY - (highest + 0.3)) < 1e-9,
-   `the deck is not 0.3 m over the highest ground: ${shape.deckY} against ${highest}`);
-
-// And clear of the tide. The waterline stands 43 m off the camera at a 3.5 m
-// tide and this footprint's seaward edge is at 44 m, so a deck that does not
-// clear 3.5 m is a deck with the sea running over it.
-ok(shape.deckY > 3.5 + 1.0,
-   `the deck is only ${shape.deckY.toFixed(2)} m, which is not clear of a 3.5 m tide`);
+ok(Math.abs(shape.deckY - (highest + 0.22)) < 1e-9,
+   `the floor is not 0.22 m over the highest ground: ${shape.deckY} against ${highest}`);
+ok(shape.deckY - highest < 0.4,
+   `the floor stands ${(shape.deckY - highest).toFixed(2)} m off the ground, which is stilts`);
 
 // Every post reaches the ground under its own foot and goes into it. One length
 // for all six would leave the seaward pair standing in the air.
@@ -87,17 +85,15 @@ ok(shape.bedY > shape.deckY && shape.bedY < shape.deckY + 0.6,
 // The roof is above the beam it is carried on.
 ok(shape.roofY > shape.beamY, "the roof is not above the beam");
 
-// Down on the flat the tide is what governs, not the ground. Ground at 2.5 m
-// would put a deck 0.3 m over it under water twice a day.
+// Wherever it is put, the floor follows the ground under it. There is no floor
+// height in here that the tide or anything else can force.
 const low = plan(() => 2.5);
-ok(low.deckY === 4.2, `on low ground the deck came out at ${low.deckY}, not 4.2`);
-ok(low.posts.every((p) => p.top - p.ground > 4.3),
-   "the posts did not grow to carry a deck lifted by the tide");
+ok(Math.abs(low.deckY - 2.72) < 1e-9, `on low ground the floor came out at ${low.deckY}`);
 
 // Flat ground gives flat posts, which is the one case that would hide a sign
 // error in the cut.
 const flat = plan(() => 4.5);
-ok(flat.deckY === 4.8, `on flat ground the deck came out at ${flat.deckY}`);
+ok(Math.abs(flat.deckY - 4.72) < 1e-9, `on flat ground the floor came out at ${flat.deckY}`);
 ok(flat.posts.every((p) => p.ground === 4.5), "flat ground did not give flat feet");
 
 if (failures) {

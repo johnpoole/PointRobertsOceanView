@@ -10,19 +10,19 @@
 // across this footprint between 3.15 m and 4.10 m. It was 17 m out on the flat
 // to the north-west and that was too far — the mark is against the house.
 //
-// The deck is level and has two floors to clear and takes the higher: 0.3 m over
-// the highest ground under it, and 0.7 m over a 3.5 m tide, which is the tide
-// the page's own notes put 43 m off the camera. Ground alone is not enough this
-// far down the beach — the sea comes up past the landward posts.
+// It does not stand on stilts. John: it does not need them. The floor is a low
+// platform bedded on log sleepers laid across the beach, a hand's width over the
+// ground it sits on, and the only things going into the sand are the six posts
+// that carry the roof. That means a high tide runs under the floor and over it,
+// which is what it is: a shelter on a beach, not a boathouse.
 //
-// The posts are not one length: each is cut to the ground under its own foot,
+// The posts are not one length. Each is cut to the ground under its own foot,
 // which is how the west side of the cabin is built and for the same reason.
 //
-// What it is made of is the west coast reading of the thing John showed me:
-// cedar posts and beams, a slatted roof with a driftwood log laid along the
-// seaward side, a low bed of driftwood logs, wool and canvas rather than
-// macramé, hurricane lanterns and glass floats hung off the beam. The lanterns
-// come up with the dark the way the ships' lights do.
+// All of it is driftwood. Not cedar posts, not sawn beams — logs off this beach,
+// bleached silver and grey, with the plank of a deck split out of them. What is
+// not wood is wool, canvas, iron and glass: the bed, the rug, the lanterns and
+// the floats. The lanterns come up with the dark the way the ships' lights do.
 //
 // Every dimension here is chosen. None of it is measured off anything, because
 // there is nothing there to measure.
@@ -39,13 +39,11 @@ const AT = { lat: 48.9890270, lon: -123.0859203 };
 
 const HALF_ALONG_M = 2.3;   // along the shore, north and south
 const HALF_ACROSS_M = 1.8;  // toward the water and away from it
-const DECK_CLEAR_M = 0.3;   // the deck over the highest ground under it
-// And over the water. 3.5 m is the tide the page's notes put 43 m off the
-// camera, which is up the beach of this footprint.
-const HIGH_WATER_M = 3.5;
-const TIDE_CLEAR_M = 0.7;
-const DECK_THICK_M = 0.09;
-const POST_R_M = 0.11;
+// The floor over the ground it is bedded on: a sleeper and a plank and no more.
+const DECK_CLEAR_M = 0.22;
+const DECK_THICK_M = 0.08;
+const SLEEPER_R_M = 0.13;
+const POST_R_M = 0.13;
 const HEADROOM_M = 2.45;    // deck to the underside of the beam
 const BEAM_M = 0.24;
 const EAVE_M = 0.4;
@@ -55,10 +53,14 @@ const LOG_R_M = 0.15;       // the driftwood laid along the seaward side
 // Where the lanterns hang along that beam.
 const LANTERNS = [-1.5, 1.5];
 
-const CEDAR = 0x9a8f7f;
-const SLAT = 0xa2967f;
+// Driftwood, weathered four ways. One log is not the colour of the next and a
+// beach full of them is not one colour at all, so the pieces are dealt these in
+// turn rather than all coming out of the same tin.
 const DRIFTWOOD = 0xb8b2a4;
-const DECKING = 0x8f8677;
+const DRIFT_PALE = 0xc9c4b8;
+const DRIFT_GREY = 0xa39c90;
+const DRIFT_DARK = 0x8c8579;
+const DRIFT = [DRIFTWOOD, DRIFT_PALE, DRIFT_GREY, DRIFT_DARK];
 const WOOL = 0xe6e0d2;
 const BLANKET = 0x6f6d66;
 const OLIVE = 0x8a8a6e;
@@ -88,8 +90,10 @@ export function plan(ground) {
       feet.push({ x, z, ground: ground(x, z) });
     }
   }
-  const deckY = Math.max(Math.max(...feet.map((f) => f.ground)) + DECK_CLEAR_M,
-                         HIGH_WATER_M + TIDE_CLEAR_M);
+  // Bedded on the ground rather than lifted off it: the floor sits a sleeper
+  // and a plank over the highest corner, so the low side is carried on the
+  // sleepers and the high side is nearly on the sand.
+  const deckY = Math.max(...feet.map((f) => f.ground)) + DECK_CLEAR_M;
   const beamY = deckY + HEADROOM_M;
   return {
     deckY,
@@ -104,45 +108,51 @@ function parts(shape) {
   const { deckY, beamY, roofY, bedY, posts } = shape;
   const out = [];
 
-  // The posts, each cut to the ground under its own foot and buried a little,
+  // The posts. Each is cut to the ground under its own foot and driven into it,
   // so not one of them ends in the air.
-  for (const p of posts) {
-    const bottom = p.ground - 0.3;
-    out.push(log(POST_R_M, p.top - bottom, p.x, (p.top + bottom) / 2, p.z, "y", CEDAR));
-  }
+  posts.forEach((p, i) => {
+    const bottom = p.ground - 0.35;
+    out.push(log(POST_R_M, p.top - bottom, p.x, (p.top + bottom) / 2, p.z, "y",
+                 DRIFT[i % DRIFT.length]));
+  });
 
-  // The deck: two joists under it and planks across.
-  for (const x of [-HALF_ACROSS_M + 0.3, HALF_ACROSS_M - 0.3]) {
-    out.push(box(0.16, HALF_ALONG_M * 2, 0.2, x, deckY - DECK_THICK_M - 0.2, 0, CEDAR));
+  // The floor. Three log sleepers laid across the beach, planks split out of
+  // driftwood over them, and nothing under that but sand.
+  for (const z of [-HALF_ALONG_M + 0.4, 0, HALF_ALONG_M - 0.4]) {
+    out.push(log(SLEEPER_R_M, HALF_ACROSS_M * 2, 0,
+                 deckY - DECK_THICK_M - SLEEPER_R_M, z, "x", DRIFT_DARK));
   }
-  const plank = 0.18;
+  const plank = 0.19;
   const planks = Math.floor((HALF_ALONG_M * 2) / (plank + 0.02));
   for (let i = 0; i < planks; i++) {
     const z = -HALF_ALONG_M + plank / 2 + i * (plank + 0.02);
-    out.push(box(HALF_ACROSS_M * 2, plank, DECK_THICK_M, 0, deckY - DECK_THICK_M, z, DECKING));
+    out.push(box(HALF_ACROSS_M * 2, plank, DECK_THICK_M, 0, deckY - DECK_THICK_M, z,
+                 DRIFT[i % DRIFT.length]));
   }
 
-  // A beam along each long side, the slats across them, and the driftwood log
-  // laid over the seaward end of the slats.
+  // A log along each long side carrying the roof, the slats across them, and the
+  // heaviest log of the lot laid along the seaward edge.
   for (const x of [-HALF_ACROSS_M, HALF_ACROSS_M]) {
-    out.push(box(BEAM_M * 0.7, HALF_ALONG_M * 2 + EAVE_M, BEAM_M, x, beamY, 0, CEDAR));
+    out.push(log(BEAM_M / 2, HALF_ALONG_M * 2 + EAVE_M, x, beamY + BEAM_M / 2, 0, "z",
+                 DRIFT_GREY));
   }
   const slats = Math.round((HALF_ALONG_M * 2 + EAVE_M) / SLAT_GAP_M);
   for (let i = 0; i <= slats; i++) {
     const z = -HALF_ALONG_M - EAVE_M / 2 + i * SLAT_GAP_M;
-    out.push(box(HALF_ACROSS_M * 2 + EAVE_M * 1.5, 0.1, SLAT_M, 0.05, roofY, z, SLAT));
+    out.push(log(SLAT_M / 2, HALF_ACROSS_M * 2 + EAVE_M * 1.5, 0.05,
+                 roofY + SLAT_M / 2, z, "x", DRIFT[i % DRIFT.length]));
   }
   out.push(log(LOG_R_M, HALF_ALONG_M * 2 + EAVE_M * 1.4, -HALF_ACROSS_M,
-               roofY + SLAT_M + LOG_R_M, 0, "z", DRIFTWOOD));
+               roofY + SLAT_M + LOG_R_M, 0, "z", DRIFT_PALE));
 
   // The bed, landward, out of the weather: a frame of driftwood, a mattress, a
   // blanket thrown back, cushions at the head.
   const bx = 0.66;
   for (const z of [-1.05, 1.05]) {
-    out.push(log(0.13, 1.5, bx, deckY + 0.13, z, "x", DRIFTWOOD));
+    out.push(log(0.13, 1.5, bx, deckY + 0.13, z, "x", DRIFT_GREY));
   }
   for (const x of [bx - 0.72, bx + 0.72]) {
-    out.push(log(0.12, 2.1, x, deckY + 0.3, 0, "z", DRIFTWOOD));
+    out.push(log(0.12, 2.1, x, deckY + 0.3, 0, "z", DRIFT_PALE));
   }
   out.push(box(1.4, 2.1, 0.22, bx, bedY - 0.22, 0, WOOL));
   out.push(box(1.36, 1.0, 0.09, bx - 0.1, bedY, 0.5, BLANKET));
@@ -161,7 +171,7 @@ function parts(shape) {
   for (const z of [-0.34, 0.34]) {
     out.push(log(0.025, spread, hangX, seatY + 0.06 + spread / 2, z, "y", CANVAS));
   }
-  out.push(log(0.035, 1.0, hangX, beamY - 0.02, 0, "z", DRIFTWOOD));
+  out.push(log(0.035, 1.0, hangX, beamY - 0.02, 0, "z", DRIFT_DARK));
   out.push(box(0.7, 0.9, 0.06, hangX, seatY, 0, CANVAS));
   out.push(box(0.06, 0.9, 0.5, hangX + 0.32, seatY, 0, CANVAS));
 
