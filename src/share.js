@@ -76,6 +76,7 @@ export function readViewHash(hash) {
     eye, aim,
     brademy: got.brademy === "1",
     campground: got.campground === "1",
+    pavilion: got.pavilion === "1",
     map: got.map === "1",
   };
 }

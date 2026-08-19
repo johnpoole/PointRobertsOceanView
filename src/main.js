@@ -345,6 +345,7 @@ stairSpec
         campground.setVisible(true);
         overview.showNoise = true;
       }
+      if (shared && shared.pavilion) pavilion.setVisible(true);
       if (shared && shared.map) overview.toggle();
     });
   })
@@ -1614,6 +1615,7 @@ document.getElementById("whales-btn").addEventListener("click", () => {
 const share = new Share(camera, () => ({
   brademy: brademy ? brademy.visible : false,
   campground: campground ? campground.visible : false,
+  pavilion: pavilion ? pavilion.visible : false,
   map: overview.visible,
   // The hour the scene is standing at, so a link opens on the same light. Left
   // off when the clock is the real one. Quartered, or the address bar would be
