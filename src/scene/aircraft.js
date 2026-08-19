@@ -10,6 +10,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
 
 const KN = 0.514444;
+const FT = 0.3048;
 // The drawn length is no longer a flat multiple of the real one. A 737 is 4.8
 // times a Cessna and the two sizes wanted of them are 3.4 apart, so real length
 // is raised to a power under one and the small ones grow more than the large.
@@ -142,6 +143,48 @@ export class Aircraft {
     }
     if (state.track_degrees != null) rows.push(["track", `${Math.round(state.track_degrees)}°`]);
     if (state.distance_nm != null) rows.push(["range", `${state.distance_nm.toFixed(1)} nm`]);
+    return rows;
+  }
+
+  // Everything the feed carries about one aircraft, for the card that opens when
+  // you click it. Named fields first with their units, then whatever else is in
+  // the record printed as it arrived, so a field the server starts sending shows
+  // up without anyone touching this file. Position is left out: the card puts it
+  // up itself, with the range and the bearing from where you are standing.
+  static detail(state) {
+    const rows = [];
+    const seen = new Set(["latitude", "longitude"]);
+    const take = (key, label, fmt) => {
+      seen.add(key);
+      const v = state[key];
+      if (v == null || v === "") return;
+      rows.push([label, fmt ? fmt(v) : String(v)]);
+    };
+
+    take("callsign", "flight");
+    take("registration", "registration");
+    take("icao", "icao");
+    take("aircraft_type", "type");
+
+    seen.add("altitude_m");
+    seen.add("on_ground");
+    if (state.on_ground) {
+      rows.push(["altitude", "on the ground"]);
+    } else if (state.altitude_m != null) {
+      rows.push(["altitude",
+        `${Math.round(state.altitude_m)} m · ${Math.round(state.altitude_m / FT)} ft`]);
+    }
+
+    take("ground_speed_kn", "speed", (v) => `${Math.round(v)} kn · ${Math.round(v * KN * 3.6)} km/h`);
+    take("track_degrees", "track", (v) => `${Math.round(v)}°`);
+    take("distance_nm", "off the point", (v) => `${v.toFixed(1)} nm`);
+
+    for (const key of Object.keys(state)) {
+      if (seen.has(key)) continue;
+      const v = state[key];
+      if (v == null || v === "") continue;
+      rows.push([key.replace(/_/g, " "), typeof v === "object" ? JSON.stringify(v) : String(v)]);
+    }
     return rows;
   }
 }

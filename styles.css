@@ -174,7 +174,87 @@ body.hud-visible .views { display: flex; }
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
-.gyro-note.hidden { display: none; }
+.gyro-note/* The card for a clicked ship or aircraft. Down the left, where nothing else
+   lives, and it is not a .hud: the corner panels are off on a phone until the
+   hamburger is pressed, and a card you asked for by picking the thing out of the
+   water has to come up on its own. */
+.track {
+  position: fixed;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 7;
+  width: 300px;
+  max-width: calc(100vw - 28px);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: 12px;
+}
+.track-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 6px;
+}
+.track-title { font-weight: 600; letter-spacing: 0.02em; }
+.track-close {
+  font: inherit; font-size: 16px; line-height: 1;
+  color: var(--dim); background: none; border: none;
+  padding: 0 2px; cursor: pointer;
+}
+.track-close:hover { color: var(--ink); }
+
+/* The list of what is out there. Down the right, opposite the card, so picking
+   one and reading it do not happen in the same place. */
+.tracks {
+  position: fixed;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 7;
+  width: 240px;
+  max-width: calc(100vw - 28px);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: 12px;
+}
+.tracks.hidden { display: none; }
+#tracks-rows { overflow-y: auto; }
+.tracks-group {
+  color: var(--dim);
+  text-transform: lowercase;
+  margin: 6px 0 2px;
+}
+.tracks-row {
+  font: inherit;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  padding: 2px 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.tracks-row:hover { background: rgba(255, 255, 255, 0.06); }
+.tracks-row.on { border-color: var(--edge); background: rgba(255, 255, 255, 0.08); }
+
+.hidden { display: none; }
 
 /* The helm readout. Above the tide panel on the left; bottom right is taken by
    the buttons and bottom centre by the hint. */
@@ -474,6 +554,22 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
   /* The button group stands 96 px off the bottom right and the sliders and the
      hint are centred on the bottom. On a wide screen they never meet. Here there
      is no width to share, so the centred ones stack above the buttons. */
+  /* A hand on the glass covers what it touches and everything below it. So the
+     card goes to the top, clear of the buttons, the list, and the thumb; the
+     list stays at the bottom where the thumb already is. Both are told what
+     height they may have so they cannot grow into each other. */
+  .track {
+    left: 8px; right: 8px; top: 60px;
+    width: auto; max-width: none; transform: none;
+    max-height: 34vh;
+  }
+  .tracks {
+    left: 8px; right: 8px; top: auto; bottom: 170px;
+    width: auto; max-width: none; transform: none;
+    max-height: 30vh;
+  }
+  .tracks-row { min-height: 40px; }
+
   .fly-hint { bottom: 116px; max-width: calc(100vw - 24px); }
   .trim { bottom: 158px; }
   .clock { bottom: 200px; }

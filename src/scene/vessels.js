@@ -367,4 +367,51 @@ export class Vessels {
     }
     return rows;
   }
+
+  // Everything the feed carries about one ship, for the card that opens when you
+  // click it. The named fields are laid out and given their units, and then
+  // whatever is left in the record is printed as it arrived, so a field the
+  // server starts sending shows up here without anyone touching this file.
+  // Position is left out: the card puts it up itself, with the range and the
+  // bearing from where you are standing.
+  static detail(state) {
+    const rows = [];
+    const seen = new Set(["latitude", "longitude"]);
+    const take = (key, label, fmt) => {
+      seen.add(key);
+      const v = state[key];
+      if (v == null || v === "") return;
+      rows.push([label, fmt ? fmt(v) : String(v)]);
+    };
+
+    take("name", "name", (v) => String(v).trim() || "—");
+    take("mmsi", "mmsi");
+    take("imo", "imo");
+    take("call_sign", "call sign");
+    take("vessel_type_name", "type");
+    take("vessel_type", "ais type", (v) => `${v}`);
+    rows.push(["drawn as", classify(state.vessel_type)]);
+
+    seen.add("dimensions_m");
+    const dim = state.dimensions_m || {};
+    const beam = dim.beam ?? dim.width;
+    if (dim.length != null) rows.push(["length", `${Math.round(dim.length)} m`]);
+    if (beam != null) rows.push(["beam", `${Math.round(beam)} m`]);
+    if (dim.to_bow != null) rows.push(["to bow", `${Math.round(dim.to_bow)} m`]);
+    if (dim.to_stern != null) rows.push(["to stern", `${Math.round(dim.to_stern)} m`]);
+
+    take("speed_over_ground_knots", "speed", (v) => `${v.toFixed(1)} kn`);
+    take("course_over_ground_degrees", "course", (v) => `${Math.round(v)}°`);
+    take("true_heading_degrees", "heading", (v) => `${Math.round(v)}°`);
+    take("navigation_status", "status",
+      (v) => NAV_STATUS[v] || `code ${v}`);
+
+    for (const key of Object.keys(state)) {
+      if (seen.has(key)) continue;
+      const v = state[key];
+      if (v == null || v === "") continue;
+      rows.push([key.replace(/_/g, " "), typeof v === "object" ? JSON.stringify(v) : String(v)]);
+    }
+    return rows;
+  }
 }

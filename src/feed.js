@@ -173,9 +173,12 @@ export class Feed {
     // Update in place so scene meshes can lerp; merge so a position update does
     // not wipe static fields (name, dimensions) carried by earlier messages.
     const merged = existing ? { ...existing.data, ...env.data } : env.data;
+    // The whole envelope, not just data and quality: the card that opens on a
+    // clicked ship says where the position came from and when it was taken, and
+    // those live on the envelope beside the data.
     this.vessels.set(mmsi, {
+      ...env,
       data: merged,
-      quality: env.quality,
       receivedTime: performance.now(),
     });
   }

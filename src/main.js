@@ -31,6 +31,7 @@ import { Nav } from "./nav.js";
 import { Live } from "./live.js";
 import { Touch } from "./touch.js";
 import { Gyro } from "./gyro.js";
+import { Selection, TrackList } from "./select.js";
 import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
@@ -647,9 +648,13 @@ function grabEnd(e) {
 }
 
 // Hover picking: the vessel under the cursor shows a tooltip with its AIS data.
+// Clicking one opens the card, which is the whole record and stays up.
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const tip = document.getElementById("vessel-tip");
+const selection = new Selection(camera, feed);
+const tracks = new TrackList(camera, feed, selection);
+document.getElementById("tracks-btn").addEventListener("click", () => tracks.toggle());
 let pointerInside = false, cursorX = 0, cursorY = 0;
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
@@ -694,6 +699,46 @@ wakeChrome();
 // where it takes hold, and a listener added after it on the same element and
 // phase would never run — the chrome would stay faded through every drag.
 window.addEventListener("pointerdown", () => wakeChrome(), true);
+
+// A press that goes down and comes up in the same place is a click on whatever
+// is under it, and a click on a ship or an aircraft opens the card. It has to be
+// told apart from a drag, which starts the same way, so the press is remembered
+// and judged on release. Registered before the grab below, which stops its own
+// event dead and would otherwise never let this one be heard. A finger counts
+// the same as a mouse: tapping is the only way to open the card on a phone.
+const TAP_SLOP_PX = 6;
+const TAP_MS = 500;
+let tap = null;
+window.addEventListener("pointerdown", (e) => {
+  tap = e.target === renderer.domElement
+    ? { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now() } : null;
+}, true);
+window.addEventListener("pointerup", (e) => {
+  if (!tap || e.pointerId !== tap.id) return;
+  const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y);
+  const held = performance.now() - tap.at;
+  tap = null;
+  if (moved > TAP_SLOP_PX || held > TAP_MS) return;
+  pickTrack(e);
+}, true);
+
+// What was clicked, or nothing, which closes the card.
+function pickTrack(e) {
+  // With the pointer locked in fly mode the cursor is not on the screen and the
+  // event carries wherever it was left, so the click means the middle of the
+  // screen, which is where you are aiming.
+  if (nav.lock.isLocked) pointer.set(0, 0);
+  else setPointerFrom(e);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(
+    vessels.pickList().concat(aircraft.pickList()), true);
+  let o = hits.length ? hits[0].object : null;
+  while (o && !o.userData.vessel && !o.userData.aircraft) o = o.parent;
+  if (!o) { selection.clear(); return; }
+  if (o.userData.vessel) selection.select("vessel", o.userData.vessel.mmsi);
+  else selection.select("aircraft", o.userData.aircraft.icao);
+}
+
 window.addEventListener("pointerdown", (e) => {
   if (e.target !== renderer.domElement) return;
   pointerInside = true;
@@ -1568,6 +1613,8 @@ window.addEventListener("keydown", (e) => {
   // there, and nav reads neither key in orbit, so the two never meet.
   if (e.code === "KeyE" && !e.repeat) flipWyzeEdit();
   if (e.code === "KeyS" && !e.repeat) saveWyze();
+  if (e.code === "KeyL") tracks.toggle();
+  if (e.code === "Escape") selection.clear();
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.
@@ -1629,6 +1676,8 @@ function frame() {
   if (lighthouse) lighthouse.update(t, night);
   aircraft.update(feed, t, camera);
   updateHover();
+  selection.update(t);
+  tracks.update(t);
   weather.update(dt, camera);
 
   // Ahead of nav, so the floor clamp in there catches a tilt that swung the
