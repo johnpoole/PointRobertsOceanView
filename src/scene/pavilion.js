@@ -4,11 +4,11 @@
 // pretends otherwise: it is off until asked for, on the button or on H, the same
 // as the courts on T and the campground on G.
 //
-// Where it stands is John's. He marked it on the picture: at the foot of the
-// stair, south-west of the house, where the bank runs out onto the beach. That
-// is 11 m from the middle of the cabin, and the near tile reads the ground
-// across this footprint between 3.15 m and 4.10 m. It was 17 m out on the flat
-// to the north-west and that was too far — the mark is against the house.
+// Where it stands is John's, moved twice on his arrows. It is south-west of the
+// house at the toe of the bank, 11 m from the middle of the cabin and six
+// metres south of its south wall, on ground the near tile reads between 3.5 m
+// and 4.4 m across the footprint. It was out on the flat to the north-west
+// first, which was too far off, and then a few metres north-west of here.
 //
 // It does not stand on stilts. John: it does not need them. The floor is a low
 // platform bedded on log sleepers laid across the beach, a hand's width over the
@@ -34,8 +34,8 @@ import { fromWorld, toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { buildLamps, setLampLevel } from "./lights.js";
 
-// The middle of the footprint: world (-44, -2), which is where the mark is.
-const AT = { lat: 48.9890270, lon: -123.0859203 };
+// The middle of the footprint: world (-40, 2).
+const AT = { lat: 48.9889910, lon: -123.0858656 };
 
 const HALF_ALONG_M = 2.3;   // along the shore, north and south
 const HALF_ACROSS_M = 1.8;  // toward the water and away from it
