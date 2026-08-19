@@ -169,12 +169,27 @@ export class TrackList {
     this.visible = false;
     this._due = 0;
 
+    // The rows are only ever replaced when the set of tracks changes, and never
+    // while a hand is on them: a rebuild under a finger that is coming down
+    // detaches the row it was aimed at, and the press lands on whatever the next
+    // rebuild put there. That happened on the first try of this list.
+    this._held = false;
+    this._sig = null;
+
     document.getElementById("tracks-close").addEventListener("click", () => this.hide());
+    this.panel.addEventListener("pointerdown", () => { this._held = true; });
+    for (const ev of ["pointerup", "pointercancel"]) {
+      window.addEventListener(ev, () => {
+        if (!this._held) return;
+        this._held = false;
+        if (this.visible) this._draw();
+      });
+    }
     this.rowsEl.addEventListener("click", (e) => {
       const row = e.target.closest("button[data-id]");
       if (!row) return;
       this.selection.select(row.dataset.kind, row.dataset.id);
-      this._draw();
+      this._mark();
     });
   }
 
@@ -214,25 +229,46 @@ export class TrackList {
   }
 
   _draw() {
-    const pick = this.selection.pick;
-    const html = [];
+    if (this._held) return;
+    const items = [];
     for (const [kind, label, tracked] of
          [["vessel", "vessels", this.feed.vessels],
           ["aircraft", "aircraft", this.feed.aircraft]]) {
       const rows = this._rows(kind, tracked);
-      html.push(`<div class="tracks-group">${label} · ${rows.length}</div>`);
-      for (const r of rows) {
-        const on = pick && pick.kind === kind && pick.id === r.id ? " on" : "";
-        html.push(
-          `<button class="tracks-row${on}" data-kind="${kind}" data-id="${esc(r.id)}">` +
-          `<span class="tip-k">${esc(r.name)}</span>` +
-          `<span class="tip-v">${(r.range / 1000).toFixed(1)} km</span></button>`);
-      }
+      items.push({ heading: `${label} · ${rows.length}` });
+      for (const r of rows) items.push(r);
     }
-    // Rebuilding throws the scroll back to the top, and a list you were reading
-    // down would jump under your thumb once a second.
-    const scroll = this.rowsEl.scrollTop;
-    this.rowsEl.innerHTML = html.join("");
-    this.rowsEl.scrollTop = scroll;
+
+    // Which tracks are listed and in what order. The names and the ranges are
+    // not in it: those change every refresh and are written into the rows that
+    // are already there.
+    const sig = items.map((i) => i.heading || `${i.kind}:${i.id}`).join("|");
+    if (sig !== this._sig) {
+      this._sig = sig;
+      const scroll = this.rowsEl.scrollTop;
+      this.rowsEl.innerHTML = items.map((i) => i.heading
+        ? `<div class="tracks-group"></div>`
+        : `<button class="tracks-row" data-kind="${i.kind}" data-id="${esc(i.id)}">` +
+          `<span class="tip-k"></span><span class="tip-v"></span></button>`).join("");
+      this.rowsEl.scrollTop = scroll;
+    }
+
+    const nodes = this.rowsEl.children;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i], node = nodes[i];
+      if (item.heading) { node.textContent = item.heading; continue; }
+      node.firstElementChild.textContent = item.name;
+      node.lastElementChild.textContent = `${(item.range / 1000).toFixed(1)} km`;
+    }
+    this._mark();
+  }
+
+  // Which row the card is showing.
+  _mark() {
+    const pick = this.selection.pick;
+    for (const node of this.rowsEl.querySelectorAll("button[data-id]")) {
+      node.classList.toggle("on", !!pick && pick.kind === node.dataset.kind
+                                  && pick.id === node.dataset.id);
+    }
   }
 }
