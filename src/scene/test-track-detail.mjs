@@ -160,6 +160,32 @@ rowsAre(Vessels.detail({ mmsi: "1", latitude: 48.9, longitude: -123.1 }),
 is(lookup(Vessels.detail({ mmsi: "1", navigation_status: 14 }), "status 14").get("status"),
    "code 14", "an unnamed nav status");
 
+// One of the Tsawwassen boats, with its sailing on it from BC Ferries.
+rowsAre(Vessels.detail({
+  mmsi: "316001234",
+  name: "Coastal Celebration",
+  vessel_type: 60,
+  ferry_route: "Swartz Bay to Tsawwassen",
+  ferry_status: "under way",
+  ferry_departure: "5:59 am",
+  ferry_arrival: "7:34 am",
+  also_from: "bcferriesapi.ca",
+}), {
+  name: "Coastal Celebration",
+  mmsi: "316001234",
+  "ais type": "60",
+  "drawn as": "passenger",
+  sailing: "Swartz Bay to Tsawwassen",
+  "sailing status": "under way",
+  departs: "5:59 am",
+  arrives: "7:34 am",
+  "also from": "bcferriesapi.ca",
+}, "the ferry under way");
+
+// One still at the berth says how full it is going to be.
+is(lookup(Vessels.detail({ mmsi: "1", ferry_fill_percent: 76 }), "the fill")
+   .get("how full"), "76%", "how full the next sailing is");
+
 // ---- an airliner -----------------------------------------------------------
 // squawk is not a field the code knows.
 rowsAre(Aircraft.detail({
@@ -239,6 +265,35 @@ rowsAre(Aircraft.detail({
   messages: "4213",
   "last message": "0.3 s ago",
 }, "the airliner in full");
+
+// What was looked up by the transponder address and by the callsign.
+rowsAre(Aircraft.detail({
+  icao: "c010ea",
+  callsign: "ACA553",
+  registration: "C-FGKN",
+  aircraft_type: "A321",
+  model: "A321 212",
+  manufacturer: "Airbus",
+  operator: "Air Canada",
+  operator_country: "Canada",
+  airline: "Air Canada",
+  origin: "Victoria International Airport (CYYJ)",
+  destination: "Vancouver International Airport (CYVR)",
+  also_from: "adsbdb.com",
+}), {
+  flight: "ACA553",
+  registration: "C-FGKN",
+  icao: "c010ea",
+  type: "A321",
+  model: "A321 212",
+  manufacturer: "Airbus",
+  operator: "Air Canada",
+  "operator country": "Canada",
+  airline: "Air Canada",
+  origin: "Victoria International Airport (CYYJ)",
+  destination: "Vancouver International Airport (CYVR)",
+  "also from": "adsbdb.com",
+}, "the airframe and the route");
 
 // A climb reads with its sign, so it cannot be mistaken for a descent.
 is(lookup(Aircraft.detail({ icao: "x", vertical_rate_fpm: 1280 }), "climbing")

@@ -166,6 +166,17 @@ export class Aircraft {
     take("icao", "icao");
     take("aircraft_type", "type");
 
+    // What the airframe is and whose it is, and where this flight is between.
+    // Looked up by the transponder address and by the callsign; not from the
+    // position feed, so the card says where it came from.
+    take("model", "model");
+    take("manufacturer", "manufacturer");
+    take("operator", "operator");
+    take("operator_country", "operator country");
+    take("airline", "airline");
+    take("origin", "origin");
+    take("destination", "destination");
+
     seen.add("altitude_m");
     seen.add("on_ground");
     if (state.on_ground) {
@@ -208,6 +219,7 @@ export class Aircraft {
     take("signal_dbm", "signal", (v) => `${v.toFixed(1)} dBm`);
     take("messages", "messages");
     take("seen_s", "last message", (v) => `${v.toFixed(1)} s ago`);
+    take("also_from", "also from");
 
     for (const key of Object.keys(state)) {
       if (seen.has(key)) continue;

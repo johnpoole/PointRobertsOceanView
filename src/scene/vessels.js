@@ -409,6 +409,15 @@ export class Vessels {
     take("eta_utc", "eta");
     take("draught_m", "draught", (v) => `${v.toFixed(1)} m`);
 
+    // The sailing, when it is one of the ferries. From BC Ferries and not from
+    // the position feed, so the card says where it came from.
+    take("ferry_route", "sailing");
+    take("ferry_status", "sailing status");
+    take("ferry_departure", "departs");
+    take("ferry_arrival", "arrives");
+    take("ferry_fill_percent", "how full", (v) => `${v}%`);
+    take("also_from", "also from");
+
     for (const key of Object.keys(state)) {
       if (seen.has(key)) continue;
       const v = state[key];

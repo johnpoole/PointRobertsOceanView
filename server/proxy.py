@@ -242,6 +242,12 @@ class World:
         self.crossings_time: datetime | None = None
         # Why vessels are offline, in the monitor's words. Empty when they are not.
         self.vessels_note = ""
+        # What the lookups have answered, kept so the same question is not asked
+        # twice. An empty dict is an answer: they were asked and had never heard
+        # of it. A key that is not here has not been asked yet.
+        self.aircraft_registry: dict[str, dict] = {}   # icao hex -> fields
+        self.flight_routes: dict[str, dict] = {}       # callsign -> fields
+        self.ferry_sailings: dict[str, dict] = {}      # vessel name, upper -> fields
         self.health = {
             "weather": "offline",
             "tide": "offline",
@@ -642,6 +648,7 @@ def apply_position_report(msg: dict, kind: str = "PositionReport") -> str | None
     name = (meta.get("ShipName") or "").strip()
     if name:
         state["name"] = name
+    apply_ferry(state, world.ferry_sailings)
     world.vessel_seen[mmsi] = parse_time(meta.get("time_utc")) or utcnow()
     return mmsi
 
@@ -659,6 +666,7 @@ def apply_static_data(msg: dict) -> str | None:
         name = (meta.get("ShipName") or "").strip()
         if name:
             state["name"] = name
+    apply_ferry(state, world.ferry_sailings)
     return mmsi
 
 
@@ -818,6 +826,168 @@ async def ais_task() -> None:
             backoff = min(backoff * 2, 60.0)
 
 
+# ---- what else is known about a ship or an aircraft --------------------------
+#
+# The position feeds say where a thing is. Neither says what it is. adsbdb.com
+# will turn a transponder address into an airframe and its owner, and a callsign
+# into the airports at either end of the flight; bcferriesapi.ca will say which
+# sailing one of the Tsawwassen boats is on and how full it is. Both are free and
+# neither wants a key.
+#
+# Every answer is kept. An aircraft's registration does not change while it is
+# crossing the strait, and asking twice is only rudeness to somebody giving this
+# away.
+
+ADSBDB_AIRCRAFT_URL = "https://api.adsbdb.com/v0/aircraft/{ident}"
+ADSBDB_CALLSIGN_URL = "https://api.adsbdb.com/v0/callsign/{callsign}"
+# How many are asked about on one pass of the aircraft feed. The feed polls every
+# six seconds and there is rarely more than a handful in the air here.
+LOOKUPS_PER_POLL = 3
+UA = {"User-Agent": "PointRobertsOceanView/0.1 (+https://oceanview.johnpoole.ca)"}
+
+BCFERRIES_URL = "https://www.bcferriesapi.ca/v2/capacity/"
+BCFERRIES_POLL_SECONDS = 120
+# Their terminal codes are all the payload carries. These are the terminals the
+# boats crossing this water run between. A code that is not here is shown as the
+# code rather than guessed at.
+TERMINALS = {
+    "TSA": "Tsawwassen", "SWB": "Swartz Bay", "SGI": "Southern Gulf Islands",
+    "DUK": "Duke Point", "NAN": "Departure Bay", "HSB": "Horseshoe Bay",
+    "LNG": "Langdale", "BOW": "Snug Cove", "FUL": "Fulford Harbour",
+}
+
+
+def registry_fields(aircraft: dict) -> dict:
+    """What adsbdb knows about one airframe, under our own names."""
+    return {k: v for k, v in {
+        "registration": aircraft.get("registration"),
+        "model": aircraft.get("type"),
+        "manufacturer": aircraft.get("manufacturer"),
+        "operator": aircraft.get("registered_owner"),
+        "operator_country": aircraft.get("registered_owner_country_name"),
+    }.items() if v}
+
+
+def route_fields(flightroute: dict) -> dict:
+    """The airports at either end of one callsign, and whose flight it is."""
+    def where(airport: dict | None) -> str | None:
+        if not airport:
+            return None
+        name = airport.get("name")
+        code = airport.get("icao_code") or airport.get("iata_code")
+        if not name:
+            return code
+        return f"{name} ({code})" if code else name
+
+    return {k: v for k, v in {
+        "airline": (flightroute.get("airline") or {}).get("name"),
+        "origin": where(flightroute.get("origin")),
+        "destination": where(flightroute.get("destination")),
+    }.items() if v}
+
+
+async def _adsbdb(client: httpx.AsyncClient, url: str) -> dict | None:
+    """One adsbdb answer, or None when the question could not be asked.
+
+    An empty dict means they were asked and had never heard of it, which is an
+    answer and is kept. A failure is not kept, so it is asked again later.
+    """
+    response = await client.get(url, headers=UA)
+    if response.status_code == 404:
+        return {}
+    response.raise_for_status()
+    body = response.json().get("response")
+    # They answer an unknown with a string where the object would be.
+    return {} if isinstance(body, str) else (body or {})
+
+
+async def look_up_aircraft(client: httpx.AsyncClient, icao: str) -> None:
+    try:
+        body = await _adsbdb(client, ADSBDB_AIRCRAFT_URL.format(ident=icao.upper()))
+    except (httpx.HTTPError, ValueError) as exc:
+        log.warning("adsbdb: could not look up aircraft %s: %r", icao, exc)
+        return
+    world.aircraft_registry[icao] = registry_fields(body.get("aircraft") or {})
+
+
+async def look_up_route(client: httpx.AsyncClient, callsign: str) -> None:
+    try:
+        body = await _adsbdb(client, ADSBDB_CALLSIGN_URL.format(callsign=callsign))
+    except (httpx.HTTPError, ValueError) as exc:
+        log.warning("adsbdb: could not look up callsign %s: %r", callsign, exc)
+        return
+    world.flight_routes[callsign] = route_fields(body.get("flightroute") or {})
+
+
+def ferry_sailings(payload: dict) -> dict[str, dict]:
+    """The sailing each boat is on, by vessel name in capitals.
+
+    A boat under way beats one still at the berth, and of two of a kind the
+    first listed wins, which is the earlier one. A sailing that has already
+    arrived is nobody's current sailing and is dropped.
+    """
+    rank = {"current": 0, "future": 1}
+    out: dict[str, dict] = {}
+    for route in payload.get("routes") or []:
+        frm = TERMINALS.get(route.get("fromTerminalCode"), route.get("fromTerminalCode"))
+        to = TERMINALS.get(route.get("toTerminalCode"), route.get("toTerminalCode"))
+        for sailing in route.get("sailings") or []:
+            name = (sailing.get("vesselName") or "").strip()
+            status = sailing.get("sailingStatus")
+            if not name or status not in rank:
+                continue
+            key = name.upper()
+            if key in out and out[key]["_rank"] <= rank[status]:
+                continue
+            fields = {
+                "_rank": rank[status],
+                "ferry_route": f"{frm} to {to}",
+                "ferry_status": "under way" if status == "current" else "at the berth",
+                "ferry_departure": sailing.get("time") or None,
+                "ferry_arrival": (sailing.get("arrivalTime") or "").strip() or None,
+            }
+            # The fill is only given for a sailing that has not gone yet.
+            if status == "future" and sailing.get("fill"):
+                fields["ferry_fill_percent"] = sailing["fill"]
+            out[key] = {k: v for k, v in fields.items() if v is not None}
+    for fields in out.values():
+        fields.pop("_rank", None)
+    return out
+
+
+FERRY_FIELDS = ("ferry_route", "ferry_status", "ferry_departure",
+                "ferry_arrival", "ferry_fill_percent")
+
+
+def apply_ferry(state: dict, sailings: dict[str, dict]) -> None:
+    """Stamp a vessel with the sailing it is on, or take one off it that has
+    ended. A boat that is no longer on the board must not keep yesterday's
+    crossing."""
+    found = sailings.get((state.get("name") or "").strip().upper())
+    for field in FERRY_FIELDS:
+        state.pop(field, None)
+    state.pop("also_from", None)
+    if not found:
+        return
+    state.update(found)
+    state["also_from"] = "bcferriesapi.ca"
+
+
+async def ferries_task() -> None:
+    async with httpx.AsyncClient(timeout=25) as client:
+        while True:
+            try:
+                response = await client.get(BCFERRIES_URL, headers=UA)
+                response.raise_for_status()
+                world.ferry_sailings = ferry_sailings(response.json())
+            except (httpx.HTTPError, ValueError) as exc:
+                log.warning("BC Ferries: no sailings this pass: %r", exc)
+            else:
+                for state in world.vessels.values():
+                    apply_ferry(state, world.ferry_sailings)
+            await asyncio.sleep(BCFERRIES_POLL_SECONDS)
+
+
 # ---- aircraft feed ----------------------------------------------------------
 
 
@@ -880,6 +1050,12 @@ def aircraft_state(a: dict) -> dict | None:
     return state
 
 
+def callsign_of(state: dict) -> str | None:
+    """The callsign to ask adsbdb about, or None when it did not send one."""
+    callsign = (state.get("callsign") or "").strip()
+    return callsign or None
+
+
 async def aircraft_task() -> None:
     url = ADSB_URL.format(lat=POINT[0], lon=POINT[1], nm=ADSB_RADIUS_NM)
     async with httpx.AsyncClient(timeout=25) as client:
@@ -897,6 +1073,12 @@ async def aircraft_task() -> None:
                         continue
                     icao = state["icao"]
                     seen_now.add(icao)
+                    state.update(world.aircraft_registry.get(icao) or {})
+                    if callsign_of(state):
+                        state.update(world.flight_routes.get(callsign_of(state)) or {})
+                    if world.aircraft_registry.get(icao) or \
+                            world.flight_routes.get(callsign_of(state) or ""):
+                        state["also_from"] = "adsbdb.com"
                     world.aircraft[icao] = state
                     world.aircraft_seen[icao] = now
                     await clients.broadcast(envelope(
@@ -919,6 +1101,22 @@ async def aircraft_task() -> None:
             except Exception as exc:
                 world.health["aircraft"] = "offline"
                 log.error("Aircraft fetch failed: %s", exc)
+
+            # And ask adsbdb about a few of the ones nobody has asked about yet.
+            # After the broadcast, so a slow lookup never holds up a position.
+            asked = 0
+            for icao in list(world.aircraft):
+                if asked >= LOOKUPS_PER_POLL:
+                    break
+                if icao not in world.aircraft_registry:
+                    await look_up_aircraft(client, icao)
+                    asked += 1
+                callsign = callsign_of(world.aircraft[icao])
+                if asked < LOOKUPS_PER_POLL and callsign and \
+                        callsign not in world.flight_routes:
+                    await look_up_route(client, callsign)
+                    asked += 1
+
             await asyncio.sleep(AIRCRAFT_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
@@ -1510,6 +1708,7 @@ async def shipfinder_task() -> None:
                                              "width": known["width_m"]}
                 if known.get("speed_over_ground_knots") is not None:
                     state["speed_over_ground_knots"] = known["speed_over_ground_knots"]
+            apply_ferry(state, world.ferry_sailings)
             world.vessel_seen[key] = seen_at
 
         # Only ours. An AIS vessel that came back to life is not this task's to
@@ -1639,6 +1838,7 @@ async def startup() -> None:
                              (aircraft_task(), "aircraft", "aircraft"),
                              (weather_task(), "weather", "weather"),
                              (crossings_task(), "crossings", "crossings"),
+                             (ferries_task(), "ferries", None),
                              (heartbeat_task(), "heartbeat", None),
                              (presence_task(), "presence", None),
                              (visitors_task(), "visitors", None)):
