@@ -112,6 +112,22 @@ rowsAre(Vessels.detail({
   "deep draught": "5.4",
 }, "the ferry");
 
+// A ship's own account of where it is going, out of AIS message 5.
+rowsAre(Vessels.detail({
+  mmsi: "316001234",
+  vessel_type: 70,
+  destination: "TSAWWASSEN",
+  eta_utc: "08-19 14:30 UTC",
+  draught_m: 5.4,
+}), {
+  mmsi: "316001234",
+  "ais type": "70",
+  "drawn as": "cargo",
+  destination: "TSAWWASSEN",
+  eta: "08-19 14:30 UTC",
+  draught: "5.4 m",
+}, "the voyage");
+
 // ---- a scraped one ---------------------------------------------------------
 // Their panel gives a width where AIS gives a beam, and the source has to be on
 // the card: a scraped position is labelled scraped everywhere it is shown.
@@ -170,6 +186,63 @@ rowsAre(Aircraft.detail({
   "off the point": "8.4 nm",
   squawk: "1200",
 }, "the 737");
+
+// Everything a new box sends. All of it has a row, and the units are on it.
+rowsAre(Aircraft.detail({
+  icao: "a1b2c3",
+  callsign: "ACA553",
+  aircraft_type: "B738",
+  latitude: 49.02,
+  longitude: -123.15,
+  altitude_m: 1219.2,
+  on_ground: false,
+  ground_speed_kn: 250,
+  track_degrees: 91.6,
+  altitude_geometric_m: 1264.9,
+  vertical_rate_fpm: -640,
+  selected_altitude_ft: 5000,
+  indicated_airspeed_kn: 240,
+  true_airspeed_kn: 262,
+  mach: 0.412,
+  true_heading_degrees: 91.2,
+  magnetic_heading_degrees: 88.6,
+  roll_degrees: -1.4,
+  squawk: "1200",
+  category: "A3",
+  wind_kn: 22,
+  wind_from_degrees: 310,
+  outside_air_temp_c: -4,
+  signal_dbm: -18.7,
+  messages: 4213,
+  seen_s: 0.3,
+}), {
+  flight: "ACA553",
+  icao: "a1b2c3",
+  type: "B738",
+  altitude: "1219 m · 4000 ft",
+  speed: "250 kn · 463 km/h",
+  track: "92°",
+  "geometric altitude": "1265 m · 4150 ft",
+  "vertical rate": "-640 ft/min",
+  "selected altitude": "5000 ft",
+  "indicated airspeed": "240 kn",
+  "true airspeed": "262 kn",
+  mach: "0.41",
+  "true heading": "91°",
+  "magnetic heading": "89°",
+  roll: "-1.4°",
+  squawk: "1200",
+  category: "A3",
+  wind: "22 kn from 310°",
+  "outside air": "-4°C",
+  signal: "-18.7 dBm",
+  messages: "4213",
+  "last message": "0.3 s ago",
+}, "the airliner in full");
+
+// A climb reads with its sign, so it cannot be mistaken for a descent.
+is(lookup(Aircraft.detail({ icao: "x", vertical_rate_fpm: 1280 }), "climbing")
+   .get("vertical rate"), "+1280 ft/min", "a climb");
 
 // on_ground is false and has to stay off the card as a row of its own; sitting
 // on the ground it replaces the altitude.

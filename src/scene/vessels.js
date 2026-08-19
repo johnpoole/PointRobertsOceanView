@@ -405,6 +405,9 @@ export class Vessels {
     take("true_heading_degrees", "heading", (v) => `${Math.round(v)}°`);
     take("navigation_status", "status",
       (v) => NAV_STATUS[v] || `code ${v}`);
+    take("destination", "destination");
+    take("eta_utc", "eta");
+    take("draught_m", "draught", (v) => `${v.toFixed(1)} m`);
 
     for (const key of Object.keys(state)) {
       if (seen.has(key)) continue;

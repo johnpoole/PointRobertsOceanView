@@ -178,6 +178,36 @@ export class Aircraft {
     take("ground_speed_kn", "speed", (v) => `${Math.round(v)} kn · ${Math.round(v * KN * 3.6)} km/h`);
     take("track_degrees", "track", (v) => `${Math.round(v)}°`);
     take("distance_nm", "off the point", (v) => `${v.toFixed(1)} nm`);
+    take("altitude_geometric_m", "geometric altitude",
+      (v) => `${Math.round(v)} m · ${Math.round(v / FT)} ft`);
+    take("vertical_rate_fpm", "vertical rate",
+      (v) => `${v > 0 ? "+" : ""}${Math.round(v)} ft/min`);
+    take("selected_altitude_ft", "selected altitude", (v) => `${Math.round(v)} ft`);
+    take("indicated_airspeed_kn", "indicated airspeed", (v) => `${Math.round(v)} kn`);
+    take("true_airspeed_kn", "true airspeed", (v) => `${Math.round(v)} kn`);
+    take("mach", "mach", (v) => v.toFixed(2));
+    take("true_heading_degrees", "true heading", (v) => `${Math.round(v)}°`);
+    take("magnetic_heading_degrees", "magnetic heading", (v) => `${Math.round(v)}°`);
+    take("roll_degrees", "roll", (v) => `${v.toFixed(1)}°`);
+    take("squawk", "squawk");
+    take("category", "category");
+    take("emergency", "emergency");
+
+    // What the air is doing where it is flying, which the aircraft works out
+    // from its own airspeed and the wind it is in.
+    seen.add("wind_kn");
+    seen.add("wind_from_degrees");
+    if (state.wind_kn != null) {
+      rows.push(["wind", state.wind_from_degrees != null
+        ? `${Math.round(state.wind_kn)} kn from ${Math.round(state.wind_from_degrees)}°`
+        : `${Math.round(state.wind_kn)} kn`]);
+    }
+    take("outside_air_temp_c", "outside air", (v) => `${Math.round(v)}°C`);
+
+    // How well it is being heard.
+    take("signal_dbm", "signal", (v) => `${v.toFixed(1)} dBm`);
+    take("messages", "messages");
+    take("seen_s", "last message", (v) => `${v.toFixed(1)} s ago`);
 
     for (const key of Object.keys(state)) {
       if (seen.has(key)) continue;

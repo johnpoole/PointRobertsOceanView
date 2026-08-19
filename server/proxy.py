@@ -562,6 +562,25 @@ def _clean_speed(value):
     return None if value is None or value >= 102.3 else float(value)
 
 
+def _eta_text(eta: dict | None) -> str | None:
+    """The ETA out of an AIS message 5, as the day and the hour, UTC.
+
+    The field carries no year. A month or a day of zero is the standard's way of
+    saying it was not given, and so are hour 24 and minute 60, so those parts are
+    left off rather than printed as a time nobody sent.
+    """
+    if not eta:
+        return None
+    month, day = eta.get("Month"), eta.get("Day")
+    if not month or not day:
+        return None
+    text = f"{int(month):02d}-{int(day):02d}"
+    hour, minute = eta.get("Hour"), eta.get("Minute")
+    if hour is not None and minute is not None and int(hour) < 24 and int(minute) < 60:
+        text += f" {int(hour):02d}:{int(minute):02d} UTC"
+    return text
+
+
 def _apply_static_fields(state: dict, src: dict) -> None:
     name = (src.get("Name") or "").strip()
     if name:
@@ -577,6 +596,22 @@ def _apply_static_fields(state: dict, src: dict) -> None:
             "to_bow": float(a),
             "to_stern": float(b),
         }
+    # The rest of message 5. A ship says where it is going and how deep it sits,
+    # and none of it was being kept. Zero is the standard's not-given for the
+    # IMO number and for the draught, and an empty string is for the two names.
+    call_sign = (src.get("CallSign") or "").strip()
+    if call_sign:
+        state["call_sign"] = call_sign
+    if src.get("ImoNumber"):
+        state["imo"] = src["ImoNumber"]
+    destination = (src.get("Destination") or "").strip()
+    if destination:
+        state["destination"] = destination
+    if src.get("MaximumStaticDraught"):
+        state["draught_m"] = float(src["MaximumStaticDraught"])
+    eta = _eta_text(src.get("Eta"))
+    if eta:
+        state["eta_utc"] = eta
 
 
 # Class A sends PositionReport (msg 1/2/3); small craft send Class B, which
@@ -795,7 +830,7 @@ def aircraft_state(a: dict) -> dict | None:
     on_ground = alt == "ground"
     altitude_m = 0.0 if on_ground else (float(alt) * FT_TO_M if alt is not None else None)
     callsign = (a.get("flight") or "").strip() or None
-    return {
+    state = {
         "icao": a.get("hex"),
         "callsign": callsign,
         "registration": a.get("r"),
@@ -808,6 +843,41 @@ def aircraft_state(a: dict) -> dict | None:
         "track_degrees": a.get("track"),
         "distance_nm": a.get("dst"),
     }
+
+    # The rest of what the transponder sent. Under our own names, with the units
+    # in them, and only the ones this aircraft actually reported — an old Mode S
+    # box sends a handful of these and a new one sends all of them.
+    extra = {
+        "squawk": a.get("squawk"),
+        "category": a.get("category"),
+        "indicated_airspeed_kn": a.get("ias"),
+        "true_airspeed_kn": a.get("tas"),
+        "mach": a.get("mach"),
+        "magnetic_heading_degrees": a.get("mag_heading"),
+        "true_heading_degrees": a.get("true_heading"),
+        "roll_degrees": a.get("roll"),
+        "selected_altitude_ft": a.get("nav_altitude_mcp"),
+        "outside_air_temp_c": a.get("oat"),
+        "wind_kn": a.get("ws"),
+        "wind_from_degrees": a.get("wd"),
+        "signal_dbm": a.get("rssi"),
+        "messages": a.get("messages"),
+        "seen_s": a.get("seen"),
+    }
+    # Barometric rate if it sent one, and the GPS one if that is all there is.
+    rate = a.get("baro_rate")
+    if rate is None:
+        rate = a.get("geom_rate")
+    extra["vertical_rate_fpm"] = rate
+    # Height off the ellipsoid rather than off the pressure datum.
+    if a.get("alt_geom") is not None:
+        extra["altitude_geometric_m"] = round(float(a["alt_geom"]) * FT_TO_M, 1)
+    # "none" is the field saying there is no emergency, which is not news.
+    if a.get("emergency") not in (None, "none"):
+        extra["emergency"] = a["emergency"]
+
+    state.update({k: v for k, v in extra.items() if v is not None})
+    return state
 
 
 async def aircraft_task() -> None:
