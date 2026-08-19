@@ -57,18 +57,24 @@ const GROUND = (x, z) => 4.9 - 0.32 * (1.8 - x) - 0.1 * (2.3 - z) / 2;
 const shape = plan(GROUND);
 
 // The floor is bedded on the ground, not lifted off it. John: it does not need
-// stilts. So it sits a sleeper and a plank over the highest corner and no more,
-// and a high tide runs under it and over it.
-const highest = Math.max(...shape.posts.map((p) => p.ground));
-ok(Math.abs(shape.deckY - (highest + 0.22)) < 1e-9,
-   `the floor is not 0.22 m over the highest ground: ${shape.deckY} against ${highest}`);
-ok(shape.deckY - highest < 0.4,
-   `the floor stands ${(shape.deckY - highest).toFixed(2)} m off the ground, which is stilts`);
+// stilts. It takes the mean of its corners, so it is dug into the bank on the
+// high side and stands on its sleepers on the low side, and a high tide runs
+// under it and over it.
+const grounds = shape.posts.map((p) => p.ground);
+const mean = grounds.reduce((a, b) => a + b, 0) / grounds.length;
+ok(Math.abs(shape.deckY - (mean + 0.22)) < 1e-9,
+   `the floor is not 0.22 m over the mean ground: ${shape.deckY} against ${mean}`);
+ok(shape.deckY - Math.min(...grounds) < 1.0,
+   `the floor stands ${(shape.deckY - Math.min(...grounds)).toFixed(2)} m off the low ` +
+   `corner, which is stilts`);
+ok(Math.max(...grounds) - shape.deckY < 1.0,
+   "the floor is buried on the high side");
 
-// Every post reaches the ground under its own foot and goes into it. One length
-// for all six would leave the seaward pair standing in the air.
+// Every post reaches the ground under its own foot and stands out of it. One
+// length for all six would leave the seaward pair hanging in the air. The
+// landward ones are shorter, because the floor is dug into the bank there.
 for (const p of shape.posts) {
-  ok(p.top > p.ground + 2.5, `a post at ${p.x},${p.z} is too short to carry the beam`);
+  ok(p.top - p.ground > 2.0, `a post at ${p.x},${p.z} barely clears its own ground`);
 }
 const lengths = shape.posts.map((p) => p.top - (p.ground - 0.3));
 ok(Math.max(...lengths) - Math.min(...lengths) > 0.5,
@@ -89,6 +95,7 @@ ok(shape.roofY > shape.beamY, "the roof is not above the beam");
 // height in here that the tide or anything else can force.
 const low = plan(() => 2.5);
 ok(Math.abs(low.deckY - 2.72) < 1e-9, `on low ground the floor came out at ${low.deckY}`);
+ok(Math.abs(plan(() => 12).deckY - 12.22) < 1e-9, "the floor does not follow high ground");
 
 // Flat ground gives flat posts, which is the one case that would hide a sign
 // error in the cut.

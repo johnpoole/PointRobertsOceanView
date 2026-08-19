@@ -4,17 +4,24 @@
 // pretends otherwise: it is off until asked for, on the button or on H, the same
 // as the courts on T and the campground on G.
 //
-// Where it stands is John's, moved twice on his arrows. It is south-west of the
-// house at the toe of the bank, 11 m from the middle of the cabin and six
-// metres south of its south wall, on ground the near tile reads between 3.5 m
-// and 4.4 m across the footprint. It was out on the flat to the north-west
-// first, which was too far off, and then a few metres north-west of here.
+// Where it stands is John's, moved three times on his arrows. It is at the foot
+// of the stair, south of the house and against the bank, on ground the near tile
+// reads between 4.8 m and 6.0 m across the footprint. It was out on the flat to
+// the north-west first, which was too far off, and then twice down the beach of
+// here.
 //
 // It does not stand on stilts. John: it does not need them. The floor is a low
-// platform bedded on log sleepers laid across the beach, a hand's width over the
-// ground it sits on, and the only things going into the sand are the six posts
-// that carry the roof. That means a high tide runs under the floor and over it,
-// which is what it is: a shelter on a beach, not a boathouse.
+// platform bedded on log sleepers laid across the beach, and the only things
+// going into the sand are the six posts that carry the roof. That means a high
+// tide runs under the floor and over it, which is what it is: a shelter on a
+// beach, not a boathouse.
+//
+// The bank falls a metre across the footprint here, and a level floor on a slope
+// has to sit somewhere. It beds to the mean of its corners, so the landward side
+// is dug a hand's width into the bank and the seaward side stands the same
+// amount off it, carried on the sleepers. Bedding to the highest corner instead
+// lifted the seaward side more than a metre clear, which is stilts by another
+// name.
 //
 // The posts are not one length. Each is cut to the ground under its own foot,
 // which is how the west side of the cabin is built and for the same reason.
@@ -34,8 +41,8 @@ import { fromWorld, toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { buildLamps, setLampLevel } from "./lights.js";
 
-// The middle of the footprint: world (-40, 2).
-const AT = { lat: 48.9889910, lon: -123.0858656 };
+// The middle of the footprint: world (-35, 2).
+const AT = { lat: 48.9889910, lon: -123.0857971 };
 
 const HALF_ALONG_M = 2.3;   // along the shore, north and south
 const HALF_ACROSS_M = 1.8;  // toward the water and away from it
@@ -90,10 +97,11 @@ export function plan(ground) {
       feet.push({ x, z, ground: ground(x, z) });
     }
   }
-  // Bedded on the ground rather than lifted off it: the floor sits a sleeper
-  // and a plank over the highest corner, so the low side is carried on the
-  // sleepers and the high side is nearly on the sand.
-  const deckY = Math.max(...feet.map((f) => f.ground)) + DECK_CLEAR_M;
+  // Bedded on the ground rather than lifted off it: the floor takes the mean of
+  // its corners, so it is dug into the bank on the high side and stands on its
+  // sleepers on the low side.
+  const mean = feet.reduce((sum, f) => sum + f.ground, 0) / feet.length;
+  const deckY = mean + DECK_CLEAR_M;
   const beamY = deckY + HEADROOM_M;
   return {
     deckY,
@@ -163,17 +171,6 @@ function parts(shape) {
 
   // A rug on the boards between the bed and the water.
   out.push(box(1.5, 2.0, 0.02, -0.85, deckY, 0, RUG));
-
-  // The hammock chair, hung off the seaward beam.
-  const seatY = deckY + 0.62;
-  const hangX = -1.1;
-  const spread = beamY - (seatY + 0.06);
-  for (const z of [-0.34, 0.34]) {
-    out.push(log(0.025, spread, hangX, seatY + 0.06 + spread / 2, z, "y", CANVAS));
-  }
-  out.push(log(0.035, 1.0, hangX, beamY - 0.02, 0, "z", DRIFT_DARK));
-  out.push(box(0.7, 0.9, 0.06, hangX, seatY, 0, CANVAS));
-  out.push(box(0.06, 0.9, 0.5, hangX + 0.32, seatY, 0, CANVAS));
 
   // Lanterns on that beam, and glass floats at the north end of it.
   const lanternX = -HALF_ACROSS_M + 0.06;
