@@ -174,7 +174,9 @@ body.hud-visible .views { display: flex; }
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
-.gyro-note/* The card for a clicked ship or aircraft. Down the left, where nothing else
+.gyro-note.hidden { display: none; }
+
+/* The card for a clicked ship or aircraft. Down the left, where nothing else
    lives, and it is not a .hud: the corner panels are off on a phone until the
    hamburger is pressed, and a card you asked for by picking the thing out of the
    water has to come up on its own. */
@@ -251,8 +253,6 @@ body.hud-visible .views { display: flex; }
 }
 .tracks-row:hover { background: rgba(255, 255, 255, 0.06); }
 .tracks-row.on { border-color: var(--edge); background: rgba(255, 255, 255, 0.08); }
-
-.hidden { display: none; }
 
 /* The helm readout. Above the tide panel on the left; bottom right is taken by
    the buttons and bottom centre by the hint. */
