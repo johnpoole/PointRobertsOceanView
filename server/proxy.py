@@ -4,7 +4,7 @@ Serves the static site and bridges four upstream feeds into one browser
 WebSocket at /ws/live:
 
   - vessels  : AISStream.io  (needs AISSTREAM_API_KEY in .env)
-  - aircraft : adsb.lol, community-fed ADS-B, 20 km around the bluff, no key
+  - aircraft : adsb.fi, community-fed ADS-B, 20 km around the bluff, no key
   - tide     : NOAA CO-OPS 9449639 (Point Roberts) with the surge measured at
                9449424 (Cherry Point) carried onto it, MLLW, metres
   - weather  : Open-Meteo forecast and marine at the exact coordinates
@@ -132,14 +132,21 @@ CURRENT_SLACK_MPS = 0.05          # under this it is slack and has no direction
 CM_PER_S_TO_M_PER_S = 0.01
 KNOT_MPS = 0.514444
 
-# Aircraft from adsb.lol: community-fed, ODbL, no key. A drop-in for the
-# ADSBexchange API that went paid. Their docs say a key may be required in
-# future, earned by feeding the network.
+# Aircraft from adsb.fi's open data: community-fed, no key, the same readsb JSON
+# every one of these aggregators serves.
+#
+# It was adsb.lol, which stopped. Not for us and not for our bounding box: their
+# whole-world military feed answered empty too, and so did fifty miles of
+# Heathrow. They answer 200 with no error and an empty list, which is the worst
+# way for a feed to fail, and the page dutifully drew an empty sky over a strait
+# that had thirty-five aircraft in it.
+#
 # Twenty kilometres. It was 30 nm, which is 56, and at that range everything was
 # a speck: the far edge sets how big a thing is drawn, so a wide feed makes a
 # small one. Six seconds is well inside their tolerance and the client
 # interpolates between polls.
-ADSB_URL = "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{nm}"
+ADSB_URL = "https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{nm}"
+ADSB_SOURCE = "opendata.adsb.fi"
 ADSB_RADIUS_NM = 10.8      # 20 km. It was 30 nm, which is 56.
 # ---- border crossings -------------------------------------------------------
 #
@@ -541,7 +548,7 @@ def snapshot() -> dict:
             "crossings": crossings,
             "vessels": vessels,
             "aircraft": [
-                envelope("aircraft.state", "adsb.lol",
+                envelope("aircraft.state", ADSB_SOURCE,
                          world.aircraft_seen.get(icao), state,
                          STALE_SECONDS["aircraft"])
                 for icao, state in world.aircraft.items()
@@ -992,7 +999,7 @@ async def ferries_task() -> None:
 
 
 def aircraft_state(a: dict) -> dict | None:
-    """One adsb.lol record as our own shape, or None if it cannot be placed."""
+    """One record as our own shape, or None if it cannot be placed."""
     lat, lon = a.get("lat"), a.get("lon")
     if lat is None or lon is None:
         return None
@@ -1033,6 +1040,10 @@ def aircraft_state(a: dict) -> dict | None:
         "signal_dbm": a.get("rssi"),
         "messages": a.get("messages"),
         "seen_s": a.get("seen"),
+        # What the feed itself knows about the airframe rather than the flight.
+        "model": a.get("desc"),
+        "operator": a.get("ownOp"),
+        "built": a.get("year"),
     }
     # Barometric rate if it sent one, and the GPS one if that is all there is.
     rate = a.get("baro_rate")
@@ -1050,6 +1061,23 @@ def aircraft_state(a: dict) -> dict | None:
     return state
 
 
+def aircraft_records(payload: dict) -> list:
+    """The list of aircraft out of one answer.
+
+    Raises when the key is not there. This is the whole reason the sky went
+    empty for a day: the old feed's key was read with a .get and a default, so
+    a service that had stopped and a service whose shape had changed both came
+    out as no aircraft, which draws exactly like a quiet afternoon.
+    """
+    records = payload.get("aircraft")
+    if records is None:
+        raise KeyError(
+            f"{ADSB_SOURCE} answered without an 'aircraft' list. It had "
+            f"{sorted(payload)!r}. The feed shape has changed and nothing here "
+            f"can read it.")
+    return records
+
+
 def callsign_of(state: dict) -> str | None:
     """The callsign to ask adsbdb about, or None when it did not send one."""
     callsign = (state.get("callsign") or "").strip()
@@ -1064,7 +1092,7 @@ async def aircraft_task() -> None:
             try:
                 response = await client.get(url, headers={"User-Agent": "PointRobertsOceanView/0.1"})
                 response.raise_for_status()
-                records = response.json().get("ac") or []
+                records = aircraft_records(response.json())
                 now = utcnow()
                 seen_now = set()
                 for record in records:
@@ -1082,7 +1110,7 @@ async def aircraft_task() -> None:
                     world.aircraft[icao] = state
                     world.aircraft_seen[icao] = now
                     await clients.broadcast(envelope(
-                        "aircraft.state", "adsb.lol", now, state,
+                        "aircraft.state", ADSB_SOURCE, now, state,
                         STALE_SECONDS["aircraft"]))
                 # Drop anything that has been out of range long enough to be gone.
                 for icao in [k for k, t in world.aircraft_seen.items()
@@ -1093,10 +1121,12 @@ async def aircraft_task() -> None:
                 if seen_now:
                     if world.health["aircraft"] != "live":
                         world.health["aircraft"] = "live"
-                        log.info("adsb.lol delivering; aircraft live (%d in range)", len(seen_now))
+                        log.info("%s delivering; aircraft live (%d in range)",
+                                 ADSB_SOURCE, len(seen_now))
                 elif world.health["aircraft"] != "offline":
                     world.health["aircraft"] = "offline"
-                    log.warning("adsb.lol answered with no aircraft within %d nm.", ADSB_RADIUS_NM)
+                    log.warning("%s answered with no aircraft within %d nm.",
+                                ADSB_SOURCE, ADSB_RADIUS_NM)
                 ok = True
             except Exception as exc:
                 world.health["aircraft"] = "offline"

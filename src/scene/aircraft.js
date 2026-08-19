@@ -1,4 +1,4 @@
-// Aircraft over the strait, from adsb.lol. Mostly the Vancouver floatplane lanes
+// Aircraft over the strait, from adsb.fi. Mostly the Vancouver floatplane lanes
 // and the approach to YVR, which is what actually crosses the view from here.
 //
 // Drawn the same way as vessels: real position, real altitude, but larger than
@@ -171,6 +171,7 @@ export class Aircraft {
     // position feed, so the card says where it came from.
     take("model", "model");
     take("manufacturer", "manufacturer");
+    take("built", "built");
     take("operator", "operator");
     take("operator_country", "operator country");
     take("airline", "airline");

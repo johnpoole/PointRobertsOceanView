@@ -81,6 +81,7 @@ FULL = {
     "mag_heading": 88.6, "true_heading": 91.2, "roll": -1.4,
     "nav_altitude_mcp": 5000, "oat": -4, "ws": 22, "wd": 310,
     "rssi": -18.7, "messages": 4213, "seen": 0.3,
+    "desc": "BOEING 737 MAX 8", "ownOp": "WestJet", "year": "2018",
 }
 
 
@@ -105,6 +106,10 @@ def test_everything_the_transponder_sent_is_carried() -> None:
     assert state["signal_dbm"] == -18.7
     assert state["messages"] == 4213
     assert state["seen_s"] == 0.3
+    # What the feed knows about the airframe, not just about the flight.
+    assert state["model"] == "BOEING 737 MAX 8"
+    assert state["operator"] == "WestJet"
+    assert state["built"] == "2018"
     # No emergency is not news, so the field saying so is left off.
     assert "emergency" not in state
 
@@ -128,6 +133,19 @@ def test_a_plain_mode_s_box_gets_no_invented_fields() -> None:
 def test_the_gps_climb_rate_stands_in_for_the_barometric_one() -> None:
     record = {k: v for k, v in FULL.items() if k != "baro_rate"}
     assert proxy.aircraft_state(record)["vertical_rate_fpm"] == -700
+
+
+def test_a_feed_that_answers_without_a_list_is_an_error() -> None:
+    """An empty sky and a feed that has changed shape must not look the same.
+    The old one answered 200 with no error and nothing in it for a whole day."""
+    assert proxy.aircraft_records({"aircraft": []}) == []
+    assert proxy.aircraft_records({"aircraft": [FULL]}) == [FULL]
+    try:
+        proxy.aircraft_records({"ac": [], "msg": "No error"})
+    except KeyError as exc:
+        assert "aircraft" in str(exc)
+    else:
+        raise AssertionError("a payload with no aircraft list came back as no aircraft")
 
 
 def test_an_aircraft_with_no_position_is_not_placed() -> None:

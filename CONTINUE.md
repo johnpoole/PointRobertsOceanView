@@ -318,7 +318,7 @@ assets/                    everything baked. Do not edit by hand.
 | tide | NOAA CO-OPS 9449639, surge from 9449424 | live |
 | currents | NOAA CO-OPS PUG1726 bin 35, predictions | live, labelled predicted |
 | weather | Open-Meteo | live |
-| aircraft | adsb.lol, 30 nm, no key | live |
+| aircraft | adsb.fi open data, 20 km, no key | live |
 | vessels | shipfinder.com, scraped | live, labelled scraped |
 | vessels | AISStream | dead, see issue #1 |
 | crossings | BTS, from US CBP | live, monthly, nothing drawn from it yet |
