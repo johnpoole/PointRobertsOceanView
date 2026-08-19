@@ -181,8 +181,7 @@ body.hud-visible .views { display: flex; }
 .track {
   position: fixed;
   left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 60px;
   z-index: 7;
   width: 300px;
   max-width: calc(100vw - 28px);
@@ -213,8 +212,7 @@ body.hud-visible .views { display: flex; }
 .tracks {
   position: fixed;
   right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 60px;
   z-index: 7;
   width: 240px;
   max-width: calc(100vw - 28px);
@@ -468,6 +466,8 @@ body.hud-visible .hamburger { background: rgba(80, 140, 180, 0.5); }
 /* The button sits in the top left corner and so does the first panel. Move the
    panel down out from under it rather than the button off the corner. */
 body.hud-visible .hud-tl { top: 60px; }
+body.hud-visible .track { top: 230px; }
+body.hud-visible .tracks { top: 270px; }
 
 /* --- Everything steps back --------------------------------------------------
    The view is what the page is for, so what is drawn over it fades once nothing
@@ -560,14 +560,16 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
      height they may have so they cannot grow into each other. */
   .track {
     left: 8px; right: 8px; top: 60px;
-    width: auto; max-width: none; transform: none;
+    width: auto; max-width: none;
     max-height: 34vh;
   }
   .tracks {
     left: 8px; right: 8px; top: auto; bottom: 170px;
-    width: auto; max-width: none; transform: none;
+    width: auto; max-width: none;
     max-height: 30vh;
   }
+  /* The list stays at the bottom whatever the readouts are doing. */
+  body.hud-visible .tracks { top: auto; }
   .tracks-row { min-height: 40px; }
 
   .fly-hint { bottom: 116px; max-width: calc(100vw - 24px); }
