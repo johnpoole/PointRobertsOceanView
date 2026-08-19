@@ -136,7 +136,9 @@ export class Selection {
   // as it is everywhere else.
   _provenance(entry) {
     const rows = [];
-    if (entry.source) rows.push(["source", entry.source]);
+    // Not "source": the vessel record carries a source field of its own and two
+    // rows under one label is a card that cannot be read.
+    if (entry.source) rows.push(["from", entry.source]);
     if (entry.source_time) rows.push(["fix", clockText(entry.source_time)]);
     const age = entry.quality ? entry.quality.age_seconds : null;
     if (age != null) rows.push(["age", `${Math.round(age)} s`]);
