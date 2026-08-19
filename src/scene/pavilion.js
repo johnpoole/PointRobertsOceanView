@@ -4,12 +4,11 @@
 // pretends otherwise: it is off until asked for, on the button or on H, the same
 // as the courts on T and the campground on G.
 //
-// Where it stands is arithmetic rather than taste. The stair to the shore is the
-// timber one down the north side of the house, so the foot of it is north-west
-// of the cabin, and the bank there falls from 9.7 m to 2.2 m across twenty
-// metres. It stands on the flat at the bottom of that, 17 m from the middle of
-// the cabin, clear of the house and its deck rather than under them. The near
-// tile reads the ground across this footprint between 3.1 m and 4.2 m.
+// Where it stands is John's. He marked it on the picture: at the foot of the
+// stair, south-west of the house, where the bank runs out onto the beach. That
+// is 11 m from the middle of the cabin, and the near tile reads the ground
+// across this footprint between 3.15 m and 4.10 m. It was 17 m out on the flat
+// to the north-west and that was too far — the mark is against the house.
 //
 // The deck is level and has two floors to clear and takes the higher: 0.3 m over
 // the highest ground under it, and 0.7 m over a 3.5 m tide, which is the tide
@@ -35,9 +34,8 @@ import { fromWorld, toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { buildLamps, setLampLevel } from "./lights.js";
 
-// The middle of the footprint: world (-50, -14), north-west of the cabin, at the
-// foot of the bank below the stair on the north side of the house.
-const AT = { lat: 48.9891348, lon: -123.0860022 };
+// The middle of the footprint: world (-44, -2), which is where the mark is.
+const AT = { lat: 48.9890270, lon: -123.0859203 };
 
 const HALF_ALONG_M = 2.3;   // along the shore, north and south
 const HALF_ACROSS_M = 1.8;  // toward the water and away from it
