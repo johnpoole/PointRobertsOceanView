@@ -4,19 +4,20 @@
 // pretends otherwise: it is off until asked for, on the button or on H, the same
 // as the courts on T and the campground on G.
 //
-// Where it stands is arithmetic rather than taste. The bank falls from 9.4 m
-// under the cabin to 2.0 m out on the flat, and the lidar has the fall in three
-// stages: steep for four metres, easing over the next six, and beach after that.
-// The shelf at the bottom of the steep part is the only ground here that is both
-// level and dry — the waterline stands 43 m off the camera at a 3.5 m tide,
-// which is the seaward edge of this footprint. So it sits there, 8 m west of the
-// cabin, on ground the near tile reads between 3.75 m and 4.9 m across the
-// footprint.
+// Where it stands is arithmetic rather than taste. The stair to the shore is the
+// timber one down the north side of the house, so the foot of it is north-west
+// of the cabin, and the bank there falls from 9.7 m to 2.2 m across twenty
+// metres. It stands on the flat at the bottom of that, 17 m from the middle of
+// the cabin, clear of the house and its deck rather than under them. The near
+// tile reads the ground across this footprint between 3.1 m and 4.2 m.
 //
-// The deck is level and clears the highest of that ground by 0.3 m, which puts
-// it better than a metre and a half over that 3.5 m tide. The posts are not one
-// length: each is cut to the ground under its own foot, which is how the west
-// side of the cabin is built and for the same reason.
+// The deck is level and has two floors to clear and takes the higher: 0.3 m over
+// the highest ground under it, and 0.7 m over a 3.5 m tide, which is the tide
+// the page's own notes put 43 m off the camera. Ground alone is not enough this
+// far down the beach — the sea comes up past the landward posts.
+//
+// The posts are not one length: each is cut to the ground under its own foot,
+// which is how the west side of the cabin is built and for the same reason.
 //
 // What it is made of is the west coast reading of the thing John showed me:
 // cedar posts and beams, a slatted roof with a driftwood log laid along the
@@ -34,12 +35,17 @@ import { fromWorld, toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { buildLamps, setLampLevel } from "./lights.js";
 
-// The middle of the footprint: world (-42.5, -4.5), 8 m west of the cabin.
-const AT = { lat: 48.9890494, lon: -123.0858998 };
+// The middle of the footprint: world (-50, -14), north-west of the cabin, at the
+// foot of the bank below the stair on the north side of the house.
+const AT = { lat: 48.9891348, lon: -123.0860022 };
 
 const HALF_ALONG_M = 2.3;   // along the shore, north and south
 const HALF_ACROSS_M = 1.8;  // toward the water and away from it
 const DECK_CLEAR_M = 0.3;   // the deck over the highest ground under it
+// And over the water. 3.5 m is the tide the page's notes put 43 m off the
+// camera, which is up the beach of this footprint.
+const HIGH_WATER_M = 3.5;
+const TIDE_CLEAR_M = 0.7;
 const DECK_THICK_M = 0.09;
 const POST_R_M = 0.11;
 const HEADROOM_M = 2.45;    // deck to the underside of the beam
@@ -47,7 +53,7 @@ const BEAM_M = 0.24;
 const EAVE_M = 0.4;
 const SLAT_M = 0.06;
 const SLAT_GAP_M = 0.3;
-const LOG_R_M = 0.19;       // the driftwood laid along the seaward side
+const LOG_R_M = 0.15;       // the driftwood laid along the seaward side
 // Where the lanterns hang along that beam.
 const LANTERNS = [-1.5, 1.5];
 
@@ -60,7 +66,8 @@ const BLANKET = 0x6f6d66;
 const OLIVE = 0x8a8a6e;
 const RUG = 0x9b6a5c;
 const CANVAS = 0xd8cfba;
-const IRON = 0x2a2f34;
+const IRON = 0x3b342b;
+const LANTERN_GLASS = 0xd9c089;
 const FLOAT_GLASS = [0x4f9c96, 0x6fa86a, 0x7fb6c4];
 
 // Anything round: a post, a log, a rope, a glass float. y is its middle.
@@ -83,7 +90,8 @@ export function plan(ground) {
       feet.push({ x, z, ground: ground(x, z) });
     }
   }
-  const deckY = Math.max(...feet.map((f) => f.ground)) + DECK_CLEAR_M;
+  const deckY = Math.max(Math.max(...feet.map((f) => f.ground)) + DECK_CLEAR_M,
+                         HIGH_WATER_M + TIDE_CLEAR_M);
   const beamY = deckY + HEADROOM_M;
   return {
     deckY,
@@ -163,7 +171,9 @@ function parts(shape) {
   const lanternX = -HALF_ACROSS_M + 0.06;
   for (const z of LANTERNS) {
     out.push(log(0.02, 0.3, lanternX, beamY - 0.15, z, "y", IRON));
-    out.push(box(0.16, 0.16, 0.26, lanternX, beamY - 0.56, z, IRON));
+    out.push(box(0.13, 0.13, 0.06, lanternX, beamY - 0.36, z, IRON));
+    out.push(box(0.11, 0.11, 0.17, lanternX, beamY - 0.53, z, LANTERN_GLASS));
+    out.push(box(0.14, 0.14, 0.05, lanternX, beamY - 0.58, z, IRON));
   }
   FLOAT_GLASS.forEach((color, i) => {
     const z = -HALF_ALONG_M + 0.2;

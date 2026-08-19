@@ -87,11 +87,18 @@ ok(shape.bedY > shape.deckY && shape.bedY < shape.deckY + 0.6,
 // The roof is above the beam it is carried on.
 ok(shape.roofY > shape.beamY, "the roof is not above the beam");
 
+// Down on the flat the tide is what governs, not the ground. Ground at 2.5 m
+// would put a deck 0.3 m over it under water twice a day.
+const low = plan(() => 2.5);
+ok(low.deckY === 4.2, `on low ground the deck came out at ${low.deckY}, not 4.2`);
+ok(low.posts.every((p) => p.top - p.ground > 4.3),
+   "the posts did not grow to carry a deck lifted by the tide");
+
 // Flat ground gives flat posts, which is the one case that would hide a sign
 // error in the cut.
-const flat = plan(() => 4.0);
-ok(flat.deckY === 4.3, `on flat ground the deck came out at ${flat.deckY}`);
-ok(flat.posts.every((p) => p.ground === 4.0), "flat ground did not give flat feet");
+const flat = plan(() => 4.5);
+ok(flat.deckY === 4.8, `on flat ground the deck came out at ${flat.deckY}`);
+ok(flat.posts.every((p) => p.ground === 4.5), "flat ground did not give flat feet");
 
 if (failures) {
   console.error(`${failures} failed`);
