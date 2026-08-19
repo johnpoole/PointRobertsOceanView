@@ -23,6 +23,7 @@ import { buildPeople } from "./scene/people.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
+import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
@@ -196,6 +197,7 @@ const overview = new OverviewMap(document.getElementById("overview"));
 // Near tile: fine, fogged, tide-driven foreground. Once it loads, drape the
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 let landmarkPicks = [];
+let pavilion = null;
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
@@ -300,6 +302,9 @@ stairSpec
     // channel stairCarve cut for it above: see stair.js.
     if (stair) buildStair(scene, stair, near.projector);
     lighthouse = buildLighthouse(scene, near.sample);
+    // Not built, so it stands there only when it is asked for, the same as the
+    // courts and the campground.
+    pavilion = buildPavilion(scene, near.sample);
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.
     drift = buildDrift(scene, { seaAt: nav.seaAt });
@@ -1552,6 +1557,23 @@ function toggleCampground() {
 }
 document.getElementById("campground-btn").addEventListener("click", toggleCampground);
 
+// The shelter at the foot of the bank stands 8 m west of the cabin and 40 m
+// below the eye, so from the bluff you are looking down on its roof. Turning it
+// on puts you on the beach at its own height, out in front of it, looking back
+// at it with the water behind you.
+function togglePavilion() {
+  if (!pavilion) return;
+  const on = !pavilion.visible;
+  pavilion.setVisible(on);
+  if (!on) return;
+  const c = pavilion.centre;
+  nav.toOrbit();
+  camera.position.set(c.x - 11, c.y + 3.2, c.z + 4);
+  controls.target.set(c.x, c.y + 1.2, c.z);
+  controls.update();
+}
+document.getElementById("pavilion-btn").addEventListener("click", togglePavilion);
+
 // Whales, now, on the water beside wherever you are, and then it puts you where
 // you can watch them, the way turning the courts on takes you to the courts.
 //
@@ -1606,6 +1628,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
   if (e.code === "KeyG") toggleCampground();
+  if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
   if (e.code === "KeyN" && !e.repeat) nextWyzeCam();
@@ -1674,6 +1697,7 @@ function frame() {
   const night = 1 - weather.dayFactor;
   vessels.update(feed, level, t, camera, night);
   if (lighthouse) lighthouse.update(t, night);
+  if (pavilion) pavilion.update(night);
   aircraft.update(feed, t, camera);
   updateHover();
   selection.update(t);
