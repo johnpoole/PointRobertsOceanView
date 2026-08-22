@@ -196,17 +196,26 @@ export function exposureFor(perez, zenith, norm, thetaS) {
 // that is a quantity already worked out here for the sun's own disk. So the low
 // sky is multiplied by it, hardest at the horizon and not at all overhead.
 //
-// BEAM_SHARE is how much of the light arriving from a patch of low sky came
-// straight off the beam rather than bouncing about first. Near the horizon at
-// sunset that is very nearly all of it, so it is one, and the falloff with
-// height is linear rather than squared: squared kept the reddening in the last
-// few degrees, where the sky is too bright to show it anyway, and left
-// everything from ten degrees up the flat yellow it started as.
-const BEAM_SHARE = 1.0;
-
-export function beamReddening(state, dirY) {
-  const slant = 1 - Math.min(Math.max(dirY, 0), 1);
-  return state.sun.map((t) => 1 + (t - 1) * slant * BEAM_SHARE);
+// How much of the light arriving from a patch of low sky came straight off the
+// beam, and so carries the colour the long path in has left it.
+//
+// Two things decide it and the first version only had one of them. How low you
+// are looking, yes — but also how far round from the sun. Near the sun the light
+// reaching you was scattered once out of the direct beam and is as red as the
+// beam. Round the other side it has bounced about first and is not. With only
+// the height in it, a sun sitting on the horizon turned the whole ring of sky
+// rust orange, including the part directly behind you, and the camera on this
+// beach looks west while the sun comes up in the east. It painted a sunrise onto
+// the wrong half of the sky.
+//
+// The falloff with angle is the square of the half-cosine: all of it at the sun,
+// a quarter of it ninety degrees round, none of it opposite.
+export function beamReddening(state, dir, sunDir) {
+  const cosG = Math.min(Math.max(
+    dir[0] * sunDir[0] + dir[1] * sunDir[1] + dir[2] * sunDir[2], -1), 1);
+  const low = 1 - Math.min(Math.max(dir[1], 0), 1);
+  const near = Math.pow((1 + cosG) / 2, 2);
+  return state.sun.map((t) => 1 + (t - 1) * low * near);
 }
 
 const LUMA = [0.2126, 0.7152, 0.0722];
@@ -275,7 +284,7 @@ export function skyColour(state, dir, sunSky, { cloud = 0, high = 0, sunDir = nu
   // they are kept apart to here, because it is the colour that knows the sky
   // beside a setting sun has no blue left in it at all.
   const unit = xyYToLinearRgb([1, x, y]);
-  const red = beamReddening(state, dir[1]);
+  const red = beamReddening(state, dir, sunSky);
   let rgb = unit.map((v, i) => Math.max(v, 0) * Y * state.exposure * red[i]);
 
   // Cloud scatters every wavelength alike, so an overcast sky is the same sky

@@ -62,7 +62,6 @@ export class Sky {
 
         const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
         const vec3 NIGHT = vec3(${NIGHT_SKY.join(", ")});
-        const float BEAM_SHARE = 1.0;
         const float SUN_COS_INNER = ${SUN_COS_INNER};
         const float SUN_COS_OUTER = ${SUN_COS_OUTER};
         const float HALO_POWER = ${HALO_POWER}.0;
@@ -92,10 +91,13 @@ export class Sky {
                    -0.4986,  0.0415,  1.0570) * vec3(x / y, 1.0, (1.0 - x - y) / y)
             : vec3(0.0);
 
-          // The light lighting the low sky came the long way in and was reddened
-          // on the way. Preetham's chromaticity fit leaves that out.
-          float slant = 1.0 - clamp(dir.y, 0.0, 1.0);
-          vec3 red = 1.0 + (uSunTint - 1.0) * slant * BEAM_SHARE;
+          // The light lighting the low sky near the sun came the long way in and
+          // was reddened on the way. Preetham's chromaticity fit leaves that
+          // out. Round the far side of the sky it did not come that way and
+          // must not be reddened, or a sunrise lands on the western horizon.
+          float low = 1.0 - clamp(dir.y, 0.0, 1.0);
+          float near = pow((1.0 + cosG) * 0.5, 2.0);
+          vec3 red = 1.0 + (uSunTint - 1.0) * low * near;
           vec3 rgb = max(unit, 0.0) * xyY.x * uExposure * red;
 
           // Cloud scatters every wavelength alike: the same sky with the colour

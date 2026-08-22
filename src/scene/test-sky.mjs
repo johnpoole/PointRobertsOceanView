@@ -144,6 +144,33 @@ ok(S.airmass(Math.PI / 2) > 35 && S.airmass(Math.PI / 2) < 40,
   ok(noon < 0.1, `the midday sky does not: ${noon.toFixed(2)}`);
 }
 
+// ---- the sunrise that landed on the western horizon -------------------------
+// The camera on this beach looks west and the sun comes up behind it. The
+// reddening was weighted by how low you look and by nothing else, so a sun on
+// the eastern horizon turned the whole ring of sky rust orange, the half behind
+// the sun included. Against a photograph off the beach at 06:19, which has a
+// pale blue-white western horizon, the model was painting #c1682d.
+{
+  // The sun where it really was in that frame.
+  const st = S.skyState(S.turbidityFromAerosol(0.15), 0);
+  const sun = dirOf(71.8, 0);
+  const at = (az, el) => S.skyColour(st, dirOf(az, el), sun, { cloud: 0.11 });
+  const solar = warmth(at(71.8, 1));
+  const anti = warmth(at(270, 1));
+  ok(solar > 0.5, `the sky at the rising sun is warm: ${solar.toFixed(2)}`);
+  ok(anti < solar * 0.5,
+     `the sky opposite it must not be: ${anti.toFixed(2)} against ${solar.toFixed(2)} at the sun`);
+  ok(at(270, 1)[2] > at(71.8, 1)[2] + 0.1, "the western horizon keeps blue the eastern one has lost");
+
+  // The term itself: all of it at the sun, none of it opposite.
+  const r = (az) => S.beamReddening(st, dirOf(az, 1), sun);
+  near(r(71.8)[1], st.sun[1], 0.02, "at the sun the reddening is the whole of the sun's colour");
+  near(r(251.8)[1], 1, 0.01, "opposite the sun there is no reddening at all");
+  // Reddening takes green away, so the factor is smallest at the sun.
+  ok(r(161.8)[1] > r(71.8)[1] && r(161.8)[1] < r(251.8)[1],
+     `ninety degrees round it is part way between: ${r(161.8)[1].toFixed(2)}`);
+}
+
 // ---- the evening it came out yellow ----------------------------------------
 // The page looks west with a twenty-five degree field from eye height, so the
 // only sky anyone sees is the twelve degrees above the horizon. Both of the

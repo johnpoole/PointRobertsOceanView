@@ -490,6 +490,23 @@ The second fault hid from the arithmetic too: `skyColour` did not draw the sun, 
 frame had the glow in it. It draws the sun now when it is asked to, and the shader is checked against
 it at forty-nine points across seven skies, disk and halo included. They agree exactly.
 
+**The reddening had no idea where the sun was.** It was weighted by how low you look and by nothing
+else, so a sun sitting on the horizon turned the whole ring of low sky rust orange — the half behind
+the sun included. The camera on this beach looks west and the sun comes up in the east, so at 06:19 on
+22 August the model painted the western horizon `#c1682d` against a photograph off the beach showing
+`#c6d2d8`, a pale blue-white. A sunrise on the wrong side of the sky. It is weighted by the angle from
+the sun now: all of it at the sun, a quarter of it ninety degrees round, none of it opposite.
+
+What is left over from Preetham is his own limit and not a bug here. With the sun on the horizon his
+chromaticity fit runs yellow-green at low elevations in every direction, so the western sky at sunrise
+comes out `#b2a070`, a khaki, where the photograph is `#c6d2d8`. The fit was made for a sun down to
+about five degrees. Flooring the model's sun higher was tried and does not help the west while it
+ruins the east, so it was not kept. Getting past this means Hošek-Wilkie, not more terms bolted on.
+
+And the largest difference between the two pictures is not colour at all. That photograph is a broken
+cloud deck over most of the sky and the scene has no cloud in it — cover only washes the whole dome
+toward grey. Open-Meteo also called that hour 11% cloud, which it plainly was not.
+
 Dusk darkens through `twilight()`, which starts when the sun is down and runs the six degrees of civil
 twilight. It stops at a twentieth rather than nothing, so the night keeps the shape of the day's
 gradient — a night sky is darkest overhead and least dark where the sun went down. The night colour is
