@@ -436,6 +436,56 @@ people in them, 677 trucks and 561 on foot; March was 42,400 vehicles, so the se
 
 Nothing on the page draws it. It goes out on the socket and stops there.
 
+## The colour of the sky
+
+Preetham, Shirley and Smits, "A Practical Analytic Model for Daylight", SIGGRAPH 1999. Before it the
+dome was two fixed colours, a blue top and a pale horizon, multiplied down toward black as the sun
+went. Multiplying blue by a small number gives dark blue, so every sunset here was grey and there was
+nothing in the shader that could ever have made one.
+
+The model wants one number for the state of the air, and it is a real measurement rather than a dial.
+Preetham turbidity is the whole vertical optical thickness over the molecular part alone, so it is
+`1 + aerosol / 0.0973`, where 0.0973 is the Rayleigh depth of clean air at 550 nm and the aerosol
+comes off Open-Meteo's air-quality call at that same wavelength. A clear coastal day reads 0.13 and
+comes out at 2.3. Fraser Valley smoke reads 0.8 and comes out at 9.2, and that is why a smoke summer
+turns the sun orange at twenty degrees up instead of two.
+
+Cloud is asked for by layer and not in total. Low and middle cover put a lid on it and take the colour
+out; high cover stands above the shadow line and is lit from underneath after the ground has gone
+dark. One number for all three cannot tell a fired-up evening from a grey one, and that is the whole
+difference the person at the window is looking at. The total is still read, but only for the lights,
+where what matters is how much sun is getting through.
+
+Two numbers in `skylight.js` were set by hand and both are marked as such in the file. Preetham fitted
+his chromaticity for a sun down to about five degrees and it gives up below that, handing back a flat
+yellow where the sky goes orange and then red. What it leaves out is that the light doing the
+scattering has itself come the long way in and been reddened, which is a quantity already worked out
+for the sun's own disk, so the low sky is multiplied by it — hardest at the horizon, not at all
+overhead. `BEAM_SHARE`, 0.7, is how much of that light came straight off the beam. The other is the
+warm lift high cloud puts on the upper sky, because the model has no cloud in it at all.
+
+The exposure is not fixed. A clear zenith at noon is four times the same zenith at sunset, and a fixed
+exposure renders every sunset as a dim olive smear, which is what it was doing at first. So it is
+pinned to the zenith of whatever sky is being drawn, which keeps the contrast inside the frame the way
+an eye does. Dusk still darkens: that is `twilight()`, and it starts when the sun is down and runs the
+six degrees of civil twilight. It stops at a twentieth rather than nothing, so the night keeps the
+shape of the day's gradient — a night sky is darkest overhead and least dark where the sun went down.
+
+The tone map and the sRGB encode are inside the sky's own shader and not on the renderer. Turning tone
+mapping on for the whole scene would move every colour in it, and the water above was matched by eye.
+
+The difficult arithmetic lives once, in `skylight.js`, which imports nothing. It works out the Perez
+coefficients, the zenith and the sun's colour on the processor and hands them to the shader as
+uniforms, so the shader evaluates the Perez function and nothing else, and `node src/scene/test-sky.mjs`
+can reach the same numbers the sky is drawn from. The test checks the terms against the paper and then
+checks the sky against what everyone already knows about it: blue overhead at noon, not grey when the
+sun goes down, redder in smoke, colourless under overcast, and dark afterwards.
+
+The fog follows the horizon in the direction the camera is pointed, because at sunset the sky behind
+you is not the colour of the sky ahead. The skyline tile does not: its haze is `SKYLINE_HAZE`, a fixed
+`0x8295a8` baked into the vertex colours when the tile is built, so the Gulf Islands stay the same
+grey-blue at every hour.
+
 ## The colour of the water
 
 Matched to a photograph off the deck, on the ratio and not on the number. In that photograph the

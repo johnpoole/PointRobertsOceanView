@@ -486,7 +486,7 @@ document.getElementById("clock-now").addEventListener("click", () => setClockOff
 // behind the camera; only near sunset does it light the water ahead.
 function updateSun() {
   const { azimuth, elevation } = solarPosition(sceneNow(), ORIGIN.lat, ORIGIN.lon);
-  sky.setSun(sunDirection(azimuth, elevation), new THREE.Color(0xfff2d8));
+  sky.setSun(sunDirection(azimuth, elevation), elevation);
   sun.position.copy(sunDirection(azimuth, elevation)).multiplyScalar(15000);
   weather.dayFactor = Math.max(0, Math.min((elevation + 6) / 12, 1));
   weather.apply(weatherAt() || {});
@@ -540,7 +540,9 @@ function weatherAt() {
   if (!s) return w;
   const when = sceneNow();
   const out = { ...w, predicted: true };
-  for (const k of ["cloud_cover_percent", "wind_speed_mps", "wind_direction_degrees",
+  for (const k of ["cloud_cover_percent", "cloud_cover_low_percent",
+                   "cloud_cover_mid_percent", "cloud_cover_high_percent",
+                   "wind_speed_mps", "wind_direction_degrees",
                    "temperature_c", "relative_humidity_percent", "visibility_m",
                    "precipitation_probability_percent"]) {
     const v = numberAt(s, s[k], when);

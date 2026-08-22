@@ -13,12 +13,13 @@ level, heading 270°.
 |-----------|-----------------------------------------------------|-------|
 | Vessels   | [AISStream.io](https://aisstream.io) WebSocket      | free API key; bbox-filtered to Point Roberts |
 | Tide      | NOAA CO-OPS 9449639 (Point Roberts) + 9449424 (Cherry Point) gauge | MLLW, metres; sets the water height and shoreline |
-| Weather   | Open-Meteo forecast + marine at the exact coordinates | sky tint, fog, wind vane, and sea state from real wave height |
+| Weather   | Open-Meteo forecast + marine at the exact coordinates | cloud by layer, fog, wind vane, and sea state from real wave height |
+| Air       | Open-Meteo air quality at the same coordinates      | aerosol optical depth, which sets the sky's turbidity and how red a sunset gets |
 | Terrain   | NOAA NCEI CUDEM 1/9 arc-second, baked to `assets/terrain/` | bluff, beach, and sea floor at ~3 m; MLLW datum |
 | Skyline   | GMRT topobathy, baked to `assets/terrain/`          | Gulf Islands and Vancouver Island, 10–90 km out |
 
 The browser talks only to a local proxy (`server/proxy.py`), which holds the
-AISStream key and merges the three feeds into one WebSocket. There is no CORS and
+AISStream key and merges the feeds into one WebSocket. There is no CORS and
 the key never reaches the browser.
 
 ## Run it

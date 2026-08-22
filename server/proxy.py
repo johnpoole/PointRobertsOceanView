@@ -173,6 +173,7 @@ FT_TO_M = 0.3048
 POINT = (48.989009, -123.085318)
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
+AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 WEATHER_POLL_SECONDS = 300
 
 # ---- .env (only the AIS key; keep dependencies minimal) --------------------
@@ -1450,6 +1451,9 @@ def hour_index(times: list[str], now: datetime) -> int | None:
 # already uses, so the client reads one shape whichever hour it is standing at.
 HOURLY_FIELDS = {
     "cloud_cover": "cloud_cover_percent",
+    "cloud_cover_low": "cloud_cover_low_percent",
+    "cloud_cover_mid": "cloud_cover_mid_percent",
+    "cloud_cover_high": "cloud_cover_high_percent",
     "wind_speed_10m": "wind_speed_mps",
     "wind_direction_10m": "wind_direction_degrees",
     "temperature_2m": "temperature_c",
@@ -1485,12 +1489,17 @@ def hourly_block(hourly: dict) -> dict:
 async def fetch_weather(client: httpx.AsyncClient) -> dict:
     forecast = await client.get(FORECAST_URL, params={
         "latitude": POINT[0], "longitude": POINT[1],
-        "current": "temperature_2m,relative_humidity_2m,cloud_cover,wind_speed_10m,"
+        # The cloud is asked for by layer as well as in total. The total cannot
+        # tell a lid from a ceiling of cirrus, and those are the difference
+        # between a grey evening and a lit one.
+        "current": "temperature_2m,relative_humidity_2m,cloud_cover,cloud_cover_low,"
+                   "cloud_cover_mid,cloud_cover_high,wind_speed_10m,"
                    "wind_direction_10m,precipitation,weather_code",
         # The hourly run as well as the reading for now, so a page standing at
         # another hour can shade the sky and set the vane for that hour. Two days
         # covers the twelve hours the clock moves either way.
-        "hourly": "visibility,precipitation_probability,cloud_cover,wind_speed_10m,"
+        "hourly": "visibility,precipitation_probability,cloud_cover,cloud_cover_low,"
+                  "cloud_cover_mid,cloud_cover_high,wind_speed_10m,"
                   "wind_direction_10m,temperature_2m,relative_humidity_2m,weather_code",
         "wind_speed_unit": "ms", "timezone": "GMT", "forecast_days": 2,
         "past_days": 1,
@@ -1503,6 +1512,24 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
     idx = hour_index(hourly.get("time", []), now)
     vis = hourly.get("visibility", [None])[idx] if idx is not None else None
     pprob = hourly.get("precipitation_probability", [None])[idx] if idx is not None else None
+
+    # How much haze is in the air, which is the whole of what decides whether a
+    # sunset is gold or red or nothing at all. Open-Meteo reports it at 550 nm,
+    # the same wavelength the browser divides it by.
+    #
+    # Its own call, on its own host, so a failure here costs the sky's turbidity
+    # and nothing else. Null goes through as null and the browser holds the last
+    # air it was given rather than inventing clean.
+    aod = None
+    try:
+        air = await client.get(AIR_URL, params={
+            "latitude": POINT[0], "longitude": POINT[1],
+            "current": "aerosol_optical_depth",
+        })
+        air.raise_for_status()
+        aod = air.json().get("current", {}).get("aerosol_optical_depth")
+    except Exception as exc:
+        log.warning("Aerosol optical depth unavailable, sky turbidity held: %s", exc)
 
     wave_h = wave_dir = wave_period = None
     try:
@@ -1525,6 +1552,10 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
             "relative_humidity_percent": cur.get("relative_humidity_2m"),
             "visibility_m": vis,
             "cloud_cover_percent": cur.get("cloud_cover"),
+            "cloud_cover_low_percent": cur.get("cloud_cover_low"),
+            "cloud_cover_mid_percent": cur.get("cloud_cover_mid"),
+            "cloud_cover_high_percent": cur.get("cloud_cover_high"),
+            "aerosol_optical_depth": aod,
             "precipitation_probability_percent": pprob,
             "description": WMO_CODES.get(cur.get("weather_code")),
             "wave_height_m": wave_h,
