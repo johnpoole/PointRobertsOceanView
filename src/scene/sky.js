@@ -15,7 +15,7 @@
 // in it, and the water was matched against a photograph by eye.
 
 import * as THREE from "three";
-import { NIGHT_SKY, skyColour, skyState } from "./skylight.js";
+import { HALO_POWER, HALO_STRENGTH, NIGHT_SKY, SUN_COS_INNER, SUN_COS_OUTER, skyColour, skyState } from "./skylight.js";
 
 const RADIUS = 26000;
 
@@ -62,7 +62,11 @@ export class Sky {
 
         const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
         const vec3 NIGHT = vec3(${NIGHT_SKY.join(", ")});
-        const float BEAM_SHARE = 0.7;
+        const float BEAM_SHARE = 1.0;
+        const float SUN_COS_INNER = ${SUN_COS_INNER};
+        const float SUN_COS_OUTER = ${SUN_COS_OUTER};
+        const float HALO_POWER = ${HALO_POWER}.0;
+        const float HALO_STRENGTH = ${HALO_STRENGTH};
 
         vec3 srgb(vec3 c) {
           c = clamp(c, 0.0, 1.0);
@@ -90,7 +94,7 @@ export class Sky {
 
           // The light lighting the low sky came the long way in and was reddened
           // on the way. Preetham's chromaticity fit leaves that out.
-          float slant = pow(1.0 - clamp(dir.y, 0.0, 1.0), 2.0);
+          float slant = 1.0 - clamp(dir.y, 0.0, 1.0);
           vec3 red = 1.0 + (uSunTint - 1.0) * slant * BEAM_SHARE;
           vec3 rgb = max(unit, 0.0) * xyY.x * uExposure * red;
 
@@ -106,11 +110,16 @@ export class Sky {
           // the brightest thing in the frame and the least white.
           float lum = dot(rgb, LUMA);
           rgb = lum > 0.0 ? clamp(rgb * ((lum / (1.0 + lum)) / lum), 0.0, 1.0) : vec3(0.0);
-          rgb = rgb * uTwilight + NIGHT * (1.0 - uTwilight);
+          // The night shows through where the day sky has gone, not over the
+          // top of what is still lit.
+          rgb = rgb * uTwilight + NIGHT * (1.0 - uTwilight) * (1.0 - rgb);
 
-          // The sun's disk, in the colour the air has left it.
+          // The sun's disk and its halo, in the colour the air has left it, and
+          // no wider than that. Preetham already brightens the sky toward the
+          // sun; a glow laid over the top of that is what turned the whole
+          // western sky yellow.
           float s = max(dot(dir, uSunDir), 0.0);
-          float sun = smoothstep(0.9975, 0.9995, s) + pow(s, 200.0) * 0.5 + pow(s, 12.0) * 0.12;
+          float sun = smoothstep(SUN_COS_OUTER, SUN_COS_INNER, s) + pow(s, HALO_POWER) * HALO_STRENGTH;
           rgb += uSunTint * sun * (1.0 - 0.85 * uCloud) * uTwilight;
 
           gl_FragColor = vec4(srgb(rgb), 1.0);

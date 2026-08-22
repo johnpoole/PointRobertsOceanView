@@ -144,6 +144,54 @@ ok(S.airmass(Math.PI / 2) > 35 && S.airmass(Math.PI / 2) < 40,
   ok(noon < 0.1, `the midday sky does not: ${noon.toFixed(2)}`);
 }
 
+// ---- the evening it came out yellow ----------------------------------------
+// The page looks west with a twenty-five degree field from eye height, so the
+// only sky anyone sees is the twelve degrees above the horizon. Both of the
+// faults that made every evening one flat yellow lived in there and neither
+// showed on a whole-dome view, so this is the band, checked on its own.
+const BAND = [1, 4, 8, 14];
+
+// Nothing in the band may sit on the ceiling. Red at one is a bright sunset;
+// red and green both at one is yellow, and that is what a clipped band is.
+{
+  for (const sunEl of [10, 5, 2, 0]) {
+    const st = S.skyState(clearDay, sunEl), sun = dirOf(WEST, sunEl);
+    for (const el of BAND) {
+      const c = S.skyColour(st, dirOf(WEST, el), sun, { cloud: 0.12 });
+      ok(c[1] < 0.93, `sun ${sunEl} deg, ${el} deg up: green is on the ceiling at ${c[1].toFixed(3)}`);
+      // Yellow is the particular failure: green up with red and nothing under
+      // it. A pale warm cream, where the blue is still up, is not that.
+      const yellow = c[1] > 0.8 && c[0] - c[1] < 0.1 && c[1] - c[2] > 0.25;
+      ok(!yellow, `sun ${sunEl} deg, ${el} deg up: ${c.map((v) => v.toFixed(2))} is yellow`);
+    }
+  }
+}
+
+// And the band must not be one flat colour: it is the whole of what is on
+// screen, so the gradient has to happen inside it.
+{
+  for (const sunEl of [10, 2, 0]) {
+    const st = S.skyState(clearDay, sunEl), sun = dirOf(WEST, sunEl);
+    const low = S.skyColour(st, dirOf(WEST, BAND[0]), sun, { cloud: 0.12 });
+    const high = S.skyColour(st, dirOf(WEST, BAND[BAND.length - 1]), sun, { cloud: 0.12 });
+    const moved = Math.max(...low.map((v, i) => Math.abs(v - high[i])));
+    ok(moved > 0.05, `sun ${sunEl} deg: the band is flat, 1 deg and 14 deg differ by ${moved.toFixed(3)}`);
+  }
+}
+
+// The sun is the sun and not a wash over a third of the dome. The old glow was
+// pow(cos, 12), which is still half strength thirty degrees out.
+{
+  const st = S.skyState(clearDay, 2), sun = dirOf(WEST, 2);
+  const at = (deg) => Math.max(...S.sunDisk(st, dirOf(WEST + deg, 2), sun, 0.12));
+  ok(at(0) > 0.5, `the sun itself is bright: ${at(0).toFixed(3)}`);
+  ok(at(2) < 0.35, `two degrees off the sun is the halo, not the disk: ${at(2).toFixed(3)}`);
+  ok(at(10) < 0.01, `ten degrees off the sun there is no glow left: ${at(10).toFixed(4)}`);
+  ok(at(30) < 0.001, `thirty degrees off the sun there is nothing at all: ${at(30).toFixed(5)}`);
+  // Under a lid the sun does not burn through.
+  ok(Math.max(...S.sunDisk(st, dirOf(WEST, 2), sun, 1)) < 0.3, "overcast puts the sun out");
+}
+
 // Haze reddens it. More aerosol, less blue by the sun, every step of the way.
 {
   let lastWarm = -1;

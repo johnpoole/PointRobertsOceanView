@@ -464,12 +464,37 @@ for the sun's own disk, so the low sky is multiplied by it — hardest at the ho
 overhead. `BEAM_SHARE`, 0.7, is how much of that light came straight off the beam. The other is the
 warm lift high cloud puts on the upper sky, because the model has no cloud in it at all.
 
-The exposure is not fixed. A clear zenith at noon is four times the same zenith at sunset, and a fixed
-exposure renders every sunset as a dim olive smear, which is what it was doing at first. So it is
-pinned to the zenith of whatever sky is being drawn, which keeps the contrast inside the frame the way
-an eye does. Dusk still darkens: that is `twilight()`, and it starts when the sun is down and runs the
-six degrees of civil twilight. It stops at a twentieth rather than nothing, so the night keeps the
-shape of the day's gradient — a night sky is darkest overhead and least dark where the sun went down.
+### The evening it came out yellow, and why
+
+The first version of this shipped and every evening was one flat urine yellow with no gradient in it.
+Two separate faults, and both are worth keeping written down because both were invisible to the way it
+was being checked.
+
+The page looks west with a twenty-five degree field from eye height, so the only sky anyone ever sees
+is the twelve degrees above the horizon. It was being checked on a whole-dome panorama, where the
+gradient looked fine — every bit of that gradient was above the top of the screen.
+
+**The exposure was pinned to the zenith.** At sunset the sky three degrees up is nearly twenty times
+the zenith, so the entire band ran off the top of the tone curve, red and green both stopped at one,
+and red and green at one is yellow. It is now pinned to the geometric mean of the zenith and the
+horizon toward the sun — halfway in the logarithm between exposing for the dark part and exposing for
+the bright part, which is roughly what an eye does.
+
+**The sun's glow was thirty degrees wide.** `pow(cos, 12) * 0.12` added on top of the sky, and near the
+sun that drove green to one as well. It came over from the old dome, where the sky was dim enough to
+carry it. Preetham already brightens the sky toward the sun — that is what the C and D terms are for —
+so all that is left for the disk is the disk, sixteen arcminutes of it, and a halo about three degrees
+wide.
+
+The second fault hid from the arithmetic too: `skyColour` did not draw the sun, so no CPU render of the
+frame had the glow in it. It draws the sun now when it is asked to, and the shader is checked against
+it at forty-nine points across seven skies, disk and halo included. They agree exactly.
+
+Dusk darkens through `twilight()`, which starts when the sun is down and runs the six degrees of civil
+twilight. It stops at a twentieth rather than nothing, so the night keeps the shape of the day's
+gradient — a night sky is darkest overhead and least dark where the sun went down. The night colour is
+laid in where the day sky has gone and not over the top of what is still lit, because flat over
+everything put blue back into the band and turned a quarter of an hour after sunset brown.
 
 The tone map and the sRGB encode are inside the sky's own shader and not on the renderer. Turning tone
 mapping on for the whole scene would move every colour in it, and the water above was matched by eye.

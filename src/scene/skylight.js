@@ -145,30 +145,48 @@ export const NIGHT_SKY = [0.02, 0.03, 0.06];
 export function skyState(turbidity, sunElevationDeg) {
   const thetaS = Math.min((90 - sunElevationDeg) * Math.PI / 180, Math.PI / 2);
   const p = perezCoefficients(turbidity);
+  const zenith = zenithColour(turbidity, thetaS);
+  // Y(theta,gamma) = Yz * F(theta,gamma) / F(0,thetaS): the sky at the zenith
+  // has to come back as the zenith value.
+  const norm = perezF(p, 1, thetaS);
   return {
     turbidity,
     perez: p,
-    zenith: zenithColour(turbidity, thetaS),
-    // Y(theta,gamma) = Yz * F(theta,gamma) / F(0,thetaS): the sky at the zenith
-    // has to come back as the zenith value.
-    norm: perezF(p, 1, thetaS),
+    zenith,
+    norm,
     sun: sunTint(thetaS, turbidity),
     twilight: twilight(sunElevationDeg),
-    exposure: exposureFor(zenithColour(turbidity, thetaS)[0]),
+    exposure: exposureFor(p, zenith, norm, thetaS),
   };
 }
 
-// The eye adapts and a screen does not. Preetham works in real luminance, and a
-// clear zenith at noon is four times the same zenith at sunset, so a fixed
-// exposure renders every sunset as a dim olive smear — which is exactly what it
-// was doing. So the exposure is pinned to the zenith of whatever sky is being
-// drawn. That keeps the contrast inside the frame, which is what the eye keeps
-// too, and it is why the horizon band reads at all. Dusk still darkens: that is
-// twilight() above, and it starts when the sun is down.
-export const ZENITH_TARGET = 0.55;
+// The eye adapts and a screen does not, so something has to say how bright to
+// draw a sky given in real luminance. What it is pinned to matters more than
+// anything else in this file.
+//
+// It was pinned to the zenith, and that was wrong, and the way it was wrong is
+// worth keeping written down. At sunset the sky three degrees above the horizon
+// is nearly twenty times the zenith. Expose for the zenith and the whole band
+// runs off the top of the curve, red and green both stop at one, and red and
+// green at one is yellow. The page looks west with a twenty-five degree field
+// from eye height, so that band is the entire sky anybody sees — and every
+// evening came out one flat yellow with no gradient in it at all.
+//
+// So it is pinned to the two of them together, the geometric mean of the zenith
+// and the horizon toward the sun. Halfway in the logarithm is halfway between
+// exposing for the dark part and exposing for the bright part, which is roughly
+// what an eye does when it looks at a sunset.
+export const EXPOSURE_TARGET = 0.8;
 
-export function exposureFor(zenithLuminance) {
-  return ZENITH_TARGET / Math.max(zenithLuminance, 0.05);
+// Three degrees up: low enough to be the band, high enough not to sit inside
+// the sun itself.
+const HORIZON_EL = 3 * Math.PI / 180;
+
+export function exposureFor(perez, zenith, norm, thetaS) {
+  const F = perezF(perez, Math.sin(HORIZON_EL), Math.abs((Math.PI / 2 - thetaS) - HORIZON_EL));
+  const horizon = zenith[0] * F[0] / norm[0];
+  const ref = Math.sqrt(Math.max(zenith[0], 0.05) * Math.max(horizon, 0.05));
+  return EXPOSURE_TARGET / ref;
 }
 
 // Preetham fitted his chromaticity for a sun down to about five degrees and it
@@ -179,12 +197,15 @@ export function exposureFor(zenithLuminance) {
 // sky is multiplied by it, hardest at the horizon and not at all overhead.
 //
 // BEAM_SHARE is how much of the light arriving from a patch of low sky came
-// straight off the beam rather than bouncing about first. It is a judgement, not
-// a measurement, and it is the only number in this file that is.
-const BEAM_SHARE = 0.7;
+// straight off the beam rather than bouncing about first. Near the horizon at
+// sunset that is very nearly all of it, so it is one, and the falloff with
+// height is linear rather than squared: squared kept the reddening in the last
+// few degrees, where the sky is too bright to show it anyway, and left
+// everything from ten degrees up the flat yellow it started as.
+const BEAM_SHARE = 1.0;
 
 export function beamReddening(state, dirY) {
-  const slant = Math.pow(1 - Math.min(Math.max(dirY, 0), 1), 2);
+  const slant = 1 - Math.min(Math.max(dirY, 0), 1);
   return state.sun.map((t) => 1 + (t - 1) * slant * BEAM_SHARE);
 }
 
@@ -208,12 +229,43 @@ export function encodeSrgb(c) {
   });
 }
 
+// The sun itself, which is added on top of the sky rather than being part of it.
+//
+// This was a quarter of the trouble the first version had. The glow was
+// pow(cos, 12) and that is thirty degrees wide, added straight onto a sky that
+// was already near the top of the range, so red and green both stopped at one
+// over most of the western sky — and red and green at one is yellow. It is the
+// sun's own light, so it is the sun's own colour, and it has no business
+// brightening a third of the dome.
+//
+// Preetham already brightens the sky toward the sun; that is what the C and D
+// terms are for. What is left for this is the disk and the halo around it.
+// SUN_RADIUS is the real one, sixteen arcminutes.
+export const SUN_COS_INNER = Math.cos(0.24 * Math.PI / 180);
+export const SUN_COS_OUTER = Math.cos(0.30 * Math.PI / 180);
+export const HALO_POWER = 1200;    // about three degrees wide
+export const HALO_STRENGTH = 0.35;
+
+function smoothstep(edge0, edge1, x) {
+  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * (3 - 2 * t);
+}
+
+// dir and sunDir are unit vectors; sunDir is where the sun really is, which after
+// it sets is under the horizon and behind the sea.
+export function sunDisk(state, dir, sunDir, cloud = 0) {
+  const s = Math.max(dir[0] * sunDir[0] + dir[1] * sunDir[1] + dir[2] * sunDir[2], 0);
+  const amount = (smoothstep(SUN_COS_OUTER, SUN_COS_INNER, s) + Math.pow(s, HALO_POWER) * HALO_STRENGTH)
+    * (1 - 0.85 * cloud) * state.twilight;
+  return state.sun.map((t) => t * amount);
+}
+
 // One patch of sky, all the way through, in the same order the shader does it.
 // dir and sunDir are unit vectors with y up. cloud is the low and middle cover
 // that lids the sky; high is the thin cloud that catches the last of the sun.
-export function skyColour(state, dir, sunDir, { cloud = 0, high = 0 } = {}) {
+export function skyColour(state, dir, sunSky, { cloud = 0, high = 0, sunDir = null } = {}) {
   const cosG = Math.min(Math.max(
-    dir[0] * sunDir[0] + dir[1] * sunDir[1] + dir[2] * sunDir[2], -1), 1);
+    dir[0] * sunSky[0] + dir[1] * sunSky[1] + dir[2] * sunSky[2], -1), 1);
   const F = perezF(state.perez, dir[1], Math.acos(cosG));
   const Y = state.zenith[0] * F[0] / state.norm[0];
   const x = state.zenith[1] * F[1] / state.norm[1];
@@ -243,6 +295,15 @@ export function skyColour(state, dir, sunDir, { cloud = 0, high = 0 } = {}) {
     rgb = rgb.map((v, i) => v + (v * state.sun[i] * 1.7 - v) * lift);
   }
 
+  // The night shows through where the day sky has gone, and not over the top of
+  // what is still lit. Laying it flat across everything put blue into the band
+  // by the sun and turned a quarter of an hour after sunset brown.
   const day = state.twilight;
-  return encodeSrgb(toneMap(rgb).map((v, i) => v * day + NIGHT_SKY[i] * (1 - day)));
+  const lit = toneMap(rgb);
+  const night = lit.map((v, i) => v * day + NIGHT_SKY[i] * (1 - day) * (1 - v));
+
+  // The sun goes on last and only when it is asked for: the fog wants the sky it
+  // fades into and not the disk hanging in it.
+  const disk = sunDir ? sunDisk(state, dir, sunDir, cloud) : null;
+  return encodeSrgb(disk ? night.map((v, i) => v + disk[i]) : night);
 }
