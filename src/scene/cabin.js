@@ -138,6 +138,12 @@ const WOOD_GOING = 0.3325;
 const WOOD_STEPS = Math.round((UPPER_FLOOR - LANDING_Y) / WOOD_RISER);
 const WOOD_V0 = 8.6;         // its foot, on the landing, and it climbs north
 
+// The stair down the north side runs between the two decks: off the top one and
+// down to the lower one. It does not go on to the ground. Like the timber flight
+// it has as many risers as the drop takes rather than a fixed count.
+const NORTH_RISER = 0.21;
+const NORTH_STEPS = Math.round((UPPER_FLOOR - LOWER_FLOOR) / NORTH_RISER);
+
 const SEAM_SPACING = 0.55;   // standing seam, near enough off the roof photograph
 const CHIMNEY_W = 0.85;
 // The photographs settle how far it stands over the ridge, not how high it is,
@@ -487,9 +493,10 @@ export function buildCabin(scene, sample) {
     }
   }
 
-  // The stair down the north side.
-  for (let k = 0; k < 9; k++) {
-    const y = LOWER_FLOOR - 0.3 - k * 0.3;
+  // The stair down the north side, off the top deck to the lower one.
+  const northRise = (UPPER_FLOOR - LOWER_FLOOR) / NORTH_STEPS;
+  for (let k = 0; k < NORTH_STEPS; k++) {
+    const y = UPPER_FLOOR - (k + 1) * northRise;
     place(parts, box(1.1, 0.32, 0.1, -hw - 1.2 - k * 0.16, y, -hl - 0.9, DECK_TIMBER));
   }
 
