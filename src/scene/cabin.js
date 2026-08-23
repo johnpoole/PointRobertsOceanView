@@ -143,6 +143,16 @@ const WOOD_V0 = 8.6;         // its foot, on the landing, and it climbs north
 // it has as many risers as the drop takes rather than a fixed count.
 const NORTH_RISER = 0.21;
 const NORTH_STEPS = Math.round((UPPER_FLOOR - LOWER_FLOOR) / NORTH_RISER);
+const NORTH_W = 0.91;        // three feet
+const NORTH_GOING = 0.28;
+const NORTH_TREAD = 0.05;
+// It descends west, away from the house, and its foot lands on the west edge of
+// the lower deck. That fixes where the head is rather than leaving it to be
+// picked: the run is the going times the risers, measured back from the edge.
+const NORTH_FOOT_U = -(W / 2) - LOWER_DECK_OUT;
+const NORTH_HEAD_U = NORTH_FOOT_U + (NORTH_STEPS - 1) * NORTH_GOING;
+// Its middle, out from the north wall far enough to clear the eave.
+const NORTH_V = -(L / 2) - 0.9;
 
 const SEAM_SPACING = 0.55;   // standing seam, near enough off the roof photograph
 const CHIMNEY_W = 0.85;
@@ -493,11 +503,37 @@ export function buildCabin(scene, sample) {
     }
   }
 
-  // The stair down the north side, off the top deck to the lower one.
+  // The stair down the north side, off the top deck to the lower one. Open
+  // treads on stringers, three feet wide, running west out to the edge of the
+  // lower deck, with a handrail on the outer side. The photographs show no rail
+  // on the house side, and there is a wall there.
   const northRise = (UPPER_FLOOR - LOWER_FLOOR) / NORTH_STEPS;
+  const northU = (k) => NORTH_HEAD_U - k * NORTH_GOING;
   for (let k = 0; k < NORTH_STEPS; k++) {
     const y = UPPER_FLOOR - (k + 1) * northRise;
-    place(parts, box(1.1, 0.32, 0.1, -hw - 1.2 - k * 0.16, y, -hl - 0.9, DECK_TIMBER));
+    place(parts, box(NORTH_GOING + 0.03, NORTH_W, NORTH_TREAD,
+                     northU(k), y - NORTH_TREAD, NORTH_V, DECK_TIMBER));
+  }
+  // The two stringers the treads sit on, raked to the pitch.
+  const northRake = Math.atan2(northRise, NORTH_GOING);
+  const northRun = (NORTH_STEPS - 1) * NORTH_GOING;
+  const northDrop = (NORTH_STEPS - 1) * northRise;
+  const northBar = (v, y0, thick) => {
+    const g = new THREE.BoxGeometry(Math.hypot(northRun, northDrop), thick, thick);
+    g.rotateZ(northRake);
+    g.translate(NORTH_HEAD_U - northRun / 2, y0 - northDrop / 2, v);
+    place(parts, tint(g, DECK_TIMBER));
+  };
+  for (const s of [-1, 1]) {
+    northBar(NORTH_V + s * (NORTH_W / 2), UPPER_FLOOR - northRise - 0.14, 0.14);
+  }
+  // The handrail, on the outer side. North is -v, so that is the low side.
+  const railV = NORTH_V - NORTH_W / 2;
+  northBar(railV, UPPER_FLOOR - northRise + RAIL_H, 0.09);
+  northBar(railV, UPPER_FLOOR - northRise + RAIL_H * 0.55, 0.09);
+  for (let k = 0; k < NORTH_STEPS; k += 3) {
+    place(parts, box(0.09, 0.09, RAIL_H, northU(k),
+                     UPPER_FLOOR - (k + 1) * northRise, railV, DECK_TIMBER));
   }
 
   const mesh = new THREE.Mesh(
