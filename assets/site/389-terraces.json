@@ -1,9 +1,9 @@
 {
-  "what": "the block terraces along the seaward edge of 389 W Bluff Rd. Where the ground turns up off the beach, how much it climbs, and how many courses of block that is over the concrete.",
+  "what": "the block terraces up the seaward bank of 389 W Bluff Rd, lowest wall first. Where the ground steps up, how far, and how many courses of block that is.",
   "baked_by": "PointRobertsEngineering site/bake-oceanview-lidar.py",
   "baked": "2026-08-23",
-  "measured": "the line and the rise, from the WA DNR cascades_north_wali_2023 clip: the foot is where the ground first gains 1.0 m over the next 3.0 m going east, which is the toe of the built work rather than the lip of the apron, and the top is the ground 3.0 m back from it. The block is 200 mm on the course and 400 on the face, counted off the photographs against a loose block lying on the concrete.",
-  "not_measured": "the wall face itself. A lidar flight looks down and a riser is vertical, so no flight will ever hold it. The setback of 0.06 m a course is the ordinary batter for this block and is not measured here. Neither is where the wall stops and starts: it is drawn unbroken along the frontage, and the photographs show it broken through in places and a stair cut down through it. Where the ground rises past 12 courses over the concrete the rest is carried as bank_above_m and no wall is claimed for it. The line and the height are run through a 9-station median along the wall first, because a wall is built continuous and coursed and the raw reading jumps with the interpolated ground behind it.",
+  "measured": "every line and every height, from the WA DNR cascades_north_wali_2023 clip. A riser is a run of cells climbing faster than 0.42 in 1, and it is the gap between the flat under it and the flat over it. The block is 200 mm on the course and 400 on the face, counted off the photographs against a loose block lying on the concrete.",
+  "not_measured": "the wall face itself. A flight looks down and a riser is vertical, so no flight will ever hold one. The setback of 0.06 m a course is the ordinary batter for this block. Where each wall stops and starts is not known either: they are drawn unbroken along whatever length of frontage the step runs, and the photographs show one of them down and a stair cut through them. Anything a wall climbs past 12 courses is carried as bank_above_m and no wall is claimed for it.",
   "block": {
     "height_m": 0.2,
     "face_m": 0.4,
@@ -15,312 +15,618 @@
     "min_lat": 48.98861111111112,
     "max_lat": 48.98942386831276
   },
-  "stations": [
+  "walls": [
     {
-      "lat": 48.9890854,
-      "lon": -123.0859156,
-      "foot_m": 4.44,
-      "top_m": 5.62,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
+      "tier": 0,
+      "concrete": true,
+      "stations": [
+        {
+          "lat": 48.9890854,
+          "lon": -123.0859259,
+          "foot_m": 3.59,
+          "top_m": 4.78,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890809,
+          "lon": -123.0859259,
+          "foot_m": 3.59,
+          "top_m": 4.78,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890764,
+          "lon": -123.0859259,
+          "foot_m": 3.59,
+          "top_m": 4.78,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890719,
+          "lon": -123.0859259,
+          "foot_m": 3.58,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890674,
+          "lon": -123.0859259,
+          "foot_m": 3.57,
+          "top_m": 4.74,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890629,
+          "lon": -123.0859259,
+          "foot_m": 3.57,
+          "top_m": 4.74,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890584,
+          "lon": -123.0859259,
+          "foot_m": 3.48,
+          "top_m": 4.74,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.06
+        },
+        {
+          "lat": 48.9890539,
+          "lon": -123.0859259,
+          "foot_m": 3.48,
+          "top_m": 4.78,
+          "concrete_m": 1.0,
+          "courses": 2,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890494,
+          "lon": -123.0859259,
+          "foot_m": 3.48,
+          "top_m": 4.78,
+          "concrete_m": 1.0,
+          "courses": 2,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890449,
+          "lon": -123.0859156,
+          "foot_m": 3.48,
+          "top_m": 4.78,
+          "concrete_m": 1.0,
+          "courses": 2,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890404,
+          "lon": -123.0859156,
+          "foot_m": 3.48,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.08
+        },
+        {
+          "lat": 48.9890359,
+          "lon": -123.0859053,
+          "foot_m": 3.52,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.05
+        },
+        {
+          "lat": 48.9890315,
+          "lon": -123.0859053,
+          "foot_m": 3.52,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.05
+        },
+        {
+          "lat": 48.989027,
+          "lon": -123.0858848,
+          "foot_m": 3.6,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890225,
+          "lon": -123.0858848,
+          "foot_m": 3.6,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.989018,
+          "lon": -123.0858848,
+          "foot_m": 3.72,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 0,
+          "bank_above_m": 0.04
+        },
+        {
+          "lat": 48.9890135,
+          "lon": -123.0858848,
+          "foot_m": 3.72,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 0,
+          "bank_above_m": 0.04
+        },
+        {
+          "lat": 48.989009,
+          "lon": -123.0858848,
+          "foot_m": 3.72,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 0,
+          "bank_above_m": 0.04
+        },
+        {
+          "lat": 48.9890045,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.989,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.76,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889955,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.49,
+          "concrete_m": 0.85,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.988991,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.89,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.06
+        },
+        {
+          "lat": 48.9889865,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.89,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.06
+        },
+        {
+          "lat": 48.9889821,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.89,
+          "concrete_m": 1.0,
+          "courses": 1,
+          "bank_above_m": 0.06
+        },
+        {
+          "lat": 48.9889776,
+          "lon": -123.0858745,
+          "foot_m": 3.64,
+          "top_m": 4.49,
+          "concrete_m": 0.85,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889731,
+          "lon": -123.0858539,
+          "foot_m": 3.8,
+          "top_m": 4.49,
+          "concrete_m": 0.69,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889686,
+          "lon": -123.0858539,
+          "foot_m": 3.8,
+          "top_m": 4.49,
+          "concrete_m": 0.69,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889641,
+          "lon": -123.0858539,
+          "foot_m": 3.99,
+          "top_m": 4.81,
+          "concrete_m": 0.82,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889596,
+          "lon": -123.0858539,
+          "foot_m": 3.99,
+          "top_m": 4.81,
+          "concrete_m": 0.82,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889551,
+          "lon": -123.0858539,
+          "foot_m": 3.99,
+          "top_m": 4.81,
+          "concrete_m": 0.82,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889506,
+          "lon": -123.0858179,
+          "foot_m": 4.2,
+          "top_m": 4.81,
+          "concrete_m": 0.61,
+          "courses": 0,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889461,
+          "lon": -123.0857819,
+          "foot_m": 4.42,
+          "top_m": 4.81,
+          "concrete_m": 0.39,
+          "courses": 0,
+          "bank_above_m": 0.0
+        }
+      ]
     },
     {
-      "lat": 48.9890809,
-      "lon": -123.0859156,
-      "foot_m": 4.44,
-      "top_m": 5.62,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
+      "tier": 1,
+      "concrete": false,
+      "stations": [
+        {
+          "lat": 48.9890854,
+          "lon": -123.0858848,
+          "foot_m": 5.02,
+          "top_m": 6.5,
+          "concrete_m": 0.0,
+          "courses": 7,
+          "bank_above_m": 0.08
+        },
+        {
+          "lat": 48.9890809,
+          "lon": -123.0858848,
+          "foot_m": 5.02,
+          "top_m": 6.5,
+          "concrete_m": 0.0,
+          "courses": 7,
+          "bank_above_m": 0.08
+        },
+        {
+          "lat": 48.9890764,
+          "lon": -123.0858848,
+          "foot_m": 5.02,
+          "top_m": 6.5,
+          "concrete_m": 0.0,
+          "courses": 7,
+          "bank_above_m": 0.08
+        },
+        {
+          "lat": 48.9890719,
+          "lon": -123.0858848,
+          "foot_m": 4.98,
+          "top_m": 6.06,
+          "concrete_m": 0.0,
+          "courses": 5,
+          "bank_above_m": 0.08
+        },
+        {
+          "lat": 48.9890674,
+          "lon": -123.0858848,
+          "foot_m": 4.93,
+          "top_m": 5.62,
+          "concrete_m": 0.0,
+          "courses": 3,
+          "bank_above_m": 0.09
+        },
+        {
+          "lat": 48.9890629,
+          "lon": -123.0858848,
+          "foot_m": 4.93,
+          "top_m": 5.62,
+          "concrete_m": 0.0,
+          "courses": 3,
+          "bank_above_m": 0.09
+        },
+        {
+          "lat": 48.9890584,
+          "lon": -123.0858848,
+          "foot_m": 4.93,
+          "top_m": 5.62,
+          "concrete_m": 0.0,
+          "courses": 3,
+          "bank_above_m": 0.09
+        },
+        {
+          "lat": 48.9890539,
+          "lon": -123.0858745,
+          "foot_m": 4.93,
+          "top_m": 5.62,
+          "concrete_m": 0.0,
+          "courses": 3,
+          "bank_above_m": 0.09
+        },
+        {
+          "lat": 48.9890494,
+          "lon": -123.0858745,
+          "foot_m": 4.93,
+          "top_m": 5.62,
+          "concrete_m": 0.0,
+          "courses": 3,
+          "bank_above_m": 0.09
+        },
+        {
+          "lat": 48.9890449,
+          "lon": -123.0858333,
+          "foot_m": 5.13,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.73
+        },
+        {
+          "lat": 48.9890404,
+          "lon": -123.0858333,
+          "foot_m": 5.13,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.73
+        },
+        {
+          "lat": 48.9890359,
+          "lon": -123.0858333,
+          "foot_m": 5.13,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.73
+        },
+        {
+          "lat": 48.9890315,
+          "lon": -123.0858333,
+          "foot_m": 5.15,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.72
+        },
+        {
+          "lat": 48.989027,
+          "lon": -123.0858333,
+          "foot_m": 5.15,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.72
+        },
+        {
+          "lat": 48.9890225,
+          "lon": -123.0858333,
+          "foot_m": 5.15,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.72
+        },
+        {
+          "lat": 48.989018,
+          "lon": -123.0858333,
+          "foot_m": 5.15,
+          "top_m": 10.27,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 2.72
+        },
+        {
+          "lat": 48.9890135,
+          "lon": -123.0858025,
+          "foot_m": 5.19,
+          "top_m": 8.09,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 0.5
+        },
+        {
+          "lat": 48.989009,
+          "lon": -123.0858025,
+          "foot_m": 5.19,
+          "top_m": 8.09,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 0.5
+        },
+        {
+          "lat": 48.9890045,
+          "lon": -123.0857922,
+          "foot_m": 5.19,
+          "top_m": 6.58,
+          "concrete_m": 0.0,
+          "courses": 7,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.989,
+          "lon": -123.0857922,
+          "foot_m": 5.19,
+          "top_m": 6.58,
+          "concrete_m": 0.0,
+          "courses": 7,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889955,
+          "lon": -123.0857819,
+          "foot_m": 5.19,
+          "top_m": 6.24,
+          "concrete_m": 0.0,
+          "courses": 5,
+          "bank_above_m": 0.05
+        },
+        {
+          "lat": 48.988991,
+          "lon": -123.0857819,
+          "foot_m": 5.21,
+          "top_m": 6.24,
+          "concrete_m": 0.0,
+          "courses": 5,
+          "bank_above_m": 0.03
+        },
+        {
+          "lat": 48.9889865,
+          "lon": -123.0857819,
+          "foot_m": 5.23,
+          "top_m": 6.24,
+          "concrete_m": 0.0,
+          "courses": 5,
+          "bank_above_m": 0.01
+        },
+        {
+          "lat": 48.9889821,
+          "lon": -123.0857819,
+          "foot_m": 5.16,
+          "top_m": 5.87,
+          "concrete_m": 0.0,
+          "courses": 4,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9889776,
+          "lon": -123.0857819,
+          "foot_m": 5.09,
+          "top_m": 5.5,
+          "concrete_m": 0.0,
+          "courses": 2,
+          "bank_above_m": 0.0
+        }
+      ]
     },
     {
-      "lat": 48.9890764,
-      "lon": -123.0859156,
-      "foot_m": 4.44,
-      "top_m": 5.62,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9890719,
-      "lon": -123.0859156,
-      "foot_m": 4.16,
-      "top_m": 5.32,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9890674,
-      "lon": -123.0859156,
-      "foot_m": 3.87,
-      "top_m": 5.02,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9890629,
-      "lon": -123.0859156,
-      "foot_m": 3.87,
-      "top_m": 5.02,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9890584,
-      "lon": -123.0859156,
-      "foot_m": 3.87,
-      "top_m": 4.92,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.05
-    },
-    {
-      "lat": 48.9890539,
-      "lon": -123.0859053,
-      "foot_m": 3.88,
-      "top_m": 4.92,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.04
-    },
-    {
-      "lat": 48.9890494,
-      "lon": -123.0859053,
-      "foot_m": 3.88,
-      "top_m": 4.92,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.04
-    },
-    {
-      "lat": 48.9890449,
-      "lon": -123.0859053,
-      "foot_m": 3.88,
-      "top_m": 4.92,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.04
-    },
-    {
-      "lat": 48.9890404,
-      "lon": -123.0859053,
-      "foot_m": 3.87,
-      "top_m": 4.91,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.04
-    },
-    {
-      "lat": 48.9890359,
-      "lon": -123.0858951,
-      "foot_m": 3.87,
-      "top_m": 4.91,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.04
-    },
-    {
-      "lat": 48.9890315,
-      "lon": -123.0858951,
-      "foot_m": 3.87,
-      "top_m": 4.91,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.04
-    },
-    {
-      "lat": 48.989027,
-      "lon": -123.0858951,
-      "foot_m": 3.68,
-      "top_m": 4.89,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.01
-    },
-    {
-      "lat": 48.9890225,
-      "lon": -123.0858848,
-      "foot_m": 3.68,
-      "top_m": 4.89,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.01
-    },
-    {
-      "lat": 48.989018,
-      "lon": -123.0858848,
-      "foot_m": 3.68,
-      "top_m": 4.89,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.01
-    },
-    {
-      "lat": 48.9890135,
-      "lon": -123.0858848,
-      "foot_m": 3.68,
-      "top_m": 4.89,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.01
-    },
-    {
-      "lat": 48.989009,
-      "lon": -123.0858848,
-      "foot_m": 3.68,
-      "top_m": 4.89,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.01
-    },
-    {
-      "lat": 48.9890045,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 4.92,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.08
-    },
-    {
-      "lat": 48.989,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 4.92,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.08
-    },
-    {
-      "lat": 48.9889955,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.988991,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889865,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889821,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889776,
-      "lon": -123.0858745,
-      "foot_m": 3.64,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889731,
-      "lon": -123.0858642,
-      "foot_m": 3.68,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889686,
-      "lon": -123.0858642,
-      "foot_m": 3.68,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 2,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889641,
-      "lon": -123.0858539,
-      "foot_m": 3.8,
-      "top_m": 5.01,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.01
-    },
-    {
-      "lat": 48.9889596,
-      "lon": -123.0858539,
-      "foot_m": 3.8,
-      "top_m": 4.98,
-      "concrete_m": 1.0,
-      "courses": 1,
-      "bank_above_m": 0.0
-    },
-    {
-      "lat": 48.9889551,
-      "lon": -123.0857819,
-      "foot_m": 3.96,
-      "top_m": 4.98,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.02
-    },
-    {
-      "lat": 48.9889506,
-      "lon": -123.0857819,
-      "foot_m": 3.96,
-      "top_m": 4.98,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.02
-    },
-    {
-      "lat": 48.9889461,
-      "lon": -123.0857819,
-      "foot_m": 3.96,
-      "top_m": 4.98,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.02
-    },
-    {
-      "lat": 48.9889416,
-      "lon": -123.0857819,
-      "foot_m": 4.19,
-      "top_m": 5.21,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.02
-    },
-    {
-      "lat": 48.9889371,
-      "lon": -123.0857819,
-      "foot_m": 4.42,
-      "top_m": 5.45,
-      "concrete_m": 1.0,
-      "courses": 0,
-      "bank_above_m": 0.03
+      "tier": 2,
+      "concrete": false,
+      "stations": [
+        {
+          "lat": 48.9890854,
+          "lon": -123.0858539,
+          "foot_m": 6.56,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 8,
+          "bank_above_m": 0.05
+        },
+        {
+          "lat": 48.9890809,
+          "lon": -123.0858539,
+          "foot_m": 6.56,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 8,
+          "bank_above_m": 0.05
+        },
+        {
+          "lat": 48.9890764,
+          "lon": -123.0858539,
+          "foot_m": 6.56,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 8,
+          "bank_above_m": 0.05
+        },
+        {
+          "lat": 48.9890719,
+          "lon": -123.0858591,
+          "foot_m": 6.17,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 10,
+          "bank_above_m": 0.03
+        },
+        {
+          "lat": 48.9890674,
+          "lon": -123.0858642,
+          "foot_m": 5.79,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 0.01
+        },
+        {
+          "lat": 48.9890629,
+          "lon": -123.0858591,
+          "foot_m": 5.79,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 0.01
+        },
+        {
+          "lat": 48.9890584,
+          "lon": -123.0858539,
+          "foot_m": 5.79,
+          "top_m": 8.2,
+          "concrete_m": 0.0,
+          "courses": 12,
+          "bank_above_m": 0.01
+        },
+        {
+          "lat": 48.9890539,
+          "lon": -123.0858591,
+          "foot_m": 5.5,
+          "top_m": 7.0,
+          "concrete_m": 0.0,
+          "courses": 8,
+          "bank_above_m": 0.0
+        },
+        {
+          "lat": 48.9890494,
+          "lon": -123.0858642,
+          "foot_m": 5.2,
+          "top_m": 5.79,
+          "concrete_m": 0.0,
+          "courses": 3,
+          "bank_above_m": 0.0
+        }
+      ]
     }
   ]
 }

@@ -9,8 +9,9 @@
 // A wall is easy to draw wrong in ways that still look like a wall. Courses that
 // are not 200 mm. A stack that leans out over the beach instead of back into the
 // bank. A wall that floats over the foot the lidar found, or is buried under it.
-// A course count that does not match what the bake counted. Each of those is a
-// grey band on a screen and none of them announces itself.
+// Every wall down on the beach instead of up the bank, which is what the first
+// version of this did. Each of those is a grey band on a screen and none of them
+// announces itself.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -60,6 +61,7 @@ function world(lat, lon) {
   };
 }
 
+// The fixtures below are one wall each. The asset itself carries several.
 function build(asset) {
   const scene = new Scene();
   const out = buildTerraces(scene, asset);
@@ -83,7 +85,7 @@ const BLOCK = { height_m: 0.2, face_m: 0.4, setback_m: 0.06 };
   const a = { lat: ORIGIN.lat, lon: ORIGIN.lon, foot_m: foot, top_m: foot + 2.2,
               concrete_m: conc, courses, bank_above_m: 0 };
   const b = { ...a, lat: ORIGIN.lat - 1 / M_PER_DEG_LAT };
-  const { out, v } = build({ block: BLOCK, stations: [a, b] });
+  const { out, v } = build({ block: BLOCK, walls: [{ tier: 0, concrete: true, stations: [a, b] }] });
   assert.equal(out.stations, 2);
   assert.ok(out.blocks > 0, "some block got laid");
 
@@ -130,7 +132,7 @@ const BLOCK = { height_m: 0.2, face_m: 0.4, setback_m: 0.06 };
   const a = { lat: ORIGIN.lat, lon: ORIGIN.lon, foot_m: 4.2, top_m: 6.4,
               concrete_m: 1.0, courses: 6, bank_above_m: 0 };
   const b = { ...a, lat: ORIGIN.lat - 1 / M_PER_DEG_LAT };
-  const { v } = build({ block: BLOCK, stations: [a, b] });
+  const { v } = build({ block: BLOCK, walls: [{ tier: 0, concrete: true, stations: [a, b] }] });
   const at = world(a.lat, a.lon);
   const west = Math.min(...v.map((p) => p.x));
   assert.ok(Math.abs(west - at.x) < 0.1,
@@ -148,7 +150,7 @@ const BLOCK = { height_m: 0.2, face_m: 0.4, setback_m: 0.06 };
   const a = { lat: ORIGIN.lat, lon: ORIGIN.lon, foot_m: 4.0, top_m: 4.21,
               concrete_m: 0.21, courses: 0, bank_above_m: 0 };
   const b = { ...a, lat: ORIGIN.lat - 1 / M_PER_DEG_LAT };
-  const { out, v } = build({ block: BLOCK, stations: [a, b] });
+  const { out, v } = build({ block: BLOCK, walls: [{ tier: 0, concrete: true, stations: [a, b] }] });
   assert.equal(out.blocks, 0, "no courses asked for, so no block laid");
   assert.ok(Math.max(...v.map((p) => p.y)) < 4.0 + 0.21 + SLOP,
     "and nothing stands over the concrete");
@@ -159,31 +161,54 @@ const BLOCK = { height_m: 0.2, face_m: 0.4, setback_m: 0.06 };
   const file = path.join(HERE, "..", "..", "assets", "site", "389-terraces.json");
   const asset = JSON.parse(fs.readFileSync(file, "utf8"));
   const { out, v } = build(asset);
-  assert.equal(out.stations, asset.stations.length);
-  const foots = asset.stations.map((s) => s.foot_m);
+  const all = asset.walls.flatMap((w) => w.stations);
+  assert.equal(out.stations, all.length);
+  assert.equal(out.walls, asset.walls.length);
+  const foots = all.map((s) => s.foot_m);
   const ys = v.map((p) => p.y);
   assert.ok(Math.min(...ys) > Math.min(...foots) - 0.7,
     "nothing is buried far under the foot the lidar found");
-  const tops = asset.stations.map(
+  const tops = all.map(
     (s) => s.foot_m + s.concrete_m + s.courses * asset.block.height_m);
   assert.ok(Math.max(...ys) < Math.max(...tops) + SLOP,
-    `the wall reaches ${Math.max(...ys).toFixed(2)} m and the tallest station ` +
+    `the walls reach ${Math.max(...ys).toFixed(2)} m and the tallest station ` +
     `is ${Math.max(...tops).toFixed(2)}`);
-  console.log(`  the asset: ${asset.stations.length} stations, ${out.blocks} blocks, ` +
-    `foot ${Math.min(...foots).toFixed(2)}..${Math.max(...foots).toFixed(2)} m, ` +
-    `top ${Math.max(...tops).toFixed(2)} m MLLW`);
+  // Only the lowest wall is poured concrete. The ones up the bank are block
+  // from the ground up, which is what the photographs show.
+  assert.ok(asset.walls[0].concrete, "the lowest wall is the concrete seawall");
+  for (const w of asset.walls.slice(1)) {
+    assert.ok(w.stations.every((s) => s.concrete_m === 0),
+      `wall ${w.tier} is up the bank and should carry no concrete`);
+  }
+  // And they climb: each wall stands above the one below it.
+  const feet = asset.walls.map(
+    (w) => w.stations.reduce((t, s) => t + s.foot_m, 0) / w.stations.length);
+  for (let i = 1; i < feet.length; i++) {
+    assert.ok(feet[i] > feet[i - 1],
+      `wall ${i} sits at ${feet[i].toFixed(2)} m and wall ${i - 1} at ` +
+      `${feet[i - 1].toFixed(2)}: they are not stacked up the bank`);
+  }
+  console.log(`  the asset: ${asset.walls.length} walls, ${all.length} stations, ` +
+    `${out.blocks} blocks, foot ${Math.min(...foots).toFixed(2)}..` +
+    `${Math.max(...foots).toFixed(2)} m, top ${Math.max(...tops).toFixed(2)} m MLLW`);
 }
 
 // A missing or malformed asset says so rather than drawing nothing.
 {
-  assert.throws(() => buildTerraces(new Scene(), null), /no stations array/);
-  assert.throws(() => buildTerraces(new Scene(), {}), /no stations array/);
-  assert.throws(() => buildTerraces(new Scene(), { stations: [] }), /no block size/);
+  assert.throws(() => buildTerraces(new Scene(), null), /no walls array/);
+  assert.throws(() => buildTerraces(new Scene(), {}), /no walls array/);
+  assert.throws(() => buildTerraces(new Scene(), { walls: [] }), /no block size/);
+  assert.throws(
+    () => buildTerraces(new Scene(), {
+      block: BLOCK, walls: [{ tier: 0, stations: [{ lat: 48.99, lon: -123.08 }] }],
+    }),
+    /two is the fewest/);
   assert.throws(
     () => buildTerraces(new Scene(), {
       block: BLOCK,
-      stations: [{ lat: 48.99, lon: -123.08, concrete_m: 1, courses: 2 },
-                 { lat: 48.99, lon: -123.08, concrete_m: 1, courses: 2 }],
+      walls: [{ tier: 0, stations: [
+        { lat: 48.99, lon: -123.08, concrete_m: 1, courses: 2 },
+        { lat: 48.99, lon: -123.08, concrete_m: 1, courses: 2 }] }],
     }),
     /no wall on it/);
 }

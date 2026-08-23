@@ -2,18 +2,20 @@
 // seawall standing out of the shingle, and segmented block laid in courses on
 // top of it, each course stepped back from the one below.
 //
-// assets/site/389-terraces.json holds 34 stations over 16 m of frontage. The
-// line they stand on and the height they hold are the lidar's — the flat above
-// the wall and the flat below it are both in the point cloud, and where the
-// ground turns up between them is where the wall is. The wall face itself is
-// not and never will be: a flight looks down and a riser is vertical.
+// assets/site/389-terraces.json holds three walls, lowest first: the concrete
+// at the top of the beach, and two block walls up the bank above it. Every line
+// and every height is the lidar's — the flat under each wall and the flat over
+// it are both in the point cloud, and the step between them is the wall. The
+// wall face itself is not and never will be: a flight looks down and a riser is
+// vertical.
 //
 // The block is 200 mm on the course and 400 on the face, counted off the
 // photographs against a loose one lying on the concrete. The courses come out
-// of the bake, from what the ground climbs.
+// of the bake, from what the ground steps.
 //
-// It is drawn unbroken along the frontage. The photographs show it broken
-// through in places and a stair cut down through it, and neither is here.
+// Each wall is drawn unbroken along whatever length of frontage its step runs.
+// The photographs show one of them down and a stair cut through them, and
+// neither is here.
 
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
@@ -28,9 +30,9 @@ const BLOCK = [0x8d9088, 0x969890, 0x848780, 0x9ba096, 0x8a8d86];
 const JOINT_M = 0.012;
 
 export function buildTerraces(scene, terraces) {
-  if (!terraces || !Array.isArray(terraces.stations)) {
+  if (!terraces || !Array.isArray(terraces.walls)) {
     throw new Error(
-      "buildTerraces: the terrace asset has no stations array, so there is no " +
+      "buildTerraces: the terrace asset has no walls array, so there is no " +
       "line to stand a wall on. It is written by site/bake-oceanview-lidar.py " +
       "in PointRobertsEngineering, to assets/site/389-terraces.json.");
   }
@@ -58,7 +60,32 @@ export function buildTerraces(scene, terraces) {
     }
   };
 
-  const st = terraces.stations;
+  let laid = 0, stations = 0;
+  for (const wall of terraces.walls) {
+    if (!Array.isArray(wall.stations) || wall.stations.length < 2) {
+      throw new Error(
+        `buildTerraces: wall ${wall.tier} carries ${wall.stations?.length} ` +
+        `stations, and two is the fewest a wall can run between. See ` +
+        `assets/site/389-terraces.json.`);
+    }
+    stations += wall.stations.length;
+    laid += oneWall(wall.stations, block, rand, boxAt);
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geom.setAttribute("color", new THREE.BufferAttribute(new Float32Array(col), 3));
+  geom.computeVertexNormals();
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide })));
+  scene.add(group);
+  return { group, walls: terraces.walls.length, stations, blocks: laid };
+}
+
+// One wall: its concrete if it has any, then its block, course by course.
+// Returns how many blocks it laid.
+function oneWall(st, block, rand, boxAt) {
   for (const s of st) {
     if (!(s.foot_m > 0) || !(s.concrete_m >= 0) || !(s.courses >= 0)) {
       throw new Error(
@@ -137,15 +164,5 @@ export function buildTerraces(scene, terraces) {
       laid++;
     }
   }
-  const courses = laid;
-
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
-  geom.setAttribute("color", new THREE.BufferAttribute(new Float32Array(col), 3));
-  geom.computeVertexNormals();
-  const group = new THREE.Group();
-  group.add(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide })));
-  scene.add(group);
-  return { group, stations: st.length, blocks: courses };
+  return laid;
 }
