@@ -58,6 +58,10 @@ export const SITE_TREES = "assets/site/389-trees.json";
 export const SITE_STAIR = "assets/site/389-stair.json";
 // The rock the lidar found on the foreshore, as against the shingle put down by rule.
 export const SITE_BOULDERS = "assets/site/389-boulders.json";
+// The shrubs and hedges the lidar found standing round the lot. Almost all of
+// them are in the 35 m buffer, not on it — the lot is under closed canopy and
+// the garden beneath it is not in any lidar. See src/scene/shrubs.js.
+export const SITE_SHRUBS = "assets/site/389-shrubs.json";
 
 // Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
 export const OSM = "assets/osm/features.json";

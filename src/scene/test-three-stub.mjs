@@ -38,6 +38,8 @@ export class Color {
     return this;
   }
   toArray(a, o) { a[o] = this.r; a[o + 1] = this.g; a[o + 2] = this.b; }
+  clone() { const c = new Color(); c.r = this.r; c.g = this.g; c.b = this.b; return c; }
+  multiplyScalar(f) { this.r *= f; this.g *= f; this.b *= f; return this; }
 }
 
 export class Matrix4 {
@@ -137,6 +139,15 @@ export class OctahedronGeometry extends BufferGeometry {}
 export class PlaneGeometry extends BufferGeometry {}
 
 export class MeshStandardMaterial { constructor(o = {}) { Object.assign(this, o); } }
+
+export class Mesh {
+  constructor(geometry, material) { this.geometry = geometry; this.material = material; }
+}
+
+export class Group {
+  constructor() { this.children = []; }
+  add(o) { this.children.push(o); }
+}
 
 export class Scene {
   constructor() { this.children = []; }
