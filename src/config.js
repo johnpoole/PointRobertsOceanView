@@ -62,6 +62,9 @@ export const SITE_BOULDERS = "assets/site/389-boulders.json";
 // them are in the 35 m buffer, not on it — the lot is under closed canopy and
 // the garden beneath it is not in any lidar. See src/scene/shrubs.js.
 export const SITE_SHRUBS = "assets/site/389-shrubs.json";
+// The block terraces along the seaward edge of the lot: where the ground turns
+// up off the beach, and how many courses of block that is. See terraces.js.
+export const SITE_TERRACES = "assets/site/389-terraces.json";
 
 // Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
 export const OSM = "assets/osm/features.json";
