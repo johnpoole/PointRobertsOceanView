@@ -12,7 +12,7 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { fromWorld, toWorld } from "../geo.js";
+import { toWorld } from "../geo.js";
 import { OSM } from "../config.js";
 
 // Roughly what each is on the ground, in metres. Drawn a little over life so a
@@ -167,48 +167,26 @@ function buildings(list, sample) {
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }
 
-// Posts along a ruined pier. The line and the 5 m spacing are measured off
-// aerial imagery; the top is not, because no source gives a height. It sits
-// about a metre over MHHW so the posts still show at high water, which is how
-// the wharf reads from the bluff.
-const PILING_SPACING_M = 5;
+// Posts along a ruined pier. Each post is measured off aerial imagery; the top
+// is not, because no source gives a height. It sits about a metre over MHHW so
+// the posts still show at high water, which is how the wharf reads from the
+// bluff.
 const PILING_TOP_M = 4.0;      // metres MLLW
 const PILING_RADIUS_M = 0.225;  // 0.45 m across
 
-// line is an open polyline, not a ring, and offsets are metres either side of it
-// across the run — a pier stands its posts in parallel rows, not one file.
-function pilings(line, offsets, sample, posts) {
+// posts is every piling still standing, one [lat, lon] each. A pier that is
+// falling down keeps no pattern, so nothing is filled in between them.
+function pilings(posts, sample, out) {
   const geoms = [];
-  const first = toWorld(line[0][0], line[0][1], 0);
-  const last = toWorld(line[line.length - 1][0], line[line.length - 1][1], 0);
-  const run = Math.hypot(last.x - first.x, last.z - first.z) || 1;
-  const perpX = -(last.z - first.z) / run, perpZ = (last.x - first.x) / run;
-
-  const post = (lat, lon, off) => {
+  for (const [lat, lon] of posts) {
     const c = toWorld(lat, lon, 0);
-    const x = c.x + perpX * off, z = c.z + perpZ * off;
-    const p = fromWorld(x, z);
-    const bed = sample(p.lat, p.lon);
-    if (PILING_TOP_M <= bed) return;  // already dry ground here
+    const bed = sample(lat, lon);
+    if (PILING_TOP_M <= bed) continue;  // already dry ground here
     const h = PILING_TOP_M - bed;
     const g = new THREE.CylinderGeometry(PILING_RADIUS_M, PILING_RADIUS_M, h, 5, 1);
-    g.translate(x, bed + h / 2, z);
+    g.translate(c.x, bed + h / 2, c.z);
     geoms.push(g);
-    if (posts) posts.push({ x, z, r: PILING_RADIUS_M });
-  };
-
-  for (const off of offsets) {
-    for (let i = 0; i < line.length - 1; i++) {
-      const a = line[i], b = line[i + 1];
-      const wa = toWorld(a[0], a[1], 0), wb = toWorld(b[0], b[1], 0);
-      const steps = Math.max(1, Math.round(Math.hypot(wb.x - wa.x, wb.z - wa.z) / PILING_SPACING_M));
-      for (let k = 0; k < steps; k++) {
-        const t = k / steps;
-        post(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, off);
-      }
-    }
-    const end = line[line.length - 1];
-    post(end[0], end[1], off);
+    if (out) out.push({ x: c.x, z: c.z, r: PILING_RADIUS_M });
   }
   return geoms.length ? mergeGeometries(geoms, false) : null;
 }
@@ -274,7 +252,7 @@ export async function buildLand(scene, sample, opts = {}) {
   const pilingPosts = [];
   const pilingMat = new THREE.MeshStandardMaterial({ color: 0x53483c, roughness: 1 });
   for (const p of data.ruined_piers) {
-    const geom = pilings(p.line, p.row_offsets_m, sample, pilingPosts);
+    const geom = pilings(p.posts, sample, pilingPosts);
     if (!geom) continue;
     const mesh = new THREE.Mesh(geom, pilingMat);
     mesh.userData.landmark = { name: p.name, kind: "ruined pier" };

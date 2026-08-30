@@ -52,24 +52,69 @@ FAR_TERRAIN = "heightmap_far.bin", "meta_far.json"
 # not its shape, so drawing their outline stood posts round a large rectangle
 # that is not there.
 #
-# Measured instead off USGS NAIP aerial imagery at 0.146 m/pixel. The pilings
-# read as a single row of dark dots at a constant latitude: the row sits at
-# 48.98421, runs due east and west, and the darkness profile along it rises out
-# of the open-water baseline at -123.08667 and falls back at -123.08460. That is
-# a 151 m line carrying about 30 posts, near enough 5 m apart. The ENC box
-# centre and this line's centre agree to within a few metres.
+# Measured instead off Whatcom County 2022 aerial orthoimagery at 0.128 m per
+# pixel, which resolves every piling top and the shadow it throws. Each post
+# below is one that was still standing when that flight went over.
+#
+# The trestle runs due east and west on three rows 1.89 m apart, on bents
+# 4.57 m apart along it. It is thirty-six bents long and 71 of its 108 posts
+# are left. At the seaward end the wharf widens into a head that runs 28 m
+# south, and 17 posts are left in that. Nothing stands north of the trestle,
+# nothing west of the head, and nothing east of the last bent, which is 36 m
+# short of the high-water line.
 #
 # Neither source gives a height. The chart says only WATLEV "always under water
 # /submerged", which describes the deck and not the posts left standing, so
 # PILING_TOP_M is a drawing choice.
-# The imagery resolves the structure as one row because 2.5 m is under two
-# pixels; John, who can see it, reports three rows about 2.5 m apart, 5 m across
-# the whole pier. row_offsets_m are metres either side of the measured line.
 RUINED_PIERS = [
     {
         "name": "Old wharf",
-        "line": [[48.9842144, -123.086670], [48.9842144, -123.084600]],
-        "row_offsets_m": [-2.5, 0.0, 2.5],
+        "posts": [
+            [48.9842187, -123.0846913], [48.9841864, -123.0846916],
+            [48.9842050, -123.0847531], [48.9841863, -123.0847533],
+            [48.9842213, -123.0847539], [48.9841872, -123.0848147],
+            [48.9842035, -123.0848157], [48.9841868, -123.0848782],
+            [48.9842048, -123.0848793], [48.9842203, -123.0848794],
+            [48.9841916, -123.0849425], [48.9842239, -123.0849425],
+            [48.9842079, -123.0849434], [48.9842067, -123.0850021],
+            [48.9842230, -123.0850034], [48.9841905, -123.0850640],
+            [48.9842071, -123.0850657], [48.9842242, -123.0850666],
+            [48.9841902, -123.0851255], [48.9842086, -123.0851265],
+            [48.9842243, -123.0851276], [48.9842086, -123.0851894],
+            [48.9842247, -123.0851906], [48.9841900, -123.0852505],
+            [48.9842067, -123.0852525], [48.9842234, -123.0852541],
+            [48.9841900, -123.0853198], [48.9842069, -123.0853237],
+            [48.9842237, -123.0853246], [48.9842068, -123.0853854],
+            [48.9842233, -123.0853873], [48.9841902, -123.0854458],
+            [48.9842059, -123.0854489], [48.9841897, -123.0855729],
+            [48.9842070, -123.0855743], [48.9842225, -123.0855744],
+            [48.9841892, -123.0856354], [48.9842214, -123.0856354],
+            [48.9841877, -123.0856979], [48.9842059, -123.0856980],
+            [48.9842227, -123.0856984], [48.9842053, -123.0857601],
+            [48.9841873, -123.0858182], [48.9842217, -123.0858186],
+            [48.9842226, -123.0858796], [48.9841865, -123.0858813],
+            [48.9842045, -123.0858819], [48.9842064, -123.0860062],
+            [48.9842201, -123.0860086], [48.9842049, -123.0860692],
+            [48.9842053, -123.0861359], [48.9842073, -123.0861941],
+            [48.9842211, -123.0861968], [48.9841892, -123.0861981],
+            [48.9842045, -123.0862576], [48.9842238, -123.0863176],
+            [48.9841889, -123.0863190], [48.9841879, -123.0863803],
+            [48.9842244, -123.0863813], [48.9842062, -123.0863825],
+            [48.9842231, -123.0864409], [48.9841892, -123.0864421],
+            [48.9842061, -123.0864425], [48.9842216, -123.0865046],
+            [48.9841858, -123.0865613], [48.9842031, -123.0865654],
+            [48.9842201, -123.0865660], [48.9842199, -123.0866288],
+            [48.9840183, -123.0867473], [48.9840610, -123.0867512],
+            [48.9841451, -123.0867532], [48.9839774, -123.0867713],
+            [48.9840597, -123.0867808], [48.9841439, -123.0867818],
+            [48.9839739, -123.0867932], [48.9839916, -123.0868027],
+            [48.9840169, -123.0868088], [48.9841443, -123.0868090],
+            [48.9841003, -123.0868114], [48.9842045, -123.0868131],
+            [48.9839914, -123.0868275], [48.9839729, -123.0868324],
+            [48.9840150, -123.0868365], [48.9840000, -123.0868436],
+            [48.9839751, -123.0868471], [48.9840569, -123.0868641],
+            [48.9842042, -123.0868735], [48.9841860, -123.0868760],
+        ],
     },
 ]
 
