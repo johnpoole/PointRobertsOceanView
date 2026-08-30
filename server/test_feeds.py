@@ -274,42 +274,57 @@ def test_a_ship_that_is_not_a_ferry_is_left_alone() -> None:
     assert state == {"mmsi": "1", "name": "OOCL OAKLAND"}
 
 
-# ---- ships that have gone ---------------------------------------------------
+# ---- ships and aircraft that have gone --------------------------------------
 
 
-def _stock(seconds_ago: dict, positionless: list[str]) -> None:
-    """Put a fleet in the record: each named ship last heard from so many
-    seconds back, and the positionless ones with no fix at all."""
+def _stock(seconds_ago: dict, positionless: list[str]) -> tuple[dict, dict]:
+    """A fleet in a record: each track last heard from so many seconds back, and
+    the positionless ones with no fix at all. Returns the store and the times,
+    to hand to reap."""
     now = proxy.utcnow()
-    proxy.world.vessels.clear()
-    proxy.world.vessel_seen.clear()
-    for mmsi, age in seconds_ago.items():
-        proxy.world.vessels[mmsi] = {"mmsi": mmsi, "latitude": 49.0, "longitude": -123.0}
-        proxy.world.vessel_seen[mmsi] = now - timedelta(seconds=age)
-    for mmsi in positionless:
-        proxy.world.vessels[mmsi] = {"mmsi": mmsi, "name": "NO FIX"}
+    store: dict = {}
+    seen: dict = {}
+    for key, age in seconds_ago.items():
+        store[key] = {"latitude": 49.0, "longitude": -123.0}
+        seen[key] = now - timedelta(seconds=age)
+    for key in positionless:
+        store[key] = {"name": "NO FIX"}
+    return store, seen
 
 
 def test_a_ship_that_has_gone_quiet_comes_off_the_water() -> None:
-    _stock({"live": 60, "greying": 400, "gone": 1200}, [])
-    assert sorted(proxy.reap_vessels()) == ["gone"]
-    assert sorted(proxy.world.vessels) == ["greying", "live"]
-    assert "gone" not in proxy.world.vessel_seen
+    store, seen = _stock({"live": 60, "greying": 400, "gone": 1200}, [])
+    assert sorted(proxy.reap(store, seen, proxy.DROP_SECONDS["vessels"])) == ["gone"]
+    assert sorted(store) == ["greying", "live"]
+    assert "gone" not in seen
 
 
 def test_a_ship_that_never_gave_a_position_comes_off_too() -> None:
     """AIS message 5 names a ship and says nothing about where it is."""
-    _stock({"live": 60}, ["named_only"])
-    assert proxy.reap_vessels() == ["named_only"]
-    assert sorted(proxy.world.vessels) == ["live"]
+    store, seen = _stock({"live": 60}, ["named_only"])
+    assert proxy.reap(store, seen, proxy.DROP_SECONDS["vessels"]) == ["named_only"]
+    assert sorted(store) == ["live"]
 
 
 def test_a_scraped_ship_survives_the_gap_between_two_passes() -> None:
-    """Shipfinder runs every 600s. A ship seen on the last pass must still be
-    there when the next one comes round."""
-    _stock({"scraped": proxy.SHIPFINDER_PERIOD_SECONDS}, [])
-    assert proxy.reap_vessels() == []
-    assert sorted(proxy.world.vessels) == ["scraped"]
+    """A ship seen on the last shipfinder pass must still be there when the next
+    one comes round."""
+    store, seen = _stock({"scraped": proxy.SHIPFINDER_PERIOD_SECONDS}, [])
+    assert proxy.reap(store, seen, proxy.DROP_SECONDS["vessels"]) == []
+    assert sorted(store) == ["scraped"]
+
+
+def test_an_aircraft_that_has_flown_out_of_range_comes_off() -> None:
+    store, seen = _stock({"here": 30, "greying": 200, "gone": 400}, [])
+    assert proxy.reap(store, seen, proxy.DROP_SECONDS["aircraft"]) == ["gone"]
+    assert sorted(store) == ["greying", "here"]
+
+
+def test_a_track_greys_before_it_goes() -> None:
+    """The page dims a track at the stale threshold and the server takes it off
+    at the drop. Equal thresholds would take it off the moment it dimmed."""
+    for kind in ("vessels", "aircraft"):
+        assert proxy.DROP_SECONDS[kind] > proxy.STALE_SECONDS[kind], kind
 
 
 def main() -> int:

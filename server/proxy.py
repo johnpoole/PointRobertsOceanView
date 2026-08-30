@@ -72,10 +72,10 @@ STALE_SECONDS = {"vessels": 300, "aircraft": 120}
 # container started stayed in it and went on being drawn, greyed out, sitting
 # where it was hours ago.
 #
-# Longer than the stale threshold, so a ship greys before it goes and is not
-# taken off the water the moment the feed hiccups. Longer than the shipfinder
-# pass at 300s, so a scraped ship is not reaped between two good passes.
-DROP_SECONDS = {"vessels": 900}
+# Longer than the stale threshold, so a track greys before it goes and is not
+# taken off the moment the feed hiccups. For ships, longer than the shipfinder
+# pass at 300s too, so a scraped one is not reaped between two good passes.
+DROP_SECONDS = {"vessels": 900, "aircraft": 300}
 REAP_PERIOD_SECONDS = 60.0
 HEARTBEAT_SECONDS = 10.0
 
@@ -1125,11 +1125,6 @@ async def aircraft_task() -> None:
                     await clients.broadcast(envelope(
                         "aircraft.state", ADSB_SOURCE, now, state,
                         STALE_SECONDS["aircraft"]))
-                # Drop anything that has been out of range long enough to be gone.
-                for icao in [k for k, t in world.aircraft_seen.items()
-                             if (now - t).total_seconds() > STALE_SECONDS["aircraft"]]:
-                    world.aircraft.pop(icao, None)
-                    world.aircraft_seen.pop(icao, None)
                 # Live means aircraft arrived, not that the request returned.
                 if seen_now:
                     if world.health["aircraft"] != "live":
@@ -1802,37 +1797,43 @@ async def shipfinder_task() -> None:
         await clients.broadcast(snapshot())
 
 
-# ---- ships that have gone ----------------------------------------------------
+# ---- ships and aircraft that have gone ---------------------------------------
 
 
-def reap_vessels(now: datetime | None = None) -> list[str]:
-    """Take off every ship whose last fix is older than the cutoff, and every
-    ship that has no fix at all. Returns the keys removed.
+def reap(store: dict, seen: dict, cutoff: float, now: datetime | None = None) -> list[str]:
+    """Take off everything whose last fix is older than the cutoff, and
+    everything that has no fix at all. Returns the keys removed.
 
     No fix at all is not a corner case. AIS message 5 is a ship's account of
     itself and carries no position, so a ship that names itself from outside the
     box puts a record in with nothing to draw. Those were never reaped by an age
     they did not have."""
     now = now or utcnow()
-    cutoff = DROP_SECONDS["vessels"]
-    gone = [key for key in world.vessels
-            if key not in world.vessel_seen
-            or (now - world.vessel_seen[key]).total_seconds() > cutoff]
+    gone = [key for key in store
+            if key not in seen or (now - seen[key]).total_seconds() > cutoff]
     for key in gone:
-        del world.vessels[key]
-        world.vessel_seen.pop(key, None)
+        del store[key]
+        seen.pop(key, None)
     return gone
 
 
 async def reaper_task() -> None:
     """Runs whether or not anybody is watching, so the first visitor after a
-    quiet night is handed the water as it is and not as it was."""
+    quiet night is handed the water as it is and not as it was.
+
+    The aircraft used to take themselves off inside their own poll, which had
+    two holes. It told nobody: the page only ever adds an aircraft and drops it
+    when a snapshot arrives without it, so a plane the server had forgotten went
+    on being drawn. And it sat inside the try, so a feed that stopped answering
+    froze whatever was in the air and left it there."""
     while True:
         await asyncio.sleep(REAP_PERIOD_SECONDS)
-        gone = reap_vessels()
-        if gone:
-            log.info("Reaped %d vessels that had gone quiet, %d left",
-                     len(gone), len(world.vessels))
+        ships = reap(world.vessels, world.vessel_seen, DROP_SECONDS["vessels"])
+        planes = reap(world.aircraft, world.aircraft_seen, DROP_SECONDS["aircraft"])
+        if ships or planes:
+            log.info("Reaped %d vessels and %d aircraft that had gone quiet; "
+                     "%d vessels and %d aircraft left", len(ships), len(planes),
+                     len(world.vessels), len(world.aircraft))
             await clients.broadcast(snapshot())
 
 
