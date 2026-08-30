@@ -65,6 +65,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # out from the window.
 BBOX = {"min_lat": 48.899, "min_lon": -123.222, "max_lat": 49.079, "max_lon": -122.949}
 STALE_SECONDS = {"vessels": 300, "aircraft": 120}
+
+# When a ship stops being a ship on the water. Nothing upstream ever says a
+# vessel has gone: AISStream simply stops sending once it leaves the box, and so
+# the record only ever grew. Every hull that crossed the strait since the
+# container started stayed in it and went on being drawn, greyed out, sitting
+# where it was hours ago.
+#
+# Longer than the stale threshold, so a ship greys before it goes and is not
+# taken off the water the moment the feed hiccups. Longer than the shipfinder
+# pass at 600s, so a scraped ship is not reaped between two good passes.
+DROP_SECONDS = {"vessels": 900}
+REAP_PERIOD_SECONDS = 60.0
 HEARTBEAT_SECONDS = 10.0
 
 AIS_URL = "wss://stream.aisstream.io/v0/stream"
@@ -1786,6 +1798,40 @@ async def shipfinder_task() -> None:
         await clients.broadcast(snapshot())
 
 
+# ---- ships that have gone ----------------------------------------------------
+
+
+def reap_vessels(now: datetime | None = None) -> list[str]:
+    """Take off every ship whose last fix is older than the cutoff, and every
+    ship that has no fix at all. Returns the keys removed.
+
+    No fix at all is not a corner case. AIS message 5 is a ship's account of
+    itself and carries no position, so a ship that names itself from outside the
+    box puts a record in with nothing to draw. Those were never reaped by an age
+    they did not have."""
+    now = now or utcnow()
+    cutoff = DROP_SECONDS["vessels"]
+    gone = [key for key in world.vessels
+            if key not in world.vessel_seen
+            or (now - world.vessel_seen[key]).total_seconds() > cutoff]
+    for key in gone:
+        del world.vessels[key]
+        world.vessel_seen.pop(key, None)
+    return gone
+
+
+async def reaper_task() -> None:
+    """Runs whether or not anybody is watching, so the first visitor after a
+    quiet night is handed the water as it is and not as it was."""
+    while True:
+        await asyncio.sleep(REAP_PERIOD_SECONDS)
+        gone = reap_vessels()
+        if gone:
+            log.info("Reaped %d vessels that had gone quiet, %d left",
+                     len(gone), len(world.vessels))
+            await clients.broadcast(snapshot())
+
+
 # ---- heartbeat --------------------------------------------------------------
 
 
@@ -1902,6 +1948,7 @@ async def startup() -> None:
                              (ferries_task(), "ferries", None),
                              (heartbeat_task(), "heartbeat", None),
                              (presence_task(), "presence", None),
+                             (reaper_task(), "reaper", None),
                              (visitors_task(), "visitors", None)):
         _tasks.append(_spawn(coro, name, feed))
 

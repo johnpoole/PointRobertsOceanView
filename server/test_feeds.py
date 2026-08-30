@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -271,6 +272,44 @@ def test_a_ship_that_is_not_a_ferry_is_left_alone() -> None:
     state = {"mmsi": "1", "name": "OOCL OAKLAND"}
     proxy.apply_ferry(state, proxy.ferry_sailings(FERRIES))
     assert state == {"mmsi": "1", "name": "OOCL OAKLAND"}
+
+
+# ---- ships that have gone ---------------------------------------------------
+
+
+def _stock(seconds_ago: dict, positionless: list[str]) -> None:
+    """Put a fleet in the record: each named ship last heard from so many
+    seconds back, and the positionless ones with no fix at all."""
+    now = proxy.utcnow()
+    proxy.world.vessels.clear()
+    proxy.world.vessel_seen.clear()
+    for mmsi, age in seconds_ago.items():
+        proxy.world.vessels[mmsi] = {"mmsi": mmsi, "latitude": 49.0, "longitude": -123.0}
+        proxy.world.vessel_seen[mmsi] = now - timedelta(seconds=age)
+    for mmsi in positionless:
+        proxy.world.vessels[mmsi] = {"mmsi": mmsi, "name": "NO FIX"}
+
+
+def test_a_ship_that_has_gone_quiet_comes_off_the_water() -> None:
+    _stock({"live": 60, "greying": 400, "gone": 1200}, [])
+    assert sorted(proxy.reap_vessels()) == ["gone"]
+    assert sorted(proxy.world.vessels) == ["greying", "live"]
+    assert "gone" not in proxy.world.vessel_seen
+
+
+def test_a_ship_that_never_gave_a_position_comes_off_too() -> None:
+    """AIS message 5 names a ship and says nothing about where it is."""
+    _stock({"live": 60}, ["named_only"])
+    assert proxy.reap_vessels() == ["named_only"]
+    assert sorted(proxy.world.vessels) == ["live"]
+
+
+def test_a_scraped_ship_survives_the_gap_between_two_passes() -> None:
+    """Shipfinder runs every 600s. A ship seen on the last pass must still be
+    there when the next one comes round."""
+    _stock({"scraped": proxy.SHIPFINDER_PERIOD_SECONDS}, [])
+    assert proxy.reap_vessels() == []
+    assert sorted(proxy.world.vessels) == ["scraped"]
 
 
 def main() -> int:
