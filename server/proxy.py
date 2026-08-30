@@ -74,7 +74,7 @@ STALE_SECONDS = {"vessels": 300, "aircraft": 120}
 #
 # Longer than the stale threshold, so a ship greys before it goes and is not
 # taken off the water the moment the feed hiccups. Longer than the shipfinder
-# pass at 600s, so a scraped ship is not reaped between two good passes.
+# pass at 300s, so a scraped ship is not reaped between two good passes.
 DROP_SECONDS = {"vessels": 900}
 REAP_PERIOD_SECONDS = 60.0
 HEARTBEAT_SECONDS = 10.0
@@ -1697,8 +1697,12 @@ async def weather_task() -> None:
 
 # Only while somebody is watching, and then rarely. Their map polls the same
 # endpoint every ten seconds, so an ordinary visitor to their site is worth
-# about sixty of these.
-SHIPFINDER_PERIOD_SECONDS = 600.0
+# about thirty of these.
+#
+# A pass is a headless page load and a twenty-second wait for their poll to come
+# back, so about half a minute once the ship cache is warm and every hull in the
+# box is already known. Five minutes leaves ten times that idle between passes.
+SHIPFINDER_PERIOD_SECONDS = 300.0
 SHIPFINDER_IDLE_CHECK_SECONDS = 15.0
 SHIPFINDER_NOTE = "scraped from shipfinder"
 

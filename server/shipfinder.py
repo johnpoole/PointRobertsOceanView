@@ -13,8 +13,8 @@ the browser runs, their code does whatever it does, and the answer is read off
 the wire.
 
 That costs a page load, which is why this only runs while somebody is watching
-and only every ten minutes. Their own map polls the same endpoint every ten
-seconds, so one ordinary visitor to their site is worth about sixty of these.
+and only every five minutes. Their own map polls the same endpoint every ten
+seconds, so one ordinary visitor to their site is worth about thirty of these.
 
 The payload is base64 over JSON and decodes as fixed 43-byte records. Only four
 fields are certain and only those are read. Course is not among them, so it is
