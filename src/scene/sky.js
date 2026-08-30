@@ -48,13 +48,21 @@ export class Sky {
       side: THREE.BackSide,
       depthWrite: false,
       uniforms: this.uniforms,
+      // The logdepthbuf chunks are what a built-in material gets for free and a
+      // shader written out by hand does not. Without them the dome tests its
+      // depth against a buffer written the other way and paints over the far
+      // islands. common is in for isPerspectiveMatrix, which the chunk calls.
       vertexShader: `
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
         varying vec3 vDir;
         void main() {
           vDir = normalize(position);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          #include <logdepthbuf_vertex>
         }`,
       fragmentShader: `
+        #include <logdepthbuf_pars_fragment>
         varying vec3 vDir;
         uniform vec3 uPA, uPB, uPC, uPD, uPE;
         uniform vec3 uZenith, uNorm, uSunTint, uSunDir, uSunSky;
@@ -74,6 +82,7 @@ export class Sky {
         }
 
         void main() {
+          #include <logdepthbuf_fragment>
           vec3 dir = normalize(vDir);
           float cosG = clamp(dot(dir, uSunSky), -1.0, 1.0);
           float gamma = acos(cosG);

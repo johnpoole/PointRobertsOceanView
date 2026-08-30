@@ -42,7 +42,22 @@ import { fromWorld, toWorld } from "./geo.js";
 import { numberAt, offsetHours, sceneNow, setOffsetHours, shifted, slotAt } from "./clock.js";
 
 const canvas = document.getElementById("scene");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+// The depth buffer is logarithmic. With the near plane at 1 m and the far at
+// 150 km, an ordinary depth buffer spends nearly all its 24 bits on the first
+// few hundred metres: the step between two distinguishable depths is about a
+// metre at 4 km, 54 m at 30 km and 214 m at 60 km. The Gulf Islands sit out
+// there and their shores are flat land meeting flat water, so the water plane
+// and the island were inside one step of each other and the card had no way to
+// say which was in front. It picked differently from pixel to pixel and from
+// frame to frame, and the coastlines crawled.
+//
+// A logarithmic buffer spreads the same bits evenly across the range and puts
+// the step at 30 km down to about 20 mm. The cost is that every fragment writes
+// its own depth, so the card cannot throw away hidden fragments before shading
+// them. The two raw shaders in the scene — the sky dome and the projector
+// screen — carry the same transform by hand; see sky.js and terrain.js.
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // cap for Iris Xe
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;

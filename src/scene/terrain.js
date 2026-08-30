@@ -276,21 +276,29 @@ export function buildScreen(scene) {
     side: THREE.BackSide,
     transparent: true,
     depthWrite: false,   // it is behind everything; it must not mask anything
+    // Written out by hand, so it does not get the logarithmic depth transform
+    // the built-in materials get. Without it the screen tests its depth against
+    // a buffer written the other way. See main.js.
     vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
       varying vec3 vGroundPos;
       void main() {
         vec4 world = modelMatrix * vec4(position, 1.0);
         vGroundPos = world.xyz;
         gl_Position = projectionMatrix * viewMatrix * world;
+        #include <logdepthbuf_vertex>
       }
     `,
     fragmentShader: `
+      #include <logdepthbuf_pars_fragment>
       varying vec3 vGroundPos;
       uniform mat4 projView;
       uniform vec3 projLens;
       uniform sampler2D projMap;
       uniform float projMix;
       void main() {
+        #include <logdepthbuf_fragment>
         ${PROJECTOR_GLSL_FRAGMENT}
         // Off the frame there is no screen at all, only sky.
         if (projOn <= 0.0) discard;
