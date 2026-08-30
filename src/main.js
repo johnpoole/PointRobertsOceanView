@@ -473,13 +473,17 @@ const clockValue = document.getElementById("clock-value");
 
 function setClockOffset(hours) {
   setOffsetHours(hours);
-  clockRange.value = String(hours);
+  // The slider counts minutes. #hour= lands on any offset at all, so the thumb
+  // snaps to the nearest minute and the clock does not.
+  const mins = Math.round(hours * 60);
+  clockRange.value = String(mins);
   const t = sceneNow();
-  const shown = Math.round(hours * 4) / 4;   // #hour= lands on any offset at all
+  const away = Math.abs(mins);
   clockValue.textContent = hours === 0
     ? "now"
     : `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`
-      + ` (${shown > 0 ? "+" : ""}${shown} h)`;
+      + ` (${mins > 0 ? "+" : "-"}${Math.floor(away / 60)}h`
+      + `${String(away % 60).padStart(2, "0")})`;
   // Everything that reads the clock, re-read. The sun and the sky, the water the
   // shoreline runs at, the stream the drift rides, and the panels.
   updateSun();
@@ -500,7 +504,8 @@ function hourFromHash(hash) {
   return want - (now.getHours() + now.getMinutes() / 60);
 }
 
-clockRange.addEventListener("input", () => setClockOffset(Number(clockRange.value)));
+clockRange.addEventListener("input",
+  () => setClockOffset(Number(clockRange.value) / 60));
 document.getElementById("clock-now").addEventListener("click", () => setClockOffset(0));
 
 // Place the sun where it really is for the scene's time, and re-place it each

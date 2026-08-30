@@ -289,6 +289,18 @@ body.hud-visible .clock:not(.hidden) { display: flex; }
 .trim-label { color: var(--dim); font-size: 12px; white-space: nowrap; }
 .trim-label span { color: var(--ink); }
 .trim-range { width: 180px; accent-color: var(--live); }
+/* The day is twelve hours either side of now, and across 180 px that is eight
+   minutes to the pixel, which is not a control. Width is the only thing that
+   buys resolution back, so the clock bar takes what the window has and the
+   slider takes what is left of the bar: about three minutes to the pixel on a
+   desktop. Under that the arrow keys move it a minute a press. The aim slider
+   keeps its 180 px — thirty degrees either way fits there.
+   The label is pinned because it grows from "now" to "14:32 (+3h12)", and a
+   label that grows takes width off the slider and slides the thumb out from
+   under the finger holding it. */
+.clock { width: min(720px, calc(100vw - 24px)); }
+.clock .trim-label { min-width: 132px; }
+.clock .trim-range { width: auto; flex: 1; }
 
 /* Back to the real hour. Sits in the clock bar, not with the view buttons. */
 .clock-now {

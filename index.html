@@ -211,7 +211,10 @@
   <!-- The clock the sun runs on. Sits on the real one until it is moved. -->
   <div id="clock" class="trim clock">
     <label class="trim-label" for="clock-range">sun <span id="clock-value">now</span></label>
-    <input id="clock-range" class="trim-range" type="range" min="-12" max="12" step="0.25" value="0" />
+    <!-- Minutes, not hours: a step of a quarter hour was under two pixels wide
+         and nothing in between could be reached. Whole minutes divide exactly,
+         where a step of a sixtieth of an hour does not. -->
+    <input id="clock-range" class="trim-range" type="range" min="-720" max="720" step="1" value="0" />
     <button id="clock-now" class="clock-now">now</button>
   </div>
 
