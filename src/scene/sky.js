@@ -190,12 +190,14 @@ export class Sky {
         // horizon, which is what the camera shows and what the render did not:
         // every cloud was drawn as crisp at the horizon as it was overhead.
         //
-        // Per metre, set so a deck at the horizon is still most of the way gone,
-        // which is where it was under the deeper layer. A shallower layer holds
-        // less air, so the rate through it has to be higher to come to the same
-        // place along the water.
+        // Per metre, and the same air the far tile is given, which is measured
+        // off the camera rather than matched by eye — see main.js. That air is
+        // four times clearer than what was here before, so the cloud does not
+        // wash out nearly as fast: a deck is a third gone at the horizon and
+        // the cirrus above it is a sixteenth, which is why the high cloud on
+        // that frame is still legible right down to the skyline.
         const float HAZE_SCALE_H = 500.0;
-        const float HAZE_PER_M = 4.7e-5;
+        const float HAZE_PER_M = 7.5e-6;
 
         float hazeTo(float h, float t) {
           float atEye = exp(-20.0 / HAZE_SCALE_H);

@@ -374,7 +374,14 @@ stairSpec
   .catch((err) => failed("the ground under the view", err));
 // No gravel on the far tile: its nearest ground is ten kilometres off.
 buildTerrain(scene, TERRAIN.far,
-  { hazeGrade: [12000, 70000, 0.06, 0.85], fog: false, yOffset: -0.5, gravel: false,
+  // Measured off the Ocean View camera and not matched by eye. On the frame of
+  // the 1st of September the far ridge sits at a tenth to a fifth of the
+  // brightness of the sky immediately above it, and land with the sun behind it
+  // reflects almost nothing, so that fraction is the haze itself. It read 0.79
+  // here, four times what the camera shows, and a ridge already four fifths of
+  // the way to sky has no room left to show what its own height does. Which is
+  // why the height went in and almost nothing happened.
+  { hazeGrade: [12000, 70000, 0.06, 0.26], fog: false, yOffset: -0.5, gravel: false,
     projector: true })
   .then((far) => { skylineTile = far; })
   .catch((err) => failed("the skyline across the strait", err));
