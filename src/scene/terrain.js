@@ -8,22 +8,29 @@ import * as THREE from "three";
 import { toWorld } from "../geo.js";
 import { EYE_HEIGHT_M } from "../config.js";
 
-// The haze is aerosol and the aerosol sits in the bottom of the air. It thins
-// out with a scale height of about twelve hundred metres: half of it is under
-// eight hundred, nine tenths of it under three thousand. Nothing above that is
-// doing much.
-const HAZE_SCALE_H = 1200;
+// What washes out a distant hill over this water is not the aerosol column of
+// the whole atmosphere. It is the marine layer: the damp air that sits on the
+// sea and is capped a few hundred metres up, with clean air above it. Twelve
+// hundred metres was the column and it was wrong here, and the way it was wrong
+// is worth keeping written down. Half the land in view across the strait is
+// under three hundred and seventy metres and the tallest thing in it is
+// fourteen hundred and sixty. Under a twelve-hundred-metre scale height a
+// three-hundred-and-seventy-metre hill still stands in nearly nine tenths of
+// the air, so the whole ridge came out the same wash from the water to the top,
+// which is what it was doing before.
+//
+// Five hundred is the layer. A three-hundred-and-seventy-metre hill top stands
+// in seven tenths of it and the summits stand in four.
+const HAZE_SCALE_H = 500;
 
 // How much air stands along a sightline that climbs from the eye to a point
 // height metres up, against the air along the same length of sightline held at
 // the eye's own level. Both run the same horizontal distance, so the distance
 // divides out and what is left is the mean density of the one over the other.
 //
-// This is the whole of what was missing. The haze ran on horizontal distance
-// alone, so a two-thousand-metre summit sixty kilometres off was given exactly
-// the air its own shoreline was given, and the far ridge washed out flat from
-// the water to the top. Half the air is gone by eight hundred metres and the
-// summit stands out of it.
+// The haze ran on horizontal distance alone, so a hill sixty kilometres off was
+// given exactly the air its own shoreline was given, and the far ridge washed
+// out flat from the water to the top.
 export function airMassRatio(height) {
   const eye = EYE_HEIGHT_M;
   const top = Math.max(height, 0);

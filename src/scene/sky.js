@@ -178,9 +178,9 @@ export class Sky {
 
         // How much of a cloud has been eaten by the air in front of it.
         //
-        // The haze is aerosol and the aerosol sits in the bottom of the air,
-        // thinning with a scale height of twelve hundred metres: half of it is
-        // under eight hundred and nine tenths under three thousand. So what
+        // The haze that washes out a distance over this water is the marine
+        // layer: the damp air lying on the sea, capped a few hundred metres up,
+        // with clean air above it. Five hundred metres is the layer. So what
         // stands in front of a cloud is not its distance but the air along the
         // slant to it, and the two are not the same thing at all. A deck seen
         // along the water is behind a hundred and sixty kilometres of the thick
@@ -190,10 +190,12 @@ export class Sky {
         // horizon, which is what the camera shows and what the render did not:
         // every cloud was drawn as crisp at the horizon as it was overhead.
         //
-        // Per metre, set so sixty kilometres along the water is most of the way
-        // gone, which is where the far tile's haze was already matched by eye.
-        const float HAZE_SCALE_H = 1200.0;
-        const float HAZE_PER_M = 2.71e-5;
+        // Per metre, set so a deck at the horizon is still most of the way gone,
+        // which is where it was under the deeper layer. A shallower layer holds
+        // less air, so the rate through it has to be higher to come to the same
+        // place along the water.
+        const float HAZE_SCALE_H = 500.0;
+        const float HAZE_PER_M = 4.7e-5;
 
         float hazeTo(float h, float t) {
           float atEye = exp(-20.0 / HAZE_SCALE_H);
