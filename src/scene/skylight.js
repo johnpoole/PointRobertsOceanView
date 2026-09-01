@@ -182,7 +182,17 @@ export const EXPOSURE_TARGET = 0.8;
 // the sun itself.
 const HORIZON_EL = 3 * Math.PI / 180;
 
+// Below this the eye has stopped opening. Pinned to the band, the exposure went
+// on rising as the sun went down — faster than the sky behind it dimmed — so the
+// sky thirty degrees up was the same brightness at sunset as two degrees before
+// it, and the evening did not get dark. Nothing showed it, because the reddening
+// term was falling across the same stretch and standing in for the dimming. Take
+// the reddening off the upper sky, where it does not belong, and the sunset stops
+// going down at all. So the adaptation stops here and the sky is left to dim.
+const EXPOSURE_FLOOR_EL = 5 * Math.PI / 180;
+
 export function exposureFor(perez, zenith, norm, thetaS) {
+  thetaS = Math.min(thetaS, Math.PI / 2 - EXPOSURE_FLOOR_EL);
   const F = perezF(perez, Math.sin(HORIZON_EL), Math.abs((Math.PI / 2 - thetaS) - HORIZON_EL));
   const horizon = zenith[0] * F[0] / norm[0];
   const ref = Math.sqrt(Math.max(zenith[0], 0.05) * Math.max(horizon, 0.05));
@@ -210,10 +220,20 @@ export function exposureFor(perez, zenith, norm, thetaS) {
 //
 // The falloff with angle is the square of the half-cosine: all of it at the sun,
 // a quarter of it ninety degrees round, none of it opposite.
+// How fast the reddening runs out with height. The shader in sky.js has this
+// number written into it and the two must match, or the fog is not the colour of
+// the sky it fades into.
+export const REDDEN_TOP = 0.5;
+
 export function beamReddening(state, dir, sunDir) {
   const cosG = Math.min(Math.max(
     dir[0] * sunDir[0] + dir[1] * sunDir[1] + dir[2] * sunDir[2], -1), 1);
-  const low = 1 - Math.min(Math.max(dir[1], 0), 1);
+  // To the fourth. Straight, this put a fifth of the sun's colour on the sky
+  // thirty degrees up and a sixteenth of it at sixty, and the whole western half
+  // of the sky came out orange to the top of the frame. The camera has blue
+  // above twenty. The long path through the air that does the reddening is a
+  // path near the horizon, and it runs out fast with height.
+  const low = Math.pow(1 - smoothstep(0, REDDEN_TOP, Math.max(dir[1], 0)), 2);
   const near = Math.pow((1 + cosG) / 2, 2);
   return state.sun.map((t) => 1 + (t - 1) * low * near);
 }

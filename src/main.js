@@ -1710,6 +1710,7 @@ audio.onChange(showSound);
 showSound(audio.enabled);
 
 const lookDir = new THREE.Vector3();
+const hazeDir = new THREE.Vector3();   // where the far islands' air is read from
 const clock = new THREE.Clock();
 // How often this browser says where it is. Twice the rate the server sends the
 // list round, so a marker is never waiting on us.
@@ -1736,6 +1737,14 @@ function frame() {
   selection.update(t);
   tracks.update(t);
   weather.update(dt, camera);
+  // The far islands stand behind sixty kilometres of air, and that air is the
+  // colour of the sky at the horizon they sit on, which at this hour is not the
+  // colour it was an hour ago. The same reading the fog takes. Its own vector:
+  // lookDir is filled twice a second and only when somebody else is on the page.
+  if (skylineTile) {
+    camera.getWorldDirection(hazeDir);
+    skylineTile.setHaze(sky.horizonColor(hazeDir));
+  }
 
   // Ahead of nav, so the floor clamp in there catches a tilt that swung the
   // camera into the water on the same frame it happened.

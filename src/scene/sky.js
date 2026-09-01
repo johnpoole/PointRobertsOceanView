@@ -209,7 +209,9 @@ export class Sky {
           // was reddened on the way. Preetham's chromaticity fit leaves that
           // out. Round the far side of the sky it did not come that way and
           // must not be reddened, or a sunrise lands on the western horizon.
-          float low = 1.0 - clamp(dir.y, 0.0, 1.0);
+          // To the fourth, the same as REDDEN_FALLOFF in skylight.js. Straight,
+          // the western half of the sky came out orange to the top of the frame.
+          float low = pow(1.0 - smoothstep(0.0, 0.5, max(dir.y, 0.0)), 2.0);
           float near = pow((1.0 + cosG) * 0.5, 2.0);
           vec3 red = 1.0 + (uSunTint - 1.0) * low * near;
           vec3 rgb = max(unit, 0.0) * xyY.x * uExposure * red;

@@ -7,7 +7,12 @@
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
 
-const SKYLINE_HAZE = new THREE.Color(0x8295a8);
+// How much of the sky stands between the eye and a far hill is baked into the
+// mesh, per vertex. What colour that sky is, is not: it is a uniform, set every
+// frame from the horizon the camera is pointed at, the same reading the fog
+// takes. It used to be this fixed daylight blue, lerped into the vertex colours
+// where nothing could reach it, so at sunset the islands stood as a cold grey
+// band against an orange sky and could not do anything else.
 
 // Half a metre to a band, while the ground is banded by height. The beach falls
 // about a metre in twenty, so a metre to a band would put two bands on the whole
@@ -328,7 +333,7 @@ export function buildScreen(scene) {
   return { mesh, project };
 }
 
-function dressGround(material, projector, gravel) {
+function dressGround(material, projector, gravel, hazeColor) {
   material.onBeforeCompile = (shader) => {
     if (projector) {
       shader.uniforms.projView = projector.view;
@@ -338,6 +343,7 @@ function dressGround(material, projector, gravel) {
       shader.uniforms.projBand = projector.band;
       shader.uniforms.projBandStep = projector.bandStep;
     }
+    if (hazeColor) shader.uniforms.hazeColor = hazeColor;
     if (gravel) {
     shader.uniforms.gravelSize = { value: GRAVEL_M };
     shader.uniforms.gravelCoarse = { value: GRAVEL_COARSE_M };
@@ -354,11 +360,16 @@ function dressGround(material, projector, gravel) {
         attribute float stony;
         varying float vStony;
         ` : ""}
+        ${hazeColor ? `
+        attribute float hazy;
+        varying float vHazy;
+        ` : ""}
         varying vec3 vGroundPos;
       `)
       .replace("#include <begin_vertex>", `
         #include <begin_vertex>
         ${gravel ? "vStony = stony;" : ""}
+        ${hazeColor ? "vHazy = hazy;" : ""}
         vGroundPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
       `);
 
@@ -372,6 +383,10 @@ function dressGround(material, projector, gravel) {
         uniform float gravelCoarse;
         uniform float gravelDepth;
         uniform vec2 gravelFade;
+        ` : ""}
+        ${hazeColor ? `
+        varying float vHazy;
+        uniform vec3 hazeColor;
         ` : ""}
         ${projector ? `
         uniform mat4 projView;
@@ -403,6 +418,14 @@ function dressGround(material, projector, gravel) {
         }
       `)
       .replace("#include <colorspace_fragment>", `
+        ${hazeColor ? `
+        // After the light, for the same reason as below. Sixty kilometres of
+        // air is not a colour the hill reflects, it is a colour standing in
+        // front of it, and it is as bright as the sky whatever the hill is
+        // doing. Put into the diffuse colour instead it is lit by a sun that is
+        // behind the hill at exactly the hour it matters, and goes out.
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, hazeColor, vHazy);
+        ` : ""}
         ${projector ? `
         // After the light, not before it. A photograph taken at noon put into
         // the diffuse colour is shaded by whatever the sun is doing now, and in
@@ -444,7 +467,7 @@ function dressGround(material, projector, gravel) {
   };
   // A material whose shader is rewritten needs its own program.
   material.customProgramCacheKey = () =>
-    `terrain${gravel ? "-gravel" : ""}${projector ? "-proj" : ""}`;
+    `terrain${gravel ? "-gravel" : ""}${projector ? "-proj" : ""}${hazeColor ? "-haze" : ""}`;
 }
 
 // fetch resolves for a 404 and a 500 as happily as for a 200 — only a network
@@ -576,6 +599,10 @@ export async function buildTerrain(scene, asset, opts = {}) {
   // How stony this vertex is, 0 on the sand and 1 on the steep. The fragment
   // shader reads it to know where to lay the gravel.
   const stony = new Float32Array(count);
+  // How much sky stands between the eye and this vertex. Only the far tile asks
+  // for it; the near one is inside a kilometre and there is nothing in the way.
+  const hazed = !!(grade || haze > 0);
+  const hazy = hazed ? new Float32Array(count) : null;
   const tmp = new THREE.Color();
 
   // One cell on the ground, for the slope. A degree of latitude is 111320 m and
@@ -625,7 +652,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
         const ease = tg * tg * (3 - 2 * tg);
         h = grade[2] + (grade[3] - grade[2]) * ease;
       }
-      if (h > 0) tmp.lerp(SKYLINE_HAZE, h); // atmospheric perspective for distance
+      hazy[i * ncols + j] = h;   // the colour it fades toward is set per frame
       colors[idx] = tmp.r;
       colors[idx + 1] = tmp.g;
       colors[idx + 2] = tmp.b;
@@ -650,12 +677,18 @@ export async function buildTerrain(scene, asset, opts = {}) {
   geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   geom.setAttribute("stony", new THREE.BufferAttribute(stony, 1));
+  if (hazed) geom.setAttribute("hazy", new THREE.BufferAttribute(hazy, 1));
   geom.setIndex(new THREE.BufferAttribute(indices.subarray(0, k), 1));
   geom.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 1, metalness: 0, fog,
   });
+  // Held here rather than in the shader object, for the same reason the
+  // projector's uniforms are: onBeforeCompile runs once and the sky moves after.
+  const hazeColor = hazed
+    ? { value: new THREE.Color(0x8295a8) }   // a clear noon, until the sky says
+    : null;
   // Held here rather than in the shader object, because onBeforeCompile runs
   // once and whoever hands over a photograph does it long afterwards.
   const projector = opts.projector
@@ -665,7 +698,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
         band: { value: 0 }, bandStep: { value: BAND_STEP_M } }
     : null;
   const gravel = opts.gravel !== false;
-  if (gravel || projector) dressGround(mat, projector, gravel);
+  if (gravel || projector || hazed) dressGround(mat, projector, gravel, hazeColor);
   const mesh = new THREE.Mesh(geom, mat);
   mesh.position.y = yOffset;
   scene.add(mesh);
@@ -712,6 +745,11 @@ export async function buildTerrain(scene, asset, opts = {}) {
     }
     projector.band.value = on ? 1 : 0;
   };
-  return { mesh, meta, sample, heights: Z, cover, project, bands,
+  // The colour the distance fades toward. Whoever holds the tile sets it from
+  // the sky, every frame — see main.js.
+  const setHaze = (color) => {
+    if (hazeColor) hazeColor.value.copy(color);
+  };
+  return { mesh, meta, sample, heights: Z, cover, project, bands, setHaze,
            projector: projector ? { dress: (m) => dressAnything(m, projector) } : null };
 }
