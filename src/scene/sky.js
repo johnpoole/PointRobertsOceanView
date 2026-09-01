@@ -233,10 +233,13 @@ export class Sky {
               vec3 q = cloudAt(dir, 9000.0, 2.2);
               // Squashed downwind, so a cell is drawn out along the wind rather
               // than round. The cell size below is across it.
-              float n = cfbm(W * q.xy * vec2(1.0, 0.45), 64000.0, 9000.0, q.z);
+              float n = cfbm(W * q.xy * vec2(1.0, 0.7), 64000.0, 9000.0, q.z);
               float thr = cover(uHigh);
-              float a = smoothstep(thr, thr + 0.10, n);
-              float thick = clamp((n - thr) / 0.22, 0.0, 1.0);
+              float a = smoothstep(thr, thr + 0.08, n);
+              // Short. The field is a bell three tenths of the way wide, so a
+              // long ramp here never reaches the far end of it and every cloud
+              // comes out all rim and no body: pale wisps on a pale sky.
+              float thick = clamp((n - thr) / 0.07, 0.0, 1.0);
               // Ice, and standing above the shadow line, so it is lit from
               // beneath and holds the last of the sun after everything under it
               // has gone grey. Thin at the edge and banked in the middle, the
@@ -244,21 +247,21 @@ export class Sky {
               // at all, and the layers on an evening like this one are dark
               // bodies with the light coming round them.
               vec3 rim = mix(vec3(0.96, 0.96, 0.97), min(uSunTint * 2.2, vec3(1.0)), toSun);
-              vec3 body = mix(vec3(0.42, 0.45, 0.52), uSunTint * 0.75, toSun);
-              rgb = mix(rgb, mix(rim, body, thick), a * 0.9);
+              vec3 body = mix(vec3(0.34, 0.37, 0.45), uSunTint * 0.55, toSun);
+              rgb = mix(rgb, mix(rim, body, thick), a);
             }
 
             if (uCloud > 0.01) {
               vec3 q = cloudAt(dir, 1500.0, 1.0);
-              float n = cfbm(W * q.xy * vec2(1.0, 0.45), 32000.0, 1500.0, q.z);
+              float n = cfbm(W * q.xy * vec2(1.0, 0.7), 32000.0, 1500.0, q.z);
               float thr = cover(uCloud);
-              deckA = smoothstep(thr, thr + 0.13, n);
+              deckA = smoothstep(thr, thr + 0.09, n);
               // We stand under it, so what shows is the base. The thin rim
               // passes the light through and the thick middle does not, and
               // near a low sun the rim is the colour of the sun and not white.
-              float thick = clamp((n - thr) / 0.30, 0.0, 1.0);
+              float thick = clamp((n - thr) / 0.08, 0.0, 1.0);
               vec3 rim = mix(vec3(0.93, 0.94, 0.96), min(uSunTint * 1.8, vec3(1.0)), toSun);
-              vec3 base = mix(vec3(0.30, 0.33, 0.38), uSunTint * 0.55, toSun);
+              vec3 base = mix(vec3(0.24, 0.27, 0.33), uSunTint * 0.42, toSun);
               rgb = mix(rgb, mix(rim, base, thick), deckA);
             }
           }
