@@ -101,14 +101,14 @@ export class Sky {
         // there. A shell puts the horizon at about a hundred and sixty
         // kilometres and packs the bands the way the eye sees them stacked.
         //
-        // The cell has to be small against the height the deck sits at, or
-        // there is less than one of them across the whole zenith and the sky
-        // overhead comes out bare. Stratocumulus is a cell of about half a
-        // kilometre under a deck of one and a half, and that ratio is what
-        // gives a sky with something in it overhead and bands at the horizon.
-        // The banding needs no help: the deck is seen at a grazing angle, so a
-        // cell twenty kilometres out is already ten times wider than it is
-        // tall. What the wind adds on top of that is slight.
+        // Overhead the deck is fifteen hundred metres off and at the horizon it
+        // is a hundred and sixty kilometres off. No one cell size serves both,
+        // so the field is broad at the base and the octaves under it are cut by
+        // how much of the sky they would stand on. See cfbm.
+        //
+        // The banding needs no help from the wind: the deck is seen at a
+        // grazing angle, so a cell thirty kilometres out is already ten times
+        // wider than it is tall. What the wind adds is slight.
         const float EARTH_R = 6371000.0;
 
         float chash(vec2 p) {
@@ -124,21 +124,39 @@ export class Sky {
                      mix(chash(i + vec2(0.0, 1.0)), chash(i + vec2(1.0, 1.0)), f.x), f.y);
         }
 
-        // detail takes the small octaves out with range. Near the horizon a cell
-        // is a fraction of a pixel across and drawing it is sparkle, not cloud.
-        float cfbm(vec2 p, float detail) {
-          float v = cnoise(p) * 0.5 + cnoise(p * 2.03) * 0.25;
-          v += cnoise(p * 4.11) * 0.125 * detail;
-          v += cnoise(p * 8.07) * 0.0625 * detail * detail;
-          return v / (0.75 + 0.125 * detail + 0.0625 * detail * detail);
+        // The deck is seen at a grazing angle, so one cell is worth drawing
+        // only while it still stands high enough on the sky to be seen as
+        // anything. A cell of size L at range t under a deck h metres up stands
+        // L*h/t*t high. Overhead that is a wide thing and every octave counts;
+        // at fifty kilometres only the broadest ones do, which is why the sky
+        // out there is bands and the sky overhead is texture. The same field
+        // gives both, because the range covers two orders of magnitude and
+        // seven octaves cover two orders of magnitude.
+        //
+        // The weights are divided back out, so the mean stays at a half however
+        // many octaves survived and the threshold below means the same amount
+        // of cover at every range.
+        float cfbm(vec2 p, float cell, float h, float t) {
+          float v = 0.0, a = 0.5, f = 1.0, norm = 0.0;
+          for (int i = 0; i < 7; i++) {
+            float stands = (cell / f) * h / (t * t);
+            float w = smoothstep(0.0012, 0.005, stands);
+            v += cnoise(p * f) * a * w;
+            norm += a * w;
+            f *= 2.03;
+            a *= 0.56;
+          }
+          return norm > 0.0 ? v / norm : 0.5;
         }
 
-        // Where a ray leaves a shell h metres up, in world x,z, drifted downwind.
-        // The sample runs upwind so the cloud on it travels down.
-        vec2 cloudAt(vec3 dir, float h, float speed) {
+        // Where a ray leaves a shell h metres up: the world x,z of the point,
+        // drifted downwind, and how far off it is. The sample runs upwind so the
+        // cloud on it travels down.
+        vec3 cloudAt(vec3 dir, float h, float speed) {
           float t = sqrt(EARTH_R * EARTH_R * dir.y * dir.y + 2.0 * EARTH_R * h + h * h)
                     - EARTH_R * dir.y;
-          return dir.xz * t - uWind * uTime * speed;
+          vec2 p = dir.xz * t - uWind * uTime * speed;
+          return vec3(p, max(length(dir.xz * t), h));
         }
 
         void main() {
@@ -191,9 +209,9 @@ export class Sky {
             float toSun = pow(max(cosG, 0.0), 4.0);
 
             if (uHigh > 0.01) {
-              vec2 p = cloudAt(dir, 8000.0, 2.2);
-              float lod = clamp(1.0 - length(p) / 120000.0, 0.0, 1.0);
-              float n = cfbm(W * p * vec2(1.0 / 4000.0, 1.0 / 12000.0), lod);
+              vec3 q = cloudAt(dir, 9000.0, 2.2);
+              float n = cfbm(W * q.xy * vec2(1.0 / 60000.0, 1.0 / 150000.0),
+                             60000.0, 9000.0, q.z);
               float thr = mix(0.66, 0.34, uHigh);
               // Cirrus is ice and it stands above the shadow line, so it is lit
               // from beneath and holds the last of the sun after the deck under
@@ -203,9 +221,9 @@ export class Sky {
             }
 
             if (uCloud > 0.01) {
-              vec2 p = cloudAt(dir, 1400.0, 1.0);
-              float lod = clamp(1.0 - length(p) / 45000.0, 0.0, 1.0);
-              float n = cfbm(W * p * vec2(1.0 / 700.0, 1.0 / 1400.0), lod);
+              vec3 q = cloudAt(dir, 1500.0, 1.0);
+              float n = cfbm(W * q.xy * vec2(1.0 / 24000.0, 1.0 / 52000.0),
+                             24000.0, 1500.0, q.z);
               float thr = mix(0.70, 0.16, uCloud);
               deckA = smoothstep(thr, thr + 0.13, n);
               // We stand under it, so what shows is the base. The thin rim
