@@ -157,14 +157,23 @@ export class Sky {
         }
 
         // The threshold on the field that leaves a given fraction of the sky
-        // covered. The field is a weighted sum of seven octaves and comes out
-        // very near a bell about a half, three tenths of the way wide, so the
-        // ends of this run are what covers nothing and what covers everything,
-        // and half cover lands near the middle of the field. A straight run
-        // from one to nought does not: it puts three quarters of the sky under
-        // cloud when the feed says half.
+        // covered.
+        //
+        // Measured, not reasoned about: the field is a weighted sum of whichever
+        // octaves survived, and what that comes out looking like was guessed at
+        // four times and got wrong four times. It is a bell with its middle at
+        // 0.465 and eight hundredths of width to it, so almost all of it lies
+        // between a third and six tenths, and a threshold anywhere outside that
+        // is either a clear sky or a shut one. See test-cloud.mjs, which
+        // measures it and holds this line to it.
+        //
+        // The curve through a bell is its own inverse and there is no closed
+        // form for it, but a logit over 1.702 is one to three decimal places and
+        // is one log. A straight line is not: it puts a quarter of the sky under
+        // cloud when the feed says a tenth.
         float cover(float fraction) {
-          return mix(0.70, 0.25, clamp(fraction, 0.0, 1.0));
+          float c = clamp(fraction, 0.005, 0.995);
+          return 0.465 - 0.0476 * log(c / (1.0 - c));
         }
 
         // Where a ray leaves a shell h metres up: the world x,z of the point,
@@ -239,7 +248,7 @@ export class Sky {
               // Short. The field is a bell three tenths of the way wide, so a
               // long ramp here never reaches the far end of it and every cloud
               // comes out all rim and no body: pale wisps on a pale sky.
-              float thick = clamp((n - thr) / 0.07, 0.0, 1.0);
+              float thick = clamp((n - thr) / 0.10, 0.0, 1.0);
               // Ice, and standing above the shadow line, so it is lit from
               // beneath and holds the last of the sun after everything under it
               // has gone grey. Thin at the edge and banked in the middle, the
@@ -259,7 +268,7 @@ export class Sky {
               // We stand under it, so what shows is the base. The thin rim
               // passes the light through and the thick middle does not, and
               // near a low sun the rim is the colour of the sun and not white.
-              float thick = clamp((n - thr) / 0.08, 0.0, 1.0);
+              float thick = clamp((n - thr) / 0.10, 0.0, 1.0);
               vec3 rim = mix(vec3(0.93, 0.94, 0.96), min(uSunTint * 1.8, vec3(1.0)), toSun);
               vec3 base = mix(vec3(0.24, 0.27, 0.33), uSunTint * 0.42, toSun);
               rgb = mix(rgb, mix(rim, base, thick), deckA);
