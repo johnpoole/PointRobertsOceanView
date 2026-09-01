@@ -42,6 +42,10 @@ export class Sky {
       uTwilight: { value: 1 },
       uCloud: { value: 0.1 },
       uHigh: { value: 0 },
+      // Where the cloud is going, m/s in world x,z, and the scene clock in
+      // seconds, so a deck drifts and the sun slider carries it along.
+      uWind: { value: new THREE.Vector2(0, 1) },
+      uTime: { value: 0 },
     };
 
     const mat = new THREE.ShaderMaterial({
@@ -66,7 +70,8 @@ export class Sky {
         varying vec3 vDir;
         uniform vec3 uPA, uPB, uPC, uPD, uPE;
         uniform vec3 uZenith, uNorm, uSunTint, uSunDir, uSunSky;
-        uniform float uExposure, uTwilight, uCloud, uHigh;
+        uniform float uExposure, uTwilight, uCloud, uHigh, uTime;
+        uniform vec2 uWind;
 
         const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
         const vec3 NIGHT = vec3(${NIGHT_SKY.join(", ")});
@@ -79,6 +84,52 @@ export class Sky {
           c = clamp(c, 0.0, 1.0);
           return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055,
                      step(vec3(0.0031308), c));
+        }
+
+        // ---- cloud ----------------------------------------------------------
+        //
+        // Preetham is a clear-sky model. There is no cloud in it, and the sky
+        // over this water is mostly not clear, so the cloud is drawn on top of
+        // the model and the model underneath is left exactly as it was. That is
+        // deliberate: the fog reads the same model off the processor, in
+        // skylight.js, and the two must not drift apart. What the fog wants is
+        // the sky a distant thing fades into, which is the average of it, and
+        // that is what the grey-out already gives it.
+        //
+        // A deck is a shell at a height and not a flat sheet. A sheet runs to
+        // infinity at the horizon and whatever is drawn on it turns to noise
+        // there. A shell puts the horizon at about a hundred and sixty
+        // kilometres and packs the bands the way the eye sees them stacked.
+        const float EARTH_R = 6371000.0;
+
+        float chash(vec2 p) {
+          p = fract(p * vec2(127.31, 311.7));
+          p += dot(p, p.yx + 41.73);
+          return fract(p.x * p.y * 2.17);
+        }
+
+        float cnoise(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(chash(i), chash(i + vec2(1.0, 0.0)), f.x),
+                     mix(chash(i + vec2(0.0, 1.0)), chash(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+
+        // detail takes the small octaves out with range. Near the horizon a cell
+        // is a fraction of a pixel across and drawing it is sparkle, not cloud.
+        float cfbm(vec2 p, float detail) {
+          float v = cnoise(p) * 0.5 + cnoise(p * 2.03) * 0.25;
+          v += cnoise(p * 4.11) * 0.125 * detail;
+          v += cnoise(p * 8.07) * 0.0625 * detail * detail;
+          return v / (0.75 + 0.125 * detail + 0.0625 * detail * detail);
+        }
+
+        // Where a ray leaves a shell h metres up, in world x,z, drifted downwind.
+        // The sample runs upwind so the cloud on it travels down.
+        vec2 cloudAt(vec3 dir, float h, float speed) {
+          float t = sqrt(EARTH_R * EARTH_R * dir.y * dir.y + 2.0 * EARTH_R * h + h * h)
+                    - EARTH_R * dir.y;
+          return dir.xz * t - uWind * uTime * speed;
         }
 
         void main() {
@@ -121,6 +172,43 @@ export class Sky {
           // the brightest thing in the frame and the least white.
           float lum = dot(rgb, LUMA);
           rgb = lum > 0.0 ? clamp(rgb * ((lum / (1.0 + lum)) / lum), 0.0, 1.0) : vec3(0.0);
+          // Thin high cloud first, because it is further off and the deck
+          // stands in front of it. Both are drawn out along the wind, which is
+          // what makes a sky read as bands rather than as spots.
+          float deckA = 0.0;
+          if (dir.y > 0.001) {
+            vec2 w = length(uWind) > 0.05 ? normalize(uWind) : vec2(0.0, 1.0);
+            mat2 W = mat2(w.y, -w.x, w.x, w.y);
+            float toSun = pow(max(cosG, 0.0), 4.0);
+
+            if (uHigh > 0.01) {
+              vec2 p = cloudAt(dir, 7000.0, 2.2);
+              float lod = clamp(1.0 - length(p) / 220000.0, 0.0, 1.0);
+              float n = cfbm(W * p * vec2(1.0 / 11000.0, 1.0 / 64000.0), lod);
+              float thr = mix(0.66, 0.34, uHigh);
+              // Cirrus is ice and it stands above the shadow line, so it is lit
+              // from beneath and holds the last of the sun after the deck under
+              // it has gone grey.
+              vec3 c = mix(vec3(0.90, 0.91, 0.94), min(uSunTint * 1.7, vec3(1.0)), toSun);
+              rgb = mix(rgb, c, smoothstep(thr, thr + 0.22, n) * 0.7);
+            }
+
+            if (uCloud > 0.01) {
+              vec2 p = cloudAt(dir, 1800.0, 1.0);
+              float lod = clamp(1.0 - length(p) / 90000.0, 0.0, 1.0);
+              float n = cfbm(W * p * vec2(1.0 / 2600.0, 1.0 / 9500.0), lod);
+              float thr = mix(0.70, 0.16, uCloud);
+              deckA = smoothstep(thr, thr + 0.13, n);
+              // We stand under it, so what shows is the base. The thin rim
+              // passes the light through and the thick middle does not, and
+              // near a low sun the rim is the colour of the sun and not white.
+              float thick = clamp((n - thr) / 0.30, 0.0, 1.0);
+              vec3 rim = mix(vec3(0.93, 0.94, 0.96), min(uSunTint * 1.8, vec3(1.0)), toSun);
+              vec3 base = mix(vec3(0.30, 0.33, 0.38), uSunTint * 0.55, toSun);
+              rgb = mix(rgb, mix(rim, base, thick), deckA);
+            }
+          }
+
           // The night shows through where the day sky has gone, not over the
           // top of what is still lit.
           rgb = rgb * uTwilight + NIGHT * (1.0 - uTwilight) * (1.0 - rgb);
@@ -131,7 +219,11 @@ export class Sky {
           // western sky yellow.
           float s = max(dot(dir, uSunDir), 0.0);
           float sun = smoothstep(SUN_COS_OUTER, SUN_COS_INNER, s) + pow(s, HALO_POWER) * HALO_STRENGTH;
-          rgb += uSunTint * sun * (1.0 - 0.85 * uCloud) * uTwilight;
+          // Behind the cloud that is actually drawn in front of it, and not
+          // behind a fraction of the whole sky's cover. A hole in an overcast
+          // lets the sun through at full strength, which is what an evening
+          // like the one on the camera mostly is.
+          rgb += uSunTint * sun * (1.0 - deckA) * uTwilight;
 
           gl_FragColor = vec4(srgb(rgb), 1.0);
         }`,
@@ -165,6 +257,23 @@ export class Sky {
     if (cloud != null) this.uniforms.uCloud.value = Math.max(0, Math.min(cloud, 1));
     if (high != null) this.uniforms.uHigh.value = Math.max(0, Math.min(high, 1));
     this._rebuild();
+  }
+
+  // Where the cloud is going and how fast. The feed says where the wind comes
+  // from, which is the other way round.
+  setWind(fromDeg, speedMps) {
+    if (fromDeg == null || speedMps == null) return;
+    const toward = (fromDeg + 180) * Math.PI / 180;
+    this.uniforms.uWind.value
+      .set(Math.sin(toward), -Math.cos(toward))
+      .multiplyScalar(Math.max(speedMps, 0));
+  }
+
+  // Seconds. Not the wall clock: a uniform is a 32-bit float and the epoch in
+  // seconds resolves to about two minutes in one, which would hold the cloud
+  // still. This is the scene's own elapsed time plus the slider's offset.
+  setTime(seconds) {
+    this.uniforms.uTime.value = seconds;
   }
 
   _rebuild() {

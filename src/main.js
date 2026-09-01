@@ -1724,6 +1724,8 @@ function frame() {
   const level = tideLevel();
   ocean.setLevel(level);
   ocean.update(t);
+  // The cloud drifts on the scene clock, so moving the sun moves the sky with it.
+  sky.setTime(t + offsetHours() * 3600);
   // Ships light up as the sun goes down, and so does the point.
   const night = 1 - weather.dayFactor;
   vessels.update(feed, level, t, camera, night);

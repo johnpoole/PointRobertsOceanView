@@ -58,6 +58,7 @@ export class Weather {
     const high = state.cloud_cover_high_percent != null
       ? Math.max(0, Math.min(state.cloud_cover_high_percent / 100, 1)) : null;
     this.sky.setAir(turbidityFromAerosol(state.aerosol_optical_depth), lid, high);
+    this.sky.setWind(state.wind_direction_degrees, state.wind_speed_mps);
 
     // Lights are cloud dimming times daylight, so both the weather feed and the
     // sun's motion drive them without fighting. This is the total cover, because
