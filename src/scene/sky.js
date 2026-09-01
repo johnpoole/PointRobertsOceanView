@@ -102,9 +102,8 @@ export class Sky {
         // kilometres and packs the bands the way the eye sees them stacked.
         //
         // Overhead the deck is fifteen hundred metres off and at the horizon it
-        // is a hundred and sixty kilometres off. No one cell size serves both,
-        // so the field is broad at the base and the octaves under it are cut by
-        // how much of the sky they would stand on. See cfbm.
+        // is a hundred and sixty kilometres off. No one cell size serves both.
+        // See cfbm.
         //
         // The banding needs no help from the wind: the deck is seen at a
         // grazing angle, so a cell thirty kilometres out is already ten times
@@ -124,27 +123,35 @@ export class Sky {
                      mix(chash(i + vec2(0.0, 1.0)), chash(i + vec2(1.0, 1.0)), f.x), f.y);
         }
 
-        // The deck is seen at a grazing angle, so one cell is worth drawing
-        // only while it still stands high enough on the sky to be seen as
-        // anything. A cell of size L at range t under a deck h metres up stands
-        // L*h/t*t high. Overhead that is a wide thing and every octave counts;
-        // at fifty kilometres only the broadest ones do, which is why the sky
-        // out there is bands and the sky overhead is texture. The same field
-        // gives both, because the range covers two orders of magnitude and
-        // seven octaves cover two orders of magnitude.
+        // A cell is worth drawing only in a window of range, and the window
+        // moves with the size of the cell. Below it the cell is too small to
+        // stand on the sky: the deck is seen at a grazing angle, so a cell of
+        // size L at range t under a deck h metres up stands only L*h/t*t high,
+        // and past a point that is sparkle and not cloud. Above it the cell is
+        // so big that everything in view sits inside one of them, and a whole
+        // sky the colour of one lattice value is a stain.
         //
-        // The weights are divided back out, so the mean stays at a half however
-        // many octaves survived and the threshold below means the same amount
-        // of cover at every range.
-        float cfbm(vec2 p, float cell, float h, float t) {
-          float v = 0.0, a = 0.5, f = 1.0, norm = 0.0;
-          for (int i = 0; i < 7; i++) {
-            float stands = (cell / f) * h / (t * t);
-            float w = smoothstep(0.0012, 0.005, stands);
-            v += cnoise(p * f) * a * w;
-            norm += a * w;
-            f *= 2.03;
-            a *= 0.56;
+        // Both ends matter and getting only the first was the mistake. Overhead
+        // the shell is fifteen hundred metres off and the piece of it in view is
+        // a few kilometres across, so a cell of sixty kilometres is one cell,
+        // and the zenith came out flat and empty. At the horizon the shell is a
+        // hundred and sixty kilometres off and a cell of five hundred metres is
+        // a hairline, and the horizon came out combed.
+        //
+        // So the octaves run from a very coarse cell down to a fine one and each
+        // is cut at both ends. Two or three survive at any range: the fine ones
+        // overhead, the coarse ones out at the horizon, and the weights are
+        // divided back out so the mean stays at a half and a threshold means the
+        // same amount of cover everywhere.
+        float cfbm(vec2 world, float coarsest, float h, float t) {
+          float v = 0.0, norm = 0.0, cell = coarsest;
+          for (int i = 0; i < 8; i++) {
+            float stands = smoothstep(0.0012, 0.005, cell * h / (t * t));
+            float fits = smoothstep(2.0, 0.6, cell / t);
+            float w = stands * fits;
+            v += cnoise(world / cell) * w;
+            norm += w;
+            cell *= 0.5;
           }
           return norm > 0.0 ? v / norm : 0.5;
         }
@@ -224,8 +231,9 @@ export class Sky {
 
             if (uHigh > 0.01) {
               vec3 q = cloudAt(dir, 9000.0, 2.2);
-              float n = cfbm(W * q.xy * vec2(1.0 / 60000.0, 1.0 / 150000.0),
-                             60000.0, 9000.0, q.z);
+              // Squashed downwind, so a cell is drawn out along the wind rather
+              // than round. The cell size below is across it.
+              float n = cfbm(W * q.xy * vec2(1.0, 0.45), 64000.0, 9000.0, q.z);
               float thr = cover(uHigh);
               float a = smoothstep(thr, thr + 0.10, n);
               float thick = clamp((n - thr) / 0.22, 0.0, 1.0);
@@ -242,8 +250,7 @@ export class Sky {
 
             if (uCloud > 0.01) {
               vec3 q = cloudAt(dir, 1500.0, 1.0);
-              float n = cfbm(W * q.xy * vec2(1.0 / 24000.0, 1.0 / 52000.0),
-                             24000.0, 1500.0, q.z);
+              float n = cfbm(W * q.xy * vec2(1.0, 0.45), 32000.0, 1500.0, q.z);
               float thr = cover(uCloud);
               deckA = smoothstep(thr, thr + 0.13, n);
               // We stand under it, so what shows is the base. The thin rim
