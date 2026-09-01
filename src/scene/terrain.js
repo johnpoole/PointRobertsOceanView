@@ -652,7 +652,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
         const ease = tg * tg * (3 - 2 * tg);
         h = grade[2] + (grade[3] - grade[2]) * ease;
       }
-      hazy[i * ncols + j] = h;   // the colour it fades toward is set per frame
+      if (hazed) hazy[i * ncols + j] = h;   // the colour is set per frame
       colors[idx] = tmp.r;
       colors[idx + 1] = tmp.g;
       colors[idx + 2] = tmp.b;
