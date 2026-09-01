@@ -176,6 +176,33 @@ export class Sky {
           return 0.465 - 0.0476 * log(c / (1.0 - c));
         }
 
+        // How much of a cloud has been eaten by the air in front of it.
+        //
+        // The haze is aerosol and the aerosol sits in the bottom of the air,
+        // thinning with a scale height of twelve hundred metres: half of it is
+        // under eight hundred and nine tenths under three thousand. So what
+        // stands in front of a cloud is not its distance but the air along the
+        // slant to it, and the two are not the same thing at all. A deck seen
+        // along the water is behind a hundred and sixty kilometres of the thick
+        // of it and washes into the sky. The same deck overhead is behind
+        // fifteen hundred metres of it and does not. Cirrus at nine thousand
+        // stands above nearly all of it and stays legible right out to the
+        // horizon, which is what the camera shows and what the render did not:
+        // every cloud was drawn as crisp at the horizon as it was overhead.
+        //
+        // Per metre, set so sixty kilometres along the water is most of the way
+        // gone, which is where the far tile's haze was already matched by eye.
+        const float HAZE_SCALE_H = 1200.0;
+        const float HAZE_PER_M = 2.71e-5;
+
+        float hazeTo(float h, float t) {
+          float atEye = exp(-20.0 / HAZE_SCALE_H);
+          float mean = abs(h - 20.0) < 1.0
+            ? atEye
+            : (HAZE_SCALE_H / (h - 20.0)) * (atEye - exp(-h / HAZE_SCALE_H));
+          return 1.0 - exp(-HAZE_PER_M * t * mean / atEye);
+        }
+
         // Where a ray leaves a shell h metres up: the world x,z of the point,
         // drifted downwind, and how far off it is. The sample runs upwind so the
         // cloud on it travels down.
@@ -259,7 +286,8 @@ export class Sky {
               // bodies with the light coming round them.
               vec3 rim = mix(vec3(0.96, 0.96, 0.97), min(uSunTint * 2.2, vec3(1.0)), toSun);
               vec3 body = mix(vec3(0.34, 0.37, 0.45), uSunTint * 0.55, toSun);
-              rgb = mix(rgb, mix(rim, body, thick), a);
+              vec3 c = mix(mix(rim, body, thick), rgb, hazeTo(9000.0, q.z));
+              rgb = mix(rgb, c, a);
             }
 
             if (uCloud > 0.01) {
@@ -273,7 +301,8 @@ export class Sky {
               float thick = clamp((n - thr) / 0.10, 0.0, 1.0);
               vec3 rim = mix(vec3(0.93, 0.94, 0.96), min(uSunTint * 1.8, vec3(1.0)), toSun);
               vec3 base = mix(vec3(0.24, 0.27, 0.33), uSunTint * 0.42, toSun);
-              rgb = mix(rgb, mix(rim, base, thick), deckA);
+              vec3 c = mix(mix(rim, base, thick), rgb, hazeTo(1500.0, q.z));
+              rgb = mix(rgb, c, deckA);
             }
           }
 

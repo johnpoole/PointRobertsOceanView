@@ -6,6 +6,35 @@
 
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
+import { EYE_HEIGHT_M } from "../config.js";
+
+// The haze is aerosol and the aerosol sits in the bottom of the air. It thins
+// out with a scale height of about twelve hundred metres: half of it is under
+// eight hundred, nine tenths of it under three thousand. Nothing above that is
+// doing much.
+const HAZE_SCALE_H = 1200;
+
+// How much air stands along a sightline that climbs from the eye to a point
+// height metres up, against the air along the same length of sightline held at
+// the eye's own level. Both run the same horizontal distance, so the distance
+// divides out and what is left is the mean density of the one over the other.
+//
+// This is the whole of what was missing. The haze ran on horizontal distance
+// alone, so a two-thousand-metre summit sixty kilometres off was given exactly
+// the air its own shoreline was given, and the far ridge washed out flat from
+// the water to the top. Half the air is gone by eight hundred metres and the
+// summit stands out of it.
+export function airMassRatio(height) {
+  const eye = EYE_HEIGHT_M;
+  const top = Math.max(height, 0);
+  const atEye = Math.exp(-eye / HAZE_SCALE_H);
+  // The mean of an exponential between the two ends. Flat ground would divide
+  // by nothing, and there the mean is the value itself.
+  const mean = Math.abs(top - eye) < 1
+    ? atEye
+    : (HAZE_SCALE_H / (top - eye)) * (atEye - Math.exp(-top / HAZE_SCALE_H));
+  return mean / atEye;
+}
 
 // How much of the sky stands between the eye and a far hill is baked into the
 // mesh, per vertex. What colour that sky is, is not: it is a uniform, set every
@@ -651,6 +680,11 @@ export async function buildTerrain(scene, asset, opts = {}) {
         const tg = Math.min(Math.max((d - grade[0]) / (grade[1] - grade[0]), 0), 1);
         const ease = tg * tg * (3 - 2 * tg);
         h = grade[2] + (grade[3] - grade[2]) * ease;
+        // The graded run is the haze along the water. A hill stands up out of
+        // the thick of it, so it is seen through less: the depth scales by the
+        // air along the slant, and haze is what is left after that depth, so
+        // what is left over scales as a power.
+        h = 1 - Math.pow(1 - h, airMassRatio(elev));
       }
       if (hazed) hazy[i * ncols + j] = h;   // the colour is set per frame
       colors[idx] = tmp.r;
