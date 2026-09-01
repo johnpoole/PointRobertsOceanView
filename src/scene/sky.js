@@ -149,6 +149,17 @@ export class Sky {
           return norm > 0.0 ? v / norm : 0.5;
         }
 
+        // The threshold on the field that leaves a given fraction of the sky
+        // covered. The field is a weighted sum of seven octaves and comes out
+        // very near a bell about a half, three tenths of the way wide, so the
+        // ends of this run are what covers nothing and what covers everything,
+        // and half cover lands near the middle of the field. A straight run
+        // from one to nought does not: it puts three quarters of the sky under
+        // cloud when the feed says half.
+        float cover(float fraction) {
+          return mix(0.70, 0.25, clamp(fraction, 0.0, 1.0));
+        }
+
         // Where a ray leaves a shell h metres up: the world x,z of the point,
         // drifted downwind, and how far off it is. The sample runs upwind so the
         // cloud on it travels down.
@@ -206,25 +217,34 @@ export class Sky {
           if (dir.y > 0.001) {
             vec2 w = length(uWind) > 0.05 ? normalize(uWind) : vec2(0.0, 1.0);
             mat2 W = mat2(w.y, -w.x, w.x, w.y);
-            float toSun = pow(max(cosG, 0.0), 4.0);
+            // How near the sun this patch is. The warm half of an evening sky
+            // runs a long way round from the sun, so this is a wide falloff and
+            // not a tight one.
+            float toSun = pow(max(cosG, 0.0), 2.0);
 
             if (uHigh > 0.01) {
               vec3 q = cloudAt(dir, 9000.0, 2.2);
               float n = cfbm(W * q.xy * vec2(1.0 / 60000.0, 1.0 / 150000.0),
                              60000.0, 9000.0, q.z);
-              float thr = mix(0.66, 0.34, uHigh);
-              // Cirrus is ice and it stands above the shadow line, so it is lit
-              // from beneath and holds the last of the sun after the deck under
-              // it has gone grey.
-              vec3 c = mix(vec3(0.90, 0.91, 0.94), min(uSunTint * 1.7, vec3(1.0)), toSun);
-              rgb = mix(rgb, c, smoothstep(thr, thr + 0.22, n) * 0.7);
+              float thr = cover(uHigh);
+              float a = smoothstep(thr, thr + 0.10, n);
+              float thick = clamp((n - thr) / 0.22, 0.0, 1.0);
+              // Ice, and standing above the shadow line, so it is lit from
+              // beneath and holds the last of the sun after everything under it
+              // has gone grey. Thin at the edge and banked in the middle, the
+              // same as any other cloud: white cloud on a white sky is nothing
+              // at all, and the layers on an evening like this one are dark
+              // bodies with the light coming round them.
+              vec3 rim = mix(vec3(0.96, 0.96, 0.97), min(uSunTint * 2.2, vec3(1.0)), toSun);
+              vec3 body = mix(vec3(0.42, 0.45, 0.52), uSunTint * 0.75, toSun);
+              rgb = mix(rgb, mix(rim, body, thick), a * 0.9);
             }
 
             if (uCloud > 0.01) {
               vec3 q = cloudAt(dir, 1500.0, 1.0);
               float n = cfbm(W * q.xy * vec2(1.0 / 24000.0, 1.0 / 52000.0),
                              24000.0, 1500.0, q.z);
-              float thr = mix(0.70, 0.16, uCloud);
+              float thr = cover(uCloud);
               deckA = smoothstep(thr, thr + 0.13, n);
               // We stand under it, so what shows is the base. The thin rim
               // passes the light through and the thick middle does not, and
