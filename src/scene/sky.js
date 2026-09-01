@@ -100,6 +100,15 @@ export class Sky {
         // infinity at the horizon and whatever is drawn on it turns to noise
         // there. A shell puts the horizon at about a hundred and sixty
         // kilometres and packs the bands the way the eye sees them stacked.
+        //
+        // The cell has to be small against the height the deck sits at, or
+        // there is less than one of them across the whole zenith and the sky
+        // overhead comes out bare. Stratocumulus is a cell of about half a
+        // kilometre under a deck of one and a half, and that ratio is what
+        // gives a sky with something in it overhead and bands at the horizon.
+        // The banding needs no help: the deck is seen at a grazing angle, so a
+        // cell twenty kilometres out is already ten times wider than it is
+        // tall. What the wind adds on top of that is slight.
         const float EARTH_R = 6371000.0;
 
         float chash(vec2 p) {
@@ -182,9 +191,9 @@ export class Sky {
             float toSun = pow(max(cosG, 0.0), 4.0);
 
             if (uHigh > 0.01) {
-              vec2 p = cloudAt(dir, 7000.0, 2.2);
-              float lod = clamp(1.0 - length(p) / 220000.0, 0.0, 1.0);
-              float n = cfbm(W * p * vec2(1.0 / 11000.0, 1.0 / 64000.0), lod);
+              vec2 p = cloudAt(dir, 8000.0, 2.2);
+              float lod = clamp(1.0 - length(p) / 120000.0, 0.0, 1.0);
+              float n = cfbm(W * p * vec2(1.0 / 4000.0, 1.0 / 12000.0), lod);
               float thr = mix(0.66, 0.34, uHigh);
               // Cirrus is ice and it stands above the shadow line, so it is lit
               // from beneath and holds the last of the sun after the deck under
@@ -194,9 +203,9 @@ export class Sky {
             }
 
             if (uCloud > 0.01) {
-              vec2 p = cloudAt(dir, 1800.0, 1.0);
-              float lod = clamp(1.0 - length(p) / 90000.0, 0.0, 1.0);
-              float n = cfbm(W * p * vec2(1.0 / 2600.0, 1.0 / 9500.0), lod);
+              vec2 p = cloudAt(dir, 1400.0, 1.0);
+              float lod = clamp(1.0 - length(p) / 45000.0, 0.0, 1.0);
+              float n = cfbm(W * p * vec2(1.0 / 700.0, 1.0 / 1400.0), lod);
               float thr = mix(0.70, 0.16, uCloud);
               deckA = smoothstep(thr, thr + 0.13, n);
               // We stand under it, so what shows is the base. The thin rim
