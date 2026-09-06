@@ -26,8 +26,9 @@
 // bank and the west stands on posts.
 //
 // The OSM footprint has six corners plus its closing node, covering 55 m².
-// John confirmed the southeast roof notch on 2026-09-06. Its inner corner comes
-// from that trace; the main ridge and slopes remain the lidar's. Issue #43.
+// John confirmed on 2026-09-06 that the southeast notch cuts through the roof
+// and entire upper level. Its inner corner comes from that trace; the main
+// ridge and slopes remain the lidar's. Issue #43.
 //
 // What the 2023 lidar settles, and it is only the roof. 466 returns over the
 // footprint and its overhang, 17 a square metre. The roof stands in a band 2.5 m
@@ -69,7 +70,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld, toWorld } from "../geo.js";
 import { box, gableRoof, tint } from "./parts.js";
-import { cutRoofNotch } from "./roof-notch.js";
+import { cutRoofNotch, notchedStorey } from "./roof-notch.js";
 
 // World metres. The centre of the roof the lidar measured, and how far the
 // building is turned, which the lidar could not measure and the footprint did.
@@ -239,11 +240,27 @@ export function buildCabin(scene, sample) {
   const hw = W / 2, hl = L / 2;
 
   // Both storeys, and the lap siding drawn as alternating bands so the wall is
-  // boards rather than a painted slab.
+  // boards rather than a painted slab. The upper storey has the roof's notch
+  // all the way down to its floor, with closed, clad walls inside the recess.
   for (const [floor, height] of [[LOWER_FLOOR, LOWER_STOREY], [UPPER_FLOOR, UPPER_STOREY]]) {
-    place(parts, box(W, L, height, 0, floor, 0, CLAD));
+    const wallPart = (w, l, h, y, color) => {
+      if (floor !== UPPER_FLOOR) {
+        place(parts, box(w, l, h, 0, y, 0, color));
+        return;
+      }
+      // Recess the base wall 15 mm behind the siding at the inner edges too.
+      // The proud bands then finish at the mapped cut instead of z-fighting
+      // with the new walls or projecting across the roof opening.
+      const inset = color === CLAD ? 0.015 : 0;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(notchedStorey(
+        w / 2, l / 2, y, h, NOTCH_X - inset, NOTCH_Z - inset), 3));
+      g.computeVertexNormals();
+      place(parts, tint(g, color));
+    };
+    wallPart(W, L, height, floor, CLAD);
     for (let y = floor + SIDING; y < floor + height - 0.05; y += SIDING * 2) {
-      place(parts, box(W + 0.03, L + 0.03, SIDING, 0, y, 0, CLAD_SHADOW));
+      wallPart(W + 0.03, L + 0.03, SIDING, y, CLAD_SHADOW);
     }
   }
 
@@ -293,6 +310,24 @@ export function buildCabin(scene, sample) {
   };
   westRun(LOWER_FLOOR, WEST_LOWER_HEAD, WEST_LOWER);
   westRun(UPPER_FLOOR, WEST_HEAD, WEST_UPPER);
+
+  // The entrance is on the east-facing inset wall, facing into the notch.
+  // John's PXL_20211108_175009151.jpg shows two tall glazed leaves in pale
+  // frames. Their 1.35 m combined width and 2.10 m height are visual estimates,
+  // centred within the mapped wall run; the old roof in that photo is not used.
+  const ENTRY_W = 1.35, ENTRY_H = 2.10;
+  const entryZ = (NOTCH_Z + hl) / 2;
+  place(parts, box(0.10, ENTRY_W, ENTRY_H,
+                   NOTCH_X + 0.025, UPPER_FLOOR, entryZ, TRIM));
+  for (const side of [-1, 1]) {
+    place(parts, box(0.025, ENTRY_W / 2 - 0.14, ENTRY_H - 0.26,
+                     NOTCH_X + 0.0875, UPPER_FLOOR + 0.18,
+                     entryZ + side * ENTRY_W / 4, GLASS));
+  }
+  // A small dark handle beside the meeting stile, as in the reference.
+  place(parts, box(0.05, 0.04, 0.12, NOTCH_X + 0.12,
+                   UPPER_FLOOR + 0.90, entryZ + 0.08, FASCIA));
+
   // The north gable end: one small window, still unphotographed.
   place(parts, box(1.0, 0.12, 1.0, 1.2, UPPER_FLOOR + WIN_SILL, -hl, TRIM));
   place(parts, box(0.8, 0.14, 0.8, 1.2, UPPER_FLOOR + WIN_SILL + 0.1, -hl, GLASS));
@@ -315,7 +350,7 @@ export function buildCabin(scene, sample) {
                    SOUTH_WIN_X, UPPER_FLOOR + SOUTH_WIN_SILL + 0.1, hl, GLASS));
 
   // Cut every roof component, including the gable infill, so neither trim nor
-  // standing seams bridge the confirmed notch. Wall/deck details are separate.
+  // standing seams bridge the confirmed notch above the recessed upper walls.
   const roofPart = (geometry, color) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(

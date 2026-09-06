@@ -565,11 +565,19 @@ Bluff Road; the camera opens there, not on the cabin.
 The OSM footprint is six corners plus its closing coordinate, 55.1 m². The walls are a
 6.47 by 6.79 m rectangle in the model; the roof's outer rectangle is 8.17 by 8.49 m.
 On 6 September 2026 John confirmed that the southeast roof notch exists now and asked for it
-to be cut. Issue #43. Its inner corner is the OSM point 48.9890627, -123.0857575, transformed
+to be cut, then clarified that it goes through the entire upper level as well. Issue #43.
+Its inner corner is the OSM point 48.9890627, -123.0857575, transformed
 into cabin coordinates (x 1.633, z 1.645). Roof faces, gable infill, seams and fascia stop at
 the notch; fascia finishes the two new edges. `roof-notch.js` clips triangles at both edges
 without changing the retained slopes. `node src/scene/test-roof-notch.mjs` checks the resulting
-surface, coverage, area, winding, and vertical edge faces.
+surface, coverage, area, winding, and vertical edge faces. The upper storey and its siding
+follow the same L-shaped plan down to the upper floor at 10.45 m MLLW. The two inset walls
+are closed and clad; the previous roof-only cut left a solid wall box inside the opening.
+The lower storey keeps its existing footprint.
+John's `PXL_20211108_175009151.jpg` confirms a glazed double entry door on the
+east-facing inset wall. It is drawn with pale frames and two tall panes, centred
+in that wall run; its 1.35 m width and 2.10 m height are visual estimates. The
+old roof shown in this reference does not replace the current metal roof.
 
 The same day's comparison overlaid the county's March–June 2022 imagery and both existing
 lidar clips in the application's coordinates. The 2023 cloud supports the main asymmetric
