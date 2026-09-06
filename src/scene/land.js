@@ -218,7 +218,12 @@ function buildings(list, sample) {
     const rect = fitRectangle(pts);
     if (!rect) continue;
     const { width, depth, cx, cz, angle } = rect;
-    if (width < 2 || depth < 2 || width > 400 || depth > 400) continue;
+    // The floor is on the footprint itself now, so it has to be lower than it
+    // was. It used to be measured against the box squared to the grid, which
+    // for a shed standing at an angle is bigger than the shed: a shed of 2.5 by
+    // 1.9 has a box of 3.0 by 2.7, and a floor of two metres let the box
+    // through and stops the shed. Twenty six of them went that way.
+    if (width < 1.5 || depth < 1.5 || width > 400 || depth > 400) continue;
     const n = b.coords.length;
     const base = sample(latSum / n, lonSum / n);
     const h = Math.max(3, Math.min(b.height || 5, 60));
