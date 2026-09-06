@@ -420,8 +420,15 @@ sampler sets the tower base at the corrected location.
 
 The lamp stands on the tower rather than at the published focal height of 9 m. That 9 m is measured
 above mean high water and everything on this page is metres above MLLW, so driving the lamp from it
-buried the light two metres inside the steelwork. On the tower it comes out at 10.6 m on our datum,
-which agrees with the published figure to inside the tide range.
+buried the light inside the steelwork. Its elevation is sampled ground plus the frame,
+mounting stem and half the beacon height.
+
+Issue #45 uses [Neal's May 2018 photographs](https://nealslighthouses.blogspot.com/2018/06/lighthouse-point-point-roberts.html),
+supplied by John on 6 September 2026: straight uprights, horizontal ties and X-bracing,
+red/white quartered diamond daymarkers, an internal ladder and a cylindrical corner beacon.
+The stated tower height remains 25 ft. Other sizes and the four-face marker arrangement
+and compass orientation are visual approximations. The images are reference only; no
+blog photographs are bundled in the application. The corrected position and flash timing remain.
 
 ## Border crossings
 
