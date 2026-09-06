@@ -414,6 +414,10 @@ seconds. John timed that from the point. The published light list says fifteen s
 disagreement is recorded in the file, because a number read off the water beats a number copied out
 of a table.
 
+John corrected its position on 6 September 2026 to 48.97163890548649,
+-123.08368536530644. The tower and lamp share that anchor, and the terrain
+sampler sets the tower base at the corrected location.
+
 The lamp stands on the tower rather than at the published focal height of 9 m. That 9 m is measured
 above mean high water and everything on this page is metres above MLLW, so driving the lamp from it
 buried the light two metres inside the steelwork. On the tower it comes out at 10.6 m on our datum,

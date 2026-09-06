@@ -16,8 +16,8 @@ import { toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { buildLamps, setLampLevel } from "./lights.js";
 
-// 48°58′17″N 123°04′58″W.
-const AT = { lat: 48.971389, lon: -123.082778 };
+// Position supplied by John on 2026-09-06; terrain and lamp share this anchor.
+const AT = { lat: 48.97163890548649, lon: -123.08368536530644 };
 
 const TOWER_M = 7.62;      // 25 ft
 const LEG_SPREAD_M = 2.4;  // footprint at the ground
