@@ -134,32 +134,103 @@ function gable(width, depth, rise) {
 const ROOF_PITCH = 0.5;
 const ROOF_RISE_MAX_M = 3.0;
 
+// The hull of a footprint, counterclockwise, by the monotone chain. Points are
+// [x, z] and repeats are dropped, which OSM gives on every closed way.
+function convexHull(points) {
+  const sorted = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const pts = sorted.filter((p, i) =>
+    i === 0 || p[0] !== sorted[i - 1][0] || p[1] !== sorted[i - 1][1]);
+  if (pts.length < 3) return pts;
+  const cross = (o, a, b) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list) => {
+    const out = [];
+    for (const p of list) {
+      while (out.length >= 2
+             && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+      out.push(p);
+    }
+    out.pop();
+    return out;
+  };
+  return half(pts).concat(half(pts.slice().reverse()));
+}
+
+// The smallest rectangle that holds a footprint, and which way it faces.
+//
+// The smallest one always has a side lying along an edge of the hull, so every
+// hull edge is tried and the smallest kept. A footprint has a handful of corners
+// and this runs once at load, so nothing cleverer is called for.
+//
+// points are [x, z] in world metres. Back comes the centre, the two side
+// lengths, and the angle to turn a box through to stand it that way, which is
+// what rotateY wants. Null when there is no rectangle to fit, which means the
+// way had fewer than three corners that are not on top of each other.
+export function fitRectangle(points) {
+  const hull = convexHull(points);
+  if (hull.length < 3) return null;
+  let best = null;
+  for (let i = 0; i < hull.length; i++) {
+    const a = hull[i], b = hull[(i + 1) % hull.length];
+    const ex = b[0] - a[0], ez = b[1] - a[1];
+    const len = Math.hypot(ex, ez);
+    if (len < 1e-9) continue;
+    const ux = ex / len, uz = ez / len;
+    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    for (const p of hull) {
+      const u = p[0] * ux + p[1] * uz;
+      const v = -p[0] * uz + p[1] * ux;
+      if (u < minU) minU = u;
+      if (u > maxU) maxU = u;
+      if (v < minV) minV = v;
+      if (v > maxV) maxV = v;
+    }
+    const width = maxU - minU, depth = maxV - minV;
+    if (best && width * depth >= best.area) continue;
+    const cu = (minU + maxU) / 2, cv = (minV + maxV) / 2;
+    best = {
+      area: width * depth,
+      width,
+      depth,
+      cx: cu * ux - cv * uz,
+      cz: cu * uz + cv * ux,
+      angle: Math.atan2(-uz, ux),
+    };
+  }
+  return best;
+}
+
 function buildings(list, sample) {
-  // Axis-aligned block per footprint: cheap, and from the bluff the massing
-  // reads. Houses get a gable on top; trading premises stay flat.
+  // One block per footprint, stood the way the footprint stands. Squared to
+  // north and east it was wider and deeper than the house, with its walls facing
+  // the wrong way and its ridge across the wrong span, and half the peninsula
+  // sits at an angle to the grid. Houses get a gable on top; trading premises
+  // stay flat.
   const geoms = [];
   for (const b of list) {
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    const pts = [];
     let latSum = 0, lonSum = 0;
     for (const [lat, lon] of b.coords) {
       const w = toWorld(lat, lon, 0);
-      minX = Math.min(minX, w.x); maxX = Math.max(maxX, w.x);
-      minZ = Math.min(minZ, w.z); maxZ = Math.max(maxZ, w.z);
+      pts.push([w.x, w.z]);
       latSum += lat; lonSum += lon;
     }
-    const width = maxX - minX, depth = maxZ - minZ;
+    const rect = fitRectangle(pts);
+    if (!rect) continue;
+    const { width, depth, cx, cz, angle } = rect;
     if (width < 2 || depth < 2 || width > 400 || depth > 400) continue;
     const n = b.coords.length;
     const base = sample(latSum / n, lonSum / n);
     const h = Math.max(3, Math.min(b.height || 5, 60));
-    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
     const g = new THREE.BoxGeometry(width, h, depth);
+    g.rotateY(angle);
     g.translate(cx, base + h / 2, cz);
     geoms.push(g);
     if (!b.flat) {
       const span = Math.min(width, depth);
       const rise = Math.min(ROOF_PITCH * span / 2, ROOF_RISE_MAX_M);
       const roof = gable(width, depth, rise);
+      roof.rotateY(angle);
       roof.translate(cx, base + h, cz);
       geoms.push(roof);
     }
