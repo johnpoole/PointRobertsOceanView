@@ -25,17 +25,18 @@
 // metres of fall under a seven metre building. The east side is dug into the
 // bank and the west stands on posts.
 //
-// The footprint in the bake is an irregular seven-node trace of 55 m². The
-// building here is the rectangle that fits it, turned 18° east of north, because
-// that is what the photographs show and the notch is not something a photograph
-// can place.
+// The OSM footprint has six corners plus its closing node, covering 55 m².
+// John confirmed the southeast roof notch on 2026-09-06. Its inner corner comes
+// from that trace; the main ridge and slopes remain the lidar's. Issue #43.
 //
 // What the 2023 lidar settles, and it is only the roof. 466 returns over the
 // footprint and its overhang, 17 a square metre. The roof stands in a band 2.5 m
 // thick with nothing between it and the canopy at 20 m, so it is unmistakable.
 //
-// It is a gable, but not a symmetric one. Fitted as one surface with two pitches
-// meeting at a ridge, 463 of the 466 returns land inside 4 cm of it:
+// The main roof is an asymmetric gable. The 2026-09-06 comparison found 419 of
+// 466 selected returns within 10 cm of this surface, with median absolute
+// vertical error 3.9 cm. The former claim of 463 within 4 cm did not reproduce.
+// These are the parameters of the main surface, not proof of every roof edge:
 //
 //   ridge   13.39 m MLLW, 0.90 m west of centre, level along its length
 //   east    2.11 in 12, falling 4.13 m to an eave of 12.66 at the wall
@@ -43,7 +44,7 @@
 //   plan    8.49 m along the ridge by 8.17 across, over the eaves
 //   centre  x -34.17, z -7.03
 //
-// The three left out are the chimney, which stands through this band.
+// Returns in the confirmed notch do not override the current site observation.
 //
 // Two things fall out of that and neither was put in by hand. Take the overhang
 // off and the walls are 6.79 by 6.47, which is 473 sq ft, and the assessor
@@ -66,8 +67,9 @@
 
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { fromWorld } from "../geo.js";
+import { fromWorld, toWorld } from "../geo.js";
 import { box, gableRoof, tint } from "./parts.js";
+import { cutRoofNotch } from "./roof-notch.js";
 
 // World metres. The centre of the roof the lidar measured, and how far the
 // building is turned, which the lidar could not measure and the footprint did.
@@ -77,6 +79,14 @@ const OVERHANG = 0.85;       // deep, and unmistakable in every photograph
 // The walls, from the measured roof less the overhang on each side.
 const W = 6.47;              // across the ridge, roughly east to west
 const L = 6.79;              // along it, roughly north to south
+
+// Concave corner of assets/osm/features.json's home polygon, not a new estimate
+// from a photograph. Preserve its mapped position when turning into cabin axes.
+const NOTCH_WORLD = toWorld(48.9890627, -123.0857575);
+const NOTCH_X = (NOTCH_WORLD.x - AT.x) * Math.cos(YAW)
+              - (NOTCH_WORLD.z - AT.z) * Math.sin(YAW);
+const NOTCH_Z = (NOTCH_WORLD.x - AT.x) * Math.sin(YAW)
+              + (NOTCH_WORLD.z - AT.z) * Math.cos(YAW);
 
 // Levels. The lower floor is where the deck and the ground under it put it. The
 // upper floor is the uphill grade, which is where the lidar finds the ground you
@@ -304,21 +314,40 @@ export function buildCabin(scene, sample) {
   place(parts, box(SOUTH_WIN_W - 0.2, 0.14, SOUTH_WIN_H - 0.2,
                    SOUTH_WIN_X, UPPER_FLOOR + SOUTH_WIN_SILL + 0.1, hl, GLASS));
 
-  // The roof, and the seams standing up off it.
-  const roof = gableRoof(hw, hl, EAVE, 0, OVERHANG, ROOF, RIDGE);
-  place(parts, roof);
+  // Cut every roof component, including the gable infill, so neither trim nor
+  // standing seams bridge the confirmed notch. Wall/deck details are separate.
+  const roofPart = (geometry, color) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(
+      cutRoofNotch(geometry.attributes.position.array, NOTCH_X, NOTCH_Z), 3));
+    g.computeVertexNormals();
+    geometry.dispose();
+    place(parts, tint(g, color));
+  };
+  roofPart(gableRoof(hw, hl, EAVE, 0, OVERHANG, ROOF, RIDGE), ROOF);
   // The surface, so the seams and the fascia sit on the roof rather than beside it.
   const roofY = (x) => RIDGE_Y - (x > RIDGE_X ? SLOPE_E : SLOPE_W) * Math.abs(x - RIDGE_X);
   for (let x = -hw - OVERHANG + SEAM_SPACING; x < hw + OVERHANG; x += SEAM_SPACING) {
-    place(parts, box(0.05, L + OVERHANG * 2, 0.05, x, roofY(x) + 0.03, 0, SEAM));
+    roofPart(box(0.05, L + OVERHANG * 2, 0.05, x, roofY(x) + 0.03, 0, SEAM), SEAM);
   }
   // Fascia round the eave, dark, which is what makes the overhang read.
   for (const s of [-1, 1]) {
-    place(parts, box(0.1, L + OVERHANG * 2, 0.22,
-                     s * (hw + OVERHANG), roofY(s * (hw + OVERHANG)) - 0.22, 0, FASCIA));
-    place(parts, box((hw + OVERHANG) * 2, 0.1, 0.2,
-                     0, EAVE - 0.2, s * (hl + OVERHANG), FASCIA));
+    roofPart(box(0.1, L + OVERHANG * 2, 0.22,
+                 s * (hw + OVERHANG), roofY(s * (hw + OVERHANG)) - 0.22, 0, FASCIA), FASCIA);
+    roofPart(box((hw + OVERHANG) * 2, 0.1, 0.2,
+                 0, EAVE - 0.2, s * (hl + OVERHANG), FASCIA), FASCIA);
   }
+  // Fascia on the two new edges. Keep its thickness on the retained side.
+  const notchRun = hl + OVERHANG - NOTCH_Z;
+  roofPart(box(0.1, notchRun, 0.22, NOTCH_X - 0.05,
+               roofY(NOTCH_X) - 0.22, NOTCH_Z + notchRun / 2, FASCIA), FASCIA);
+  const edgeRun = hw + OVERHANG - NOTCH_X;
+  const edgeDrop = roofY(hw + OVERHANG) - roofY(NOTCH_X);
+  const notchEdge = new THREE.BoxGeometry(Math.hypot(edgeRun, edgeDrop), 0.22, 0.1);
+  notchEdge.rotateZ(Math.atan2(edgeDrop, edgeRun));
+  notchEdge.translate(NOTCH_X + edgeRun / 2,
+                 roofY(NOTCH_X) + edgeDrop / 2 - 0.11, NOTCH_Z - 0.05);
+  roofPart(notchEdge.toNonIndexed(), FASCIA);
 
   // The chimney, through the roof and well above the ridge.
   place(parts, box(CHIMNEY_W, CHIMNEY_W, CHIMNEY_TOP - UPPER_FLOOR,

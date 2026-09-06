@@ -562,23 +562,28 @@ a seven metre building. The east side is dug into the bank and the west stands o
 the whole reason that packet exists. The address node is 34 m uphill of the cabin, at 18.84 m, up on
 Bluff Road; the camera opens there, not on the cabin.
 
-The traced footprint is an irregular seven-node 55 m². What is built is the rectangle that fits it,
-7.4 by 6.0 turned 18° east of north, because that is what the photographs show and a photograph
-cannot place the notch.
+The OSM footprint is six corners plus its closing coordinate, 55.1 m². The walls are a
+6.47 by 6.79 m rectangle in the model; the roof's outer rectangle is 8.17 by 8.49 m.
+On 6 September 2026 John confirmed that the southeast roof notch exists now and asked for it
+to be cut. Issue #43. Its inner corner is the OSM point 48.9890627, -123.0857575, transformed
+into cabin coordinates (x 1.633, z 1.645). Roof faces, gable infill, seams and fascia stop at
+the notch; fascia finishes the two new edges. `roof-notch.js` clips triangles at both edges
+without changing the retained slopes. `node src/scene/test-roof-notch.mjs` checks the resulting
+surface, coverage, area, winding, and vertical edge faces.
 
-The roof heights are the lidar's. 495 returns over that footprint put the ridge at 13.29 m and
-the eave at 12.84, against 15.00 and 13.85 drawn, and the pitch at 1.7 in 12 against 4.6. Two
-things fell out of that measurement: the walls less the overhang are 473 sq ft against the
-assessor's 496, and the eave sits 4.18 m over the lower floor rather than 5.30, which puts the
-upper floor at 10.45 — exactly the lidar ground on the uphill side. You walk in at grade from the
-road. So the storeys are no longer two of 2.65 but a low half-buried level under a full one.
+The same day's comparison overlaid the county's March–June 2022 imagery and both existing
+lidar clips in the application's coordinates. The 2023 cloud supports the main asymmetric
+gable: 419 of 466 selected returns inside the roof rectangle are within 10 cm of the existing
+surface, with median absolute vertical residual 3.9 cm. The former claim of 463 within 4 cm
+did not reproduce. Independent fits put the ridge at 13.385 m MLLW and 0.845 m west of centre,
+close to the model's 13.390 and 0.900. The two pitches remain 3.15 in 12 west and 2.11 in 12 east.
 
-**The shape is still wrong.** 487 of 520 returns sit in a band 0.8 m thick: it is not one gable,
-it is three low-slope standing-seam planes at different levels, and one gable is what is drawn.
-The three levels have not been measured. Note also that the two clips disagree — the 495 returns
-above are over the fitted rectangle, and the 520 over the footprint grown a third, which gives
-ridge 13.78 and eave 12.58. Settle which clip before fitting the planes. The lidar and the
-working are in `../PointRobertsEngineering/CONTINUE.md`.
+The mapped notch contains sparse 2023 returns at roof-like heights, but these do not override
+John's confirmation of its current shape. County imagery is partly obscured by trees. The
+2009 cloud is historical and was not registered to stable control; do not treat its difference
+as a measured building movement. Other stepped/lower roof details and the separate stair,
+support, seam-direction, and lattice findings remain in issue #42. Source clouds and photographs
+are in `../PointRobertsEngineering`.
 
 ## Ground colour
 
