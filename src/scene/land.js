@@ -200,12 +200,38 @@ export function fitRectangle(points) {
   return best;
 }
 
+// Twice the signed area of a ring of [x, z]. Negative when it winds the other
+// way, which is all this is ever asked.
+export function polygonArea(ring) {
+  let a = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+  }
+  return Math.abs(a) / 2;
+}
+
+// How much of the smallest rectangle it fits in a footprint actually fills. One
+// is a rectangle. An L is about a half.
+export function fillsRectangle(ring, rect) {
+  return polygonArea(ring) / (rect.width * rect.depth);
+}
+
+// Under this a footprint is not near enough to a rectangle to carry a
+// rectangular roof. Four fifths of them are over it, and half of them fill their
+// rectangle to within a thousandth. Below it the building is left flat topped,
+// because a gable cut for the rectangle would hang out over the notch of an L
+// with no wall under it, and a roof standing in the air reads as broken where a
+// flat top only reads as a different kind of building.
+const ROOF_FILL_MIN = 0.85;
+
 function buildings(list, sample) {
-  // One block per footprint, stood the way the footprint stands. Squared to
-  // north and east it was wider and deeper than the house, with its walls facing
-  // the wrong way and its ridge across the wrong span, and half the peninsula
-  // sits at an angle to the grid. Houses get a gable on top; trading premises
-  // stay flat.
+  // The footprint as it is, stood up.
+  //
+  // It was the smallest box that holds the footprint, and before that the box
+  // squared to north and east. A footprint is not a box: two fifths of them have
+  // more than four corners, and drawing them all as rectangles threw that away.
+  //
+  // The roof still goes on the rectangle. See ROOF_FILL_MIN.
   const geoms = [];
   for (const b of list) {
     const pts = [];
@@ -215,6 +241,10 @@ function buildings(list, sample) {
       pts.push([w.x, w.z]);
       latSum += lat; lonSum += lon;
     }
+    // A closed way repeats its first node as its last. A shape does not want it.
+    const last = pts.length - 1;
+    if (last > 0 && pts[0][0] === pts[last][0] && pts[0][1] === pts[last][1]) pts.pop();
+    if (pts.length < 3) continue;
     const rect = fitRectangle(pts);
     if (!rect) continue;
     const { width, depth, cx, cz, angle } = rect;
@@ -227,11 +257,25 @@ function buildings(list, sample) {
     const n = b.coords.length;
     const base = sample(latSum / n, lonSum / n);
     const h = Math.max(3, Math.min(b.height || 5, 60));
-    const g = new THREE.BoxGeometry(width, h, depth);
-    g.rotateY(angle);
-    g.translate(cx, base + h / 2, cz);
+
+    // The shape is laid out in x and y and extruded along z, so it is built with
+    // the footprint's z negated and then turned down about x, which puts the
+    // extrusion into height and brings the z back the way it was.
+    const shape = new THREE.Shape();
+    shape.moveTo(pts[0][0], -pts[0][1]);
+    for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], -pts[i][1]);
+    shape.closePath();
+    const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false });
+    g.rotateX(-Math.PI / 2);
+    g.translate(0, base, 0);
+    // ExtrudeGeometry hands back an unindexed geometry and BoxGeometry is
+    // indexed, and the merge refuses a mix. Index it straight through, the same
+    // as the gable.
+    const count = g.attributes.position.count;
+    g.setIndex(Array.from({ length: count }, (_, i) => i));
     geoms.push(g);
-    if (!b.flat) {
+
+    if (!b.flat && fillsRectangle(pts, rect) >= ROOF_FILL_MIN) {
       const span = Math.min(width, depth);
       const rise = Math.min(ROOF_PITCH * span / 2, ROOF_RISE_MAX_M);
       const roof = gable(width, depth, rise);

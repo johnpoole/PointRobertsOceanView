@@ -48,7 +48,8 @@ function asDataUrl(file) {
   return url;
 }
 
-const { fitRectangle } = await import(asDataUrl(path.join(HERE, "land.js")));
+const { fitRectangle, polygonArea, fillsRectangle } =
+  await import(asDataUrl(path.join(HERE, "land.js")));
 
 let failures = 0;
 function ok(cond, what) {
@@ -148,6 +149,31 @@ for (const deg of [0, 12, 40, 45, 73, 90, 137, -25]) {
   ok(fitRectangle([[3, 3], [3, 3], [3, 3]]) === null, "one corner three times fits none");
   ok(fitRectangle([[0, 0], [1, 1], [2, 2], [3, 3]]) === null,
      "four corners on one line fit none");
+}
+
+// ---- and whether it is near enough to a rectangle to carry a roof ----------
+//
+// A gable is cut for the rectangle. Over a footprint that is not one it hangs
+// out past the wall and stands in the air, so the odd shapes are left flat.
+
+{
+  near(polygonArea([[0, 0], [10, 0], [10, 4], [0, 4]]), 40, 1e-9, "a rectangle's area");
+  near(polygonArea([[0, 0], [0, 4], [10, 4], [10, 0]]), 40, 1e-9,
+       "and the same wound the other way");
+  near(polygonArea([[0, 0], [12, 0], [12, 4], [4, 4], [4, 10], [0, 10]]), 72, 1e-9,
+       "an L's area");
+}
+
+{
+  const r = turned(14.5, 6.2, 40);
+  near(fillsRectangle(r, fitRectangle(r)), 1, 1e-6, "a rectangle fills its own rectangle");
+}
+
+{
+  const L = [[0, 0], [12, 0], [12, 4], [4, 4], [4, 10], [0, 10]];
+  const fill = fillsRectangle(L, fitRectangle(L));
+  near(fill, 72 / 120, 1e-6, "an L fills three fifths of its rectangle");
+  ok(fill < 0.85, `an L is left flat topped: it fills ${fill.toFixed(2)}`);
 }
 
 console.log(failures ? `\n${failures} failed` : "\nland ok");

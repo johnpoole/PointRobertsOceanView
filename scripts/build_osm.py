@@ -15,6 +15,9 @@ Run once:
 from __future__ import annotations
 
 import array
+import csv
+import gzip
+import io
 import json
 import math
 import urllib.parse
@@ -274,6 +277,89 @@ def building_height(tags: dict) -> float:
     return 5.0
 
 
+# ---- the footprints OSM has not drawn ---------------------------------------
+#
+# OSM has nothing over most of the south west of the peninsula. Microsoft
+# publishes footprints traced off imagery by machine, under the same licence as
+# OSM, and in that corner it has 187 buildings where OSM has 43.
+#
+# It does not replace OSM. Over the whole peninsula OSM has 4394 footprints and
+# 532,000 square metres of building against Microsoft's 1572 and 226,000, because
+# OSM has every shed and garage drawn separately and the machine misses them. So
+# OSM is kept whole and Microsoft fills the gaps: a footprint whose middle falls
+# inside one OSM has already drawn is thrown away, which leaves about 340.
+#
+# The files are tiled by Bing quadkey. The one for this peninsula is 166 KB.
+MS_LINKS = "https://minedbuildings.z5.web.core.windows.net/global-buildings/dataset-links.csv"
+MS_LOCATION = "UnitedStates"
+
+
+def quadkey(lat: float, lon: float, zoom: int = 9) -> str:
+    """The Bing tile a point falls in, which is how the footprints are filed."""
+    sy = math.sin(math.radians(lat))
+    x = int(((lon + 180) / 360) * (1 << zoom))
+    y = int((0.5 - math.log((1 + sy) / (1 - sy)) / (4 * math.pi)) * (1 << zoom))
+    out = []
+    for i in range(zoom, 0, -1):
+        bit = 1 << (i - 1)
+        d = 0
+        if x & bit:
+            d += 1
+        if y & bit:
+            d += 2
+        out.append(str(d))
+    return "".join(out)
+
+
+def microsoft_footprints(have: list[dict]) -> list[dict]:
+    """Footprints inside BBOX that no building in `have` already covers.
+
+    Raises rather than returning nothing: an empty answer here is indis-
+    tinguishable from a peninsula with no buildings on it, and the south west
+    would quietly go back to being bare."""
+    s, w, n, e = BBOX
+    key = quadkey((s + n) / 2, (w + e) / 2)
+    with urllib.request.urlopen(MS_LINKS, timeout=120) as response:
+        rows = list(csv.DictReader(io.TextIOWrapper(response, encoding="utf-8")))
+    hit = next((r for r in rows
+                if r["QuadKey"] == key and r["Location"] == MS_LOCATION), None)
+    if hit is None:
+        raise SystemExit(
+            f"No {MS_LOCATION} tile for quadkey {key} in {MS_LINKS}. That is the "
+            f"tile BBOX falls in, so either the dataset has been re-cut or BBOX "
+            f"has moved off the United States."
+        )
+    with urllib.request.urlopen(hit["Url"], timeout=300) as response:
+        text = gzip.decompress(response.read()).decode("utf-8")
+
+    out: list[dict] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        feature = json.loads(line)
+        ring = feature["geometry"]["coordinates"][0]
+        # The file is lon,lat and everything here is lat,lon.
+        pts = [[p[1], p[0]] for p in ring]
+        lat, lon = centroid(pts)
+        if not (s <= lat <= n and w <= lon <= e):
+            continue
+        if any(in_ring(lat, lon, b["coords"]) for b in have):
+            continue
+        height = feature.get("properties", {}).get("height")
+        out.append({
+            "coords": pts,
+            "height": round(float(height), 2) if height and height > 0 else 5.0,
+        })
+    if not out:
+        raise SystemExit(
+            f"The Microsoft tile {key} gave no footprint inside BBOX that OSM does "
+            f"not already have. That has never been true of this peninsula, so the "
+            f"tile or the box is wrong."
+        )
+    return out
+
+
 def main() -> None:
     result = fetch()
     elements = result.get("elements", [])
@@ -389,13 +475,19 @@ def main() -> None:
                    default=None)
         rw["name"] = near["name"] if near else "Runway"
 
+    # After the house and the named places, so neither can be matched against a
+    # footprint that was traced by machine rather than drawn by hand.
+    extra = microsoft_footprints(buildings)
+    buildings.extend(extra)
+
     out = {"bbox": BBOX, "roads": roads, "buildings": buildings,
            "coastline": coastline, "landmarks": landmarks, "runways": runways,
            "ruined_piers": [dict(p) for p in RUINED_PIERS]}
     out_dir = Path(__file__).resolve().parents[1] / "assets" / "osm"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "features.json").write_text(json.dumps(out), encoding="utf-8")
-    print(f"roads {len(roads)}  buildings {len(buildings)}  "
+    print(f"roads {len(roads)}  buildings {len(buildings)} "
+          f"({len(extra)} of them from Microsoft)  "
           f"coastline {len(coastline)}  landmarks {len(landmarks)}  "
           f"runways {len(runways)}")
     print(f"  home:     {home_m:.0f} m from the address node, "
