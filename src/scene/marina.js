@@ -7,26 +7,12 @@ import { toWorld, fromWorld, headingToYaw } from "../geo.js";
 import { box, tint, gableRoof } from "./parts.js";
 import { DOCK_PLAN } from "./marina-dock-plan.js";
 
-export const MARINA = {
-  flagpole: [48.97680028, -123.06330009],
-  shelter: [48.97700763, -123.06348424],
-  hut: [48.97681698, -123.06359653],
-  pier: [48.97684450, -123.06362198],
-  floatSouth: DOCK_PLAN.points.south,
-  floatNorth: DOCK_PLAN.points.north,
-  fuelHut: DOCK_PLAN.points.hut,
-};
+import { MARINA } from "./marina-layout.js";
+export { MARINA, obsoleteMarinaBlock } from "./marina-layout.js";
 const WOOD = 0x827b68, DARK = 0x3b413d, ROOF = 0x424e50;
 const material = () => new THREE.MeshStandardMaterial({
   vertexColors: true, roughness: 0.9, side: THREE.DoubleSide,
 });
-
-// This baked footprint is a solid block over open water in the 2022 aerial
-// and both webcam views. Match only this exact trace, not nearby buildings.
-export function obsoleteMarinaBlock(building) {
-  const p=building.coords?.[0];
-  return p && Math.abs(p[0]-48.9770208)<1e-8 && Math.abs(p[1]+123.0642513)<1e-8;
-}
 
 function beam(a, b, width, color, depth = width) {
   const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b);

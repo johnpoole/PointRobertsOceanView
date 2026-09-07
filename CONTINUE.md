@@ -305,6 +305,42 @@ not 8090 — that one is taken by `yarbo-emulator-timefold`. nginx, in the
 `yarbo-aerator-tow-nginx-1` container, fronts it and passes `X-Real-IP` through on both the page
 and the WebSocket.
 
+## Area detail loading
+
+The marina is the first area loaded on demand (issue #53). `marina-base.js`
+builds a 228-triangle distant model at startup: the mapped docks, huts, shelter,
+flagpole and two tidal ramps. `marina.js` is imported dynamically and its full
+7,608-triangle model is built only when needed. Shared coordinates and the exact
+obsolete OSM footprint predicate live in `marina-layout.js`, so neither requires
+importing detail. The cabin and the rest of the scene still load as before.
+
+`area-view.js` requests detail within 350 m of the area's bounds, even looking
+away, or when the visible bounds project to at least 180 CSS pixels in height.
+The retention thresholds are 550 m / 120 pixels. This covers zooming, shared
+views, both marina webcam viewpoints and visitor Go to jumps. Checks run four
+times a second, after navigation, using the current camera and lens.
+
+`AreaDetail` keeps the base visible during loading and failures, admits one
+pending load and one detailed model, and holds inactive detail for 30 seconds.
+Expired detail is removed and its owned geometries/materials disposed; the
+JavaScript module itself stays in the browser's module cache. Returning rebuilds
+geometry without downloading that module again. Late loads stay hidden or are
+disposed if already expired. Failures retry while needed, backing off from ten
+to sixty seconds. Both representations receive the current tide before becoming
+visible. Terrain samplers, seabed and existing collision data are independent of
+this visual lifecycle. There is no new dock collision behavior in this change.
+
+`node src/test-area-detail.mjs` checks loading, hysteresis, pending requests,
+late results, eviction/rebuild, tide updates, disposal and retry. Actual Three.js
+checks also compared both ramp endpoints against the full model at tides -0.5,
+0 and 3.5 m and checked camera thresholds for West Bluff, zooming and webcams.
+In an isolated browser scene with a two-second delayed detail response, the
+base stayed visible, eviction released all ten detail GPU geometries, and a
+return rebuilt exactly ten. Base/detail geometry arrays are 24,624 / 821,664
+bytes and their draw calls when visible are 4 / 10. Local median construction
+over ten warmed runs was 0.82 / 26.34 ms; these are marina-only measurements,
+not a whole-page load benchmark or a measured improvement on a phone.
+
 ## Layout
 
 ```

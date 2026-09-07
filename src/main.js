@@ -27,7 +27,8 @@ import { travelPresence } from "./presence.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
-import { buildMarina, obsoleteMarinaBlock } from "./scene/marina.js";
+import { buildMarinaArea } from "./scene/marina-area.js";
+import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -329,7 +330,7 @@ stairSpec
     // channel stairCarve cut for it above: see stair.js.
     if (stair) buildStair(scene, stair, near.projector);
     lighthouse = buildLighthouse(scene, near.sample);
-    marina = buildMarina(scene, near.sample);
+    marina = buildMarinaArea(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
@@ -1766,7 +1767,6 @@ function frame() {
   const night = 1 - weather.dayFactor;
   vessels.update(feed, level, t, camera, night);
   if (lighthouse) lighthouse.update(t, night);
-  if (marina) marina.update(level);
   if (pavilion) pavilion.update(night);
   aircraft.update(feed, t, camera);
   updateHover();
@@ -1786,6 +1786,7 @@ function frame() {
   // camera into the water on the same frame it happened.
   gyroOrbit();
   nav.update(dt);
+  if (marina) marina.update(level, camera, window.innerHeight, performance.now()/1000);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
