@@ -435,7 +435,10 @@ blog photographs are bundled in the application. The corrected position and flas
 John supplied the [Point Roberts Marina webcams](https://www.pointrobertsmarina.com/webcams/)
 on 6 September 2026. [CONTINUE-webcams.md](CONTINUE-webcams.md) records the two
 HDOnTap players, observed availability, possible uses and unresolved calibration/access
-questions. This is a documented source for future consideration, not an active feed.
+questions. On 7 September John supplied their shared origin (48.97709213776401,
+-123.06334200875824), 12 ft above ground, aimed approximately west. The source note
+records these inputs and a proposed image-based calibration; no lens or direction
+has been solved. This is a documented source for future consideration, not an active feed.
 
 ## Border crossings
 
