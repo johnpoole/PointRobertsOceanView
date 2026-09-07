@@ -197,8 +197,72 @@ into this first pass.
 
 Geometry checks with the project's Three.js r160 verified finite positions and
 normals, an open shelter, mast height, a fixed pier, 0.55 m float freeboard and
-both gangway endpoints at tides -0.5, 0 and 3.5 m MLLW. The additions are eight
-merged meshes, approximately 3,500 triangles.
+both gangway endpoints at tides -0.5, 0 and 3.5 m MLLW. The initial additions used
+eight merged meshes, approximately 3,500 triangles.
+
+## Camera-side dock refinement — 7 September 2026
+
+[Issue #49](https://github.com/johnpoole/PointRobertsOceanView/issues/49) refines
+the already-added docks west of the camera. John explicitly excluded the wider
+permanent boat-location layout. No berth fingers, boats or slip inventory were
+added. The fixed timber pier and its connection remain part of this dock group.
+
+The March 2023 aerial 360 panorama by **KS B** on Google Maps, panorama identifier
+`CIHM0ogKEICAgIDhlqqNGQ`, shows the long shore-parallel float, northern shore
+connection, dogleg, and fuel T distinctly. It was inspected in the Maps viewer
+at heading 90 / tilt 55 / FOV 45 and a closer heading 75 / tilt 54 / FOV 25.
+These are viewer settings, not survey bearings or calibrated optics. Its tagged
+location is not taken as the drone's optical-centre position. The existing
+webcam views supply the blue hut's more recent appearance. No panorama imagery
+was downloaded, extracted or bundled.
+
+The county 2022 orthophoto supplied plan estimates, using EPSG:3857 extent
+`[-13699508.567733439, 6270925.30258366, -13699388.567733439, 6271045.30258366]`
+at 720 × 720. Pixels below exclude browser margins. Revised coordinates live
+in `src/scene/marina-dock-plan.js` and supersede the initial floating-dock anchors
+above; the white hut, shelter, flagpole and fixed pier anchors are unchanged.
+
+| Anchor | Image pixel x,y | Latitude, longitude |
+| --- | --- | --- |
+| Main float south end | 600,644 | 48.97687201, -123.06388100 |
+| Main float north junction | 334,222 | 48.97728671, -123.06427925 |
+| Dogleg | 267,240 | 48.97726902, -123.06437956 |
+| Fuel T junction | 166,383 | 48.97712850, -123.06453078 |
+| Fuel crossbar northwest end | 94,332 | 48.97717862, -123.06463858 |
+| Fuel crossbar southeast end | 304,482 | 48.97703121, -123.06432417 |
+| Fuel hut / apron centre | 217,362 | 48.97714913, -123.06445442 |
+| Northern shore-access anchor | 572,126 | 48.97738105, -123.06392292 |
+
+The main float is approximately 54.6 × 3.1 m; the fuel crossbar is 28.2 × 3.2 m,
+joined through a 3.6 m wide dogleg and a 2.8 m fuel stem. This replaces the direct
+diagonal connection and isolated square platform of the first pass. The hut
+apron is approximately 8.6 × 8.2 m, on the shoreward side of the crossbar. The
+blue hut is now estimated at 6.6 × 6.0 m, aligned with the crossbar, with a brown
+roof based on the references. Its roof form and exact dimensions remain
+approximate. Plank joints and dark edge protection make the deck edges legible.
+
+Seven main guide-pile anchors were read at pixels (360,225), (404,296),
+(446,367), (490,438), (534,510), (578,581), (620,652). Identification and centres
+are approximate, especially where small fittings or shadows obscure the tops.
+They replace uniformly spaced poles on an inferred line. Fuel-edge guide posts
+use an approximate spacing; their 4.8 m MLLW tops and the main row's 6 m tops are
+drawing estimates. Small caps distinguish the posts from deck fittings.
+
+The new northern shore ramp is 3 m wide and joins a fixed shore landing to the
+north junction. Both it and the fixed-pier gangway change inclination with the
+existing tide while their shore/pier ends stay fixed. Their engineering details
+are simplified. Float freeboard remains 0.55 m. The coarse terrain and absent
+tide feed in local static previews can make some float sections appear grounded;
+no terrain or camera settings were adjusted to conceal that discrepancy.
+
+Validation used actual Three.js r160 geometry: both ramps meet their fixed and
+floating endpoints at -0.5, 0 and 3.5 m tides; 505 samples along the dock routes
+and through joins hit the merged deck. Geometry is finite, the shelter remains
+open and slopes north, and only the previously excluded obsolete building is
+filtered. An elevated model view was compared with the panorama. The complete
+marina detail group now uses ten meshes and about 7,600 triangles. All dimensions
+and plan placements above remain image-derived estimates, not surveyed controls
+for the camera calibration in #47.
 
 ## Possible uses for this project
 

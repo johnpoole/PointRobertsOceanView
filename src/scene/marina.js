@@ -1,19 +1,20 @@
 // Fixed marina structures: webcam appearance, county 2022 aerial placement.
-// Dimensions/elevations are estimates; see CONTINUE-webcams.md and issue #48.
+// Dimensions/elevations are estimates; see CONTINUE-webcams.md and #48 / #49.
 // These are scene details, not independent controls for camera calibration.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, fromWorld, headingToYaw } from "../geo.js";
 import { box, tint, gableRoof } from "./parts.js";
+import { DOCK_PLAN } from "./marina-dock-plan.js";
 
 export const MARINA = {
   flagpole: [48.97680028, -123.06330009],
   shelter: [48.97700763, -123.06348424],
   hut: [48.97681698, -123.06359653],
   pier: [48.97684450, -123.06362198],
-  floatSouth: [48.97687987, -123.06388399],
-  floatNorth: [48.97726313, -123.06429422],
-  fuelHut: [48.97713145, -123.06447987],
+  floatSouth: DOCK_PLAN.points.south,
+  floatNorth: DOCK_PLAN.points.north,
+  fuelHut: DOCK_PLAN.points.hut,
 };
 const WOOD = 0x827b68, DARK = 0x3b413d, ROOF = 0x424e50;
 const material = () => new THREE.MeshStandardMaterial({
@@ -53,8 +54,8 @@ function anchor(parent, at, y, heading, name) {
   parent.add(group);
   return group;
 }
-function roof(parts, w, d, top, rise) {
-  parts.push(gableRoof(w/2, d/2, top, rise, 0.25, ROOF));
+function roof(parts, w, d, top, rise, color=ROOF) {
+  parts.push(gableRoof(w/2, d/2, top, rise, 0.25, color));
   // Standing seams on both slopes, visible in the shelter reference.
   for (let z = -d/2 - 0.2; z <= d/2 + 0.2; z += 0.35) {
     for (const s of [-1, 1]) parts.push(beam(
@@ -64,9 +65,9 @@ function roof(parts, w, d, top, rise) {
 }
 function hut(parent, at, y, heading, blue = false) {
   const group = anchor(parent, at, y, heading, blue ? 'marina-blue-dock-hut' : 'marina-white-dock-hut');
-  const w = blue ? 3.4 : 2.8, d = blue ? 3.6 : 3.4, top = 2.5;
+  const w = blue ? 6.6 : 2.8, d = blue ? 6.0 : 3.4, top = 2.5;
   const parts = [box(w,d,top,0,0,0,blue ? 0x315f89 : 0xd5d7ce)];
-  roof(parts,w,d,top,0.5);
+  roof(parts,w,d,top,0.5,blue ? 0x776e5b : ROOF);
   // Pale casings and dark glazing; the white hut has a red side door.
   for (const x of [-0.65,0.65]) {
     parts.push(box(0.92,0.05,1.02,x,1.03,d/2+0.03,0xe8e7db));
@@ -153,51 +154,80 @@ export function buildMarina(scene, sample) {
   merge(pierParts,pier,'marina-pier-deck-rails-and-piles');
   hut(root,MARINA.hut,Math.max(deckY,ground(MARINA.hut)),160);
 
-  // The long walkway and its fuel-dock branch float. Their guide piles do not.
+  // Shore-parallel float, dogleg and narrow fuel T; no berth fingers or boats.
+  // These decks float. Their guide piles and the shore landing do not.
   const floats = new THREE.Group(); floats.name = 'marina-floating-docks'; root.add(floats);
-  const A=toWorld(...MARINA.floatSouth), B=toWorld(...MARINA.floatNorth), C=toWorld(...MARINA.fuelHut);
+  const points=Object.fromEntries(Object.entries(DOCK_PLAN.points).map(([k,v])=>[k,toWorld(...v)]));
+  const {south:A,north:B,elbow:E,fuelJoin:J,fuelWest:W,fuelEast:F,hut:C,shore:S}=points;
   const floatParts=[], pileParts=[];
-  for (const [a,b,width] of [[A,B,2.2],[B,C,2.5]]) {
-    const deck=new THREE.BoxGeometry(width,0.36,Math.hypot(b.x-a.x,b.z-a.z));
-    deck.rotateY(Math.atan2(b.x-a.x,b.z-a.z));
-    deck.translate((a.x+b.x)/2,-0.18,(a.z+b.z)/2);
-    floatParts.push(tint(deck,WOOD));
-    const n=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/9);
-    for(let i=0;i<=n;i++) {
-      const len=Math.hypot(b.x-a.x,b.z-a.z), edge=width/2+0.25;
-      const x=a.x+(b.x-a.x)*i/n-(b.z-a.z)/len*edge;
-      const z=a.z+(b.z-a.z)*i/n+(b.x-a.x)/len*edge;
-      const at=fromWorld(x,z), bottom=Math.min(-2,sample(at.lat,at.lon)-0.5);
-      const g=new THREE.CylinderGeometry(0.12,0.16,6-bottom,8);
-      g.translate(x,(bottom+6)/2,z); pileParts.push(tint(g,DARK));
-    }
+  function deck(a,b,width) {
+    const length=Math.hypot(b.x-a.x,b.z-a.z), yaw=Math.atan2(b.x-a.x,b.z-a.z);
+    const put=g=>{g.rotateY(yaw);g.translate((a.x+b.x)/2,0,(a.z+b.z)/2);floatParts.push(g);};
+    // Small overlap at connections keeps a gangway end on the deck despite
+    // Float32 rounding of world coordinates and angled adjoining segments.
+    put(box(width,length+0.05,0.36,0,-0.36,0,0xa19b88));
+    for(const x of [-width/2,width/2]) put(box(0.10,length,0.20,x,-0.30,0,DARK));
+    for(let z=-length/2+0.15;z<length/2;z+=0.45) put(box(width-0.1,0.018,0.01,0,0.003,z,0x777463));
   }
-  floatParts.push(box(7,6,0.36,C.x,-0.36,C.z,WOOD));
+  const {mainWidth,elbowWidth,fuelStemWidth,fuelBarWidth}=DOCK_PLAN;
+  for(const [a,b,width] of [[A,B,mainWidth],[B,E,elbowWidth],[E,J,fuelStemWidth],[W,F,fuelBarWidth]]) deck(a,b,width);
+  // Hut apron is aligned with the fuel crossbar, on its shoreward side.
+  const barLength=Math.hypot(F.x-W.x,F.z-W.z);
+  const bx=(F.x-W.x)/barLength,bz=(F.z-W.z)/barLength;
+  const platformA={x:C.x-bx*4.3,z:C.z-bz*4.3},platformB={x:C.x+bx*4.3,z:C.z+bz*4.3};
+  deck(platformA,platformB,8.2);
+  function pile(at,top=6) {
+    const w=toWorld(...at),bottom=Math.min(-2,sample(...at)-0.5);
+    const g=new THREE.CylinderGeometry(0.12,0.16,top-bottom,8);
+    g.translate(w.x,(bottom+top)/2,w.z);pileParts.push(tint(g,0x858a7f));
+    const cap=new THREE.CylinderGeometry(0.14,0.14,0.15,8);
+    cap.translate(w.x,top-0.075,w.z);pileParts.push(tint(cap,0xc7ccbf));
+  }
+  for(const at of DOCK_PLAN.mainPiles) pile(at);
+  // Low guide posts on the fuel dock's outer edge; spacing is approximate.
+  for(const t of [0.03,0.26,0.74,0.97]) {
+    const x=W.x+(F.x-W.x)*t-bz*(fuelBarWidth/2+0.2);
+    const z=W.z+(F.z-W.z)*t+bx*(fuelBarWidth/2+0.2);
+    const at=fromWorld(x,z);pile([at.lat,at.lon],4.8);
+  }
   merge(floatParts,floats,'marina-float-decks');
   merge(pileParts,root,'marina-fixed-guide-piles');
-  hut(floats,MARINA.fuelHut,0,160,true);
+  const hutHeading=Math.atan2(bz,bx)*180/Math.PI;
+  // local X follows the crossbar; the local Z axis is its perpendicular.
+  hut(floats,MARINA.fuelHut,0,hutHeading,true);
 
-  // Gangway joins the north side of the fixed pier head to the float's end.
+  const shoreY=ground(DOCK_PLAN.points.shore)+0.12;
+  const rampHeading=Math.atan2(B.x-S.x,S.z-B.z)*180/Math.PI;
+  const landing=anchor(root,DOCK_PLAN.points.shore,shoreY,rampHeading,'marina-north-landing');
+  merge([box(3.4,2.0,0.25,0,-0.25,0,WOOD)],landing,'marina-north-landing-deck');
+  function gangwayBetween(name,start,endAt,width) {
+    const group=new THREE.Group();group.name=name;root.add(group);
+    const span=Math.hypot(start.x-endAt.x,start.z-endAt.z);
+    const posts=Math.ceil(span/2.5);
+    const unit=[box(width,1,0.15,0,-0.15,0,0x969b96)];
+    for(const x of [-width/2,width/2]) {
+      for(const y of [0.48,0.96]) unit.push(box(0.07,1,0.07,x,y,0,0x9fa7a5));
+      for(let i=0;i<=posts;i++) unit.push(box(0.07,0.07/span,0.96,x,0,-0.5+i/posts,0x9fa7a5));
+    }
+    merge(unit,group,name+'-deck-and-rails');
+    return {group,start,end:new THREE.Vector3(endAt.x,0,endAt.z)};
+  }
   pier.updateMatrixWorld(true);
   const start=pier.localToWorld(new THREE.Vector3(4.5,0,-13.5));
-  const gangway=new THREE.Group(); gangway.name='marina-gangway'; root.add(gangway);
-  const unit=[box(1.5,1,0.15,0,-0.15,0,WOOD)];
-  for(const x of [-0.75,0.75]) {
-    unit.push(box(0.07,1,0.07,x,0.92,0,DARK));
-    for(const z of [-0.5,0,0.5]) unit.push(box(0.07,0.035,0.92,x,0,z,DARK));
-  }
-  merge(unit,gangway,'marina-gangway-deck-and-rails');
-  const end=new THREE.Vector3(A.x,0,A.z), direction=new THREE.Vector3();
+  const links=[gangwayBetween('marina-gangway',start,A,1.5),
+    gangwayBetween('marina-north-gangway',new THREE.Vector3(S.x,shoreY,S.z),B,DOCK_PLAN.shoreRampWidth)];
+  const direction=new THREE.Vector3(),axis=new THREE.Vector3(0,0,1);
   let lastLevel;
   function update(level) {
     if(!Number.isFinite(level)||level===lastLevel)return;
-    lastLevel=level; floats.position.y=level+0.55;
-    end.y=floats.position.y;
-    direction.subVectors(start,end);
-    gangway.position.copy(start).add(end).multiplyScalar(0.5);
-    gangway.scale.z=direction.length();
-    gangway.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),direction.normalize());
+    lastLevel=level; floats.position.y=level+DOCK_PLAN.freeboard;
+    for(const {group,start,end} of links) {
+      end.y=floats.position.y;direction.subVectors(start,end);
+      group.position.copy(start).add(end).multiplyScalar(0.5);
+      group.scale.z=direction.length();
+      group.quaternion.setFromUnitVectors(axis,direction.normalize());
+    }
   }
   update(0);
-  return {group:root,floats,pier,gangway,update};
+  return {group:root,floats,pier,gangway:links[0].group,northGangway:links[1].group,update};
 }
