@@ -109,6 +109,34 @@ on localhost, so the page links to each provider player in a separate tab; it ca
 also display a local reference image without uploading it. No player restriction
 was bypassed and no camera imagery was bundled.
 
+## Flagpole-camera visual refinement — 7 September 2026
+
+John supplied 210° as a close starting heading for the other view, then confirmed
+that he meant the camera with the flagpole. That identifies `sw-view`, regardless
+of earlier first/second wording. The comparison selector now uses scene names:
+**Entrance channel · flagpole** (`sw-view`) and **Inner basin · prm** (`prm`).
+
+Starting from 210° / 2° down / 50° vertical FOV, the browser comparison of the
+opposite-shore building groups and channel was refined to **216° heading,
+2° downward tilt, 52° vertical FOV** (81.9° horizontal at 16:9). The supplied
+origin and 8.5576 m MLLW eye elevation stayed fixed. At 216° the building groups
+move left toward their positions in the flagpole reference; the slightly wider
+FOV improves the overall framing. The horizon comparison did not justify a tilt
+change. This is an approximate visual alignment, not a measured lens solution.
+
+The page saves this as the flagpole camera's default, while the inner-basin
+default remains 270° / 2° / 50°. Edits remain separate per camera during the page
+session; reloading returns to these defaults. The earlier owner feedback that a
+view looked close is not independent calibration evidence for either stream.
+
+The reference was inspected in the provider player at 1280×720; its exact capture
+time was not verified. No source frame was downloaded or bundled. Local model
+views at both the starting and refined settings were inspected at 1280×720.
+Building shapes/heights are simplified, and docks, flagpole, shelters and nearby
+waterfront details are missing or inaccurate. Do not fit those discrepancies by
+moving the camera or distorting the lens. Roll/distortion, independent control
+points and held-out residuals remain outstanding in #47.
+
 ## Possible uses for this project
 
 - **Manual visual comparison:** compare cloud appearance, visibility and lighting

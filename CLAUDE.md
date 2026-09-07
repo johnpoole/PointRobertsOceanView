@@ -2,6 +2,10 @@
 
 ## Deploy every change. Do not ask.
 
+John explicitly confirmed on 7 September 2026: "for this project you are always
+approved to commit, push, and deploy". This is standing authorization for future
+project changes, including pushing to main and deploying to the Basement server.
+
 A change is not finished when it is edited, and not when it is pushed. It is
 finished when it is running on the server. Commit, push, deploy, confirm — as
 the last step of the work, without being asked, every time.

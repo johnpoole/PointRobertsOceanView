@@ -10,10 +10,10 @@ body{font:16px system-ui,sans-serif;margin:0;background:#edf1f3;color:#162b35}ma
 <h1>Marina camera comparison</h1>
 <p>First pass from the shared camera position: <strong>48.97709213776401, −123.06334200875824</strong>, 12 feet above ground. The model samples ground at 4.9 m MLLW, putting the camera at 8.5576 m MLLW. This elevation is provisional.</p>
 <form id="settings">
-<label>Camera<select id="source"><option value="point-roberts_sw-view-CUST">First camera · sw-view</option><option value="point-roberts_prm-CUST">Second camera · prm</option></select></label>
-<label>Heading °<input id="heading" type="number" value="270" min="0" max="360" step="0.5" required></label>
+<label>Camera<select id="source"><option value="point-roberts_sw-view-CUST">Entrance channel · flagpole</option><option value="point-roberts_prm-CUST">Inner basin · prm</option></select></label>
+<label>Heading °<input id="heading" type="number" value="216" min="0" max="360" step="0.5" required></label>
 <label>Downward tilt °<input id="tilt" type="number" value="2" min="-3" max="80" step="0.5" required></label>
-<label>Vertical field of view °<input id="fov" type="number" value="50" min="5" max="120" step="0.5" required></label>
+<label>Vertical field of view °<input id="fov" type="number" value="52" min="5" max="120" step="0.5" required></label>
 <button>Apply view</button>
 </form>
 <p id="status" aria-live="polite"></p>
@@ -21,14 +21,18 @@ body{font:16px system-ui,sans-serif;margin:0;background:#edf1f3;color:#162b35}ma
 <section><h2>Webcam reference</h2><p>The provider refused an embedded player on this local page. <a id="webcam" target="_blank" rel="noopener">Open the selected webcam</a> beside this model to compare views.</p><label>Optional reference image from your computer<input id="reference-file" type="file" accept="image/*" style="width:auto"></label><img id="reference" alt="Selected webcam reference" hidden style="width:100%;margin-top:12px"><small>A selected image stays in this browser; it is not uploaded. Camera source: <a href="https://www.pointrobertsmarina.com/webcams/" target="_blank" rel="noopener">Point Roberts Marina</a>. Check preview/playback state and capture freshness in the player.</small></section>
 <section><h2>Rendered model</h2><iframe id="model" title="Rendered view from the marina camera position"></iframe><small><a id="open-model" target="_blank" rel="noopener">Open this model view</a>. Loading can take a minute or more. Local static previews show “feed offline”; compare geometry rather than weather or tide.</small></section>
 </div>
-<p>The initial 270° heading, 2° downward tilt and 50° vertical field of view are guesses, not calibration results. Adjust each camera separately. The model currently lacks the detailed docks and waterfront structures visible in the images; lens adjustments cannot correct missing geometry.</p>
+<p>The flagpole camera starts at a visual estimate of 216° heading, 2° downward tilt and 52° vertical field of view, refined from the supplied 210° heading. The inner-basin camera retains the 270° / 2° / 50° starting view. Adjust each camera separately; these are not independently validated calibrations. The model currently lacks the detailed docks and waterfront structures visible in the images; lens adjustments cannot correct missing geometry.</p>
 <p>Use fixed shore features to compare framing first. Camera position stays fixed when applying these controls; navigating inside the model can move it, so use <strong>Apply view</strong> to return to the supplied origin. Roll and distortion have not been fitted. Work tracked in <a href="https://github.com/johnpoole/PointRobertsOceanView/issues/47">#47</a>.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id);
 const lat=48.97709213776401,lon=-123.06334200875824,eye=8.5576;
 const metresPerLon=111320*Math.cos(48.989009*Math.PI/180);
-const presets=new Map(); let active=$('source').value;
+const presets=new Map([
+  ['point-roberts_sw-view-CUST',{heading:216,tilt:2,fov:52}],
+  ['point-roberts_prm-CUST',{heading:270,tilt:2,fov:50}]
+]); let active=$('source').value;
+function restore(){const v=presets.get(active);for(const k of ['heading','tilt','fov'])$(k).value=v[k];}
 function values(){return {heading:+$('heading').value,tilt:+$('tilt').value,fov:+$('fov').value};}
 function apply(){
   const v=values();presets.set(active,v);
@@ -59,9 +63,8 @@ $('reference-file').addEventListener('change',()=>{
 $('settings').addEventListener('submit',e=>{e.preventDefault();apply();});
 $('source').addEventListener('change',()=>{
   presets.set(active,values());active=$('source').value;
-  const v=presets.get(active)||{heading:270,tilt:2,fov:50};
-  for(const k of ['heading','tilt','fov'])$(k).value=v[k];source();apply();
+  restore();source();apply();
 });
-source();apply();
+restore();source();apply();
 </script>
 </html>
