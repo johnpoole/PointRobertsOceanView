@@ -216,7 +216,7 @@ site, and the two staff-report distances landing where the prose says.
 
 ## Who else is here
 
-Anyone else with the page open is a ball standing where they are. Their browser
+Anyone else with the page open is a low-poly avatar where they are. Their browser
 tells the server its position twice a second over the socket that was already
 open, the server sends the whole list round once a second, and each browser draws
 everyone but itself.
@@ -234,9 +234,16 @@ other browser, so a value that would stand a marker in orbit is dropped and the
 socket stays open — a browser with a bug is not a reason to hang up on it.
 
 One list a second against sixty frames a second, so nothing is drawn where the
-last message put it: each ball is eased toward where it was last said to be.
+last message put it: each avatar is eased toward where it was last said to be.
 The easing can only lag the truth, never lead it — nothing is extrapolated, so a
-ball never runs on past somebody who has stopped.
+visitor marker never runs on past somebody who has stopped.
+
+The generic head, torso, arms and legs share one merged 92-triangle geometry and
+one material in a single instanced draw call, capped at 64 visitors. No textures
+or skeleton animation are used. Feet are placed at transmitted eye height minus
+1.62 m, clamped to terrain; elevated viewpoints remain elevated. The figure faces
+the existing camera yaw, easing through the shortest turn. Self-exclusion and
+disconnected-visitor removal are unchanged. Issue #50.
 
 A backgrounded tab stops sending, because the browser stops giving it frames.
 Its marker stands still until the socket closes, which is right: they are still

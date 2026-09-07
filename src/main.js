@@ -227,7 +227,7 @@ let lot = null;
 let skylineTile = null;   // the Gulf Islands, so the far half of a frame lands too
 let brademy = null;      // the proposed courts. Off until asked for.
 let campground = null;   // the proposed campground off Dogwood Way. Off until asked for.
-let people = null;       // everyone else with the page open, as a ball each
+let people = null;       // everyone else with the page open, as simple avatars
 let breakers = null;     // the old Breakers block, on its own so it can stand down
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
@@ -315,7 +315,7 @@ stairSpec
     trees.update(camera);
     brademy = buildBrademy(scene, near.sample);
     campground = buildCampground(scene, parcel, near.sample, near.meta.box);
-    // Needs the sampler, because a ball stands on the ground rather than at the
+    // Needs the sampler, because an avatar stands on the ground rather than at the
     // eye height whoever it is happens to be looking from.
     people = buildPeople(scene, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
