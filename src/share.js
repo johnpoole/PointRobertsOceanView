@@ -49,7 +49,8 @@ export function viewHash(camera, extras = {}) {
   const eye = camera.position;
   const aim = _dir.multiplyScalar(AIM_M).add(eye);
   const parts = [`eye=${place(eye.x, eye.y, eye.z)}`,
-                 `aim=${place(aim.x, aim.y, aim.z)}`];
+                 `aim=${place(aim.x, aim.y, aim.z)}`,
+                 `fov=${camera.fov.toFixed(3)}`];
   // A switch carries as k=1. Anything else carries its own value, which is how
   // the clock rides along: it is an hour, not an on.
   for (const [k, v] of Object.entries(extras)) {
@@ -72,8 +73,11 @@ export function readViewHash(hash) {
   const eye = readPlace(got.eye);
   const aim = readPlace(got.aim);
   if (!eye || !aim) return null;
+  const fov = Number(got.fov);
   return {
     eye, aim,
+    // Vertical degrees; old links retain the default lens. Ignore invalid values.
+    fov: Number.isFinite(fov) && fov >= 5 && fov <= 120 ? fov : null,
     brademy: got.brademy === "1",
     campground: got.campground === "1",
     pavilion: got.pavilion === "1",

@@ -68,6 +68,7 @@ const scene = new THREE.Scene();
 // the islands and mountains across the strait read at the height they feel.
 // Live mode takes the phone's lens instead — see applyFov.
 const LOOK_FOV_DEG = 25;
+let lookFov = LOOK_FOV_DEG;
 const camera = new THREE.PerspectiveCamera(
   LOOK_FOV_DEG, window.innerWidth / window.innerHeight, 1, 150000);
 camera.position.set(0, EYE_HEIGHT_M, 0);
@@ -855,7 +856,7 @@ function updateHover() {
 // so what is on the glass is what the lens behind it would take.
 const PHONE_LONG_FOV_DEG = 69.4;
 function applyFov() {
-  let fov = LOOK_FOV_DEG;
+  let fov = lookFov;
   if (wyzeView) fov = WYZE_FOV_DEG;
   if (nav.mode === "live") {
     const long = (PHONE_LONG_FOV_DEG * Math.PI) / 180;
@@ -1091,6 +1092,7 @@ function vehicleHint(spec) {
 // looking due west. toOrbit aims the target down the current view, so the
 // position and the target are set after it, not before.
 function toBluff() {
+  lookFov = LOOK_FOV_DEG;
   leaveWyze();
   nav.toOrbit();
   camera.position.set(0, EYE_HEIGHT_M, 0);
@@ -1480,6 +1482,8 @@ function toMapView() {
 const shared = readViewHash(location.hash);
 function toShared() {
   nav.toOrbit();
+  lookFov = shared.fov ?? LOOK_FOV_DEG;
+  applyFov();
   camera.position.copy(shared.eye);
   controls.target.copy(shared.aim);
   controls.update();

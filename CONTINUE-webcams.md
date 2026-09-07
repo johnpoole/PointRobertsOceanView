@@ -67,6 +67,48 @@ The [OpenCV camera calibration documentation](https://docs.opencv.org/4.x/d9/d0c
 describes the camera intrinsics, pose and distortion model underlying this approach.
 No heading, tilt, roll, field of view or distortion has been solved yet.
 
+## First camera-to-model comparison — 7 September 2026
+
+Issue [#47](https://github.com/johnpoole/PointRobertsOceanView/issues/47) now tracks
+calibration separately from the integration decision. Start the comparison at
+`/renders/marina-comparison.html` on the application server. The comparison page
+is included in the deployment image, and saved-view links preserve vertical FOV.
+John explicitly approved committing and deploying this first comparison.
+
+The near terrain's bilinear sample at the supplied origin is 4.9 m MLLW, yielding
+an initial eye elevation of 8.5576 m MLLW. This uses the existing terrain; it does
+not independently verify ground or mounting height.
+
+The initial deployed-model view used heading 270°, downward tilt about 6.65° and
+the default vertical FOV of 25° (about 43.0° horizontal at 16:9). It was visibly
+too tight relative to the first webcam. A local view at the same origin, heading
+270°, downward tilt 2° and vertical FOV 50° (79.3° horizontal) gives a wider
+starting comparison. All aim and lens numbers are guesses, not fitted results.
+
+Observed in browser views around 08:48–08:52 Pacific:
+
+- The first webcam shows the entrance channel, opposite-shore buildings and
+  foreground dock structures. The second player's preview shows more of the
+  inner basin. They require separate aim settings.
+- Opposite-shore buildings sit farther right in the first webcam than in the
+  due-west model view. Turning the model toward the southwest is the next visual
+  trial, not a measured heading correction.
+- The model has simplified building blocks and lacks detailed marina docks,
+  pilings and waterfront structures. These differences must not be absorbed into
+  lens or camera-position adjustments.
+- The local static preview has no live-feed backend and shows an offline notice.
+  This comparison addresses geometry and framing, not matched weather, tide or
+  exposure. The second camera was a player preview; capture freshness was not
+  independently established.
+
+The comparison page holds position fixed while heading, downward tilt and vertical
+FOV can be adjusted separately for each camera. Apply view reloads the model at
+that origin. Shared view links now carry vertical FOV; old links keep the default.
+Use a 16:9 viewport for the stated horizontal FOV. Provider embedding was refused
+on localhost, so the page links to each provider player in a separate tab; it can
+also display a local reference image without uploading it. No player restriction
+was bypassed and no camera imagery was bundled.
+
 ## Possible uses for this project
 
 - **Manual visual comparison:** compare cloud appearance, visibility and lighting

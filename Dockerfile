@@ -15,6 +15,7 @@ COPY server ./server
 COPY src ./src
 COPY assets ./assets
 COPY index.html styles.css favicon.svg ./
+COPY renders/marina-comparison.html ./renders/marina-comparison.html
 
 EXPOSE 8080
 
