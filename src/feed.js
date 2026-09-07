@@ -84,10 +84,10 @@ export class Feed {
   // Where this browser is standing, for everyone else's screen. Dropped on the
   // floor when the socket is not open: this is a nicety and it must never be the
   // thing that throws in the render loop.
-  here(lat, lon, y, heading) {
+  here(lat, lon, y, heading, mode, body) {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
     try {
-      this._ws.send(JSON.stringify({ type: "here", lat, lon, y, heading }));
+      this._ws.send(JSON.stringify({ type: "here", lat, lon, y, heading, mode, body }));
     } catch (err) {
       /* the socket is going; onclose will deal with it */
     }

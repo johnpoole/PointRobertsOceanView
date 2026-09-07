@@ -57,6 +57,32 @@ def test_a_heading_comes_back_inside_the_circle() -> None:
     assert at["heading"] == 270.0, at
 
 
+def test_travel_modes_keep_body_separate_from_camera() -> None:
+    for mode in ("walk", "bike", "cart", "boat", "ultralight"):
+        body = {"lat": 48.98, "lon": -123.08, "y": 1.2,
+                "heading": -90, "pitch": 12.345, "roll": -23.456,
+                "ip": "203.0.113.9", "name": "private", "body": {"ignored": True}}
+        at = proxy.read_position(json.dumps({**HERE, "mode": mode, "body": body}))
+        assert at["y"] == HERE["y"] and at["heading"] == HERE["heading"]
+        assert at["mode"] == mode
+        assert at["body"] == {"lat": 48.98, "lon": -123.08, "y": 1.2,
+                              "heading": 270.0, "pitch": 12.3, "roll": -23.5}
+
+
+def test_invalid_travel_metadata_falls_back_without_losing_viewpoint() -> None:
+    for mode in ("unknown", [], {}, 1, None):
+        at = proxy.read_position(json.dumps({**HERE, "mode": mode, "body": HERE}))
+        assert "mode" not in at and "body" not in at
+    for patch in ({"lat": 91}, {"lon": float("nan")}, {"y": 1e9},
+                  {"heading": float("inf")}, {"pitch": 181}, {"roll": -181},
+                  {"pitch": []}, {"roll": float("nan")}):
+        at = proxy.read_position(json.dumps({**HERE, "mode": "boat", "body": {**HERE, **patch}}))
+        assert at["lat"] == HERE["lat"] and "body" not in at
+    for mode in ("orbit", "fly", "live"):
+        at = proxy.read_position(json.dumps({**HERE, "mode": mode, "body": HERE}))
+        assert at["mode"] == mode and "body" not in at
+
+
 def test_rubbish_is_dropped_rather_than_passed_on() -> None:
     # This is the only path on the site that takes a number from a browser and
     # hands it to every other browser, so each of these is a marker that would

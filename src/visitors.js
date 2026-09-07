@@ -1,13 +1,18 @@
 import { fromWorld, toWorld } from "./geo.js";
 
+const MODE_LABELS = { walk: "walking", bike: "bicycle", cart: "golf cart",
+  boat: "boat", ultralight: "ultralight", orbit: "looking around", fly: "flying", live: "live view" };
+
 // Stand behind the avatar, looking at its torso. Presence heading is camera
 // yaw (positive toward west), rather than a compass bearing.
 export function visitorView(at, sample = () => 0) {
-  const p = toWorld(at.lat, at.lon, at.y);
-  const feet = Math.max(p.y - 1.62, sample(at.lat, at.lon));
-  const yaw = at.heading * Math.PI / 180;
-  const eye = { x: p.x + Math.sin(yaw) * 6, y: feet + 3,
-                z: p.z + Math.cos(yaw) * 6 };
+  const pose = at.body || at;
+  const p = toWorld(pose.lat, pose.lon, pose.y);
+  const feet = at.body ? p.y : Math.max(p.y - 1.62, sample(at.lat, at.lon));
+  const yaw = pose.heading * Math.PI / 180;
+  const range = at.body && at.mode === "ultralight" ? 12 : 6;
+  const eye = { x: p.x + Math.sin(yaw) * range, y: feet + 3,
+                z: p.z + Math.cos(yaw) * range };
   const ll = fromWorld(eye.x, eye.z);
   eye.y = Math.max(eye.y, sample(ll.lat, ll.lon) + 1.62);
   return { eye, aim: { x: p.x, y: feet + 1, z: p.z } };
@@ -82,9 +87,11 @@ export class VisitorList {
         });
         el.append(name, distance, button);
         this.list.append(el);
-        row = { el, distance };
+        row = { el, distance, name, label };
         this.rows.set(id, row);
       }
+      const mode = MODE_LABELS[at.mode];
+      row.name.textContent = mode ? `${row.label} · ${mode}` : row.label;
       const p = toWorld(at.lat, at.lon, at.y);
       const d = Math.hypot(p.x - this.camera.position.x, p.y - this.camera.position.y,
                            p.z - this.camera.position.z);

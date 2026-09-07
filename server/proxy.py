@@ -357,6 +357,26 @@ def read_position(text: str) -> dict | None:
         return None
     if not isinstance(msg, dict) or msg.get("type") != "here":
         return None
+    at = _presence_pose(msg)
+    if at is None:
+        return None
+    mode = msg.get("mode")
+    if isinstance(mode, str) and mode in {"orbit", "fly", "live", "walk", "bike", "cart", "boat", "ultralight"}:
+        at["mode"] = mode
+        body = msg.get("body")
+        if mode in {"walk", "bike", "cart", "boat", "ultralight"} and isinstance(body, dict):
+            pose = _presence_pose(body)
+            try:
+                pitch, roll = float(body.get("pitch", 0)), float(body.get("roll", 0))
+            except (TypeError, ValueError):
+                pitch = roll = float("nan")
+            if pose is not None and -180 <= pitch <= 180 and -180 <= roll <= 180:
+                at["body"] = {**pose, "pitch": round(pitch, 1), "roll": round(roll, 1)}
+    return at
+
+
+def _presence_pose(msg: dict) -> dict | None:
+    """Copy only finite, bounded pose fields; never forward arbitrary metadata."""
     try:
         lat = float(msg["lat"])
         lon = float(msg["lon"])

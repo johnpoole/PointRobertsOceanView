@@ -238,17 +238,25 @@ last message put it: each avatar is eased toward where it was last said to be.
 The easing can only lag the truth, never lead it — nothing is extrapolated, so a
 visitor marker never runs on past somebody who has stopped.
 
-The generic head, torso, arms and legs share one merged 92-triangle geometry and
-one material in a single instanced draw call, capped at 64 visitors. No textures
-or skeleton animation are used. Feet are placed at transmitted eye height minus
-1.62 m, clamped to terrain; elevated viewpoints remain elevated. The figure faces
-the existing camera yaw, easing through the shortest turn. Self-exclusion and
-disconnected-visitor removal are unchanged. Issue #50.
+The generic head, torso, arms and legs share one merged 92-triangle geometry.
+Walking uses that figure; bicycles, golf carts, boats and ultralights use their
+vehicle models with riders (issue #52). The existing vehicle geometry is baked
+once per type into an instanced mesh, sharing one material across the five types,
+with a total cap of 64 visitors. No textures or skeleton animation are used.
+Boat drivers are seated at the helm; the ultralight's translucent prop disk is
+omitted. Vehicle body position, yaw, pitch and roll travel separately from camera
+pose, so turning the driver's head cannot rotate or displace the vehicle.
+The server allowlists modes and sanitizes every pose field. Legacy clients and
+look-around, free-flight and live viewpoints retain the person avatar at eye
+height minus 1.62 m, clamped to terrain. Motion and rotations ease between updates;
+mode changes snap to the new model without duplicates. Self-exclusion and
+disconnected-visitor removal are unchanged. Original person geometry: issue #50.
 
 The Visitors button beside the menu opens an anonymous list with distance and
 Go to buttons (issue #51). Each open tab is a viewpoint, excluding your own.
-Labels stay stable for each connection while listed. Go to uses the latest
-position, places you 6 m behind the avatar looking at its torso, and switches to
+Labels stay stable for each connection while listed, and show the travel mode.
+Go to uses the latest body pose when available, otherwise the camera position,
+places you 6 m behind the avatar (12 m for an ultralight), and switches to
 look-around mode. It does not follow subsequent movement. Terrain keeps the new
 eye above ground; buildings are not collision-tested. The list matches the
 64-avatar render limit, reports any excess, and clears on disconnect. It uses

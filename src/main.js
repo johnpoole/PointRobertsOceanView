@@ -23,6 +23,7 @@ import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCampground } from "./scene/campground.js";
 import { buildPeople } from "./scene/people.js";
 import { VisitorList, visitorView } from "./visitors.js";
+import { travelPresence } from "./presence.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
@@ -1800,8 +1801,10 @@ function frame() {
       const eye = camera.position;
       const { lat, lon } = fromWorld(eye.x, eye.z);
       camera.getWorldDirection(lookDir);
+      const travel = travelPresence(nav);
       feed.here(lat, lon, eye.y,
-                (Math.atan2(-lookDir.x, -lookDir.z) * 180) / Math.PI);
+                (Math.atan2(-lookDir.x, -lookDir.z) * 180) / Math.PI,
+                travel.mode, travel.body);
     }
     people.update(feed.presence, dt);
   }
