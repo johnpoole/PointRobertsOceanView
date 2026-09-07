@@ -341,6 +341,13 @@ bytes and their draw calls when visible are 4 / 10. Local median construction
 over ten warmed runs was 0.82 / 26.34 ms; these are marina-only measurements,
 not a whole-page load benchmark or a measured improvement on a phone.
 
+Kiniski's Reef is the second area using this lifecycle (issue #54), with
+220 / 350 m proximity thresholds and the same projected-size and cache rules.
+Its named OSM block is replaced by the mapped stepped building, frontage and
+waterfront patio. See [CONTINUE-reef.md](CONTINUE-reef.md) for sources, estimates,
+the view link and checks. The close-up Reef module and its sign texture load
+only when needed; Breakers and the proposed Brademy are unchanged.
+
 ## Layout
 
 ```

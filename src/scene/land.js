@@ -408,7 +408,7 @@ export async function buildLand(scene, sample, opts = {}) {
   // One mesh each, because each carries its own name on hover.
   const placeMeshes = [];
   for (const b of data.buildings) {
-    if (!b.name) continue;
+    if (!b.name || opts.skipBuilding?.(b)) continue;
     const geom = buildings([b], sample);
     if (!geom) continue;
     const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
