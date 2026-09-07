@@ -137,6 +137,63 @@ waterfront details are missing or inaccurate. Do not fit those discrepancies by
 moving the camera or distorting the lens. Roll/distortion, independent control
 points and held-out residuals remain outstanding in #47.
 
+## Marina structures from the references — 7 September 2026
+
+[Issue #48](https://github.com/johnpoole/PointRobertsOceanView/issues/48) tracks
+the first marina structure pass, implemented in `src/scene/marina.js` and built
+after the near terrain loads. The webcams supply appearance; the
+[Whatcom County 2022 aerial service](https://gis.whatcomcounty.us/arcgis/rest/services/Imagery/2022_WhatcomAerialImagery_Web/MapServer)
+supplies approximate plan placement. The aerial is historical, not proof of the
+current configuration. Source images are not bundled or used as textures.
+
+| Structure / anchor | Latitude, longitude | Modeled dimensions and detail (estimated) |
+| --- | --- | --- |
+| Flagpole base | 48.97680028, -123.06330009 | 13 m mast; static 1.85 × 0.98 m flag, not a wind feed |
+| Open shelter | 48.97700763, -123.06348424 | 5 × 5 m frame, 2.5 m eaves, 0.65 m roof rise; open posts and braces |
+| White dock hut | 48.97681698, -123.06359653 | 2.8 × 3.4 m, 2.5 m walls, 0.5 m roof rise; pale casings, glazing, red side door |
+| Fixed pier shore end | 48.97684450, -123.06362198 | 251° seaward axis; 3.2 × 10 m stem and 9 × 7 m head; timber joints, rails, piles and bracing |
+| Floating walkway south end | 48.97687987, -123.06388399 | 2.2 m wide, connected to the pier by a 1.5 m gangway |
+| Floating walkway north end | 48.97726313, -123.06429422 | Branch to the fuel platform; guide piles alongside the walkway |
+| Blue dock hut / platform | 48.97713145, -123.06447987 | 3.4 × 3.6 m hut, 2.5 m walls, 0.5 m roof rise; approximate 7 × 6 m platform |
+
+These coordinates were read from a north-up county image in EPSG:3857, exported
+at 1200 × 1200 with extent `[-13699528.567733439, 6270815.30258366,
+-13699288.567733439, 6271055.30258366]`. The lawn/pier detail used 720 × 720 and
+extent `[-13699453.567733439, 6270880.30258366, -13699333.567733439,
+6271000.30258366]`. Approximate detail-image pixels (from image origin, excluding
+browser margins) were shelter (535,236), hut (460,430), flagpole base (658,447),
+and pier shore end (443,402). The number of coordinate decimals is for stable
+placement, not survey accuracy. Allow several metres for interpretation and
+historical change; heights and small details are visual estimates. Fuel-platform
+outline, guide-pile spacing and under-pier bracing are simplified.
+
+The fixed pier deck uses ground sampled at its shore end plus 0.12 m (about
+4.12 m MLLW). The shelter and flagpole stand on terrain. Floating decks and the
+blue hut follow the existing tide level with 0.55 m freeboard; guide-pile tops
+stay at an estimated 6 m MLLW. The gangway joins the fixed and floating endpoints
+as tide changes. Static local previews lack a tide feed, so their chart-datum
+waterline can expose or ground part of a dock against the coarse terrain.
+
+One old baked building trace starts at 48.9770208, -123.0642513 and draws a solid
+block over water beside the walkway. The county aerial and current reference
+views show no such enclosed building. `obsoleteMarinaBlock` excludes only that
+exact footprint from generic rendering; the source asset is retained. The
+restaurant and other footprints are unchanged.
+
+Both camera renders were inspected. The details expose a remaining discrepancy:
+the mapped shelter appears higher in the image than in the webcam and the
+flagpole sits too far left with the current entrance preset. Keep those map
+anchors rather than moving objects to hide errors in camera origin, height,
+heading or optics. Recheck those camera inputs in #47. These approximate models
+are not independent calibration controls. The remaining berth rows, floating
+boats, second foreground shelter and rack-like basin structure were not inferred
+into this first pass.
+
+Geometry checks with the project's Three.js r160 verified finite positions and
+normals, an open shelter, mast height, a fixed pier, 0.55 m float freeboard and
+both gangway endpoints at tides -0.5, 0 and 3.5 m MLLW. The additions are eight
+merged meshes, approximately 3,500 triangles.
+
 ## Possible uses for this project
 
 - **Manual visual comparison:** compare cloud appearance, visibility and lighting

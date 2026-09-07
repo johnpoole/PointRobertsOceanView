@@ -384,7 +384,7 @@ export async function buildLand(scene, sample, opts = {}) {
   // on their own so they can be told apart from the four thousand others.
   const plainMat = new THREE.MeshStandardMaterial({
     color: 0xa7a396, roughness: 0.9, metalness: 0 });
-  const plain = data.buildings.filter((b) => !b.home && !b.name);
+  const plain = data.buildings.filter((b) => !b.home && !b.name && !opts.skipBuilding?.(b));
   const bgeom = buildings(plain.filter((b) => !isolate(b)), sample);
   if (bgeom) scene.add(new THREE.Mesh(bgeom, plainMat));
 

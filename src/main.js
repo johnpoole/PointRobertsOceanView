@@ -25,6 +25,7 @@ import { buildPeople } from "./scene/people.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
+import { buildMarina, obsoleteMarinaBlock } from "./scene/marina.js";
 import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -231,6 +232,7 @@ let breakers = null;     // the old Breakers block, on its own so it can stand d
 let drift = null;        // kelp, sticks and foam, so the current can be seen
 let orcas = null;        // a group passing, at the rate the season says
 let lighthouse = null;   // the light on the point, and its flash
+let marina = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
 // in Washington South and the corners of a lat/lon box round it hold no lidar.
 // Asked one coarse cell out on all sides as well, so the coarse tile keeps
@@ -325,6 +327,7 @@ stairSpec
     // channel stairCarve cut for it above: see stair.js.
     if (stair) buildStair(scene, stair, near.projector);
     lighthouse = buildLighthouse(scene, near.sample);
+    marina = buildMarina(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
@@ -334,6 +337,7 @@ stairSpec
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
+      skipBuilding: obsoleteMarinaBlock,
     }).then((land) => {
       landmarkPicks = land.landmarks;
       pilingPosts = land.pilings;
@@ -1742,6 +1746,7 @@ function frame() {
   const night = 1 - weather.dayFactor;
   vessels.update(feed, level, t, camera, night);
   if (lighthouse) lighthouse.update(t, night);
+  if (marina) marina.update(level);
   if (pavilion) pavilion.update(night);
   aircraft.update(feed, t, camera);
   updateHover();
