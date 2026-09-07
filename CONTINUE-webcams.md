@@ -149,7 +149,7 @@ current configuration. Source images are not bundled or used as textures.
 | Structure / anchor | Latitude, longitude | Modeled dimensions and detail (estimated) |
 | --- | --- | --- |
 | Flagpole base | 48.97680028, -123.06330009 | 13 m mast; static 1.85 × 0.98 m flag, not a wind feed |
-| Open shelter | 48.97700763, -123.06348424 | 5 × 5 m frame, 2.5 m eaves, 0.65 m roof rise; open posts and braces |
+| Open shelter | 48.97700763, -123.06348424 | 5 × 5 m frame; single roof plane, high south / low north; 2.5 m low edge and 0.65 m rise estimated; open posts and braces |
 | White dock hut | 48.97681698, -123.06359653 | 2.8 × 3.4 m, 2.5 m walls, 0.5 m roof rise; pale casings, glazing, red side door |
 | Fixed pier shore end | 48.97684450, -123.06362198 | 251° seaward axis; 3.2 × 10 m stem and 9 × 7 m head; timber joints, rails, piles and bracing |
 | Floating walkway south end | 48.97687987, -123.06388399 | 2.2 m wide, connected to the pier by a 1.5 m gangway |
@@ -166,6 +166,12 @@ and pier shore end (443,402). The number of coordinate decimals is for stable
 placement, not survey accuracy. Allow several metres for interpretation and
 historical change; heights and small details are visual estimates. Fuel-platform
 outline, guide-pile spacing and under-pier bracing are simplified.
+
+John corrected the shelter roof on 7 September 2026: it has one slope, higher
+at the south end and falling toward the north. The original gable was replaced
+with a single panel; seams, beams, braces and post heights follow that plane.
+The slope uses geographic south after the footprint rotation. Roof form and
+direction are owner-confirmed; its heights and pitch remain estimates.
 
 The fixed pier deck uses ground sampled at its shore end plus 0.12 m (about
 4.12 m MLLW). The shelter and flagpole stand on terrain. Floating decks and the

@@ -85,14 +85,32 @@ export function buildMarina(scene, sample) {
   const ground = at => sample(...at);
   const shelter = anchor(root,MARINA.shelter,ground(MARINA.shelter),160,'marina-open-shelter');
   const parts = [];
-  const w = 5.0, d = 5.0, eaves = 2.5;
+  const w = 5.0, d = 5.0;
+  // John confirmed one plane, high at the south and low at the north.
+  // Use world south (+Z), accounting for the footprint's 160-degree rotation.
+  // The 2.5 m low edge and 0.65 m rise remain visual estimates.
+  const yaw=shelter.rotation.y;
+  const south=(x,z)=>-Math.sin(yaw)*x+Math.cos(yaw)*z;
+  const halfSpan=(Math.abs(Math.sin(yaw))*w+Math.abs(Math.cos(yaw))*d)/2;
+  const height=(x,z)=>2.5+0.65*(south(x,z)+halfSpan)/(2*halfSpan);
   for (const x of [-w/2,w/2]) for (const z of [-d/2,d/2]) {
-    parts.push(box(0.18,0.18,eaves,x,0,z,WOOD));
-    parts.push(beam([x,1.65,z],[x-Math.sign(x)*0.7,eaves,z],0.12,WOOD));
+    const top=height(x,z)-0.08, inner=x-Math.sign(x)*0.7;
+    parts.push(box(0.18,0.18,top,x,0,z,WOOD));
+    parts.push(beam([x,top-0.8,z],[inner,height(inner,z)-0.17,z],0.12,WOOD));
   }
-  for (const x of [-w/2,w/2]) parts.push(box(0.18,d,0.18,x,eaves-0.18,0,WOOD));
-  for (const z of [-d/2,d/2]) parts.push(box(w,0.18,0.18,0,eaves-0.18,z,WOOD));
-  roof(parts,w,d,eaves,0.65);
+  for (const x of [-w/2,w/2]) parts.push(beam(
+    [x,height(x,-d/2)-0.17,-d/2],[x,height(x,d/2)-0.17,d/2],0.18,WOOD));
+  for (const z of [-d/2,d/2]) parts.push(beam(
+    [-w/2,height(-w/2,z)-0.17,z],[w/2,height(w/2,z)-0.17,z],0.18,WOOD));
+  const panel=new THREE.BoxGeometry(w+0.5,0.08,d+0.5);
+  const vertices=panel.attributes.position;
+  for(let i=0;i<vertices.count;i++) vertices.setY(i,
+    vertices.getY(i)+height(vertices.getX(i),vertices.getZ(i))-0.04);
+  panel.computeVertexNormals();
+  parts.push(tint(panel,ROOF));
+  for(let x=-w/2-0.2;x<=w/2+0.2;x+=0.35) parts.push(beam(
+    [x,height(x,-d/2-0.25)+0.02,-d/2-0.25],
+    [x,height(x,d/2+0.25)+0.02,d/2+0.25],0.025,DARK));
   merge(parts,shelter,'marina-shelter-frame-and-roof');
 
   const pole = anchor(root,MARINA.flagpole,ground(MARINA.flagpole),0,'marina-flagpole');
