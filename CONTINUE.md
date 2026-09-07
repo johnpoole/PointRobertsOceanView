@@ -430,6 +430,13 @@ The stated tower height remains 25 ft. Other sizes and the four-face marker arra
 and compass orientation are visual approximations. The images are reference only; no
 blog photographs are bundled in the application. The corrected position and flash timing remain.
 
+## External webcam reference
+
+John supplied the [Point Roberts Marina webcams](https://www.pointrobertsmarina.com/webcams/)
+on 6 September 2026. [CONTINUE-webcams.md](CONTINUE-webcams.md) records the two
+HDOnTap players, observed availability, possible uses and unresolved calibration/access
+questions. This is a documented source for future consideration, not an active feed.
+
 ## Border crossings
 
 Point Roberts can only be reached by driving through Canada, so its trade is Canadians coming down
