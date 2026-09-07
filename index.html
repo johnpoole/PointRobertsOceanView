@@ -58,6 +58,15 @@
 
   <!-- Hamburger: mobile-only toggle to show/hide HUD panels -->
   <button id="hamburger" class="hamburger" aria-label="Toggle panels">☰</button>
+  <button id="visitors-btn" class="visitors-btn" aria-expanded="false" aria-controls="visitors">Visitors</button>
+  <section id="visitors" class="visitors hidden" aria-labelledby="visitors-title">
+    <div class="track-head">
+      <span id="visitors-title" class="track-title">Visitors</span>
+      <button id="visitors-close" class="track-close" aria-label="Close visitors">×</button>
+    </div>
+    <p id="visitors-status" role="status"></p>
+    <ul id="visitors-rows"></ul>
+  </section>
 
   <!-- Top-left: site + connection + provider health -->
   <div class="hud hud-tl">

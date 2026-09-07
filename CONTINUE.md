@@ -245,6 +245,15 @@ or skeleton animation are used. Feet are placed at transmitted eye height minus
 the existing camera yaw, easing through the shortest turn. Self-exclusion and
 disconnected-visitor removal are unchanged. Issue #50.
 
+The Visitors button beside the menu opens an anonymous list with distance and
+Go to buttons (issue #51). Each open tab is a viewpoint, excluding your own.
+Labels stay stable for each connection while listed. Go to uses the latest
+position, places you 6 m behind the avatar looking at its torso, and switches to
+look-around mode. It does not follow subsequent movement. Terrain keeps the new
+eye above ground; buildings are not collision-tested. The list matches the
+64-avatar render limit, reports any excess, and clears on disconnect. It uses
+only the public presence feed, never the admin visitor history.
+
 A backgrounded tab stops sending, because the browser stops giving it frames.
 Its marker stands still until the socket closes, which is right: they are still
 there, they have just stopped moving.

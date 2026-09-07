@@ -471,6 +471,29 @@ body.hud-visible .clock:not(.hidden) { display: flex; }
   -webkit-backdrop-filter: blur(6px);
 }
 .hud { display: none; }
+.visitors-btn {
+  position: fixed; top: 8px; left: 60px; z-index: 1000;
+  min-height: 44px; padding: 8px 12px; font: inherit;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--edge);
+  border-radius: 6px; cursor: pointer; backdrop-filter: blur(6px);
+}
+.visitors {
+  position: fixed; top: 60px; left: 8px; z-index: 1001;
+  width: 330px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 76px);
+  display: flex; flex-direction: column; padding: 12px;
+  background: rgba(8, 16, 24, 0.96); border: 1px solid var(--edge); border-radius: 8px;
+}
+.visitors .track-close { min-width: 44px; min-height: 44px; }
+#visitors-status { margin: 0 0 10px; color: var(--dim); }
+#visitors-rows { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+#visitors-rows li { display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--edge); }
+#visitors-rows li > :first-child { flex: 1; }
+#visitors-rows button {
+  min-height: 44px; padding: 6px 10px; margin: 4px 0; font: inherit;
+  color: var(--ink); background: rgba(150, 190, 220, 0.12);
+  border: 1px solid var(--edge); border-radius: 5px; cursor: pointer;
+}
+.visitors button:hover, .visitors-btn:hover { background: rgba(80, 140, 180, 0.5); }
 /* Not the .hidden ones. The helm readout is a .hud and is hidden unless you are
    in the boat, and an unqualified reveal put a panel of dashes on the screen. */
 body.hud-visible .hud:not(.hidden) { display: block; }

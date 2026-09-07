@@ -22,6 +22,7 @@ import { buildTrees } from "./scene/trees.js";
 import { buildBrademy, isBreakers } from "./scene/brademy.js";
 import { buildCampground } from "./scene/campground.js";
 import { buildPeople } from "./scene/people.js";
+import { VisitorList, visitorView } from "./visitors.js";
 import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
@@ -1493,6 +1494,24 @@ function toShared() {
   controls.update();
 }
 if (shared) toShared();
+
+new VisitorList(feed, camera, at => {
+  const view = visitorView(at, groundSample || undefined);
+  leaveWyze();
+  setGyro(false);
+  nav.toOrbit();
+  chooser.classList.add("hidden");
+  lookFov = LOOK_FOV_DEG;
+  applyFov();
+  // Clear any old orbit damping before applying the new viewpoint.
+  const damping = controls.enableDamping;
+  controls.enableDamping = false;
+  controls.update();
+  camera.position.copy(view.eye);
+  controls.target.copy(view.aim);
+  controls.update();
+  controls.enableDamping = damping;
+});
 
 // Everything that travels needs to know where the ground is: a boat to float and
 // run aground, a cart and a pair of feet to stay on it. Without the terrain they
