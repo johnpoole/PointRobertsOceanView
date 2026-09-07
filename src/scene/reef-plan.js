@@ -14,6 +14,7 @@ export const REEF = {
   roofVents: [[549,300],[577,325],[579,381],[624,357],[665,315],[716,362],[748,327]],
   tables: [[494,328],[510,344],[503,365],[489,387]],
   fence: [[375,405],[514,405]],
+  sign: [599,544], // Roadside post in the aerial; cabinet runs north–south.
   seaEdge: [[359,209],[365,306],[376,405],[387,452],[411,558],[420,590]],
 };
 export function reefLatLon(px,py) {

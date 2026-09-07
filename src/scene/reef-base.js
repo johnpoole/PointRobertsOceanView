@@ -4,6 +4,7 @@ import { box, tint } from "./parts.js";
 import { fromWorld } from "../geo.js";
 import { REEF, reefPoint, reefFootprints } from "./reef-plan.js";
 import { disposeArea } from "./area-view.js";
+import { reefSignParts, positionReefSign } from "./reef-sign.js";
 
 export function reefMerge(parts,parent,name) {
   const geometry=mergeGeometries(parts,false);for(const p of parts)p.dispose();
@@ -57,6 +58,9 @@ export function buildReefBase(scene,sample) {
   const fence=REEF.fence.map(p=>reefPoint(...p));
   const fenceY=Math.max(...fence.map(p=>reefHeight(sample,p)));
   reefMerge([reefBeam(...fence,.12,1.4,fenceY,0x9e5a32)],group,"reef-patio-fence");
+  const roadsideSign=new THREE.Group();roadsideSign.name="reef-roadside-sign";
+  reefMerge(reefSignParts(),roadsideSign,"reef-sign-cabinet-post-base");
+  positionReefSign(roadsideSign,reefHeight(sample,reefPoint(...REEF.sign))+.06);group.add(roadsideSign);
   scene.add(group);
   return {group,floor,building,rings,update(){},dispose:()=>disposeArea(group)};
 }

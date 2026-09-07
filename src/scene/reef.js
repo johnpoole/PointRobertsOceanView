@@ -87,5 +87,29 @@ export function buildReef(scene,sample) {
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
   const sign=new THREE.Mesh(new THREE.PlaneGeometry(14,.55),new THREE.MeshStandardMaterial({map:texture,roughness:.9}));
   const p=reefPoint(678,459);sign.position.set(p.x,floor+3.14,p.z+.075);group.add(sign);
+  // Locally drawn approximation of the roadside script, shared by both faces.
+  // Separate front-facing planes keep the lettering readable from either direction.
+  const logo=document.createElement("canvas");logo.width=512;logo.height=256;
+  const ink=logo.getContext("2d");ink.lineJoin="round";ink.lineCap="round";
+  const reefLettering=()=>{
+    ink.beginPath();ink.moveTo(74,17);ink.lineTo(63,168);
+    ink.moveTo(35,34);ink.bezierCurveTo(242,40,197,120,70,91);
+    ink.moveTo(79,96);ink.lineTo(191,177);ink.stroke();
+    ink.font="italic 146px Georgia, serif";ink.strokeText("eef",174,171);
+  };
+  ink.strokeStyle="#302d29";ink.lineWidth=13;reefLettering();
+  ink.strokeStyle="#b44149";ink.lineWidth=5;reefLettering();
+  ink.font="bold 45px Georgia, serif";ink.textAlign="center";
+  ink.strokeStyle="#3c3a35";ink.lineWidth=5;ink.strokeText("TAVERN",256,238);
+  ink.fillStyle="#f0eee0";ink.fillText("TAVERN",256,238);
+  const logoTexture=new THREE.CanvasTexture(logo);logoTexture.colorSpace=THREE.SRGBColorSpace;
+  const logoMaterial=new THREE.MeshStandardMaterial({map:logoTexture,transparent:true,alphaTest:.1,roughness:.85});
+  const logoGeometry=new THREE.PlaneGeometry(3.8,1.90);
+  const roadside=group.getObjectByName("reef-roadside-sign");
+  for(const side of [-1,1]) {
+    const face=new THREE.Mesh(logoGeometry,logoMaterial);face.name=side===1?"reef-sign-east-lettering":"reef-sign-west-lettering";
+    face.position.set(0,4.91,side*.162);face.rotation.y=side===1?0:Math.PI;roadside.add(face);
+    if(side===-1){face.scale.setScalar(.9);face.position.y=4.80;} // Fit below the reversed slope.
+  }
   return model;
 }

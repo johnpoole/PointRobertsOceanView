@@ -74,10 +74,10 @@ model, a 30-second inactive cache, current-view evaluation and resource
 disposal. Proximity thresholds are 220 / 350 m; projected-size thresholds are
 the shared 180 / 120 CSS pixels. Main startup loads `reef-base.js`, while
 `reef.js` is dynamically imported. The marina retains its own independent slot.
-The detailed model owns one small sign texture, disposed when it is evicted.
+The detailed model owns two small sign textures, disposed when it is evicted.
 
-Base: 4 meshes, 2,168 triangles, 234,144 geometry-array bytes. Detail: 6 meshes,
-5,846 triangles, 631,280 geometry-array bytes, plus the sign texture. Most base
+Base: 5 meshes, 2,592 triangles, 279,936 geometry-array bytes. Detail: 9 meshes,
+6,274 triangles, 677,328 geometry-array bytes, plus the sign textures. Most base
 triangles are the subdivided ground paving needed to follow the terrain.
 
 - `node src/scene/test-reef-plan.mjs`: georeferencing, footprint-area
@@ -92,3 +92,28 @@ triangles are the subdivided ground paving needed to follow the terrain.
 
 View from Gulf Road:
 `#eye=48.983963,-123.083346,18&aim=48.984547,-123.083510,8.5&fov=48`.
+
+## Iconic roadside sign — issue #55
+
+The freestanding sign is included in both base and detail, so its silhouette
+remains present outside the close-detail range. Its post is placed at aerial
+pixel (599,544), south of the street entrance; the narrow north–south cabinet
+and post/base are visible in the county aerial and the winter panorama. The
+faces look east/west along Gulf Road, with the highest cabinet end to the south.
+
+The [February 2017 exterior photo](https://jeepspubtaverns.blogspot.com/2017/02/kiniskis-reef-tavern-point-roberts.html)
+and [October 2021 Delta Optimist photo](https://www.delta-optimist.com/local-news/point-roberts-bar-not-waiting-for-border-to-re-open-4516609)
+show the angled pale cabinet with red edging, large red outlined Reef script,
+TAVERN lettering, separate changeable message board, pale post and dark ribbed
+base. These images were inspected directly in the browser. The lettering is
+a locally drawn approximation, shared by two outward-facing planes so it reads
+correctly from either direction. Reverse-face lettering is inferred from the
+visible face. No historical event or opening-hours message is reproduced.
+
+The 7.05 m overall height, 4.65 m message-board width, 0.30 m upper cabinet
+depth and 1.6 m base diameter are visual estimates, not surveyed measurements.
+The foot follows the existing terrain plus 0.06 m. `reef-sign.js` supplies one
+merged silhouette mesh; the lazy detail adds two lettering planes sharing one
+512 × 256 canvas texture, geometry and material. Area eviction disposes each
+unique resource once. Street and both sign-face previews were inspected, and
+the actual Three.js geometry/terrain and two-texture disposal checks pass.
