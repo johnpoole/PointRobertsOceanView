@@ -19,10 +19,8 @@ export function marinaBuildingCanopy(floor){
   for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)+floor+2.8+(p.getX(i)+3.35)*.19);
   g.computeVertexNormals();g.rotateY(FRAME.angle);g.translate(FRAME.origin.x,0,FRAME.origin.z);return g;
 }
-export function marinaBuildingCornerRoof(floor){
-  const c=PLAN.corner,x0=-c.eave,x1=c.width+c.eave,
-    z0=FRAME.length-c.northInset-c.eave,z1=FRAME.length+c.southProjection+c.eave,
-    y=floor+c.wallHeight,peak=y+c.rise,mx=(x0+x1)/2,
+function hipRoof(x0,x1,z0,z1,y,rise){
+  const peak=y+rise,mx=(x0+x1)/2,
     a=[mx,peak,z0+(x1-x0)/2],b=[mx,peak,z1-(x1-x0)/2],
     nw=[x0,y,z0],ne=[x1,y,z0],sw=[x0,y,z1],se=[x1,y,z1];
   const g=new THREE.BufferGeometry();
@@ -32,7 +30,22 @@ export function marinaBuildingCornerRoof(floor){
     ...ne,...a,...b,...ne,...b,...se,
   ],3));
   g.computeVertexNormals();g.rotateY(FRAME.angle);g.translate(FRAME.origin.x,0,FRAME.origin.z);
-  return tint(g,0x686960);
+  return tint(g,0x3f4140);
+}
+export function marinaBuildingCornerRoof(floor){
+  const c=PLAN.corner;
+  return hipRoof(-c.eave,c.width+c.eave,FRAME.length-c.northInset-c.eave,
+    FRAME.length+c.southProjection+c.eave,floor+c.wallHeight,c.rise);
+}
+function cornerAwning(floor,southFace){
+  const c=PLAN.corner,north=FRAME.length-c.northInset,south=FRAME.length+c.southProjection;
+  const g=southFace?box(c.width,.62,.10,c.width/2,0,south+.26,0x153959)
+    :box(.62,south-north,.10,-.26,0,(north+south)/2,0x153959),p=g.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const out=southFace?p.getZ(i)-south:-p.getX(i);
+    p.setY(i,p.getY(i)+floor+2.85-out*.5);
+  }
+  g.computeVertexNormals();g.rotateY(FRAME.angle);g.translate(FRAME.origin.x,0,FRAME.origin.z);return g;
 }
 function apron(sample){
   const ring=PLAN.apron.map(p=>marinaBuildingAerial(...p)),faces=THREE.ShapeUtils.triangulateShape(ring.map(p=>new THREE.Vector2(p.x,p.z)),[]),pos=[];
@@ -53,12 +66,16 @@ export function buildMarinaBuildingBase(scene,sample){
   parts.push(b(0,w,split,north,bottom,floor+h-bottom,0xd9dcd5));
   parts.push(b(c.width,w,north,l,bottom,floor+h-bottom,0xd9dcd5));
   parts.push(b(0,c.width,north,south,bottom,floor+c.wallHeight-bottom,0xdde0d9));
+  const cup=c.cupola,cx=c.width/2,cz=(north+south)/2;
+  parts.push(b(cx-cup.width/2,cx+cup.width/2,cz-cup.depth/2,cz+cup.depth/2,floor+cup.base,cup.height,0xe3e5de));
   const building=marinaBuildingMerge(parts,group,"marina-main-building-walls");
   building.userData.landmark={name:"Point Roberts Marina / The Pier",kind:"building"};
   const roofs=[b(-.8,w+.8,-.7,split,floor+h,.16,0x656966),
     b(-.65,w+.65,split,north-c.eave,floor+h,.16,0xdde0d8),
     b(c.width+c.eave,w+.65,north-c.eave,l+.65,floor+h,.16,0xdde0d8),
-    marinaBuildingCornerRoof(floor)];
+    marinaBuildingCornerRoof(floor),
+    hipRoof(cx-cup.width/2-.12,cx+cup.width/2+.12,cz-cup.depth/2-.12,cz+cup.depth/2+.12,floor+cup.base+cup.height,cup.rise),
+    cornerAwning(floor,false),cornerAwning(floor,true)];
   roofs.push(marinaBuildingCanopy(floor));
   // Reddish waterside terrace visible beside the canopy and corner windows.
   roofs.push(b(-3.7,0,PLAN.canopyStart,l+3.1,floor-.15,.22,0x997868),b(0,w*.5,l,l+3.1,floor-.15,.22,0x997868));

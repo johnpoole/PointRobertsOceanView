@@ -19,10 +19,14 @@ export function buildMarinaBuilding(scene,sample){
   for(const [z0,z1,n] of PLAN.westUpper)westWindow(0,z0,z1,4.35,1.35,n);
   for(const [z0,z1,n] of PLAN.westLower)westWindow(0,z0,z1,.2,2.5,n);
   const corner=PLAN.corner,north=l-corner.northInset,south=l+corner.southProjection;
-  for(const [y,h] of [[.18,2.7],[3.45,2.25]]){
+  for(const [y,h] of [[.35,2.15],[3.45,2.0]]){
     westWindow(0,north+.12,south-.12,y,h,4);
     southWindow(south,.12,corner.width-.12,y,h,3);
   }
+  // October 2022 close reference: windowed cupola above the dark hipped roof.
+  const cup=corner.cupola,cx=corner.width/2,cz=(north+south)/2;
+  westWindow(cx-cup.width/2,cz-cup.depth/2+.08,cz+cup.depth/2-.08,cup.base+.13,.40,3);
+  southWindow(cz+cup.depth/2,cx-cup.width/2+.08,cx+cup.width/2-.08,cup.base+.13,.40,3);
   // Smaller south-end office windows and a ground-level double entry.
   for(const [a,c] of [[6.3,9.8],[12.6,16.1],[18.8,22.3]])southWindow(l,a,c,4.15,1.55,3);
   southWindow(l,6.8,9.7,.15,2.55,2);southWindow(l,13,16,.95,1.6,3);southWindow(l,19,22,.95,1.6,3);
@@ -38,12 +42,13 @@ export function buildMarinaBuilding(scene,sample){
     b(-.8,-.63,z0,Math.min(z1,north-corner.eave),6.56,.18,color);b(w+.63,w+.8,z0,z1,6.56,.18,color);
   }
   b(-.8,w+.8,-.7,-.52,6.56,.18,0xadb2ac);b(corner.width+corner.eave,w+.65,l+.48,l+.65,6.56,.18,0xe7e8df);
-  b(-corner.eave,corner.width+corner.eave,south+.15,south+corner.eave,corner.wallHeight-.12,.12,white);
-  b(-corner.eave,-.15,north-corner.eave,south+corner.eave,corner.wallHeight-.12,.12,white);
+  b(-corner.eave,corner.width+corner.eave,south+.15,south+corner.eave,corner.wallHeight-.40,.40,white);
+  b(-corner.eave,-.15,north-corner.eave,south+corner.eave,corner.wallHeight-.40,.40,white);
   // Horizontal storey band and corner posts are stronger cues than fine siding.
   b(-.15,-.01,north,south,3.05,.30,white);b(0,corner.width,south+.03,south+.12,3.05,.30,white);
   b(corner.width,w,l+.03,l+.12,3.05,.25,white);
-  for(const z of [north+.05,south-.05])b(-.16,-.02,z-.07,z+.07,.05,corner.wallHeight-.05,white);
+  for(const z of [north+.05,south-.05])b(-.19,-.01,z-.10,z+.10,.05,corner.wallHeight-.05,0x272d31);
+  b(corner.width-.12,corner.width+.06,south-.08,south+.16,.05,corner.wallHeight-.05,0x272d31);
   // Pale open railing around the exposed terrace, with a south entrance gap.
   function westRail(z0,z1){for(let z=z0;z<=z1;z+=1.7)b(-3.68,-3.59,z-.045,z+.045,.1,1.03,white);for(const y of [.48,1.10])b(-3.71,-3.56,z0,z1,y,.065,white)}
   westRail(PLAN.canopyStart,l+3.1);

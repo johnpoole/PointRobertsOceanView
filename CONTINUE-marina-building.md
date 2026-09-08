@@ -99,8 +99,8 @@ broader marina district have been added.
   positions/normals/colors, ground contact sampled at 0.5 m across the footprint,
   unchanged fixed building bounds at different tide levels, and disposal of
   every owned geometry. Main/detail module syntax and diff checks pass.
-- Base: **3 meshes, 2,174 triangles, no textures**. Close model: **4 meshes,
-  3,986 triangles, no textures**. These include the subdivided draped apron.
+- Base: **3 meshes, 2,216 triangles, no textures**. Close model: **4 meshes,
+  4,160 triangles, no textures**. These include the subdivided draped apron.
   Glazing is opaque colored geometry. Base and detail replace each other.
 - Browser comparison inspected original versus improved waterside views, a
   ground view, south entrance and aerial view. Switching to the base, leaving
@@ -135,3 +135,22 @@ The corrected model suppresses that exact trace along with building 0. The
 bay's position is registered relative to the main roof; neither footprint's
 absolute registration was independently surveyed. All unrelated footprints
 remain in place. Both the base and close-detail models share the correction.
+
+
+### Closer user-supplied reference
+
+John supplied `Screenshot 2026-09-08 145228.png` from the Google Maps panorama
+credited to David Carriere and labeled October 2022. This closer southwest
+view establishes the small windowed cupola with its own hipped cap, dark roof
+and vertical corner columns, broad white fascia and sill bands, and blue
+awnings above the lower glazing. These details supersede the less legible
+2023 panorama for this corner. The screenshot's date label is recorded as
+shown; it does not establish that the awnings still have the same color today.
+
+The cupola is estimated at 1.7 m square, with a 0.65 m windowed body embedded
+in the main hip and a 0.55 m roof rise. Awnings project about 0.6 m. The base
+retains both the cupola and awning silhouettes; close detail adds the visible
+cupola windows and dark columns. The supplied screenshot stays outside the
+repository and is not used as a texture. Geometry/ground/tide/disposal checks
+and a browser preview were repeated for this refinement; mesh counts remain
+3 for base and 4 for detail.

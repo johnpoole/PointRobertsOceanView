@@ -8,7 +8,8 @@ export const MARINA_BUILDING = {
   // SW glazed bay occupies the corner and extends south under a hipped roof.
   // Dimensions follow the county roof crop; its registration is relative to
   // the main roof, since the separate Microsoft trace is displaced west.
-  corner:{width:5, northInset:4.2, southProjection:1.6, wallHeight:5.9, rise:1.4, eave:.25},
+  corner:{width:5, northInset:4.2, southProjection:1.6, wallHeight:5.9, rise:1.4, eave:.25,
+    cupola:{width:1.7, depth:1.7, base:6.95, height:.65, rise:.55}},
   westUpper:[[35,41,4],[43,50,5]],
   westLower:[[35.5,41,4],[42.5,49.5,5]],
   equipment:[[622,411],[639,425],[679,402],[714,465],[685,496],[639,491]],
