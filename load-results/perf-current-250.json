@@ -1,0 +1,212 @@
+{
+  "clients": 250,
+  "variant": "current",
+  "mixture": "mixed",
+  "slow_clients": 0,
+  "compression": true,
+  "elapsed_s": 15.265495500003453,
+  "pressure_stop": null,
+  "server": {
+    "inbound": 1514214,
+    "outbound": 178592250,
+    "received": 7887,
+    "sent": 4250,
+    "send_errors": 0,
+    "elapsed_s": 15.397666200005915,
+    "connections": 250,
+    "placed": 250,
+    "tested_proxy_sha256": "a4c7c893092dc3b08973ad4567775b3cd4b1f57695436957196d14608fd5c576",
+    "injected_stalls": 0,
+    "delivery_stats": {
+      "sent": 4250,
+      "coalesced": 0,
+      "overflow": 0,
+      "timeouts": 0,
+      "send_errors": 0
+    },
+    "pending_messages": 0,
+    "pending_bytes": 0,
+    "broadcast_ms": {
+      "n": 15,
+      "min": 10.97270002355799,
+      "mean": 14.964260005702576,
+      "p50": 13.523400004487485,
+      "p95": 23.74570001848042,
+      "max": 23.74570001848042
+    },
+    "tick_interval_ms": {
+      "n": 14,
+      "min": 994.2147000110708,
+      "mean": 1018.585978570627,
+      "p50": 1019.0537999733351,
+      "p95": 1035.2554999990389,
+      "max": 1035.2554999990389
+    },
+    "list_sizes": {
+      "n": 15,
+      "min": 250,
+      "mean": 250.0,
+      "p50": 250,
+      "p95": 250,
+      "max": 250
+    },
+    "loop_lag_ms": {
+      "n": 93,
+      "min": 0,
+      "mean": 69.9176215153608,
+      "p50": 0,
+      "p95": 437.44580005295575,
+      "max": 538.6035999981686
+    }
+  },
+  "server_cpu_percent": 51.27986182956347,
+  "generator_cpu_percent": 53.12225207493701,
+  "server_peak_rss_mb": 143.46875,
+  "server_sample_cpu": {
+    "n": 30,
+    "min": 12.5,
+    "mean": 50.46333333333334,
+    "p50": 43.8,
+    "p95": 86.5,
+    "max": 88.0
+  },
+  "sent_updates": 7564,
+  "achieved_updates_per_client_s": 1.9819861071652183,
+  "client_bytes_received": 178592250,
+  "client_framed_bytes_received": 19466498,
+  "errors": [],
+  "expected_closes": [],
+  "normal": {
+    "cadence_ms": {
+      "n": 3500,
+      "min": 892.2985999961384,
+      "mean": 1021.3030766285956,
+      "p50": 1014.7426999756135,
+      "p95": 1138.4500000276603,
+      "max": 1156.5620999899693
+    },
+    "delivery_ms": {
+      "n": 3750,
+      "min": 14.598608016967773,
+      "mean": 270.0174953460693,
+      "p50": 261.68370246887207,
+      "p95": 535.8986854553223,
+      "max": 651.5734195709229
+    },
+    "pose_age_ms": {
+      "n": 3750,
+      "min": 58.57240001205355,
+      "mean": 505.52817511952793,
+      "p50": 507.7642999822274,
+      "p95": 813.6753999860957,
+      "max": 1080.3584000095725
+    },
+    "send_lag_ms": {
+      "n": 7564,
+      "min": 0,
+      "mean": 25.30762123123207,
+      "p50": 8.90449999133125,
+      "p95": 99.75729999132454,
+      "max": 156.78820002358407
+    },
+    "sizes": {
+      "n": 3750,
+      "min": 250,
+      "mean": 250.0,
+      "p50": 250,
+      "p95": 250,
+      "max": 250
+    },
+    "messages_per_client": {
+      "n": 250,
+      "min": 15,
+      "mean": 15.0,
+      "p50": 15,
+      "p95": 15,
+      "max": 15
+    }
+  },
+  "slow": {
+    "cadence_ms": {
+      "n": 0
+    },
+    "delivery_ms": {
+      "n": 0
+    },
+    "pose_age_ms": {
+      "n": 0
+    },
+    "send_lag_ms": {
+      "n": 0
+    },
+    "sizes": {
+      "n": 0
+    },
+    "messages_per_client": {
+      "n": 0
+    }
+  },
+  "stalled": {
+    "cadence_ms": {
+      "n": 0
+    },
+    "delivery_ms": {
+      "n": 0
+    },
+    "pose_age_ms": {
+      "n": 0
+    },
+    "send_lag_ms": {
+      "n": 0
+    },
+    "sizes": {
+      "n": 0
+    },
+    "messages_per_client": {
+      "n": 0
+    }
+  },
+  "correctness": {
+    "all_connections_present": true,
+    "all_positions_present": true,
+    "normal_clients_received_complete_lists": true,
+    "stalled_close_observed": true
+  },
+  "server_log": "",
+  "environment": {
+    "time_utc": "2026-09-08T16:37:59.498140+00:00",
+    "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "logical_cpus": 8,
+    "physical_cpus": 4,
+    "memory_gb": 15.701629638671875,
+    "packages": {
+      "uvicorn": "0.34.3",
+      "websockets": "16.0",
+      "fastapi": "0.115.12",
+      "starlette": "0.46.2",
+      "httpx": "0.28.1",
+      "psutil": "7.0.0"
+    },
+    "proxy_sha256": "a4c7c893092dc3b08973ad4567775b3cd4b1f57695436957196d14608fd5c576",
+    "git_head": "1bc10a90f767753f0705e30f7e980a3efaea87a0"
+  },
+  "settings": {
+    "clients": 250,
+    "seconds": 15.0,
+    "warmup": 4,
+    "hz": 2,
+    "variant": "current",
+    "mixture": "mixed",
+    "slow_clients": 0,
+    "slow_delay": 3,
+    "stall_seconds": 0,
+    "expect_stall_close": false,
+    "no_compression": false,
+    "static_clients": 0,
+    "max_rss_mb": 512,
+    "output": "load-results/perf-current-250.json",
+    "serve": false
+  }
+}

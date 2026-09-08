@@ -1,0 +1,177 @@
+{
+  "clients": 100,
+  "variant": "baseline",
+  "mixture": "camera",
+  "slow_clients": 0,
+  "compression": true,
+  "elapsed_s": 15.102589999965858,
+  "pressure_stop": null,
+  "server": {
+    "inbound": 304427,
+    "outbound": 11306400,
+    "received": 3026,
+    "sent": 1300,
+    "send_errors": 0,
+    "elapsed_s": 15.130703100003302,
+    "connections": 100,
+    "placed": 100,
+    "broadcast_ms": {
+      "n": 11,
+      "min": 283.05629995884374,
+      "mean": 349.2638000064868,
+      "p50": 330.84440004313365,
+      "p95": 465.4065000358969,
+      "max": 465.4065000358969
+    },
+    "tick_interval_ms": {
+      "n": 10,
+      "min": 1286.8089000112377,
+      "mean": 1352.496849995805,
+      "p50": 1336.1038999864832,
+      "p95": 1444.185100030154,
+      "max": 1444.185100030154
+    },
+    "list_sizes": {
+      "n": 11,
+      "min": 100,
+      "mean": 100.0,
+      "p50": 100,
+      "p95": 100,
+      "max": 100
+    },
+    "loop_lag_ms": {
+      "n": 115,
+      "min": 0,
+      "mean": 35.191896532500245,
+      "p50": 1.8056000117212534,
+      "p95": 325.3598000155762,
+      "max": 447.8635000414215
+    }
+  },
+  "server_cpu_percent": 32.382690651146966,
+  "generator_cpu_percent": 23.278292001623218,
+  "server_peak_rss_mb": 85.671875,
+  "server_sample_cpu": {
+    "n": 30,
+    "min": 6.1,
+    "mean": 32.423333333333325,
+    "p50": 31.2,
+    "p95": 54.8,
+    "max": 63.6
+  },
+  "sent_updates": 3020,
+  "achieved_updates_per_client_s": 1.9996570124772157,
+  "client_bytes_received": 11306400,
+  "client_framed_bytes_received": 923116,
+  "errors": [],
+  "normal": {
+    "cadence_ms": {
+      "n": 1000,
+      "min": 1209.3479000031948,
+      "mean": 1354.9001536995056,
+      "p50": 1348.8797000027262,
+      "p95": 1476.3792000012472,
+      "max": 1502.2844999912195
+    },
+    "delivery_ms": {
+      "n": 1100,
+      "min": 4.750251770019531,
+      "mean": 181.0637664794922,
+      "p50": 181.4572811126709,
+      "p95": 348.63781929016113,
+      "max": 467.637300491333
+    },
+    "pose_age_ms": {
+      "n": 1100,
+      "min": 38.94360002595931,
+      "mean": 431.53834009151484,
+      "p50": 438.02669999422505,
+      "p95": 734.9223999772221,
+      "max": 935.7950999983586
+    },
+    "send_lag_ms": {
+      "n": 3020,
+      "min": 0,
+      "mean": 6.289584270430981,
+      "p50": 0,
+      "p95": 25.823800009675324,
+      "max": 92.8379000397399
+    },
+    "sizes": {
+      "n": 1100,
+      "min": 100,
+      "mean": 100.0,
+      "p50": 100,
+      "p95": 100,
+      "max": 100
+    },
+    "messages_per_client": {
+      "n": 100,
+      "min": 11,
+      "mean": 11.0,
+      "p50": 11,
+      "p95": 11,
+      "max": 11
+    }
+  },
+  "slow": {
+    "cadence_ms": {
+      "n": 0
+    },
+    "delivery_ms": {
+      "n": 0
+    },
+    "pose_age_ms": {
+      "n": 0
+    },
+    "send_lag_ms": {
+      "n": 0
+    },
+    "sizes": {
+      "n": 0
+    },
+    "messages_per_client": {
+      "n": 0
+    }
+  },
+  "correctness": {
+    "all_connections_present": true,
+    "all_positions_present": true,
+    "normal_clients_received_complete_lists": true
+  },
+  "server_log": "",
+  "environment": {
+    "time_utc": "2026-09-08T15:59:44.793229+00:00",
+    "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "logical_cpus": 8,
+    "physical_cpus": 4,
+    "memory_gb": 15.701629638671875,
+    "packages": {
+      "uvicorn": "0.34.3",
+      "websockets": "16.0",
+      "fastapi": "0.115.12",
+      "starlette": "0.46.2",
+      "httpx": "0.28.1",
+      "psutil": "7.0.0"
+    },
+    "proxy_sha256": "cf6b6a5f276aa9de0cb88bf9921dbd725c8b8fef2a741fdba624c508877cb3b0",
+    "git_head": "b7a313717ef8be496d2558307f2f096d2b8be152"
+  },
+  "settings": {
+    "clients": 100,
+    "seconds": 15.0,
+    "warmup": 4,
+    "hz": 2,
+    "variant": "baseline",
+    "mixture": "camera",
+    "slow_clients": 0,
+    "slow_delay": 3,
+    "no_compression": false,
+    "static_clients": 0,
+    "max_rss_mb": 512,
+    "output": "load-results/camera-100.json",
+    "serve": false
+  }
+}

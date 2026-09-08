@@ -1,0 +1,189 @@
+{
+  "clients": 10,
+  "variant": "current",
+  "mixture": "mixed",
+  "slow_clients": 0,
+  "compression": true,
+  "elapsed_s": 4.0979553000070155,
+  "pressure_stop": null,
+  "server": {
+    "inbound": 15388,
+    "outbound": 79130,
+    "received": 82,
+    "sent": 40,
+    "send_errors": 0,
+    "elapsed_s": 4.101435799966566,
+    "connections": 10,
+    "placed": 10,
+    "tested_proxy_sha256": "dc52f32c51acd604b2c73f55d3b575e3029d821f91a35e507cd84a59c92a3792",
+    "injected_stalls": 0,
+    "delivery_stats": {
+      "sent": 70,
+      "coalesced": 0,
+      "overflow": 0,
+      "timeouts": 0,
+      "send_errors": 0
+    },
+    "pending_messages": 0,
+    "pending_bytes": 0,
+    "broadcast_ms": {
+      "n": 4,
+      "min": 0.145800004247576,
+      "mean": 0.2607999922474846,
+      "p50": 0.19529997371137142,
+      "p95": 0.40279998211190104,
+      "max": 0.40279998211190104
+    },
+    "tick_interval_ms": {
+      "n": 3,
+      "min": 1002.4056999827735,
+      "mean": 1014.6726333186962,
+      "p50": 1014.438699989114,
+      "p95": 1027.173499984201,
+      "max": 1027.173499984201
+    },
+    "list_sizes": {
+      "n": 4,
+      "min": 10,
+      "mean": 10.0,
+      "p50": 10,
+      "p95": 10,
+      "max": 10
+    },
+    "loop_lag_ms": {
+      "n": 41,
+      "min": 0,
+      "mean": 5.168836595058987,
+      "p50": 5.823800049256533,
+      "p95": 12.302100018132478,
+      "max": 23.983100021723658
+    }
+  },
+  "server_cpu_percent": 1.1438631358404459,
+  "generator_cpu_percent": 0.7625754238936306,
+  "server_peak_rss_mb": 52.83203125,
+  "server_sample_cpu": {
+    "n": 8,
+    "min": 0.0,
+    "mean": 1.1375,
+    "p50": 0.0,
+    "p95": 6.1,
+    "max": 6.1
+  },
+  "sent_updates": 81,
+  "achieved_updates_per_client_s": 1.9765954987322905,
+  "client_bytes_received": 79130,
+  "client_framed_bytes_received": 7720,
+  "errors": [],
+  "normal": {
+    "cadence_ms": {
+      "n": 30,
+      "min": 1002.3137999814935,
+      "mean": 1014.9203166656662,
+      "p50": 1014.787299965974,
+      "p95": 1027.0389000070281,
+      "max": 1027.165200037416
+    },
+    "delivery_ms": {
+      "n": 40,
+      "min": 1.0030269622802734,
+      "mean": 1.923215389251709,
+      "p50": 2.011537551879883,
+      "p95": 3.0105113983154297,
+      "max": 3.0105113983154297
+    },
+    "pose_age_ms": {
+      "n": 40,
+      "min": 3.7799999699927866,
+      "mean": 257.312927491148,
+      "p50": 238.59550000634044,
+      "p95": 471.18890000274405,
+      "max": 528.578799974639
+    },
+    "send_lag_ms": {
+      "n": 81,
+      "min": 0,
+      "mean": 8.691883946332023,
+      "p50": 7.873700000345707,
+      "p95": 23.83029996417463,
+      "max": 28.52829999756068
+    },
+    "sizes": {
+      "n": 40,
+      "min": 10,
+      "mean": 10.0,
+      "p50": 10,
+      "p95": 10,
+      "max": 10
+    },
+    "messages_per_client": {
+      "n": 10,
+      "min": 4,
+      "mean": 4.0,
+      "p50": 4,
+      "p95": 4,
+      "max": 4
+    }
+  },
+  "slow": {
+    "cadence_ms": {
+      "n": 0
+    },
+    "delivery_ms": {
+      "n": 0
+    },
+    "pose_age_ms": {
+      "n": 0
+    },
+    "send_lag_ms": {
+      "n": 0
+    },
+    "sizes": {
+      "n": 0
+    },
+    "messages_per_client": {
+      "n": 0
+    }
+  },
+  "correctness": {
+    "all_connections_present": true,
+    "all_positions_present": true,
+    "normal_clients_received_complete_lists": true
+  },
+  "server_log": "",
+  "environment": {
+    "time_utc": "2026-09-08T16:31:00.331352+00:00",
+    "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "logical_cpus": 8,
+    "physical_cpus": 4,
+    "memory_gb": 15.701629638671875,
+    "packages": {
+      "uvicorn": "0.34.3",
+      "websockets": "16.0",
+      "fastapi": "0.115.12",
+      "starlette": "0.46.2",
+      "httpx": "0.28.1",
+      "psutil": "7.0.0"
+    },
+    "proxy_sha256": "dc52f32c51acd604b2c73f55d3b575e3029d821f91a35e507cd84a59c92a3792",
+    "git_head": "1bc10a90f767753f0705e30f7e980a3efaea87a0"
+  },
+  "settings": {
+    "clients": 10,
+    "seconds": 4.0,
+    "warmup": 1.0,
+    "hz": 2,
+    "variant": "current",
+    "mixture": "mixed",
+    "slow_clients": 0,
+    "slow_delay": 3,
+    "stall_seconds": 0,
+    "no_compression": false,
+    "static_clients": 0,
+    "max_rss_mb": 512,
+    "output": "load-results/current-smoke.json",
+    "serve": false
+  }
+}

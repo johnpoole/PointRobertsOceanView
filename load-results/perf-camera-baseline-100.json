@@ -1,0 +1,214 @@
+{
+  "clients": 100,
+  "variant": "baseline",
+  "mixture": "camera",
+  "slow_clients": 0,
+  "compression": true,
+  "elapsed_s": 15.074362500046846,
+  "pressure_stop": null,
+  "server": {
+    "inbound": 303623,
+    "outbound": 13345400,
+    "received": 3018,
+    "sent": 1400,
+    "send_errors": 0,
+    "elapsed_s": 15.087045099993702,
+    "connections": 100,
+    "senders": 0,
+    "placed": 100,
+    "tested_proxy_sha256": "77af41139516e49ac51d3f0ec747b98afb389a30bd030439f6bda5e1b38c2431",
+    "injected_stalls": 0,
+    "delivery_stats": {},
+    "pending_messages": 0,
+    "pending_bytes": 0,
+    "broadcast_ms": {
+      "n": 13,
+      "min": 67.23809998948127,
+      "mean": 110.21126153466936,
+      "p50": 92.96559996437281,
+      "p95": 182.37960000988096,
+      "max": 182.37960000988096
+    },
+    "tick_interval_ms": {
+      "n": 12,
+      "min": 1058.8140999898314,
+      "mean": 1112.255500003812,
+      "p50": 1089.986700040754,
+      "p95": 1182.5812000315636,
+      "max": 1182.5812000315636
+    },
+    "list_sizes": {
+      "n": 13,
+      "min": 100,
+      "mean": 100.0,
+      "p50": 100,
+      "p95": 100,
+      "max": 100
+    },
+    "loop_lag_ms": {
+      "n": 142,
+      "min": 0,
+      "mean": 10.361537335253596,
+      "p50": 0,
+      "p95": 67.17160006519407,
+      "max": 181.8230000208132
+    }
+  },
+  "server_cpu_percent": 15.23696275708417,
+  "generator_cpu_percent": 12.231031328815865,
+  "server_peak_rss_mb": 86.1640625,
+  "server_sample_cpu": {
+    "n": 30,
+    "min": 0.0,
+    "mean": 15.270000000000003,
+    "p50": 15.2,
+    "p95": 38.7,
+    "max": 50.0
+  },
+  "sent_updates": 3010,
+  "achieved_updates_per_client_s": 1.9967676908331256,
+  "client_bytes_received": 13345400,
+  "client_framed_bytes_received": 1033500,
+  "errors": [],
+  "expected_closes": [],
+  "normal": {
+    "cadence_ms": {
+      "n": 1200,
+      "min": 1057.0963000063784,
+      "mean": 1112.793424416741,
+      "p50": 1108.3989999606274,
+      "p95": 1173.4977000160143,
+      "max": 1184.7565000061877
+    },
+    "delivery_ms": {
+      "n": 1300,
+      "min": 1.0008811950683594,
+      "mean": 55.553674514477066,
+      "p50": 50.02570152282715,
+      "p95": 136.65223121643066,
+      "max": 182.25336074829102
+    },
+    "pose_age_ms": {
+      "n": 1300,
+      "min": 34.387400024570525,
+      "mean": 321.56616630834134,
+      "p50": 322.779200039804,
+      "p95": 547.6364000351168,
+      "max": 668.6132999602705
+    },
+    "send_lag_ms": {
+      "n": 3010,
+      "min": 0,
+      "mean": 4.1614815953034485,
+      "p50": 0,
+      "p95": 17.64430000912398,
+      "max": 33.77620002720505
+    },
+    "sizes": {
+      "n": 1300,
+      "min": 100,
+      "mean": 100.0,
+      "p50": 100,
+      "p95": 100,
+      "max": 100
+    },
+    "messages_per_client": {
+      "n": 100,
+      "min": 13,
+      "mean": 13.0,
+      "p50": 13,
+      "p95": 13,
+      "max": 13
+    }
+  },
+  "slow": {
+    "cadence_ms": {
+      "n": 0
+    },
+    "delivery_ms": {
+      "n": 0
+    },
+    "pose_age_ms": {
+      "n": 0
+    },
+    "send_lag_ms": {
+      "n": 0
+    },
+    "sizes": {
+      "n": 0
+    },
+    "messages_per_client": {
+      "n": 0
+    }
+  },
+  "stalled": {
+    "cadence_ms": {
+      "n": 0
+    },
+    "delivery_ms": {
+      "n": 0
+    },
+    "pose_age_ms": {
+      "n": 0
+    },
+    "send_lag_ms": {
+      "n": 0
+    },
+    "sizes": {
+      "n": 0
+    },
+    "messages_per_client": {
+      "n": 0
+    }
+  },
+  "correctness": {
+    "all_connections_present": true,
+    "all_positions_present": true,
+    "normal_clients_received_complete_lists": true,
+    "stalled_close_observed": true,
+    "no_connection_or_writer_leaks": true
+  },
+  "cleanup": {
+    "connections": 0,
+    "senders": 0,
+    "pending_messages": 0,
+    "pending_bytes": 0
+  },
+  "server_log": "",
+  "environment": {
+    "time_utc": "2026-09-08T16:42:51.290110+00:00",
+    "python": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "logical_cpus": 8,
+    "physical_cpus": 4,
+    "memory_gb": 15.701629638671875,
+    "packages": {
+      "uvicorn": "0.34.3",
+      "websockets": "16.0",
+      "fastapi": "0.115.12",
+      "starlette": "0.46.2",
+      "httpx": "0.28.1",
+      "psutil": "7.0.0"
+    },
+    "proxy_sha256": "a4c7c893092dc3b08973ad4567775b3cd4b1f57695436957196d14608fd5c576",
+    "git_head": "1bc10a90f767753f0705e30f7e980a3efaea87a0"
+  },
+  "settings": {
+    "clients": 100,
+    "seconds": 15.0,
+    "warmup": 4,
+    "hz": 2,
+    "variant": "baseline",
+    "mixture": "camera",
+    "slow_clients": 0,
+    "slow_delay": 3,
+    "stall_seconds": 0,
+    "expect_stall_close": false,
+    "no_compression": false,
+    "static_clients": 0,
+    "max_rss_mb": 512,
+    "output": "load-results/perf-camera-baseline-100.json",
+    "serve": false
+  }
+}

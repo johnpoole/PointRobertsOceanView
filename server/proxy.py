@@ -34,6 +34,7 @@ import logging
 import math
 import os
 import secrets
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -284,6 +285,94 @@ world = World()
 # ---- browser connections ---------------------------------------------------
 
 
+# A slow reader must not hold up every feed or accumulate stale state forever.
+# These limits include queued identity/snapshot/feed events and one latest
+# presence list; there can also be one send in flight, bounded by the timeout.
+CLIENT_QUEUE_MESSAGES = 128
+CLIENT_QUEUE_BYTES = 2 * 1024 * 1024
+CLIENT_SEND_SECONDS = 5.0
+CLIENT_CLOSE_SECONDS = 1.0
+
+
+class ClientDelivery:
+    """One writer per socket; only unsent presence may be superseded."""
+
+    def __init__(self, owner, ws):
+        self.owner, self.ws = owner, ws
+        self.pending = deque()
+        self.presence = None
+        self.bytes = 0
+        self.ready = asyncio.Event()
+        self.task = None
+        self.running = False
+        self.closing = False
+        self.close_code = 1000
+
+    def offer(self, item):
+        if self.closing:
+            return
+        if item[0] and self.presence is not None:
+            # Append the replacement at its new chronological position. Feed
+            # events between the two snapshots retain their relative order.
+            self.pending.remove(self.presence)
+            self.bytes -= self.presence[2]
+            self.owner.delivery_stats["coalesced"] += 1
+        if len(self.pending) >= CLIENT_QUEUE_MESSAGES or self.bytes + item[2] > CLIENT_QUEUE_BYTES:
+            self.owner.delivery_stats["overflow"] += 1
+            self.owner.remove(self.ws, code=1013)
+            return
+        self.pending.append(item)
+        self.bytes += item[2]
+        if item[0]:
+            self.presence = item
+        self.ready.set()
+
+    def stop(self, code=1000):
+        if self.closing:
+            return
+        self.closing, self.close_code = True, code
+        self.pending.clear()
+        self.presence = None
+        self.bytes = 0
+        self.ready.set()
+        # If it hasn't started yet, let run enter its finally block and close.
+        if self.running and self.task is not asyncio.current_task():
+            self.task.cancel()
+
+    async def run(self):
+        self.running = True
+        try:
+            while not self.closing:
+                await self.ready.wait()
+                if self.closing:
+                    break
+                item = self.pending.popleft()
+                self.bytes -= item[2]
+                if item is self.presence:
+                    self.presence = None
+                if not self.pending:
+                    self.ready.clear()
+                await asyncio.wait_for(self.ws.send_text(item[1]), CLIENT_SEND_SECONDS)
+                self.owner.delivery_stats["sent"] += 1
+        except asyncio.TimeoutError:
+            self.owner.delivery_stats["timeouts"] += 1
+            self.close_code = 1013
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            self.owner.delivery_stats["send_errors"] += 1
+            self.close_code = 1011
+        finally:
+            self.owner.remove(self.ws, code=self.close_code)
+            self.pending.clear()
+            self.presence = None
+            self.bytes = 0
+            try:
+                await asyncio.wait_for(self.ws.close(code=self.close_code), CLIENT_CLOSE_SECONDS)
+            except (Exception, asyncio.CancelledError):
+                pass
+
+
 class Clients:
     """Everyone with the page open, and where each of them is standing.
 
@@ -295,6 +384,8 @@ class Clients:
 
     def __init__(self) -> None:
         self._sockets: dict[WebSocket, dict] = {}
+        self._senders: dict[WebSocket, asyncio.Task] = {}
+        self.delivery_stats = dict(sent=0, coalesced=0, overflow=0, timeouts=0, send_errors=0)
 
     async def add(self, ws: WebSocket) -> str:
         await ws.accept()
@@ -302,18 +393,51 @@ class Clients:
         # it says nothing about who or where they are, and a reconnection is a
         # new stranger rather than the same one recognised.
         who = secrets.token_hex(4)
-        self._sockets[ws] = {"id": who, "at": None}
+        delivery = ClientDelivery(self, ws)
+        self._sockets[ws] = {"id": who, "at": None, "delivery": delivery}
         visitors.opened(client_ip(ws))
+        task = delivery.task = asyncio.create_task(delivery.run(), name="visitor-delivery")
+        self._senders[ws] = task
+        task.add_done_callback(lambda done: self._senders.pop(ws, None))
+        # No await between registration and these two enqueues: even a broadcast
+        # during a busy connection ramp cannot precede identity/initial state.
+        delivery.offer(self._encoded({"schema_version": SCHEMA_VERSION,
+                                     "message_type": "presence.you", "data": {"id": who}}))
+        delivery.offer(self._encoded(snapshot()))
         return who
 
     @property
     def count(self) -> int:
         return len(self._sockets)
 
-    def remove(self, ws: WebSocket) -> None:
-        if ws in self._sockets:
-            del self._sockets[ws]
+    def remove(self, ws: WebSocket, code=1000) -> None:
+        seat = self._sockets.pop(ws, None)
+        if seat is not None:
             visitors.closed(client_ip(ws))
+            seat["delivery"].stop(code)
+
+    async def disconnect(self, ws: WebSocket) -> None:
+        task = self._senders.get(ws)
+        self.remove(ws)
+        if task is not None:
+            try:
+                # ASGI may cancel the receiving task as the peer disconnects.
+                # Do not relay a second cancellation into its writer's bounded
+                # close; it stays tracked until done (and shutdown awaits it).
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                pass
+
+    async def shutdown(self) -> None:
+        tasks = list(self._senders.values())
+        for ws in list(self._sockets):
+            self.remove(ws, code=1001)
+        if tasks:
+            # A normal cancelled send and close finish within CLOSE_SECONDS.
+            # Do not let a misbehaving transport hold server shutdown forever.
+            _, pending = await asyncio.wait(tasks, timeout=CLIENT_CLOSE_SECONDS + 1)
+            for task in pending:
+                task.cancel()
 
     def place(self, ws: WebSocket, at: dict | None) -> None:
         seat = self._sockets.get(ws)
@@ -326,14 +450,18 @@ class Clients:
                 for seat in self._sockets.values() if seat["at"]]
 
     async def broadcast(self, message: dict) -> None:
-        dead = []
-        for ws in list(self._sockets):
-            try:
-                await ws.send_text(json.dumps(message))
-            except Exception:
-                dead.append(ws)
-        for ws in dead:
-            self.remove(ws)
+        item = self._encoded(message)
+        for seat in list(self._sockets.values()):
+            seat["delivery"].offer(item)
+        # Buffered upstream events can arrive without yielding in their reader.
+        # Give writers a turn without waiting for any particular connection.
+        await asyncio.sleep(0)
+
+    @staticmethod
+    def _encoded(message):
+        text = json.dumps(message)
+        # The immutable string and byte count are shared by all recipients.
+        return (message.get("message_type") == "presence.state", text, len(text.encode("utf-8")))
 
 
 clients = Clients()
@@ -1982,6 +2110,7 @@ async def startup() -> None:
 async def shutdown() -> None:
     for task in _tasks:
         task.cancel()
+    await clients.shutdown()
     # Whatever the last save tick missed. A deploy is a shutdown, and a deploy
     # losing the last half minute of the record is the thing this is here to
     # stop.
@@ -1994,16 +2123,8 @@ async def shutdown() -> None:
 
 @app.websocket("/ws/live")
 async def ws_live(ws: WebSocket) -> None:
-    who = await clients.add(ws)
     try:
-        # Its own name first, so it can leave itself out of the crowd it is about
-        # to be sent. Without this every browser draws a marker on its own head.
-        await ws.send_text(json.dumps({
-            "schema_version": SCHEMA_VERSION,
-            "message_type": "presence.you",
-            "data": {"id": who},
-        }))
-        await ws.send_text(json.dumps(snapshot()))
+        await clients.add(ws)
         while True:
             at = read_position(await ws.receive_text())
             # Anything that is not a position is dropped and the socket stays
@@ -2012,9 +2133,11 @@ async def ws_live(ws: WebSocket) -> None:
             if at:
                 clients.place(ws, at)
     except WebSocketDisconnect:
-        clients.remove(ws)
+        pass
     except Exception:
-        clients.remove(ws)
+        pass
+    finally:
+        await clients.disconnect(ws)
 
 
 def since(dt: datetime) -> str:
