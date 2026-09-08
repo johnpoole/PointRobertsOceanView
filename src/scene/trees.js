@@ -334,7 +334,7 @@ function measuredGround(measured) {
   };
 }
 
-export function buildTrees(scene, sample, cover, roads, measured) {
+export function buildTrees(scene, sample, cover, roads, measured, excludeScattered = null) {
   if (!cover) {
     throw new Error("buildTrees: no land cover. The near terrain must be built " +
       "with opts.landcover so the trees know where the forest is.");
@@ -426,6 +426,9 @@ export function buildTrees(scene, sample, cover, roads, measured) {
         yaw[count] = rand() * Math.PI * 2;
         form[count] = isConifer ? CONIFER : BROADLEAF;
         tint[count] = Math.floor(rand() * pal.length);
+        // Consume the same random draws first, keeping every other generated
+        // tree unchanged when a verified building/paved area is excluded.
+        if (excludeScattered?.(w.x, w.z)) continue;
         count++;
       }
     }

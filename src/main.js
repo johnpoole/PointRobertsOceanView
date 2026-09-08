@@ -39,6 +39,8 @@ import { buildMarinaBuildingArea } from "./scene/marina-building-area.js";
 import { isMarinaMainBuilding } from "./scene/marina-building-plan.js";
 import { buildSaltwaterArea } from "./scene/saltwater-area.js";
 import { isSaltwaterBuilding } from "./scene/saltwater-plan.js";
+import { buildFireStationArea } from "./scene/fire-station-area.js";
+import { isFireStationBuilding, isFireStationClearing } from "./scene/fire-station-plan.js";
 import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -251,6 +253,7 @@ let marketplace = null;
 let community = null;
 let marinaBuilding = null;
 let saltwater = null;
+let fireStation = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
 // in Washington South and the corners of a lat/lon box round it hold no lidar.
 // Asked one coarse cell out on all sides as well, so the coarse tile keeps
@@ -327,7 +330,7 @@ stairSpec
     ocean.setBed(near.heights, ncols, nrows,
       new THREE.Vector2(nw.x, nw.z), new THREE.Vector2(se.x - nw.x, se.z - nw.z));
     buildBeach(scene, near.sample, ORIGIN, siteBoulders);
-    trees = buildTrees(scene, near.sample, near.cover, osm.roads, siteTrees);
+    trees = buildTrees(scene, near.sample, near.cover, osm.roads, siteTrees, isFireStationClearing);
     buildShrubs(scene, near.sample, siteShrubs);
     buildTerraces(scene, siteTerraces);
     trees.update(camera);
@@ -351,6 +354,7 @@ stairSpec
     community = buildCommunityArea(scene, near.sample);
     marinaBuilding = buildMarinaBuildingArea(scene, near.sample);
     saltwater = buildSaltwaterArea(scene, near.sample);
+    fireStation = buildFireStationArea(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
@@ -360,9 +364,9 @@ stairSpec
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
-      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b) || isMarinaMainBuilding(b) || isSaltwaterBuilding(b),
+      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b) || isMarinaMainBuilding(b) || isSaltwaterBuilding(b) || isFireStationBuilding(b),
     }).then((land) => {
-      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks);
+      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
@@ -1812,6 +1816,7 @@ function frame() {
   if (community) community.update(level, camera, window.innerHeight, performance.now()/1000);
   if (marinaBuilding) marinaBuilding.update(level, camera, window.innerHeight, performance.now()/1000);
   if (saltwater) saltwater.update(level, camera, window.innerHeight, performance.now()/1000);
+  if (fireStation) fireStation.update(level, camera, window.innerHeight, performance.now()/1000);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
