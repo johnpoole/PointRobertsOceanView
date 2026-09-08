@@ -35,6 +35,8 @@ import { buildMarketplaceArea } from "./scene/marketplace-area.js";
 import { isMarketplaceBuilding } from "./scene/marketplace-plan.js";
 import { buildCommunityArea } from "./scene/community-area.js";
 import { communityBuildingKind } from "./scene/community-plan.js";
+import { buildMarinaBuildingArea } from "./scene/marina-building-area.js";
+import { isMarinaMainBuilding } from "./scene/marina-building-plan.js";
 import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -245,6 +247,7 @@ let marina = null;
 let reef = null;
 let marketplace = null;
 let community = null;
+let marinaBuilding = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
 // in Washington South and the corners of a lat/lon box round it hold no lidar.
 // Asked one coarse cell out on all sides as well, so the coarse tile keeps
@@ -343,6 +346,7 @@ stairSpec
     reef = buildReefArea(scene, near.sample);
     marketplace = buildMarketplaceArea(scene, near.sample);
     community = buildCommunityArea(scene, near.sample);
+    marinaBuilding = buildMarinaBuildingArea(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
@@ -352,9 +356,9 @@ stairSpec
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
-      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b),
+      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b) || isMarinaMainBuilding(b),
     }).then((land) => {
-      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks);
+      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
@@ -1802,6 +1806,7 @@ function frame() {
   if (reef) reef.update(level, camera, window.innerHeight, performance.now()/1000);
   if (marketplace) marketplace.update(level, camera, window.innerHeight, performance.now()/1000);
   if (community) community.update(level, camera, window.innerHeight, performance.now()/1000);
+  if (marinaBuilding) marinaBuilding.update(level, camera, window.innerHeight, performance.now()/1000);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
