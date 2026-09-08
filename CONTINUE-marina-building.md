@@ -56,7 +56,7 @@ solely to erase that unresolved discrepancy.
 `marina-building-plan.js` holds the footprint, oriented frame and photo-derived
 layout; `marina-building-base.js`, `marina-building.js` and
 `marina-building-area.js` build the base, close detail and loading lifecycle.
-The main scene excludes only OSM building 0 and retains a pickable
+The main scene excludes OSM building 0 and the overlapping corner trace 4439 and retains a pickable
 `Point Roberts Marina / The Pier` landmark.
 
 - Footprint: **24.10 × 57.40 m**, calculated from the existing OSM corners.
@@ -68,7 +68,7 @@ The main scene excludes only OSM building 0 and retains a pickable
   Northern roof is gray in the 2023 panorama and much paler in the 2022 aerial.
   The later inspected view supplies its modeled color; no reroofing date is
   claimed. Southern roof remains pale.
-- Roof overhangs: 0.65–0.8 m; corner bay projects 1.35 m west; canopy projects
+- Roof overhangs: 0.65–0.8 m; corner bay is 5 m wide, inset 4.2 m into the southwest corner and projects 1.6 m south; canopy projects
   about 3.35 m west across a 16 m run. These are visual estimates.
 - West workshop door is about 8.3 m wide and 5.6 m high. Glazing, mullion counts,
   canopy posts, terrace rail spacing and rooftop equipment dimensions are
@@ -88,7 +88,7 @@ broader marina district have been added.
 
 ## Verification and review
 
-- `node src/scene/test-marina-building-plan.mjs`: exact one-building exclusion,
+- `node src/scene/test-marina-building-plan.mjs`: exact main/corner two-trace exclusion,
   geographic corner alignment, local/world round trips, aerial registration,
   waterside canopy and rooftop equipment containment.
 - `node src/test-area-detail.mjs`: lazy load, hysteresis, stale results,
@@ -99,8 +99,8 @@ broader marina district have been added.
   positions/normals/colors, ground contact sampled at 0.5 m across the footprint,
   unchanged fixed building bounds at different tide levels, and disposal of
   every owned geometry. Main/detail module syntax and diff checks pass.
-- Base: **3 meshes, 2,156 triangles, no textures**. Close model: **4 meshes,
-  3,920 triangles, no textures**. These include the subdivided draped apron.
+- Base: **3 meshes, 2,174 triangles, no textures**. Close model: **4 meshes,
+  3,986 triangles, no textures**. These include the subdivided draped apron.
   Glazing is opaque colored geometry. Base and detail replace each other.
 - Browser comparison inspected original versus improved waterside views, a
   ground view, south entrance and aerial view. Switching to the base, leaving
@@ -114,3 +114,24 @@ entrance, Aerial and Original / improved buttons. The temporary preview server
 serves the current local source and is not deployed. The full-app
 [marina building view](https://oceanview.johnpoole.ca/#eye=48.97712,-123.0643,40&aim=48.97722,-123.0632,8&fov=45)
 opens from the water looking toward the building and neighboring docks.
+
+
+## Southwest corner correction - issue #62
+
+The first pass misread the southwest corner as a small west-projecting box
+with a flat roof. Reinspection on 8 September 2026 of the
+[county aerial corner crop](https://gis.whatcomcounty.us/arcgis/rest/services/Imagery/2022_WhatcomAerialImagery_Web/MapServer/export?bbox=-13699356,6270922,-13699306,6270972&bboxSR=3857&imageSR=3857&size=1000,1000&format=png&f=image)
+clearly shows a gray hipped roof occupying the corner, with the white main
+roof wrapping around its north and east edges. The March 2023 KS B panorama
+corroborates the two-storey glazed bay and reddish terrace. The bay is now
+integrated into the main volume, with a matching cutout in the flat roof;
+its eaves are estimated at 5.9 m and its ridge at 7.3 m above the floor.
+Dimensions and glazing divisions remain visual estimates, not measurements.
+
+The small generic building 4439 is interpreted as a displaced trace of this
+same bay: its approximately 4.9 by 5.8 m footprint matches the small roof in
+the crop, and the panorama shows no separate gabled building on the terrace.
+The corrected model suppresses that exact trace along with building 0. The
+bay's position is registered relative to the main roof; neither footprint's
+absolute registration was independently surveyed. All unrelated footprints
+remain in place. Both the base and close-detail models share the correction.
