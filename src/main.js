@@ -31,6 +31,8 @@ import { buildMarinaArea } from "./scene/marina-area.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
+import { buildMarketplaceArea } from "./scene/marketplace-area.js";
+import { isMarketplaceBuilding } from "./scene/marketplace-plan.js";
 import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -239,6 +241,7 @@ let orcas = null;        // a group passing, at the rate the season says
 let lighthouse = null;   // the light on the point, and its flash
 let marina = null;
 let reef = null;
+let marketplace = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
 // in Washington South and the corners of a lat/lon box round it hold no lidar.
 // Asked one coarse cell out on all sides as well, so the coarse tile keeps
@@ -335,6 +338,7 @@ stairSpec
     lighthouse = buildLighthouse(scene, near.sample);
     marina = buildMarinaArea(scene, near.sample);
     reef = buildReefArea(scene, near.sample);
+    marketplace = buildMarketplaceArea(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
@@ -344,9 +348,9 @@ stairSpec
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
-      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b),
+      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b),
     }).then((land) => {
-      landmarkPicks = land.landmarks.concat(reef.landmarks);
+      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
@@ -1792,6 +1796,7 @@ function frame() {
   nav.update(dt);
   if (marina) marina.update(level, camera, window.innerHeight, performance.now()/1000);
   if (reef) reef.update(level, camera, window.innerHeight, performance.now()/1000);
+  if (marketplace) marketplace.update(level, camera, window.innerHeight, performance.now()/1000);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);

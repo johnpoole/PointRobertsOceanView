@@ -348,6 +348,12 @@ waterfront patio. See [CONTINUE-reef.md](CONTINUE-reef.md) for sources, estimate
 the view link and checks. The close-up Reef module and its sign texture load
 only when needed; Breakers and the proposed Brademy are unchanged.
 
+International Marketplace is the third area (issue #57, priority 1 of #56).
+Its unnamed OSM building is replaced once, with stepped roofs, blue canopies,
+open frontage and grounds in the base; windows, signs and parking paint load
+on demand. See [CONTINUE-marketplace.md](CONTINUE-marketplace.md) for source
+dates, geometry assumptions, checks and a direct view link.
+
 ## Layout
 
 ```
