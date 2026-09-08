@@ -13,4 +13,3 @@ export function buildSaltwaterArea(scene,sample){
   let due=0,view={enter:false,retain:false};
   return{landmarks:[base.building],update(level,camera,height,now){if(now>=due){due=now+.25;view=evaluate(camera,height)}area.update(view,level,now)},dispose:()=>area.dispose()};
 }
-
