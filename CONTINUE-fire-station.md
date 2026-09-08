@@ -52,7 +52,7 @@ bollards, pole and antenna heights are approximate. Entrance floor is
 extend to 64.997 m. Ground over the mapped footprint ranges roughly 65.10 to
 65.51 m. This verifies model contact, not a surveyed floor elevation.
 
-The apron is subdivided and draped over the baked terrain. Its boundary and
+The apron and 2.5 m-deep west entrance walkway are subdivided and draped over the baked terrain. Their boundaries and
 the building polygon also exclude scattered trees: the coarse forest layer
 had incorrectly planted tall trees through the station and paving. The tree
 generator's optional exclusion is applied after consuming the original random
@@ -66,14 +66,14 @@ bollards and a few western parking marks. The pickable name is
 `Station 58 / Point Roberts Fire Department`. AreaDetail uses current-view
 loading, 200/320 m hysteresis and a 30-second cache, disposing owned geometry.
 
-- Base: **3 meshes, 5,058 triangles, no textures**.
-- Close detail: **4 meshes, 7,686 triangles, no textures**.
+- Base: **3 meshes, 5,186 triangles, no textures**.
+- Close detail: **4 meshes, 7,814 triangles, no textures**.
 - `node src/scene/test-fire-station-plan.mjs`: exact footprint replacement,
   wing-area conservation, four bay positions and clearing boundary checks.
 - Existing area-detail lifecycle tests pass. Real Three.js tests with the
   baked heightmap check finite geometry, terrain/eave relationships, fixed
   tide behavior and complete geometry disposal.
-- A synthetic local forest test removed 130 trees within the site; every
+- A synthetic local forest test removed trees within the site; every
   retained instance had exactly the same transformation and color as before.
 - Inspected the full-scene baseline and isolated overview and street views.
   Final deployment checks and full-scene review are recorded in issue #64.

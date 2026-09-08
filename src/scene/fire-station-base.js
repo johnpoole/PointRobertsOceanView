@@ -3,7 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { box,tint,gableRoof } from "./parts.js";
 import { fromWorld } from "../geo.js";
 import { disposeArea } from "./area-view.js";
-import { FIRE_STATION as P,fireStationFrame as F,fireStationPoint,fireStationRing,fireStationWings,fireStationDoors,fireStationAerial } from "./fire-station-plan.js";
+import { FIRE_STATION as P,fireStationFrame as F,fireStationPoint,fireStationRing,fireStationWings,fireStationDoors,fireStationAerial,fireStationWalkway } from "./fire-station-plan.js";
 export function fireStationTransform(g){g.translate(F.origin.x,0,F.origin.z);return g}
 export function fireStationBox(x0,x1,z0,z1,y,h,color){return fireStationTransform(box(x1-x0,z1-z0,h,(x0+x1)/2,y,(z0+z1)/2,color))}
 export function fireStationMerge(parts,group,name){const g=mergeGeometries(parts,false);for(const p of parts)p.dispose();const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,side:THREE.DoubleSide}));m.name=name;group.add(m);return m}
@@ -14,7 +14,7 @@ function roof(x0,x1,z0,z1,y,rise,across=false){const w=across?z1-z0:x1-x0,d=acro
   for(let i=a.count-6;i<a.count;i++)a.setXYZ(i,c.r,c.g,c.b);
   if(across)g.rotateY(Math.PI/2);g.translate((x0+x1)/2,0,(z0+z1)/2);return fireStationTransform(g);
 }
-function drape(pixels,sample,color,offset){const ring=pixels.map(p=>fireStationAerial(...p)),flat=ring.map(p=>new THREE.Vector2(p.x,p.z)),pos=[];
+function drape(pixels,sample,color,offset,local=false){const ring=local?pixels.map(([x,z])=>({x,z})):pixels.map(p=>fireStationAerial(...p)),flat=ring.map(p=>new THREE.Vector2(p.x,p.z)),pos=[];
   function tri(a,b,c){const dist=(p,q)=>Math.hypot(p.x-q.x,p.z-q.z),mid=(p,q)=>({x:(p.x+q.x)/2,z:(p.z+q.z)/2});if(Math.max(dist(a,b),dist(b,c),dist(c,a))>3){const ab=mid(a,b),bc=mid(b,c),ca=mid(c,a);tri(a,ab,ca);tri(ab,b,bc);tri(ca,bc,c);tri(ab,bc,ca);return}for(const p of [a,b,c])pos.push(p.x,fireStationHeight(sample,p.x,p.z)+offset,p.z)}
   for(const f of THREE.ShapeUtils.triangulateShape(flat,[]))tri(...f.map(i=>ring[i]));const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();return fireStationTransform(tint(g,color));
 }
@@ -29,6 +29,6 @@ export function buildFireStationBase(scene,sample){
   // Red doors remain readable in the distant silhouette as well as close detail.
   for(const d of fireStationDoors)roofs.push(fireStationBox(d.x-d.width/2,d.x+d.width/2,d.z+.025,d.z+.06,floor+.08,d.height,0xb6232e));
   fireStationMerge(roofs,group,"fire-station-roofs-and-bays");
-  fireStationMerge([drape(P.apron,sample,0x727777,.055),drape(P.concrete,sample,0xaaa99a,.075)],group,"fire-station-apron");
+  fireStationMerge([drape(P.apron,sample,0x727777,.055),drape(P.concrete,sample,0xaaa99a,.075),drape(fireStationWalkway,sample,0xaaa99a,.085,true)],group,"fire-station-apron");
   scene.add(group);return{group,building,floor,bottom,update(){},dispose:()=>disposeArea(group)};
 }

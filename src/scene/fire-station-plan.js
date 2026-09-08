@@ -17,6 +17,7 @@ Object.assign(fireStationFrame,{width:fireStationRing[3].x,length:fireStationRin
   front:fireStationRing[8].z,north:fireStationRing[9].z,highNorth:fireStationRing[2].z,
   bayWest:fireStationRing[6].x,bayEast:fireStationRing[5].x});
 const f=fireStationFrame;
+export const fireStationWalkway=[[0,f.front],[f.bayWest,f.front],[f.bayWest,f.front+2.5],[0,f.front+2.5]];
 export const fireStationDoors=[
   {x:f.bayWest+3.6,z:f.length,width:5.5,height:3.65},
   {x:f.bayEast-3.6,z:f.length,width:5.5,height:3.65},
@@ -24,7 +25,7 @@ export const fireStationDoors=[
   {x:f.width-3.75,z:fireStationRing[3].z,width:4.8,height:3.8},
 ];
 export function fireStationAerial(px,py){const x=-13697300.425167553+(px-280)/720*210,y=6273069.594786848-py/720*210;return fireStationLocal(toWorld((2*Math.atan(Math.exp(y/6378137))-Math.PI/2)*180/Math.PI,x/6378137*180/Math.PI))}
-const clearedRings=[fireStationRing,FIRE_STATION.apron.map(p=>fireStationAerial(...p))];
+const clearedRings=[fireStationRing,FIRE_STATION.apron.map(p=>fireStationAerial(...p)),fireStationWalkway.map(([x,z])=>({x,z}))];
 const clearBounds={minX:Math.min(...clearedRings.flat().map(p=>p.x)),maxX:Math.max(...clearedRings.flat().map(p=>p.x)),minZ:Math.min(...clearedRings.flat().map(p=>p.z)),maxZ:Math.max(...clearedRings.flat().map(p=>p.z))};
 export function isFireStationClearing(x,z){
   const p=fireStationLocal({x,z});if(p.x<clearBounds.minX||p.x>clearBounds.maxX||p.z<clearBounds.minZ||p.z>clearBounds.maxZ)return false;

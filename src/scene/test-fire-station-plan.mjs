@@ -14,6 +14,6 @@ const w=wings();assert.ok(Math.abs(area(w.low)+area(w.high)-area(ring))<1e-6,"lo
 assert.equal(doors.length,4);for(let i=0;i<doors.length;i++){const d=doors[i],lo=i<2?f.bayWest:f.split,hi=i<2?f.bayEast:f.width;assert.ok(d.x-d.width/2>lo&&d.x+d.width/2<hi,"bay fits its wing");assert.ok(d.height<p.lowHeight);assert.ok(d.z>f.highNorth,"bays face the southern apron")}
 assert.ok(p.highHeight>p.lowHeight+p.lowRise,"tall wing rises above low roof");
 assert.ok(doors[3].x+doors[3].width/2+.2<f.width-1,"east personnel entrance stays clear of apparatus door frame");
-for(const q of [point(20,10),point(30,35)])assert.ok(clear(q.x,q.z),"building and apron exclude scattered trees");
+for(const q of [point(20,10),point(30,35),point(5,f.front+1)])assert.ok(clear(q.x,q.z),"building, apron and entrance walkway exclude scattered trees");
 for(const pixel of [[600,200],[900,350],[350,300]]){const q=aerial(...pixel),v=point(q.x,q.z);assert.equal(clear(v.x,v.z),false,"surrounding forest stays outside clearing")}
 console.log(`PASS: station-only replacement, exact wall outline/wing areas, four south-facing bays. ${f.width.toFixed(2)} x ${f.length.toFixed(2)} m; ${area(ring).toFixed(1)} m².`);
