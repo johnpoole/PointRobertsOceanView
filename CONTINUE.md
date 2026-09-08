@@ -354,6 +354,12 @@ open frontage and grounds in the base; windows, signs and parking paint load
 on demand. See [CONTINUE-marketplace.md](CONTINUE-marketplace.md) for source
 dates, geometry assumptions, checks and a direct view link.
 
+Community Center and library grounds are the fourth area (issue #58, priority
+2 of #56). Two separate OSM buildings gain distinct roof forms and facades,
+with parking, courts, garden beds and playground detail on demand. See
+[CONTINUE-community.md](CONTINUE-community.md) for inspected references,
+estimated dimensions, resource counts, checks and a view link.
+
 ## Layout
 
 ```
