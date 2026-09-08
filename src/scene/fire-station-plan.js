@@ -8,6 +8,9 @@ export const FIRE_STATION={
   lowHeight:4.1,highHeight:7.6,lowRise:2.2,highRise:1.9,
   apron:[[382,331],[531,331],[531,398],[760,398],[760,290],[800,290],[800,583],[385,583]],
   concrete:[[592,398],[760,398],[760,462],[592,462]],
+  // Owner-confirmed low landscaping between the apron and Benson Road.
+  frontage:[[375,582],[803,582],[803,634],[375,634]],
+  frontageShrubs:[[466,603],[490,608],[520,602],[551,607],[581,602],[611,608],[643,605],[681,604],[733,605],[765,602]],
 };
 export const fireStationFrame={origin:toWorld(48.9889611,-123.0442763),angle:0};
 export function fireStationPoint(x,z,y=0){return{x:fireStationFrame.origin.x+x,y,z:fireStationFrame.origin.z+z}}
@@ -25,7 +28,7 @@ export const fireStationDoors=[
   {x:f.width-3.75,z:fireStationRing[3].z,width:4.8,height:3.8},
 ];
 export function fireStationAerial(px,py){const x=-13697300.425167553+(px-280)/720*210,y=6273069.594786848-py/720*210;return fireStationLocal(toWorld((2*Math.atan(Math.exp(y/6378137))-Math.PI/2)*180/Math.PI,x/6378137*180/Math.PI))}
-const clearedRings=[fireStationRing,FIRE_STATION.apron.map(p=>fireStationAerial(...p)),fireStationWalkway.map(([x,z])=>({x,z}))];
+const clearedRings=[fireStationRing,FIRE_STATION.apron.map(p=>fireStationAerial(...p)),FIRE_STATION.frontage.map(p=>fireStationAerial(...p)),fireStationWalkway.map(([x,z])=>({x,z}))];
 const clearBounds={minX:Math.min(...clearedRings.flat().map(p=>p.x)),maxX:Math.max(...clearedRings.flat().map(p=>p.x)),minZ:Math.min(...clearedRings.flat().map(p=>p.z)),maxZ:Math.max(...clearedRings.flat().map(p=>p.z))};
 export function isFireStationClearing(x,z){
   const p=fireStationLocal({x,z});if(p.x<clearBounds.minX||p.x>clearBounds.maxX||p.z<clearBounds.minZ||p.z>clearBounds.maxZ)return false;

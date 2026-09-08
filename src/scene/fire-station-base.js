@@ -29,6 +29,14 @@ export function buildFireStationBase(scene,sample){
   // Red doors remain readable in the distant silhouette as well as close detail.
   for(const d of fireStationDoors)roofs.push(fireStationBox(d.x-d.width/2,d.x+d.width/2,d.z+.025,d.z+.06,floor+.08,d.height,0xb6232e));
   fireStationMerge(roofs,group,"fire-station-roofs-and-bays");
-  fireStationMerge([drape(P.apron,sample,0x727777,.055),drape(P.concrete,sample,0xaaa99a,.075),drape(fireStationWalkway,sample,0xaaa99a,.085,true)],group,"fire-station-apron");
+  const grounds=[drape(P.apron,sample,0x727777,.055),drape(P.concrete,sample,0xaaa99a,.075),drape(fireStationWalkway,sample,0xaaa99a,.085,true)];
+  // Broad, low shrub clumps; shared by both detail levels and merged into the
+  // grounds mesh. Open gaps at the driveways remain free of planting.
+  P.frontageShrubs.forEach((pixel,i)=>{
+    const p=fireStationAerial(...pixel),g=new THREE.IcosahedronGeometry(1,0),height=.65+(i%3)*.1;
+    g.scale(2.1+(i%2)*.35,height/2,1.15);g.translate(p.x,fireStationHeight(sample,p.x,p.z)+height/2-.08,p.z);
+    grounds.push(fireStationTransform(tint(g,[0x536746,0x60734c,0x485e3d][i%3])));
+  });
+  fireStationMerge(grounds,group,"fire-station-apron-and-frontage");
   scene.add(group);return{group,building,floor,bottom,update(){},dispose:()=>disposeArea(group)};
 }

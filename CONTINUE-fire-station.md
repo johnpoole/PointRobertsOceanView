@@ -66,8 +66,8 @@ bollards and a few western parking marks. The pickable name is
 `Station 58 / Point Roberts Fire Department`. AreaDetail uses current-view
 loading, 200/320 m hysteresis and a 30-second cache, disposing owned geometry.
 
-- Base: **3 meshes, 5,186 triangles, no textures**.
-- Close detail: **4 meshes, 7,814 triangles, no textures**.
+- Base: **3 meshes, 5,386 triangles, no textures**.
+- Close detail: **4 meshes, 8,014 triangles, no textures**.
 - `node src/scene/test-fire-station-plan.mjs`: exact footprint replacement,
   wing-area conservation, four bay positions and clearing boundary checks.
 - Existing area-detail lifecycle tests pass. Real Three.js tests with the
@@ -81,3 +81,16 @@ loading, 200/320 m hysteresis and a 30-second cache, disposing owned geometry.
 [Direct station view](https://oceanview.johnpoole.ca/#eye=48.98835,-123.04430,83&aim=48.98885,-123.0440,68&fov=45)
 looks north from Benson Road. The terrain here is about 65 m MLLW, so a camera
 height copied from the marina or waterfront would be underground.
+
+## Owner correction: Benson Road landscaping
+
+John confirmed that the vegetation between the station and the road is low
+shrubs, not tall trees. The scattered-tree exclusion now also includes the
+frontage strip from aerial pixels y=582 to y=634, between x=375 and x=803.
+Ten broad low shrub clusters follow the existing terrain in that strip, with
+openings at the driveway approaches. Their roughly 0.6-0.8 m visible heights,
+spacing and foliage colors are representative estimates. The correction is
+shared by base and close detail, adds 200 triangles, no meshes or textures,
+and does not alter the forest behind/beside the station or across Benson Road.
+The updated synthetic forest test removed 144 trees inside the combined site
+exclusion and preserved all retained instance transforms and colors exactly.

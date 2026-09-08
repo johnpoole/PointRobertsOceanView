@@ -16,4 +16,6 @@ assert.ok(p.highHeight>p.lowHeight+p.lowRise,"tall wing rises above low roof");
 assert.ok(doors[3].x+doors[3].width/2+.2<f.width-1,"east personnel entrance stays clear of apparatus door frame");
 for(const q of [point(20,10),point(30,35),point(5,f.front+1)])assert.ok(clear(q.x,q.z),"building, apron and entrance walkway exclude scattered trees");
 for(const pixel of [[600,200],[900,350],[350,300]]){const q=aerial(...pixel),v=point(q.x,q.z);assert.equal(clear(v.x,v.z),false,"surrounding forest stays outside clearing")}
+for(const pixel of [[400,620],[700,620],...p.frontageShrubs]){const q=aerial(...pixel),v=point(q.x,q.z);assert.ok(clear(v.x,v.z),"road-frontage strip and shrub locations exclude tall trees")}
+for(const pixel of [[600,660],[350,610],[830,610]]){const q=aerial(...pixel),v=point(q.x,q.z);assert.equal(clear(v.x,v.z),false,"frontage correction stays within the station side of the road")}
 console.log(`PASS: station-only replacement, exact wall outline/wing areas, four south-facing bays. ${f.width.toFixed(2)} x ${f.length.toFixed(2)} m; ${area(ring).toFixed(1)} m².`);
