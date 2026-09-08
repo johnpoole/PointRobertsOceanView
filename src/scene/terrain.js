@@ -124,10 +124,9 @@ const EXPOSURE_TOP_M = 60.0;
 const EXPOSURE_LIGHTEN = 0.06;
 
 // Made once. This runs per vertex and the near tile has three and a half
-// million of them; five colours built on every call cost seconds.
+// million of them; colours built on every call cost seconds.
 const GRASS = new THREE.Color(0x4f6b3a);
 const FOREST = new THREE.Color(0x2f4a28);
-const FLOOR = new THREE.Color(0x24322f);
 const scratchBeach = new THREE.Color();
 const scratchLand = new THREE.Color();
 
@@ -143,13 +142,11 @@ function shade(color, amount) {
 function colorForGround(elev, target, row, col, slope, cover) {
   const grass = GRASS;
   const forest = FOREST;
-  const floor = FLOOR;
   const beach = scratchBeach;
   const land = scratchLand;
-  if (elev < 0) {
-    target.copy(floor);
-    return target;
-  }
+  // MLLW is a height datum, not a change of ground material. Negative tides
+  // expose this same foreshore below zero; a dark seabed cutoff here draws a
+  // black band along the water. Let sand/shingle continue below chart datum.
   const stony = Math.min(Math.max((slope - SAND_SLOPE) / (STONE_SLOPE - SAND_SLOPE), 0), 1);
   beach.copy(SAND).lerp(SHINGLE, stony);
   // Only the stone is mottled. Sand is even, which is what makes it read as sand.
