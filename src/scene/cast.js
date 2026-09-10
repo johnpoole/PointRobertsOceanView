@@ -1,10 +1,10 @@
 // The cast: figures that keep the peninsula's own opening hours.
 //
-// These people are invented and the page says so on every one of them. What is
-// not invented is what they are hung on. The places are the peninsula's own, the
-// routes are Dijkstra over the road network, and the hours are the published
-// ones wherever a business publishes them — seven of the eleven. The other four
-// carry the word assumed on their card, and mean it.
+// These people are invented. What is not invented is what they are hung on: the
+// places are the peninsula's own, the routes are Dijkstra over the road network,
+// and the hours are the published ones wherever a business publishes them. Which
+// of them keep published hours and which are assumed is recorded in the bake and
+// in CONTINUE-cast.md, not written over their heads.
 //
 // Nobody has a name. They are the job: the postmaster, the parcel driver, the
 // librarian. Inventing residents of a small town and putting them on a map of it
@@ -24,7 +24,7 @@ const ZONE = "America/Vancouver";
 const COLOURS = [0x4a6fa5, 0x8c5a3c, 0x4f7a55, 0x8a4f6d, 0x5c6b8a, 0x7d6a3f,
                  0x53707d, 0x8a5a4a, 0x46655c, 0x6a5b7d, 0xa0512f];
 
-// Past this there is nothing to read on a card and a figure is two pixels.
+// Past this a figure is two pixels and not worth the draw.
 const SEEN_M = 1400;
 
 let castPromise = null;
@@ -51,9 +51,6 @@ export async function buildCast(scene, sample) {
     const figure = new THREE.Group();
     figure.name = `cast-${person.role.replace(/\s+/g, "-")}`;
     figure.add(shape(person.mode, colour));
-    const card = makeCard(person);
-    card.position.y = person.mode === "walk" || person.mode === "bike" ? 2.6 : 2.4;
-    figure.add(card);
     figure.visible = false;
     group.add(figure);
     // Where each leg starts in the day, and how long it takes at their pace.
@@ -74,7 +71,7 @@ export async function buildCast(scene, sample) {
       });
       leg.total = run;
     }
-    return { person, figure, card, legs };
+    return { figure, legs };
   });
 
   scene.add(group);
@@ -87,9 +84,9 @@ export async function buildCast(scene, sample) {
     // now is a Date; the page hands in the clock it is standing at, so moving
     // the sun moves the town with it.
     //
-    // Somebody four kilometres behind you costs a card, a texture and a draw
-    // for nothing, so a figure is only put on the screen when it is in front of
-    // whoever is looking and near enough to see.
+    // Somebody four kilometres behind you costs a draw for nothing, so a figure
+    // is only put on the screen when it is in front of whoever is looking and
+    // near enough to see.
     update(now, camera) {
       if (!group.visible) return;
       const minutes = minutesInZone(now);
@@ -98,7 +95,7 @@ export async function buildCast(scene, sample) {
         matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
         frustum.setFromProjectionMatrix(matrix);
       }
-      for (const { figure, card, legs } of people) {
+      for (const { figure, legs } of people) {
         const at = placeAt(legs, minutes);
         if (!at) { figure.visible = false; continue; }
         const y = ground(at.lat, at.lon);
@@ -108,11 +105,6 @@ export async function buildCast(scene, sample) {
           sphere.center.set(at.x, y + 1, at.z);
           const range = camera.position.distanceTo(sphere.center);
           figure.visible = range <= SEEN_M && frustum.intersectsSphere(sphere);
-          if (!figure.visible) continue;
-          // The card faces the reader; the figure keeps its own heading.
-          card.quaternion.copy(camera.quaternion);
-          card.quaternion.premultiply(
-            new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -figure.rotation.y, 0)));
         } else {
           figure.visible = true;
         }
@@ -219,29 +211,3 @@ function shape(mode, colour) {
   return mesh;
 }
 
-function makeCard(person) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 160;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "rgba(12, 20, 26, 0.82)";
-  ctx.fillRect(0, 0, 512, 160);
-  ctx.strokeStyle = person.published ? "rgba(150, 190, 220, 0.55)" : "rgba(214, 168, 90, 0.6)";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, 508, 156);
-  ctx.fillStyle = "#e8eef2";
-  ctx.textAlign = "left";
-  ctx.font = "bold 48px Arial, Helvetica, sans-serif";
-  ctx.fillText(person.role, 20, 62);
-  ctx.fillStyle = person.published ? "#9fb6c4" : "#d6a85a";
-  ctx.font = "34px Arial, Helvetica, sans-serif";
-  // The hours, and whether anybody actually published them.
-  ctx.fillText(person.published ? person.hours : `${person.hours} · assumed`, 20, 118);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const card = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.0),
-    new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthTest: false }));
-  card.renderOrder = 3;
-  card.name = "cast-card";
-  return card;
-}
