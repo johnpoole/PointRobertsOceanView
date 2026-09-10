@@ -612,3 +612,51 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
   .clock { bottom: 200px; }
   .trim-range { width: 130px; }
 }
+
+/* --- The keys ---------------------------------------------------------------
+   A mark in the top right corner and the list under it on hover. The list is
+   the only place on the page that says what any key does. */
+.keys-btn {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  font: 24px/1 ui-monospace, Menlo, Consolas, monospace;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  cursor: help;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.keys {
+  display: none;
+  position: fixed;
+  top: 60px;
+  right: 8px;
+  z-index: 1001;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  user-select: none;
+}
+/* The list stays up while the pointer is on the mark or on the list itself, so
+   it can be read on the way down. */
+.keys-btn:hover + .keys,
+.keys:hover { display: block; }
+.keys-row { display: flex; gap: 10px; align-items: baseline; }
+.keys-k {
+  flex: none;
+  width: 32px;
+  color: var(--ink);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.keys-v { color: var(--dim); }
+/* Same reason the top-left panel steps down under the hamburger. */
+body.hud-visible .hud-tr { top: 60px; }
