@@ -4,6 +4,10 @@
 // positions round once a second. It never sends an address, and this never asks
 // for one: a marker here is a stranger and stays a stranger.
 //
+// It does send a colour, which the server works out from the address. The same
+// address draws the same colour every visit, so two markers of one colour are
+// one household, and nothing here can say whose.
+//
 // A second between updates is a long time on a screen running at sixty frames,
 // so nothing is drawn where the last message put it. Each avatar is eased toward
 // where it was last said to be, which turns one position a second into a mark
@@ -120,8 +124,10 @@ export function buildPeople(scene, sample) {
   const euler = new THREE.Euler(0, 0, 0, "YXZ");
   const one = new THREE.Vector3(1, 1, 1);
   const pos = new THREE.Vector3();
+  const colour = new THREE.Color();
 
   let dropped = 0;
+  let uncoloured = false;
 
   // presence is feed.presence: id -> { lat, lon, y, heading }.
   function update(presence, dt) {
@@ -137,11 +143,17 @@ export function buildPeople(scene, sample) {
       const yaw = (pose?.heading ?? at.heading ?? 0) * Math.PI / 180;
       euler.set((pose?.pitch ?? 0) * Math.PI / 180, yaw, (pose?.roll ?? 0) * Math.PI / 180);
       targetQ.setFromEuler(euler);
+      if (!at.color && !uncoloured) {
+        uncoloured = true;
+        console.error(`presence entry ${id} arrived with no colour; the server is ` +
+          "older than this page and its avatars will be drawn in the model's own colours.");
+      }
       let avatar = avatars.get(id);
       if (!avatar) {
         avatar = { x: w.x, y, z: w.z, mode, body: !!pose, q: targetQ.clone() };
         avatars.set(id, avatar);
       }
+      avatar.color = at.color;
       const gap = Math.hypot(w.x - avatar.x, w.z - avatar.z);
       if (gap > JUMP_M || avatar.mode !== mode || avatar.body !== !!pose) {
         avatar.x = w.x; avatar.y = y; avatar.z = w.z;
@@ -166,11 +178,18 @@ export function buildPeople(scene, sample) {
       q.copy(avatar.q);
       m.compose(pos, q, one);
       const model = meshes.get(avatar.mode);
-      model.setMatrixAt(model.count++, m);
+      const slot = model.count++;
+      model.setMatrixAt(slot, m);
+      // Multiplied against the model's own baked colours, so a figure keeps its
+      // shading and takes the visitor's hue.
+      model.setColorAt(slot, avatar.color ? colour.set(avatar.color) : colour.setRGB(1, 1, 1));
       n++;
     }
     for (const model of meshes.values()) {
-      if (model.count) model.instanceMatrix.needsUpdate = true;
+      if (model.count) {
+        model.instanceMatrix.needsUpdate = true;
+        model.instanceColor.needsUpdate = true;
+      }
     }
   }
 

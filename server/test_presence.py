@@ -157,7 +157,25 @@ def test_a_position_never_carries_an_address() -> None:
         assert len(here) == 1, here
         blob = json.dumps(here)
         assert ip not in blob, blob
-        assert set(here[0]) == {"id", "lat", "lon", "y", "heading"}, here[0]
+        assert set(here[0]) == {"id", "lat", "lon", "y", "heading", "color"}, here[0]
+
+
+def test_the_colour_comes_from_the_address_and_the_address_stays_here() -> None:
+    one, again = proxy.ip_color("203.0.113.9"), proxy.ip_color("203.0.113.9")
+    other = proxy.ip_color("198.51.100.2")
+    assert one == again, (one, again)
+    assert one != other, (one, other)
+    assert one.startswith("#") and len(one) == 7, one
+    # The colour is a hash and carries nothing readable back out of itself.
+    assert "203" not in one and "113" not in one, one
+
+
+def test_a_browser_is_told_its_own_colour() -> None:
+    c = fresh()
+    ip = "203.0.113.9"
+    with c.websocket_connect("/ws/live", headers={"x-real-ip": ip}) as ws:
+        first = json.loads(ws.receive_text())
+        assert first["data"]["color"] == proxy.ip_color(ip), first
 
 
 def test_leaving_takes_the_marker_with_it() -> None:

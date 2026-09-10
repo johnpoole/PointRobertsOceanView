@@ -28,6 +28,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import colorsys
+import hashlib
 import html
 import json
 import logging
@@ -393,16 +395,21 @@ class Clients:
         # it says nothing about who or where they are, and a reconnection is a
         # new stranger rather than the same one recognised.
         who = secrets.token_hex(4)
+        # The colour every other browser will draw this one in, from the address
+        # and settled here so the address itself never goes out on the wire.
+        ip = client_ip(ws)
         delivery = ClientDelivery(self, ws)
-        self._sockets[ws] = {"id": who, "at": None, "delivery": delivery}
-        visitors.opened(client_ip(ws))
+        self._sockets[ws] = {"id": who, "at": None, "delivery": delivery,
+                             "color": ip_color(ip)}
+        visitors.opened(ip)
         task = delivery.task = asyncio.create_task(delivery.run(), name="visitor-delivery")
         self._senders[ws] = task
         task.add_done_callback(lambda done: self._senders.pop(ws, None))
         # No await between registration and these two enqueues: even a broadcast
         # during a busy connection ramp cannot precede identity/initial state.
         delivery.offer(self._encoded({"schema_version": SCHEMA_VERSION,
-                                     "message_type": "presence.you", "data": {"id": who}}))
+                                     "message_type": "presence.you",
+                                     "data": {"id": who, "color": self._sockets[ws]["color"]}}))
         delivery.offer(self._encoded(snapshot()))
         return who
 
@@ -445,8 +452,8 @@ class Clients:
             seat["at"] = at
 
     def placed(self) -> list[dict]:
-        """Everyone who has said where they are. Id and position, nothing else."""
-        return [dict(seat["at"], id=seat["id"])
+        """Everyone who has said where they are. Id, position and colour."""
+        return [dict(seat["at"], id=seat["id"], color=seat["color"])
                 for seat in self._sockets.values() if seat["at"]]
 
     async def broadcast(self, message: dict) -> None:
@@ -529,6 +536,19 @@ def _presence_pose(msg: dict) -> dict | None:
 # the socket's own peer is the truth. Anything reaching 8091 directly could put
 # whatever it liked in the header, so this is a record of who says they are here,
 # which for a view of a beach is the question being asked.
+def ip_color(ip: str) -> str:
+    """A colour for one address. The address never leaves the server; this does.
+
+    Same address, same colour, every visit — which is the point of asking for it
+    and is also the one thing the random per-socket id was written to prevent.
+    Hue only: saturation and lightness are fixed so every avatar reads against
+    grey water and dark trees, and two addresses cannot collide into black."""
+    digest = hashlib.sha256(ip.encode("utf-8")).digest()
+    hue = int.from_bytes(digest[:2], "big") / 65535
+    r, g, b = colorsys.hls_to_rgb(hue, 0.62, 0.72)
+    return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+
+
 def client_ip(ws: WebSocket) -> str:
     forwarded = ws.headers.get("x-real-ip")
     if forwarded:
