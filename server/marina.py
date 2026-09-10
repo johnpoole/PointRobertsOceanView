@@ -148,9 +148,14 @@ class Detector:
             raise ValueError(
                 f"Marina snapshot came back {width}x{height}, smaller than one "
                 f"{TILE}-pixel tile; the endpoint has changed what it serves.")
+        # The last row and column are pinned to the far edge rather than left off.
+        # Stepping by the stride alone stops short whenever the frame is not a
+        # whole number of strides wide, and on a 1280 by 720 frame that left the
+        # bottom 120 pixels and the right 80 unscanned — which is the near field
+        # of the car park, the part with the cars in it.
         found = []
-        for y in range(0, max(height - TILE, 0) + 1, STRIDE):
-            for x in range(0, max(width - TILE, 0) + 1, STRIDE):
+        for y in _offsets(height):
+            for x in _offsets(width):
                 found.extend(self._tile(image[y:y + TILE, x:x + TILE], x, y))
         reading = Reading(at=time.time(), width=width, height=height)
         for bucket, confidence, box in _merge(found):
@@ -162,6 +167,15 @@ class Detector:
             else:
                 reading.on_water += 1
         return reading
+
+
+def _offsets(size: int) -> list[int]:
+    """Where the tiles start along one side, the last one flush with the edge."""
+    last = max(size - TILE, 0)
+    starts = list(range(0, last + 1, STRIDE))
+    if starts[-1] != last:
+        starts.append(last)
+    return starts
 
 
 def _overlap(a, b) -> float:

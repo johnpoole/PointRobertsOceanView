@@ -174,6 +174,16 @@ def test_a_frame_smaller_than_a_tile_raises():
         raise AssertionError("a 100 pixel frame was read as if it were the camera")
 
 
+def test_the_tiles_reach_the_far_edge():
+    # Stepping by the stride alone stopped 120 pixels short of the bottom of a
+    # 720-high frame, which is the near field of the car park.
+    for size in (720, 1280, 361, 300):
+        starts = marina._offsets(size)
+        assert starts[0] == 0, starts
+        assert starts[-1] + marina.TILE >= size, (size, starts)
+        assert all(b - a <= marina.STRIDE for a, b in zip(starts, starts[1:])), starts
+
+
 def test_the_full_size_still_is_what_is_asked_for():
     # The default 640x360 still was tested against a daylight frame with cars
     # plainly in it and found none of them.
