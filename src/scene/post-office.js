@@ -56,8 +56,12 @@ export function buildPostOffice(scene,sample){
   }
   {
     const p=postOfficeAerial(...P.flagpole),ground=postOfficeHeight(sample,p.x,p.z)-floor;
+    // Stripes, then the canton over them on the hoist half. Each panel stands
+    // just clear of the one behind it or the near face is a fight for the pixel.
     b(p.x+.07,p.x+1.28,p.z-.02,p.z+.02,ground+7.35,.64,0xb9313a);
-    b(p.x+.07,p.x+.56,p.z-.025,p.z+.015,ground+7.7,.29,0x2c3f75);
+    b(p.x+.07,p.x+1.28,p.z-.03,p.z+.03,ground+7.55,.11,0xe8e6de);
+    b(p.x+.07,p.x+1.28,p.z-.03,p.z+.03,ground+7.79,.11,0xe8e6de);
+    b(p.x+.07,p.x+.56,p.z-.04,p.z+.04,ground+7.65,.34,0x2c3f75);
   }
   // Lavender along the parking lot, in rows down the bed the aerial shows and
   // the photographs stand in front of.
@@ -65,10 +69,10 @@ export function buildPostOffice(scene,sample){
     z0=Math.min(...bed.map(p=>p.z)),z1=Math.max(...bed.map(p=>p.z));
   parts.push(drape(P.bed,sample,0x4a3f33,.06));
   let n=0;
-  for(let z=z0+.9;z<z1-.4;z+=1.5) for(let x=x0+.8;x<x1-.6;x+=1.35){
-    const g=new THREE.IcosahedronGeometry(1,0),h=.55+(n%3)*.09,ground=postOfficeHeight(sample,x,z);
-    g.scale(.62+(n%2)*.1,h/2,.58);g.translate(x,ground+h/2-.06,z);
-    parts.push(postOfficeTransform(tint(g,[0x6c7a5e,0x7b7fa0,0x62704f][n%3])));n++;
+  for(let z=z0+.6;z<z1-.3;z+=.95) for(let x=x0+.5;x<x1-.4;x+=.9){
+    const g=new THREE.IcosahedronGeometry(1,0),h=.44+(n%3)*.07,ground=postOfficeHeight(sample,x,z);
+    g.scale(.34+(n%2)*.06,h/2,.32);g.translate(x,ground+h/2-.05,z);
+    parts.push(postOfficeTransform(tint(g,[0x66714f,0x6d6a7c,0x5c6a49][n%3])));n++;
   }
   postOfficeMerge(parts,group,"post-office-frontage");
   // The sign on the gable face. Drawn here rather than sampled off a photograph.
@@ -83,7 +87,9 @@ export function buildPostOffice(scene,sample){
     const width=F.east-F.bayWest-1.1,face=new THREE.Mesh(new THREE.PlaneGeometry(width,width/4),
       new THREE.MeshStandardMaterial({map:texture,transparent:true,alphaTest:.35,roughness:.9}));
     const p=postOfficePoint((F.bayWest+F.east)/2-.1,F.baySouth+.08);
-    face.position.set(p.x,floor+P.wallHeight+.62,p.z);face.rotation.y=F.angle+Math.PI;
+        // The wall faces south and a plane faces +Z, so the frame's own angle is the
+    // whole of the turn. Half a turn more puts the lettering inside the building.
+    face.position.set(p.x,floor+P.wallHeight+.62,p.z);face.rotation.y=F.angle;
     group.add(face);
   }
   return model;
