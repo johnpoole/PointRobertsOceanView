@@ -80,6 +80,10 @@ export const OSM = "assets/osm/features.json";
 // it never renumbers the buildings in features.json.
 export const GOLF = "assets/osm/golf.json";
 
+// The cast and their routes, baked by scripts/build_cast.py. Invented people on
+// real roads keeping published hours; the file says which hours are published.
+export const CAST = "assets/cast.json";
+
 // The lot the proposed Nielson Campground would stand on, off Whatcom County's
 // parcel layer. The lot is surveyed; the campground on it is not — see
 // src/scene/campground.js.

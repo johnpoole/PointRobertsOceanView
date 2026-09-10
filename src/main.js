@@ -30,6 +30,7 @@ import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
+import { buildCast } from "./scene/cast.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -270,6 +271,8 @@ let marinaPingDue = 0;
 let marinaLot = null;
 // The course surfaces, and the hole cards that stand over them on G.
 let golf = null;
+// Invented people on real roads, keeping the peninsula's published hours.
+let cast = null;
 let border = null;
 let clubhouse = null;
 let fireStation = null;
@@ -372,6 +375,8 @@ stairSpec
     // Its own fetch, so the page paints without waiting on the course.
     buildGolf(scene, near.sample).then(built => { golf = built; })
       .catch(error => console.error("The golf course could not be drawn:", error));
+    buildCast(scene, near.sample).then(built => { cast = built; })
+      .catch(error => console.error("The cast could not be drawn:", error));
     reef = buildReefArea(scene, near.sample);
     marketplace = buildMarketplaceArea(scene, near.sample);
     community = buildCommunityArea(scene, near.sample);
@@ -1746,6 +1751,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyT") toggleBrademy();
   if (e.code === "KeyG") toggleCampground();
   if (e.code === "KeyF" && golf) golf.toggle();
+  if (e.code === "KeyP" && cast) cast.toggle();
   if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
@@ -1842,6 +1848,8 @@ function frame() {
   // camera only for as long as this keeps arriving, and stops when it does not.
   if (marinaLot) marinaLot.update(feed.marina);
   if (golf) golf.update(camera);
+  // The clock the sun runs on is the clock the town runs on.
+  if (cast) cast.update(new Date(Date.now() + offsetHours() * 3600 * 1000), camera);
   if (marina && marina.wanted && t > marinaPingDue) {
     marinaPingDue = t + 30;
     feed.watching("marina");
