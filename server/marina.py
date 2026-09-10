@@ -34,31 +34,47 @@ log = logging.getLogger("oceanview.marina")
 SNAPSHOT_URL = "https://portal.hdontap.com/snapshot/point-roberts_prm-CUST?size=full"
 SOURCE = "pointrobertsmarina.com webcam (HDOnTap still)"
 
-# Where the model lives in the image. The Dockerfile fetches both files and
-# checks their hashes; a missing one is a hard error rather than a quiet skip.
+# Where the model lives in the image. The Dockerfile fetches it and checks its
+# hash; a missing file is a hard error rather than a quiet skip.
+#
+# YOLOX-tiny, Apache-2.0, trained on COCO. The first model here was MobileNet-SSD
+# trained on VOC, which has no truck class at all, so a pickup standing in the
+# lot was invisible to it by construction — which is exactly what was in the
+# frame it was tested against.
 MODEL_DIR = Path(__file__).resolve().parents[1] / "models"
-PROTOTXT = MODEL_DIR / "mobilenet-ssd.prototxt"
-WEIGHTS = MODEL_DIR / "mobilenet-ssd.caffemodel"
+WEIGHTS = MODEL_DIR / "yolox-tiny.onnx"
 
-# MobileNet-SSD's twenty-one classes, in its own order.
-CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus",
-           "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike",
-           "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+# COCO, in its own order. Only the first nine are ever looked at; the rest are
+# here so that an index means what the model meant by it.
+CLASSES = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train",
+           "truck", "boat", "traffic light", "fire hydrant", "stop sign",
+           "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+           "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag",
+           "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite",
+           "baseball bat", "baseball glove", "skateboard", "surfboard",
+           "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon",
+           "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
+           "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant",
+           "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote",
+           "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
+           "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
+           "hair drier", "toothbrush"]
 
 # What is worth counting here, and what to call it on the way out.
-KEEP = {"car": "vehicles", "bus": "vehicles", "motorbike": "vehicles",
-        "person": "people", "boat": "boats"}
+KEEP = {"car": "vehicles", "truck": "vehicles", "bus": "vehicles",
+        "motorcycle": "vehicles", "person": "people", "boat": "boats"}
 
-# Below this the detector is guessing. Kept low enough that a car eighty pixels
-# across is found and high enough that the water does not become a fleet.
-CONFIDENCE = 0.35
+# Below this the detector is guessing. The vehicles in the frame this was tuned
+# against came back between 0.26 and 0.39, so it sits under those and over the
+# noise on the water.
+CONFIDENCE = 0.30
 
-# The model takes a 300 by 300 image. Handing it the whole frame shrinks a car
-# to nineteen pixels and it sees nothing, so the frame is walked in 300-pixel
-# tiles at their own scale, overlapping by half so nothing is lost on a seam.
-# Twenty-one tiles for a 1280 by 720 frame, and about a second to read them all.
-TILE = 300
-STRIDE = 150
+# The model takes a 416 by 416 image. Handing it the whole frame at once found
+# the boats and none of the cars, so the frame is walked in 416-pixel tiles at
+# their own scale with a quarter of a tile of overlap. Eight tiles for a 1280 by
+# 720 frame, about eight hundred milliseconds.
+TILE = 416
+STRIDE = 312
 
 # Two tiles overlapping means one car can be found twice. Boxes that cover each
 # other by more than this are the same thing counted twice.
@@ -102,36 +118,50 @@ class Detector:
 
     def __init__(self) -> None:
         import cv2  # imported here so the module can be read without opencv
+        import numpy as np
 
-        missing = [p for p in (PROTOTXT, WEIGHTS) if not p.exists()]
-        if missing:
+        if not WEIGHTS.exists():
             raise FileNotFoundError(
-                "Marina detector cannot start: "
-                + ", ".join(str(p) for p in missing)
-                + " is not in the image. The Dockerfile fetches these; a build that "
-                  "skipped that step produces exactly this.")
+                f"Marina detector cannot start: {WEIGHTS} is not in the image. "
+                f"The Dockerfile fetches it; a build that skipped that step "
+                f"produces exactly this.")
         self._cv2 = cv2
-        self.net = cv2.dnn.readNetFromCaffe(str(PROTOTXT), str(WEIGHTS))
-        log.info("Marina detector loaded from %s", MODEL_DIR)
+        self.net = cv2.dnn.readNetFromONNX(str(WEIGHTS))
+        # YOLOX gives its boxes against the three grids it was built on rather
+        # than in pixels, so the offsets and strides are worked out once here.
+        grids, strides = [], []
+        for step in (8, 16, 32):
+            side = TILE // step
+            ys, xs = np.meshgrid(np.arange(side), np.arange(side), indexing="ij")
+            grids.append(np.stack((xs, ys), 2).reshape(-1, 2))
+            strides.append(np.full((side * side, 1), step))
+        self._grid = np.concatenate(grids)
+        self._stride = np.concatenate(strides)
+        log.info("Marina detector loaded from %s", WEIGHTS)
 
     def _tile(self, patch, ox, oy):
-        """Everything the model finds in one 300-pixel window, in frame pixels."""
+        """Everything the model finds in one 416-pixel window, in frame pixels."""
+        import numpy as np
+
         cv2 = self._cv2
-        blob = cv2.dnn.blobFromImage(patch, 0.007843, (TILE, TILE), 127.5)
+        blob = cv2.dnn.blobFromImage(patch, 1.0, (TILE, TILE), swapRB=False)
         self.net.setInput(blob)
-        out = self.net.forward()
-        for i in range(out.shape[2]):
-            confidence = float(out[0, 0, i, 2])
-            if confidence < CONFIDENCE:
-                continue
-            bucket = KEEP.get(CLASSES[int(out[0, 0, i, 1])])
+        out = self.net.forward()[0].copy()
+        out[:, 0:2] = (out[:, 0:2] + self._grid) * self._stride
+        out[:, 2:4] = np.exp(out[:, 2:4]) * self._stride
+        # One score per class: how sure it is that anything is there at all,
+        # times how sure it is of what it is.
+        scores = out[:, 4:5] * out[:, 5:]
+        best = scores.argmax(1)
+        confidence = scores.max(1)
+        for i in np.where(confidence > CONFIDENCE)[0]:
+            bucket = KEEP.get(CLASSES[int(best[i])])
             if bucket is None:
                 continue
-            x0 = ox + float(out[0, 0, i, 3]) * TILE
-            y0 = oy + float(out[0, 0, i, 4]) * TILE
-            x1 = ox + float(out[0, 0, i, 5]) * TILE
-            y1 = oy + float(out[0, 0, i, 6]) * TILE
-            yield bucket, confidence, (x0, y0, x1, y1)
+            cx, cy, w, h = (float(v) for v in out[i, :4])
+            yield (bucket, float(confidence[i]),
+                   (ox + cx - w / 2, oy + cy - h / 2,
+                    ox + cx + w / 2, oy + cy + h / 2))
 
     def read(self, jpeg: bytes) -> Reading:
         """Counts for one frame. Raises on anything that is not a frame."""

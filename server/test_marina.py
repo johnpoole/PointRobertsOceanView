@@ -108,14 +108,14 @@ def test_a_watching_message_is_not_a_position():
 
 
 def frame(cars=0):
-    """A grey frame with dark rectangles low in it, encoded as a JPEG."""
+    """A grey frame the size the camera serves, encoded as a JPEG."""
     import cv2
     import numpy as np
 
-    image = np.full((360, 640, 3), 170, np.uint8)
+    image = np.full((720, 1280, 3), 170, np.uint8)
     for i in range(cars):
-        x = 60 + i * 120
-        cv2.rectangle(image, (x, 250), (x + 90, 300), (40, 40, 45), -1)
+        x = 120 + i * 240
+        cv2.rectangle(image, (x, 500), (x + 180, 600), (40, 40, 45), -1)
     ok, buf = cv2.imencode(".jpg", image)
     assert ok
     return buf.tobytes()
@@ -123,8 +123,8 @@ def frame(cars=0):
 
 def test_a_frame_is_read_and_reports_its_own_size():
     reading = marina.Detector().read(frame())
-    assert reading.width == 640 and reading.height == 360, (reading.width, reading.height)
-    assert reading.as_data()["frame_width"] == 640
+    assert reading.width == 1280 and reading.height == 720, (reading.width, reading.height)
+    assert reading.as_data()["frame_width"] == 1280
 
 
 def test_counts_are_what_was_found_and_nothing_more():
@@ -164,14 +164,14 @@ def test_two_cars_apart_stay_two():
 def test_a_frame_smaller_than_a_tile_raises():
     import cv2
     import numpy as np
-    ok, buf = cv2.imencode(".jpg", np.full((100, 100, 3), 128, np.uint8))
+    ok, buf = cv2.imencode(".jpg", np.full((300, 300, 3), 128, np.uint8))
     assert ok
     try:
         marina.Detector().read(buf.tobytes())
     except ValueError as exc:
         assert "smaller than one" in str(exc), exc
     else:
-        raise AssertionError("a 100 pixel frame was read as if it were the camera")
+        raise AssertionError("a 300 pixel frame was read as if it were the camera")
 
 
 def test_the_tiles_reach_the_far_edge():
@@ -218,10 +218,9 @@ def test_a_wrong_content_type_raises_with_the_url_in_it():
 
 
 def test_the_model_is_required_rather_than_optional():
-    # Point the module at a directory with nothing in it and it must refuse.
-    saved = marina.PROTOTXT, marina.WEIGHTS
-    marina.PROTOTXT = Path("/nowhere/mobilenet-ssd.prototxt")
-    marina.WEIGHTS = Path("/nowhere/mobilenet-ssd.caffemodel")
+    # Point the module at a file that is not there and it must refuse.
+    saved = marina.WEIGHTS
+    marina.WEIGHTS = Path("/nowhere/yolox-tiny.onnx")
     try:
         marina.Detector()
     except FileNotFoundError as exc:
@@ -229,7 +228,14 @@ def test_the_model_is_required_rather_than_optional():
     else:
         raise AssertionError("a detector started without a model")
     finally:
-        marina.PROTOTXT, marina.WEIGHTS = saved
+        marina.WEIGHTS = saved
+
+
+def test_a_pickup_is_a_vehicle():
+    # The model this replaced was trained on VOC, which has no truck class, so a
+    # pickup in the lot was invisible to it. That is the reason for the swap.
+    assert marina.KEEP.get("truck") == "vehicles"
+    assert "truck" in marina.CLASSES and "person" in marina.CLASSES
 
 
 for name, fn in sorted((n, f) for n, f in list(globals().items())

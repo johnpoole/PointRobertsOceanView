@@ -1,7 +1,7 @@
 """Fetch the marina detector's weights into models/, and check them.
 
-Run by the Dockerfile at build time. The files are 23 MB of MobileNet-SSD and do
-not belong in the repository's history, so they are pulled here instead — with
+Run by the Dockerfile at build time. The file is 20 MB of YOLOX-tiny and does
+not belong in the repository's history, so it is pulled here instead — with
 their hashes checked, because a model that quietly became a different model
 would show up as wrong counts and nothing else.
 
@@ -22,12 +22,9 @@ from pathlib import Path
 MODELS = Path(__file__).resolve().parents[1] / "models"
 
 FILES = [
-    ("mobilenet-ssd.prototxt",
-     "https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/master/deploy.prototxt",
-     "2d180f723b3109e21f8287f6b3c691390d07b60eed998327cd3259ffa0e50608"),
-    ("mobilenet-ssd.caffemodel",
-     "https://github.com/chuanqi305/MobileNet-SSD/raw/master/mobilenet_iter_73000.caffemodel",
-     "52eed8be80522c152a17fb56740de705b79881bde1a167e0e747310523685fc7"),
+    ("yolox-tiny.onnx",
+     "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx",
+     "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7"),
 ]
 
 

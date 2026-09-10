@@ -32,21 +32,29 @@ differs there.
 
 ## How it is read
 
-MobileNet-SSD, twenty-one classes, of which five are kept: car, bus and
-motorbike as vehicles, person, and boat. The weights are 23 MB and are fetched
-and hash-checked at build time by `scripts/fetch_model.py` rather than carried
-in the repository; a changed file at that URL fails the build.
+YOLOX-tiny, Apache-2.0, COCO. Six classes are kept: car, truck, bus and
+motorcycle as vehicles, person, and boat. The file is 20 MB, fetched and
+hash-checked at build time by `scripts/fetch_model.py` rather than carried in
+the repository; a changed file at that URL fails the build.
 
-Handing the whole frame to a 300×300 model shrinks everything past finding, so
-the frame is walked in 300-pixel tiles at their own scale, overlapping by half
-so nothing is lost on a seam. Twenty-one tiles for a 1280×720 frame, about half
-a second. Boxes of the same kind that cover each other by more than a third are
-one thing found twice.
+**The first model here was MobileNet-SSD on VOC, and VOC has no truck class.** A
+pickup standing in the lot was invisible to it by construction, which is what
+was in the frame it was finally tested against: nothing over 0.10 in the tile
+holding the truck, and the red car beside it called an aeroplane at 0.53. The
+same two vehicles come back as vehicles under YOLOX.
 
-**It under-counts.** On the frame it was built against there were about three
-vehicles and it found one, at 0.92 confidence, plus a person at 0.46. Every
-reading carries its confidence range so the readout can be read for what it is.
-At this range a person is twenty pixels tall and mostly beyond the model.
+Handing the whole frame to a 416×416 model shrinks everything past finding — it
+returned the boats and none of the cars — so the frame is walked in 416-pixel
+tiles at their own scale with a quarter of a tile of overlap. Eight tiles for a
+1280×720 frame, about eight hundred milliseconds. The last row and column are
+pinned flush to the far edge: stepping by the stride alone left the bottom 120
+pixels and the right 80 unscanned, which is the near field of the car park.
+Boxes of the same kind that cover each other by more than a third are one thing
+found twice.
+
+It still under-counts, and every reading carries its confidence range so the
+readout can be read for what it is. At this range a person is twenty pixels tall
+and near the edge of what the model will call one.
 
 ## When it is read
 
