@@ -63,6 +63,22 @@ for (const car of cars) {
   assert.ok(over > 0 && over < LOT.width, `a car ${over.toFixed(1)} m across a ${LOT.width} m lot`);
 }
 
+// A car lies across the lot, in its bay, not end-on down the aisle. The two
+// rows face each other, so their headings are half a turn apart.
+{
+  const heading = Math.atan2(along.x, along.z);
+  const square = (a) => Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
+  const first = cars[0].rotation.y, other = cars[1].rotation.y;
+  assert.ok(Math.abs(square(first - heading) - Math.PI / 2) < 1e-9,
+    `a car sits ${(square(first - heading) * 180 / Math.PI).toFixed(1)} degrees off the lot's axis`);
+  assert.ok(Math.abs(square(other - heading) - Math.PI / 2) < 1e-9, "and so does the far row");
+  assert.ok(Math.abs(square(first - other) - Math.PI) < 1e-9, "the rows face each other");
+  // The lot fills across before it fills along, so a handful of cars is spread
+  // over both rows rather than lined up down one side.
+  const rows = new Set(cars.slice(0, 4).map(c => c.rotation.y.toFixed(6)));
+  assert.equal(rows.size, 2, "the first few cars stand in both rows");
+}
+
 const showing = () => cars.filter(c => c.visible).length + people.filter(p => p.visible).length;
 
 // Nothing is drawn until the camera is actually being read.

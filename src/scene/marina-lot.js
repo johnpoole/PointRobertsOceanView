@@ -69,11 +69,13 @@ export function buildMarinaLot(scene, sample) {
   }
 
   // Where each stall is: two rows facing the aisle, down the length of the lot.
+  // Taken row by row down the lot rather than one whole row and then the other,
+  // so a count of three reads as a car park with three cars in it instead of a
+  // line-up along one side.
   const stalls = [];
-  for (let row = 0; row < 2; row++) {
-    const over = row === 0 ? LOT.depth / 2 : LOT.width - LOT.depth / 2;
-    for (let d = LOT.stall / 2; d + LOT.stall / 2 < run; d += LOT.stall) {
-      stalls.push({ down: d, over, row });
+  for (let d = LOT.stall / 2; d + LOT.stall / 2 < run; d += LOT.stall) {
+    for (const row of [0, 1]) {
+      stalls.push({ down: d, over: row === 0 ? LOT.depth / 2 : LOT.width - LOT.depth / 2, row });
     }
   }
 
@@ -112,7 +114,9 @@ export function buildMarinaLot(scene, sample) {
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }));
     car.name = `marina-car-${i}`;
     car.position.set(p.x, y + 0.05, p.z);
-    car.rotation.y = heading + (stall.row === 0 ? 0 : Math.PI);
+    // A stall is a bay off the aisle, so the car lies across the lot rather than
+    // down it, and the two rows face each other over the aisle.
+    car.rotation.y = heading + (stall.row === 0 ? -Math.PI / 2 : Math.PI / 2);
     car.visible = false;
     group.add(car);
     cars.push(car);
