@@ -2117,10 +2117,11 @@ def local_now() -> datetime:
 
 
 
-# The sheet only lists times from now forward, so this looks often enough to
-# catch a booking before it slides into the past, and only while somebody has
-# the course in front of them.
-TEE_PERIOD_SECONDS = 120.0
+# Once an hour, and only while somebody has the course in front of them. Tee
+# times do not change often. The cost is that a slot booked after one read and
+# teed off before the next is never seen: the sheet stops listing a time once it
+# is past, so that booking leaves no trace to find.
+TEE_PERIOD_SECONDS = 3600.0
 TEE_IDLE_CHECK_SECONDS = 5.0
 TEE_INTEREST_SECONDS = 75.0
 

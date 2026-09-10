@@ -103,10 +103,14 @@ first looked at noon reports an unknown morning rather than an empty one.
 Two gates, and both must be open. The page tells the server it is watching the
 course only while the course is in front of the camera and near enough to make
 out — `areaView` over the whole course, the same test the detailed areas use.
-The server reads the club's sheet only while that keeps arriving, and stops
-seventy-five seconds after the last browser looks away. Between reads the clock
-still moves the groups along, so the figures walk their hole rather than jumping
-every two minutes.
+The server reads the club's sheet **once an hour** while that keeps arriving,
+and stops seventy-five seconds after the last browser looks away. Tee times do
+not change often. Between reads the clock still moves the groups along, so the
+figures walk their hole rather than jumping when a read lands.
+
+The cost of reading hourly: a slot booked after one read and teed off before the
+next is never seen at all, because the sheet stops listing a time once it is
+past. That booking leaves no trace to find.
 
 The cast on `P` keeps the same rule: a figure is drawn only when it is inside
 the frustum and within 1.4 km, so somebody four kilometres behind you costs
