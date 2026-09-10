@@ -26,6 +26,13 @@ footprint and keeps a pickable name on it.
   hanging under the canopy, the booths, the light mast, the flag, and the sign
   in the grass reading BE PREPARED TO SHOW IDENTIFICATION / DECLARE ALL ARTICLES
   ACQUIRED OUTSIDE USA.
+- A Google aerial oblique looking north over the station, supplied by John. It
+  is the only view of the roofs from above at an angle, and it corrected three
+  things: the walls are tan metal panel over a concrete plinth rather than
+  concrete throughout; the office roof is seamed grey with a white membrane over
+  its north end only, and the plant stands on that white end; and the lane
+  islands between the canopy and the line are lined with yellow posts, which is
+  most of what there is to see there.
 - [Point Roberts poe](https://commons.wikimedia.org/wiki/File:Point_Roberts_poe.jpg),
   CC BY-SA 3.0, dated 2002. Not used for the current elevation — it is
   twenty-four years older than the model — and listed only so the next person
@@ -69,9 +76,9 @@ by eye would have missed the walls.
 
 ## What is not known
 
-- The office roof is drawn flat with a lip. The photograph shows its top edge
-  falling from front to back, which could be a shallow mono-pitch rather than a
-  flat roof with a parapet. Nothing in the aerial settles it.
+- The office roof is drawn flat with a lip. The August photograph shows its top
+  edge falling from front to back, which could be a shallow mono-pitch rather
+  than a flat roof with a parapet; the oblique does not settle it either.
 - The south and east elevations have no reference coverage. They carry the mass
   and nothing else. No window on a hidden wall was invented.
 - The lane markings, the queue islands and the northbound Canadian side are not

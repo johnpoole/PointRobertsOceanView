@@ -1,14 +1,18 @@
 import * as THREE from "three";
 import { BORDER as P,borderFrame as F,borderPoint } from "./border-plan.js";
-import { buildBorderBase,borderBox,borderMerge,borderTransform,borderHeight,drape,
-  CONCRETE,SLAT,GLASS,STEEL,DARK } from "./border-base.js";
+import { buildBorderBase,borderBox,borderMerge,borderTransform,borderHeight,
+  CONCRETE,SLAT,GLASS,DARK } from "./border-base.js";
 import { tint } from "./parts.js";
 export function buildBorder(scene,sample){
   const model=buildBorderBase(scene,sample),{group,floor}=model,parts=[];
   const b=(x0,x1,z0,z1,y,h,color)=>parts.push(borderBox(x0,x1,z0,z1,floor+y,h,color));
   const north=F.officeNorth,step=F.stepNorth,west=F.canopyEast;
-  // The office is board-formed concrete to the west of its front and vertical
-  // wood slats to the east of it, and the slats are geometry rather than a
+  // A concrete plinth runs round the foot of the panelled walls, which both
+  // photographs show under the cladding and under the glazing alike.
+  for(const [x0,x1,z0,z1] of [[F.stepWest,F.officeEast,north,north+.09],
+      [F.officeEast-.09,F.officeEast,north,10.5],[west-.09,west,-14,10.5]])
+    b(x0,x1,z0,z1,0,.95,CONCRETE);
+  // Vertical slats above the lettered band, which is geometry rather than a
   // photograph stretched over a wall.
   for(let x=F.letterWest+.2;x<F.letterEast-.1;x+=.28) b(x-.05,x+.05,north-.06,north-.01,2.9,P.officeHeight-2.9,SLAT);
   b(F.letterWest,F.letterEast,north-.07,north,2.86,.1,DARK);
@@ -26,6 +30,12 @@ export function buildBorder(scene,sample){
     b(west-.02,west+.02,z0+.1,z1-.1,.95,2.15,GLASS);
     for(let z=z0+1.35;z<z1-.5;z+=1.35) b(west-.06,west+.02,z-.05,z+.05,.95,2.15,DARK);
     b(west-.06,west+.02,z0,z1,0,.85,CONCRETE);
+  }
+  // The yellow posts standing in rows down the lane islands, which is most of
+  // what there is to see between the canopy and the line.
+  for(const x of [2.6,7.4,12.6,17.4]) for(let z=-1.6;z>-13;z-=2.6){
+    const g=borderHeight(sample,x,z)-floor;
+    b(x-.1,x+.1,z-.1,z+.1,g,1.05,0xcaa93c);
   }
   // Bollards along the walk, and the low kerb it stands on.
   for(let z=P.glazing.west[0];z<P.glazing.west[1];z+=2.4){

@@ -4,7 +4,7 @@ import { box,tint } from "./parts.js";
 import { fromWorld } from "../geo.js";
 import { disposeArea } from "./area-view.js";
 import { BORDER as P,borderFrame as F,borderPoint,borderRing,borderPart } from "./border-plan.js";
-export const CONCRETE=0x9a9a92,SLAT=0xa9803f,GLASS=0x2d3a3f,STEEL=0x6a6a63,DARK=0x45453f,WHITEROOF=0xc4c4bc,METAL=0x7d8079;
+export const CONCRETE=0x9a9a92,SLAT=0xa9803f,GLASS=0x2d3a3f,STEEL=0x6a6a63,DARK=0x45453f,WHITEROOF=0xc4c4bc,METAL=0x7d8079,PANEL=0x9d7a55;
 export function borderTransform(g){g.rotateY(F.angle);g.translate(F.origin.x,0,F.origin.z);return g}
 export function borderBox(x0,x1,z0,z1,y,h,color){return borderTransform(box(x1-x0,z1-z0,h,(x0+x1)/2,y,(z0+z1)/2,color))}
 export function borderMerge(parts,group,name){const g=mergeGeometries(parts,false);for(const p of parts)p.dispose();const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,side:THREE.DoubleSide}));m.name=name;group.add(m);return m}
@@ -37,19 +37,24 @@ export function buildBorderBase(scene,sample){
   const ground=borderRing.map(p=>borderHeight(sample,p.x,p.z)),
     floor=borderHeight(sample,F.officeEast-4,F.officeNorth+6)+.12,bottom=Math.min(...ground)-.15;
   const building=borderMerge([
-    prism(borderPart("office"),bottom,floor+P.officeHeight-bottom,CONCRETE),
-    prism(borderPart("middle"),bottom,floor+P.middleHeight-bottom,CONCRETE),
+    prism(borderPart("office"),bottom,floor+P.officeHeight-bottom,PANEL),
+    prism(borderPart("middle"),bottom,floor+P.middleHeight-bottom,PANEL),
     prism(borderPart("wing"),bottom,floor+P.wingHeight-bottom,METAL),
   ],group,"border-walls");
   building.userData.landmark={name:"US Customs and Border Protection — Point Roberts",kind:"building"};
   const roofs=[];
-  // Flat roofs with a lip, which is what the aerial shows on both, and the
-  // ribbed pitch on the wing built off its own four corners.
-  for(const [part,height,color] of [["office",P.officeHeight,WHITEROOF],["middle",P.middleHeight,WHITEROOF]]){
+  // The office roof is seamed grey, the middle section white, and the wing takes
+  // the ribbed pitch built off its own four corners.
+  for(const [part,height,color] of [["office",P.officeHeight,STEEL],["middle",P.middleHeight,WHITEROOF]]){
     const ring=borderPart(part),shape=new THREE.Shape(ring.map(p=>new THREE.Vector2(p.x,-p.z))),
       slab=new THREE.ExtrudeGeometry(shape,{depth:.22,bevelEnabled:false});
     slab.rotateX(-Math.PI/2);slab.translate(0,floor+height,0);roofs.push(borderTransform(tint(slab,color)));
   }
+  // White membrane over the north end of the office, with the plant standing on
+  // it, which is what the aerial shows and the oblique confirms.
+  roofs.push(borderBox(F.letterWest-.2,F.officeEast,F.officeNorth,-2.4,floor+P.officeHeight+.22,.06,WHITEROOF));
+  for(const [x,z,w,d,h] of [[27.4,-14.4,2.2,1.5,.9],[30.6,-11.2,1.6,1.2,.7],[27.9,-8.2,2.6,1.8,1.0],[31.4,-5.4,1.4,1.4,.6]])
+    roofs.push(borderBox(x-w/2,x+w/2,z-d/2,z+d/2,floor+P.officeHeight+.28,h,0xa8a8a0));
   {
     const r=borderPart("wing");
     roofs.push(slopedRoof(r[0],r[4],r[5],r[9],floor+P.wingHeight,P.wingRise,METAL));
