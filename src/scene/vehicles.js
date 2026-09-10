@@ -14,20 +14,20 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const KMH = 1 / 3.6;
 
-function mesh(geoms, color, opts = {}) {
+export function mesh(geoms, color, opts = {}) {
   return new THREE.Mesh(mergeGeometries(geoms, false), new THREE.MeshStandardMaterial({
     color, roughness: opts.roughness != null ? opts.roughness : 0.8,
     metalness: opts.metalness != null ? opts.metalness : 0.1,
   }));
 }
 
-function box(w, h, d, x, y, z) {
+export function box(w, h, d, x, y, z) {
   const g = new THREE.BoxGeometry(w, h, d);
   g.translate(x, y, z);
   return g;
 }
 
-function cyl(r, len, x, y, z, axis = "y") {
+export function cyl(r, len, x, y, z, axis = "y") {
   const g = new THREE.CylinderGeometry(r, r, len, 10);
   if (axis === "x") g.rotateZ(Math.PI / 2);
   if (axis === "z") g.rotateX(Math.PI / 2);
@@ -38,7 +38,7 @@ function cyl(r, len, x, y, z, axis = "y") {
 // A figure, 1.75 m standing. Seated, y is the saddle or seat and the legs go
 // forward out of the way, so the head sits 0.90 m above it rather than a whole
 // standing body's worth.
-function personGeoms(y = 0, seated = false) {
+export function personGeoms(y = 0, seated = false) {
   const g = [];
   let hip = y;
   if (seated) {
@@ -55,13 +55,13 @@ function personGeoms(y = 0, seated = false) {
   return g;
 }
 
-function buildWalker() {
+export function buildWalker() {
   const group = new THREE.Group();
   group.add(mesh(personGeoms(0), 0x3f5468));
   return group;
 }
 
-function buildBicycle() {
+export function buildBicycle() {
   const group = new THREE.Group();
   const R = 0.34;
   const frame = [
@@ -82,7 +82,7 @@ function buildBicycle() {
   return group;
 }
 
-function buildGolfCart() {
+export function buildGolfCart() {
   const group = new THREE.Group();
   const body = [
     box(1.20, 0.38, 2.20, 0, 0.42, 0),             // tub

@@ -15,7 +15,8 @@
 import * as THREE from "three";
 import { CAST } from "../config.js";
 import { toWorld } from "../geo.js";
-import { box } from "./parts.js";
+import { buildWalker, buildBicycle, buildGolfCart, mesh, box, cyl, personGeoms }
+  from "./vehicles.js";
 
 // Point Roberts keeps its own clock whoever is looking, so a visitor in Berlin
 // sees the post office open at half eight in the morning there, not here.
@@ -173,41 +174,74 @@ export function minutesOf(clock) {
   return hours * 60 + minutes;
 }
 
+// The models the rest of the page already uses: a walker with legs and a head, a
+// bicycle with wheels, a golf cart with a roof and somebody sitting in it. Only
+// the car and the van are new, because neither is something you can drive here.
+//
+// Those models face -Z, which is forward everywhere else in this project, and
+// the cast's heading points along travel, so each one is turned half round
+// inside its own group and the heading is left alone.
 function shape(mode, colour) {
-  const parts = [];
-  if (mode === "walk" || mode === "bike") {
-    parts.push(box(0.40, 0.26, 0.92, 0, 0.78, 0, colour),
-               box(0.34, 0.24, 0.74, 0, 0.04, 0, 0x2f3540),
-               box(0.24, 0.22, 0.24, 0, 1.70, 0, 0xb08c72));
-    if (mode === "bike") {
-      parts.push(box(0.10, 1.65, 0.10, 0, 0.52, 0, 0x30343a),
-                 box(0.08, 0.70, 0.70, 0, 0.02, 0.62, 0x22262b),
-                 box(0.08, 0.70, 0.70, 0, 0.02, -0.62, 0x22262b));
-    }
-  } else {
-    const long = mode === "van" ? 5.3 : mode === "cart" ? 2.6 : 4.4;
-    const tall = mode === "van" ? 1.9 : mode === "cart" ? 1.1 : 0.72;
-    parts.push(box(1.85, long, tall, 0, 0.28, 0, colour));
-    if (mode !== "van") parts.push(box(1.66, long * 0.5, 0.62, 0, 0.28 + tall, -0.1, colour));
-    parts.push(box(1.74, 0.18, 0.32, 0, 0.42, long / 2 - 0.2, 0x2b2f33),
-               box(1.74, 0.18, 0.32, 0, 0.42, -long / 2 + 0.2, 0x2b2f33));
+  const model = new THREE.Group();
+  model.rotation.y = Math.PI;
+  if (mode === "walk") model.add(buildWalker());
+  else if (mode === "bike") model.add(buildBicycle());
+  else if (mode === "cart") model.add(buildGolfCart());
+  else model.add(mode === "van" ? buildVan(colour) : buildCar(colour));
+  model.name = `cast-${mode}`;
+  return model;
+}
+
+// Four and a half metres of estate car: body, a cabin set into it with glass, a
+// bonnet and boot, wheels on their axles, and somebody driving.
+function buildCar(colour) {
+  const group = new THREE.Group();
+  const body = [
+    box(1.78, 0.62, 4.42, 0, 0.72, 0),             // sides, sill to waist
+    box(1.66, 0.30, 2.46, 0, 1.16, -0.05),         // roof band over the cabin
+    box(1.72, 0.22, 1.30, 0, 0.92, -1.55),         // bonnet
+    box(1.72, 0.26, 0.90, 0, 0.94, 1.75),          // boot
+  ];
+  const glass = [
+    box(1.60, 0.44, 2.30, 0, 1.14, -0.05),         // the cabin, seen through
+    box(1.52, 0.40, 0.10, 0, 1.10, -1.24),         // windscreen
+    box(1.52, 0.40, 0.10, 0, 1.10, 1.16),          // rear screen
+  ];
+  const wheels = [];
+  for (const x of [-0.80, 0.80]) for (const z of [-1.42, 1.36]) {
+    wheels.push(cyl(0.33, 0.20, x, 0.33, z, "x"));
   }
-  const total = parts.reduce((n, g) => n + g.attributes.position.count, 0);
-  const position = new Float32Array(total * 3), color = new Float32Array(total * 3);
-  let at = 0;
-  for (const g of parts) {
-    position.set(g.attributes.position.array, at * 3);
-    color.set(g.attributes.color.array, at * 3);
-    at += g.attributes.position.count;
-    g.dispose();
+  const lamps = [box(0.34, 0.16, 0.08, -0.62, 0.92, -2.18),
+                 box(0.34, 0.16, 0.08, 0.62, 0.92, -2.18)];
+  group.add(mesh(body, colour, { roughness: 0.55, metalness: 0.25 }));
+  group.add(mesh(glass, 0x2b3a42, { roughness: 0.25, metalness: 0.1 }));
+  group.add(mesh(wheels, 0x1d1f22, { roughness: 0.9 }));
+  group.add(mesh(lamps, 0xe8e4d6, { roughness: 0.4 }));
+  group.add(mesh(personGeoms(0.62, true), 0x3f5468));
+  return group;
+}
+
+// A parcel van: a tall box behind a cab, which is what one is.
+function buildVan(colour) {
+  const group = new THREE.Group();
+  const body = [
+    box(1.94, 1.62, 3.30, 0, 1.28, 0.75),          // the box behind the cab
+    box(1.86, 0.86, 1.70, 0, 0.90, -1.30),         // the cab
+    box(1.90, 0.30, 0.60, 0, 0.62, -2.20),         // the nose
+  ];
+  const glass = [
+    box(1.70, 0.52, 0.10, 0, 1.16, -2.12),         // windscreen
+    box(0.10, 0.46, 0.90, -0.94, 1.14, -1.30),     // cab windows
+    box(0.10, 0.46, 0.90, 0.94, 1.14, -1.30),
+  ];
+  const wheels = [];
+  for (const x of [-0.88, 0.88]) for (const z of [-1.42, 1.62]) {
+    wheels.push(cyl(0.38, 0.22, x, 0.38, z, "x"));
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(color, 3));
-  geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(geometry,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }));
-  mesh.name = `cast-${mode}`;
-  return mesh;
+  group.add(mesh(body, colour, { roughness: 0.7, metalness: 0.1 }));
+  group.add(mesh(glass, 0x2b3a42, { roughness: 0.25 }));
+  group.add(mesh(wheels, 0x1d1f22, { roughness: 0.9 }));
+  group.add(mesh(personGeoms(0.86, true), 0x3f5468));
+  return group;
 }
 
