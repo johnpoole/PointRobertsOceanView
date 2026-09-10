@@ -81,13 +81,13 @@ export function buildPostOffice(scene,sample){
     for(const x of [r0,(r0+r1)/2,r1]) b(x-.03,x+.03,railZ-.03,railZ+.03,ground,1.0,0x6d8478);
   }
   // The flagpole and the lamp standard, both off the aerial.
-  for(const [pixel,height,thick,colour] of [[P.flagpole,9.2,.07,0xd8d8d2],[P.lamp,6.4,.09,0x3b3129]]){
+  for(const [pixel,height,thick,colour] of [[P.flagpole,9.2,.06,0xd8d8d2],[P.lamp,6.4,.055,0x3b3129]]){
     const p=postOfficeAerial(...pixel),ground=postOfficeHeight(sample,p.x,p.z)-floor;
     b(p.x-thick,p.x+thick,p.z-thick,p.z+thick,ground,height,colour);
   }
   {
     const p=postOfficeAerial(...P.lamp),ground=postOfficeHeight(sample,p.x,p.z)-floor;
-    b(p.x-.14,p.x+.5,p.z-.16,p.z+.16,ground+6.28,.18,0x3b3129);
+    b(p.x-.1,p.x+.42,p.z-.11,p.z+.11,ground+6.3,.14,0x3b3129);
   }
   {
     const p=postOfficeAerial(...P.flagpole),ground=postOfficeHeight(sample,p.x,p.z)-floor;
@@ -114,17 +114,20 @@ export function buildPostOffice(scene,sample){
   {
     const canvas=document.createElement("canvas");canvas.width=1024;canvas.height=256;const ctx=canvas.getContext("2d");
     ctx.fillStyle="#3b2f26";ctx.textAlign="center";
-    ctx.font="bold 78px Arial, Helvetica, sans-serif";ctx.fillText("UNITED STATES POST OFFICE",560,96);
-    ctx.font="bold 58px Arial, Helvetica, sans-serif";ctx.fillText("POINT ROBERTS, WASHINGTON 98281",560,178);
+    ctx.font="bold 74px Arial, Helvetica, sans-serif";ctx.fillText("UNITED STATES POST OFFICE",590,98);
+    ctx.font="bold 52px Arial, Helvetica, sans-serif";ctx.fillText("POINT ROBERTS, WASHINGTON 98281",590,176);
     ctx.fillStyle="#e9e6dc";ctx.fillRect(24,44,132,132);ctx.strokeStyle="#3b2f26";ctx.lineWidth=6;ctx.strokeRect(24,44,132,132);
     ctx.fillStyle="#6f7a86";ctx.beginPath();ctx.moveTo(52,142);ctx.quadraticCurveTo(90,58,128,142);ctx.lineTo(90,120);ctx.closePath();ctx.fill();
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
-    const width=F.east-F.bayWest-1.1,face=new THREE.Mesh(new THREE.PlaneGeometry(width,width/4),
-      new THREE.MeshStandardMaterial({map:texture,transparent:true,alphaTest:.35,roughness:.9}));
-    const p=postOfficePoint((F.bayWest+F.east)/2-.1,F.baySouth+.08);
-        // The wall faces south and a plane faces +Z, so the frame's own angle is the
+    // The gable narrows as it rises, so the sign is sized to the triangle at the
+    // height it hangs at, not to the width of the wall under it.
+    const lift=.78,width=(F.east-F.bayWest)*(1-lift/P.entryRise)*.85,
+      face=new THREE.Mesh(new THREE.PlaneGeometry(width,width/4.2),
+        new THREE.MeshStandardMaterial({map:texture,transparent:true,alphaTest:.35,roughness:.9}));
+    const p=postOfficePoint((F.bayWest+F.east)/2,F.baySouth+.06);
+    // The wall faces south and a plane faces +Z, so the frame's own angle is the
     // whole of the turn. Half a turn more puts the lettering inside the building.
-    face.position.set(p.x,floor+P.wallHeight+.62,p.z);face.rotation.y=F.angle;
+    face.position.set(p.x,floor+P.wallHeight+lift,p.z);face.rotation.y=F.angle;
     group.add(face);
   }
   return model;
