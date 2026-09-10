@@ -29,6 +29,7 @@ import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
+import { buildGolf } from "./scene/golf.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -265,6 +266,8 @@ let postOffice = null;
 let marinaPingDue = 0;
 // The car park and what the marina camera says is standing in it.
 let marinaLot = null;
+// The course surfaces, and the hole cards that stand over them on G.
+let golf = null;
 let border = null;
 let fireStation = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
@@ -363,6 +366,9 @@ stairSpec
     lighthouse = buildLighthouse(scene, near.sample);
     marina = buildMarinaArea(scene, near.sample);
     marinaLot = buildMarinaLot(scene, near.sample);
+    // Its own fetch, so the page paints without waiting on the course.
+    buildGolf(scene, near.sample).then(built => { golf = built; })
+      .catch(error => console.error("The golf course could not be drawn:", error));
     reef = buildReefArea(scene, near.sample);
     marketplace = buildMarketplaceArea(scene, near.sample);
     community = buildCommunityArea(scene, near.sample);
@@ -1735,6 +1741,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
   if (e.code === "KeyG") toggleCampground();
+  if (e.code === "KeyF" && golf) golf.toggle();
   if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
@@ -1830,6 +1837,7 @@ function frame() {
   // While somebody has the marina open, say so. The server reads the marina's
   // camera only for as long as this keeps arriving, and stops when it does not.
   if (marinaLot) marinaLot.update(feed.marina);
+  if (golf) golf.update(camera);
   if (marina && marina.wanted && t > marinaPingDue) {
     marinaPingDue = t + 30;
     feed.watching("marina");

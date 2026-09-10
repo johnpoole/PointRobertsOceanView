@@ -76,6 +76,10 @@ export const SITE_TERRACES = "assets/site/389-terraces.json";
 // Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
 export const OSM = "assets/osm/features.json";
 
+// The golf course, baked on its own by scripts/build_golf.py so that refreshing
+// it never renumbers the buildings in features.json.
+export const GOLF = "assets/osm/golf.json";
+
 // The lot the proposed Nielson Campground would stand on, off Whatcom County's
 // parcel layer. The lot is surveyed; the campground on it is not — see
 // src/scene/campground.js.
