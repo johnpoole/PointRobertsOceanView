@@ -47,6 +47,8 @@ import { buildPostOfficeArea } from "./scene/post-office-area.js";
 import { isPostOfficeBuilding } from "./scene/post-office-plan.js";
 import { buildBorderArea } from "./scene/border-area.js";
 import { isBorderBuilding } from "./scene/border-plan.js";
+import { buildClubhouseArea } from "./scene/clubhouse-area.js";
+import { isClubhouseBuilding } from "./scene/clubhouse-plan.js";
 import { buildPavilion } from "./scene/pavilion.js";
 import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
@@ -269,6 +271,7 @@ let marinaLot = null;
 // The course surfaces, and the hole cards that stand over them on G.
 let golf = null;
 let border = null;
+let clubhouse = null;
 let fireStation = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
 // in Washington South and the corners of a lat/lon box round it hold no lidar.
@@ -377,6 +380,7 @@ stairSpec
     fireStation = buildFireStationArea(scene, near.sample);
     postOffice = buildPostOfficeArea(scene, near.sample);
     border = buildBorderArea(scene, near.sample);
+    clubhouse = buildClubhouseArea(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
@@ -386,9 +390,9 @@ stairSpec
     return buildLand(scene, near.sample, {
       isolate: (b) => isBreakers(b.coords),
       skipHome: true,
-      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b) || isMarinaMainBuilding(b) || isSaltwaterBuilding(b) || isFireStationBuilding(b) || isPostOfficeBuilding(b) || isBorderBuilding(b),
+      skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b) || isMarinaMainBuilding(b) || isSaltwaterBuilding(b) || isFireStationBuilding(b) || isPostOfficeBuilding(b) || isBorderBuilding(b) || isClubhouseBuilding(b),
     }).then((land) => {
-      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks, postOffice.landmarks, border.landmarks);
+      landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks, postOffice.landmarks, border.landmarks, clubhouse.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
       overview.build(land.features);
@@ -1850,6 +1854,7 @@ function frame() {
   if (fireStation) fireStation.update(level, camera, window.innerHeight, performance.now()/1000);
   if (postOffice) postOffice.update(level, camera, window.innerHeight, performance.now()/1000);
   if (border) border.update(level, camera, window.innerHeight, performance.now()/1000);
+  if (clubhouse) clubhouse.update(level, camera, window.innerHeight, performance.now()/1000);
   if (trees) trees.update(camera);
   hud.helm(nav.mode === "boat", nav.boat, feed.current && { ...feed.current, data: currentAt() });
   if (drift) drift.update(dt, camera, nav.current ? nav.current() : null);
