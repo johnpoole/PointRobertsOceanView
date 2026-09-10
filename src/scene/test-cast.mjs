@@ -107,7 +107,11 @@ assert.ok(checked > 40, `${checked} leg ends checked against the roads`);
 // The clock is the peninsula's, not the reader's. Noon UTC is morning there.
 const noonUTC = new Date("2026-09-10T19:00:00Z");
 const minutes = minutesInZone(noonUTC);
-assert.equal(minutes, 12 * 60, `19:00 UTC is ${Math.floor(minutes / 60)}:00 in Point Roberts`);
+assert.ok(Math.abs(minutes - 12 * 60) < 1e-6, `19:00 UTC is ${(minutes / 60).toFixed(2)} in Point Roberts`);
+// And it carries the seconds, or a cart stands still for a minute and then
+// jumps three hundred metres.
+const half = minutesInZone(new Date("2026-09-10T19:00:30Z"));
+assert.ok(Math.abs(half - (12 * 60 + 0.5)) < 1e-3, `half a minute later reads ${half}`);
 
 console.log(`PASS: ${data.cast.length} characters, ${published.length} on published hours, ` +
   `${data.cast.reduce((n, p) => n + p.legs.length, 0)} legs, all of them on the roads.`);

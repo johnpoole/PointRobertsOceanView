@@ -159,14 +159,17 @@ function walk(leg, along) {
   };
 }
 
-// Minutes since midnight where the peninsula is, not where the reader is.
+// Minutes since midnight where the peninsula is, not where the reader is, and
+// carrying the seconds. Whole minutes held a cart still for sixty seconds and
+// then moved it three hundred metres, which reads as a thing that does not move
+// rather than a thing that does.
 export function minutesInZone(date, zone = ZONE) {
   const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: zone, hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: zone, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   }).formatToParts(date);
-  const hour = Number(parts.find(p => p.type === "hour").value);
-  const minute = Number(parts.find(p => p.type === "minute").value);
-  return hour * 60 + minute;
+  const at = (type) => Number(parts.find(p => p.type === type).value);
+  return at("hour") * 60 + at("minute") + at("second") / 60
+    + (date.getMilliseconds() % 1000) / 60000;
 }
 
 export function minutesOf(clock) {
