@@ -142,6 +142,44 @@ def test_an_empty_frame_reports_nothing_rather_than_guessing():
     assert data["confidence_min"] is None or data["confidence_min"] >= marina.CONFIDENCE
 
 
+def test_one_thing_in_two_tiles_is_counted_once():
+    box = (100.0, 100.0, 160.0, 180.0)
+    nudged = (104.0, 103.0, 164.0, 183.0)
+    kept = marina._merge([("vehicles", 0.9, box), ("vehicles", 0.5, nudged)])
+    assert len(kept) == 1 and kept[0][1] == 0.9, kept
+
+
+def test_a_person_beside_a_car_is_two_things():
+    box = (100.0, 100.0, 160.0, 180.0)
+    kept = marina._merge([("vehicles", 0.9, box), ("people", 0.6, box)])
+    assert len(kept) == 2, kept
+
+
+def test_two_cars_apart_stay_two():
+    kept = marina._merge([("vehicles", 0.9, (0.0, 0.0, 60.0, 80.0)),
+                          ("vehicles", 0.8, (400.0, 0.0, 460.0, 80.0))])
+    assert len(kept) == 2, kept
+
+
+def test_a_frame_smaller_than_a_tile_raises():
+    import cv2
+    import numpy as np
+    ok, buf = cv2.imencode(".jpg", np.full((100, 100, 3), 128, np.uint8))
+    assert ok
+    try:
+        marina.Detector().read(buf.tobytes())
+    except ValueError as exc:
+        assert "smaller than one" in str(exc), exc
+    else:
+        raise AssertionError("a 100 pixel frame was read as if it were the camera")
+
+
+def test_the_full_size_still_is_what_is_asked_for():
+    # The default 640x360 still was tested against a daylight frame with cars
+    # plainly in it and found none of them.
+    assert "size=full" in marina.SNAPSHOT_URL
+
+
 def test_rubbish_raises_rather_than_reporting_zero():
     try:
         marina.Detector().read(b"<html>Unauthorized</html>")

@@ -28,7 +28,10 @@ from pathlib import Path
 
 log = logging.getLogger("oceanview.marina")
 
-SNAPSHOT_URL = "https://portal.hdontap.com/snapshot/point-roberts_prm-CUST"
+# size=full is the 1280x720 still. The default is 640x360, and at that size a
+# car in the lot is forty pixels and the detector finds none of them: it was
+# tested on a daylight frame with three cars plainly in it and reported zero.
+SNAPSHOT_URL = "https://portal.hdontap.com/snapshot/point-roberts_prm-CUST?size=full"
 SOURCE = "pointrobertsmarina.com webcam (HDOnTap still)"
 
 # Where the model lives in the image. The Dockerfile fetches both files and
@@ -46,9 +49,20 @@ CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus"
 KEEP = {"car": "vehicles", "bus": "vehicles", "motorbike": "vehicles",
         "person": "people", "boat": "boats"}
 
-# Below this the detector is guessing. Kept low enough that a car at forty
-# pixels is found and high enough that the water does not become a fleet.
+# Below this the detector is guessing. Kept low enough that a car eighty pixels
+# across is found and high enough that the water does not become a fleet.
 CONFIDENCE = 0.35
+
+# The model takes a 300 by 300 image. Handing it the whole frame shrinks a car
+# to nineteen pixels and it sees nothing, so the frame is walked in 300-pixel
+# tiles at their own scale, overlapping by half so nothing is lost on a seam.
+# Twenty-one tiles for a 1280 by 720 frame, and about a second to read them all.
+TILE = 300
+STRIDE = 150
+
+# Two tiles overlapping means one car can be found twice. Boxes that cover each
+# other by more than this are the same thing counted twice.
+OVERLAP = 0.35
 
 # The lot fills the near third of the frame and the docks sit above it. This is
 # read off the frame, not surveyed, and it is the only spatial claim made.
@@ -100,6 +114,25 @@ class Detector:
         self.net = cv2.dnn.readNetFromCaffe(str(PROTOTXT), str(WEIGHTS))
         log.info("Marina detector loaded from %s", MODEL_DIR)
 
+    def _tile(self, patch, ox, oy):
+        """Everything the model finds in one 300-pixel window, in frame pixels."""
+        cv2 = self._cv2
+        blob = cv2.dnn.blobFromImage(patch, 0.007843, (TILE, TILE), 127.5)
+        self.net.setInput(blob)
+        out = self.net.forward()
+        for i in range(out.shape[2]):
+            confidence = float(out[0, 0, i, 2])
+            if confidence < CONFIDENCE:
+                continue
+            bucket = KEEP.get(CLASSES[int(out[0, 0, i, 1])])
+            if bucket is None:
+                continue
+            x0 = ox + float(out[0, 0, i, 3]) * TILE
+            y0 = oy + float(out[0, 0, i, 4]) * TILE
+            x1 = ox + float(out[0, 0, i, 5]) * TILE
+            y1 = oy + float(out[0, 0, i, 6]) * TILE
+            yield bucket, confidence, (x0, y0, x1, y1)
+
     def read(self, jpeg: bytes) -> Reading:
         """Counts for one frame. Raises on anything that is not a frame."""
         import numpy as np
@@ -111,27 +144,51 @@ class Detector:
                 f"Marina snapshot was not a decodable image ({len(jpeg)} bytes from "
                 f"{SNAPSHOT_URL}); the endpoint may have started answering with HTML.")
         height, width = image.shape[:2]
-        blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 0.007843,
-                                     (300, 300), 127.5)
-        self.net.setInput(blob)
-        out = self.net.forward()
+        if width < TILE or height < TILE:
+            raise ValueError(
+                f"Marina snapshot came back {width}x{height}, smaller than one "
+                f"{TILE}-pixel tile; the endpoint has changed what it serves.")
+        found = []
+        for y in range(0, max(height - TILE, 0) + 1, STRIDE):
+            for x in range(0, max(width - TILE, 0) + 1, STRIDE):
+                found.extend(self._tile(image[y:y + TILE, x:x + TILE], x, y))
         reading = Reading(at=time.time(), width=width, height=height)
-        for i in range(out.shape[2]):
-            confidence = float(out[0, 0, i, 2])
-            if confidence < CONFIDENCE:
-                continue
-            name = CLASSES[int(out[0, 0, i, 1])]
-            bucket = KEEP.get(name)
-            if bucket is None:
-                continue
+        for bucket, confidence, box in _merge(found):
             setattr(reading, bucket, getattr(reading, bucket) + 1)
             reading.confidences.append(confidence)
-            middle = (float(out[0, 0, i, 4]) + float(out[0, 0, i, 6])) / 2
+            middle = (box[1] + box[3]) / 2 / height
             if middle >= LOT_TOP_FRACTION:
                 reading.in_lot += 1
             else:
                 reading.on_water += 1
         return reading
+
+
+def _overlap(a, b) -> float:
+    """How much of the smaller box the two share, 0 to 1."""
+    x0, y0 = max(a[0], b[0]), max(a[1], b[1])
+    x1, y1 = min(a[2], b[2]), min(a[3], b[3])
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    both = (x1 - x0) * (y1 - y0)
+    areas = [(q[2] - q[0]) * (q[3] - q[1]) for q in (a, b)]
+    smaller = min(areas)
+    return both / smaller if smaller > 0 else 0.0
+
+
+def _merge(found):
+    """One thing found in two overlapping tiles is one thing, not two.
+
+    Keeps the most confident of each cluster. Only boxes of the same kind are
+    merged: a person standing beside a car is two things in the same place.
+    """
+    kept = []
+    for bucket, confidence, box in sorted(found, key=lambda f: -f[1]):
+        if any(other[0] == bucket and _overlap(box, other[2]) > OVERLAP
+               for other in kept):
+            continue
+        kept.append((bucket, confidence, box))
+    return kept
 
 
 async def sample(client, detector: Detector) -> Reading:
