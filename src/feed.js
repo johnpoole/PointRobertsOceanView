@@ -20,6 +20,9 @@ export class Feed {
     // Everyone else with the page open, by the name the server gave them. Never
     // an address: the server sends a random id per connection and nothing else.
     this.presence = new Map();  // id -> { lat, lon, y, heading }
+    // What the marina camera was last read to hold, or null when nobody is
+    // looking at the marina and the server is not polling it.
+    this.marina = null;
     this.selfId = null;         // what the server called us, so we can skip it
 
     this._ws = null;
@@ -93,6 +96,18 @@ export class Feed {
     }
   }
 
+  // Says this browser is looking at one of the detailed areas, so the server
+  // knows whether a feed that costs somebody else bandwidth is worth polling.
+  // Repeat it while the area is open; the server forgets after a minute or so.
+  watching(area) {
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+    try {
+      this._ws.send(JSON.stringify({ type: "watching", area }));
+    } catch (err) {
+      /* the socket is going; onclose will deal with it */
+    }
+  }
+
   _scheduleReconnect() {
     const delay = this._backoff;
     this._backoff = Math.min(this._backoff * 2, 15000);
@@ -131,6 +146,11 @@ export class Feed {
         this._applyVessel(msg);
         this._emit("vessel");
         break;
+      case "marina.presence":
+        // Counts off the marina camera, or the reason there are none.
+        this.marina = msg;
+        this._emit("marina");
+        break;
       case "presence.you":
         this.selfId = msg.data.id;
         break;
@@ -156,6 +176,7 @@ export class Feed {
     this.current = data.current
       ? { data: data.current.data, quality: data.current.quality } : null;
     this.providerHealth = data.provider_health || this.providerHealth;
+    this.marina = data.marina || null;
     this.vesselsNote = data.vessels_note || "";
   }
 

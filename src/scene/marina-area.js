@@ -29,6 +29,9 @@ export function buildMarinaArea(scene, sample) {
       if (now>=due) { due=now+.25; view=evaluate(camera,height); }
       area.update(view,level,now);
     },
+    // Whether the detailed marina is up. The server polls the marina's camera
+    // only while this is true, so it is read every frame by main.
+    get wanted() { return area.wanted; },
     dispose:()=>area.dispose(),
   };
 }

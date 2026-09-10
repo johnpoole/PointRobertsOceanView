@@ -10,6 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # the image grows by a few hundred megabytes and there is no way round it.
 RUN playwright install --with-deps chromium
 
+# The marina detector's weights, fetched and hash-checked rather than carried in
+# the repository. A failure here stops the build, which is the point: a container
+# without the model reads no camera at all.
+COPY scripts/fetch_model.py ./scripts/fetch_model.py
+RUN python scripts/fetch_model.py
+
 # App: proxy, client source, static page, and the baked terrain asset.
 COPY server ./server
 COPY src ./src

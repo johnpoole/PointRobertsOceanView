@@ -36,6 +36,7 @@ import logging
 import math
 import os
 import secrets
+import time
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -263,6 +264,9 @@ class World:
         self.current_time: datetime | None = None
         self.crossings: dict | None = None
         self.crossings_time: datetime | None = None
+        # The last thing the marina camera was read to hold, and when.
+        self.marina: dict | None = None
+        self.marina_time: datetime | None = None
         # Why vessels are offline, in the monitor's words. Empty when they are not.
         self.vessels_note = ""
         # What the lookups have answered, kept so the same question is not asked
@@ -278,6 +282,9 @@ class World:
             "vessels": "offline",
             "aircraft": "offline",
             "crossings": "offline",
+            # Idle until somebody opens the marina, which is the whole point of
+            # it: this feed costs the marina's provider a picture every minute.
+            "marina": "idle",
         }
 
 
@@ -400,7 +407,7 @@ class Clients:
         ip = client_ip(ws)
         delivery = ClientDelivery(self, ws)
         self._sockets[ws] = {"id": who, "at": None, "delivery": delivery,
-                             "color": ip_color(ip)}
+                             "color": ip_color(ip), "watching": {}}
         visitors.opened(ip)
         task = delivery.task = asyncio.create_task(delivery.run(), name="visitor-delivery")
         self._senders[ws] = task
@@ -450,6 +457,21 @@ class Clients:
         seat = self._sockets.get(ws)
         if seat is not None:
             seat["at"] = at
+
+    def watching(self, ws: WebSocket, area: str) -> None:
+        seat = self._sockets.get(ws)
+        if seat is not None:
+            seat["watching"][area] = time.monotonic()
+
+    def anyone_watching(self, area: str, within: float) -> bool:
+        """True while at least one open browser has said so lately.
+
+        Browsers repeat it while they are looking, so silence means they have
+        moved on or gone, and the feed it gates stops being polled.
+        """
+        cutoff = time.monotonic() - within
+        return any(seat["watching"].get(area, 0) > cutoff
+                   for seat in self._sockets.values())
 
     def placed(self) -> list[dict]:
         """Everyone who has said where they are. Id, position and colour."""
@@ -508,6 +530,29 @@ def read_position(text: str) -> dict | None:
             if pose is not None and -180 <= pitch <= 180 and -180 <= roll <= 180:
                 at["body"] = {**pose, "pitch": round(pitch, 1), "roll": round(roll, 1)}
     return at
+
+
+# Areas a browser may say it is looking at. Anything else is dropped: this is
+# not a free-text channel and it must never grow into one.
+WATCHABLE = {"marina"}
+
+
+def read_watching(text: str) -> str | None:
+    """A browser saying which detailed area it is looking at, or None.
+
+    This is deliberately not part of the position message. A position goes out
+    to every other browser on the site; what somebody is looking at stays on
+    this side of the socket and is used for one thing only — deciding whether a
+    feed that costs somebody else bandwidth is worth polling at all.
+    """
+    try:
+        msg = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(msg, dict) or msg.get("type") != "watching":
+        return None
+    area = msg.get("area")
+    return area if isinstance(area, str) and area in WATCHABLE else None
 
 
 def _presence_pose(msg: dict) -> dict | None:
@@ -734,6 +779,11 @@ def snapshot() -> dict:
                          STALE_SECONDS["aircraft"])
                 for icao, state in world.aircraft.items()
             ],
+            "marina": (envelope("marina.presence",
+                                "pointrobertsmarina.com webcam (HDOnTap still)",
+                                world.marina_time, world.marina,
+                                MARINA_PERIOD_SECONDS * 3)
+                       if world.marina else None),
             "provider_health": dict(world.health),
             "vessels_note": world.vessels_note,
         },
@@ -1985,6 +2035,65 @@ def reap(store: dict, seen: dict, cutoff: float, now: datetime | None = None) ->
     return gone
 
 
+# ---- the marina camera ------------------------------------------------------
+
+# One still a minute while somebody is looking, and nothing at all when nobody
+# is. The marina's provider serves the picture; a browser open on the other side
+# of the world should not be spending their bandwidth on an empty room.
+MARINA_PERIOD_SECONDS = 60.0
+MARINA_IDLE_CHECK_SECONDS = 5.0
+# A browser repeats its interest every thirty seconds, so this is two missed
+# repeats before the feed goes quiet again.
+MARINA_INTEREST_SECONDS = 75.0
+
+
+async def marina_task() -> None:
+    from server import marina as marina_reader
+
+    detector = None
+    last_run: float | None = None
+    async with httpx.AsyncClient(timeout=45) as client:
+        while True:
+            if not clients.anyone_watching("marina", MARINA_INTEREST_SECONDS):
+                # Idle is not offline. Nothing is wrong; nobody is looking.
+                if world.health["marina"] != "idle":
+                    world.health["marina"] = "idle"
+                    world.marina = None
+                    await clients.broadcast(envelope(
+                        "marina.presence", marina_reader.SOURCE, None,
+                        {"watching": False}, None))
+                await asyncio.sleep(MARINA_IDLE_CHECK_SECONDS)
+                continue
+            now = asyncio.get_running_loop().time()
+            if last_run is not None and now - last_run < MARINA_PERIOD_SECONDS:
+                await asyncio.sleep(MARINA_IDLE_CHECK_SECONDS)
+                continue
+            last_run = now
+            try:
+                if detector is None:
+                    detector = marina_reader.Detector()
+                reading = await marina_reader.sample(client, detector)
+            except Exception as exc:
+                # Zero cars and a broken camera look identical on a screen, so
+                # this says which one it is and stops reporting counts.
+                world.health["marina"] = "offline"
+                world.marina = None
+                log.error("Marina camera read failed: %s", exc)
+                await clients.broadcast(envelope(
+                    "marina.presence", marina_reader.SOURCE, None,
+                    {"watching": True, "error": str(exc)[:200]}, None))
+                await asyncio.sleep(RETRY_SECONDS)
+                continue
+            world.marina = dict(reading.as_data(), watching=True)
+            world.marina_time = utcnow()
+            world.health["marina"] = "live"
+            log.info("Marina camera: %d vehicles, %d people, %d boats, %d in the lot",
+                     reading.vehicles, reading.people, reading.boats, reading.in_lot)
+            await clients.broadcast(envelope(
+                "marina.presence", marina_reader.SOURCE, world.marina_time,
+                world.marina, MARINA_PERIOD_SECONDS * 3))
+
+
 async def reaper_task() -> None:
     """Runs whether or not anybody is watching, so the first visitor after a
     quiet night is handed the water as it is and not as it was.
@@ -2122,7 +2231,8 @@ async def startup() -> None:
                              (heartbeat_task(), "heartbeat", None),
                              (presence_task(), "presence", None),
                              (reaper_task(), "reaper", None),
-                             (visitors_task(), "visitors", None)):
+                             (visitors_task(), "visitors", None),
+                             (marina_task(), "marina", "marina")):
         _tasks.append(_spawn(coro, name, feed))
 
 
@@ -2146,7 +2256,12 @@ async def ws_live(ws: WebSocket) -> None:
     try:
         await clients.add(ws)
         while True:
-            at = read_position(await ws.receive_text())
+            text = await ws.receive_text()
+            area = read_watching(text)
+            if area:
+                clients.watching(ws, area)
+                continue
+            at = read_position(text)
             # Anything that is not a position is dropped and the socket stays
             # open. A browser sending nonsense is a browser with a bug, not a
             # reason to close on it.

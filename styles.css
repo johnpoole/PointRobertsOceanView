@@ -660,3 +660,7 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
 .keys-v { color: var(--dim); }
 /* Same reason the top-left panel steps down under the hamburger. */
 body.hud-visible .hud-tr { top: 60px; }
+
+/* The marina camera when nobody is looking at the marina. Not a fault: the
+   feed is not being polled because nothing needs it. */
+.health.idle { color: var(--dim); }

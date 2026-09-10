@@ -260,6 +260,8 @@ let community = null;
 let marinaBuilding = null;
 let saltwater = null;
 let postOffice = null;
+// When the next "somebody is looking at the marina" goes out, in scene seconds.
+let marinaPingDue = 0;
 let border = null;
 let fireStation = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
@@ -1821,6 +1823,12 @@ function frame() {
   gyroOrbit();
   nav.update(dt);
   if (marina) marina.update(level, camera, window.innerHeight, performance.now()/1000);
+  // While somebody has the marina open, say so. The server reads the marina's
+  // camera only for as long as this keeps arriving, and stops when it does not.
+  if (marina && marina.wanted && t > marinaPingDue) {
+    marinaPingDue = t + 30;
+    feed.watching("marina");
+  }
   if (reef) reef.update(level, camera, window.innerHeight, performance.now()/1000);
   if (marketplace) marketplace.update(level, camera, window.innerHeight, performance.now()/1000);
   if (community) community.update(level, camera, window.innerHeight, performance.now()/1000);

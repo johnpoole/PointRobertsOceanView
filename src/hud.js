@@ -45,6 +45,26 @@ export class Hud {
     node.classList.add(status || "offline");
   }
 
+  // The marina camera, which is read only while somebody has the marina open.
+  // Idle is not a fault and does not read as one; a fault says what broke.
+  _marina(feed) {
+    const node = el("ph-marina");
+    const status = feed.providerHealth.marina || "idle";
+    const at = feed.marina && feed.marina.data;
+    node.classList.remove("live", "offline", "mock", "fallback", "scraped", "idle");
+    node.classList.add(status);
+    if (status === "live" && at) {
+      const parts = [];
+      if (at.vehicles) parts.push(`${at.vehicles} vehicle${at.vehicles === 1 ? "" : "s"}`);
+      if (at.people) parts.push(`${at.people} on foot`);
+      if (at.boats) parts.push(`${at.boats} afloat`);
+      node.textContent = parts.length ? parts.join(" · ") : "nothing moving";
+      return;
+    }
+    if (status === "offline" && at && at.error) { node.textContent = "camera unread"; return; }
+    node.textContent = status;
+  }
+
   // `at` is what the feeds say at the hour the page is standing at. On the
   // present hour it is the feed itself. Moved off it, these are forecasts, and
   // the panels say so rather than showing a forecast where a gauge reading was.
@@ -54,6 +74,7 @@ export class Hud {
     this._health("ph-currents", feed.providerHealth.currents);
     this._health("ph-vessels", feed.providerHealth.vessels);
     this._health("ph-aircraft", feed.providerHealth.aircraft);
+    this._marina(feed);
     el("ais-why").textContent = feed.vesselsNote || "";
 
     // Weather
