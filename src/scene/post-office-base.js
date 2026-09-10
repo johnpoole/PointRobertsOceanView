@@ -42,14 +42,18 @@ export function buildPostOfficeBase(scene,sample){
   function place(g,x0,x1,z0,z1){g.translate((x0+x1)/2,0,(z0+z1)/2);roofs.push(postOfficeTransform(g))}
   place(hipRoof((F.east-F.mainWest)/2,(F.mainSouth-F.north)/2,floor+P.wallHeight,P.mainRise,P.eave,TILE),F.mainWest,F.east,F.north,F.mainSouth);
   place(hipRoof((F.mainWest-F.westX)/2,(F.westSouth-F.westNorth)/2,floor+P.westHeight,P.westRise,.45,TILE),F.westX,F.mainWest,F.westNorth,F.westSouth);
-  // The entrance bay: a gable facing the parking lot, its ridge running out from
-  // the main roof, and its face is what carries the sign.
+  // The porch: a gable facing the parking lot. The helper lays its ridge along Z,
+  // which here is north to south, out from the main roof toward the road, and
+  // that puts the triangle at the south end where the sign goes. No turn.
   {
-    const z0=F.mainSouth-2.6,z1=F.baySouth,g=gableRoof((z1-z0)/2+.35,(F.east-F.bayWest)/2,floor+P.wallHeight,P.entryRise,P.eave,TILE),c=new THREE.Color(CREAM),a=g.attributes.color;
-    // The helper closes its ends with the last two triangles; those are the
-    // gable face and the join, and both are siding rather than roof.
+    const z0=F.mainSouth-2.6,z1=F.baySouth,
+      g=gableRoof((F.east-F.bayWest)/2,(z1-z0)/2,floor+P.wallHeight,P.entryRise,P.eave,TILE),
+      c=new THREE.Color(CREAM),a=g.attributes.color;
+    // The helper closes both ends with its last two triangles: the south one is
+    // the gable face the sign hangs on and the north one dies into the main
+    // roof. Both are siding, not tile.
     for(let i=a.count-6;i<a.count;i++)a.setXYZ(i,c.r,c.g,c.b);
-    g.rotateY(Math.PI/2);place(g,F.bayWest,F.east,z0,z1);
+    place(g,F.bayWest,F.east,z0,z1);
   }
   postOfficeMerge(roofs,group,"post-office-roofs");
   postOfficeMerge([drape(P.lot,sample,0x5f6360,.05),drape(P.walk,sample,0xb0ada0,.075)],group,"post-office-lot");
