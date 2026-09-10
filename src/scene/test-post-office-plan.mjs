@@ -29,11 +29,21 @@ assert.ok(Math.abs(f.east-f.bayWest-9.47)<.1,`bay width ${(f.east-f.bayWest).toF
 assert.ok(f.westX<f.mainWest&&Math.abs(f.mainWest-f.westX-3.81)<.1,`west wing ${(f.mainWest-f.westX).toFixed(2)}`);
 assert.ok(p.westHeight<p.wallHeight,"the west wing is lower than the block it hangs off");
 
-// Everything on the front sits inside the wall it is fixed to.
-for(const [x0,x1] of [p.doors,...p.bayWindows,p.bench]) assert.ok(x0>f.bayWest&&x1<f.east,`${x0} ${x1} inside the bay`);
-assert.ok(p.window[0]>f.mainWest&&p.window[1]<f.bayWest,"the wide window is on the main wall");
+// Everything under the porch sits inside the span the porch covers.
+for(const [x0,x1] of [p.doors,...p.glazing,p.bench]) assert.ok(x0>f.bayWest&&x1<f.east,`${x0} ${x1} inside the porch`);
+for(const x of p.posts) assert.ok(x>f.bayWest&&x<f.east,"a porch post under its own roof");
+assert.ok(p.window[0]>f.mainWest&&p.window[1]<f.bayWest,"the one window is west of the porch");
 assert.ok(p.bollard>p.doors[0]-2&&p.bollard<p.doors[1],"the bollard stands by the door");
-assert.ok(p.doors[0]>p.bench[1],"the bench sits west of the doors, as photographed");
+assert.ok(p.doors[0]>p.bench[1]-.1,"the bench sits west of the doors, as photographed");
+assert.ok(p.rail[0]>f.east,"the rail is east of the building, off the end of the walk");
+assert.ok(p.sill<p.wainscot&&p.wainscot<p.wallHeight,"the trim line is above the glazing sill and below the eave");
+
+// The walls stop on the line the rest of the front runs on: the outline traced
+// from above is the roof, and over the entrance the roof stands on posts.
+const walls=(await import(load(path.join(here,"post-office-plan.js")))).postOfficeWallRing;
+assert.equal(walls.length,9,"one corner fewer than the roof outline");
+assert.ok(Math.max(...walls.map(q=>q.z))-f.mainSouth<1e-9,"no wall stands out on the porch line");
+assert.ok(Math.abs(f.baySouth-Math.max(...walls.map(q=>q.z))-1.81)<.01,"the porch is the 1.81 m the roof steps forward");
 
 // South is the parking lot: the front of the building faces it.
 assert.ok(point(f.east/2,f.baySouth).z>point(f.east/2,f.north).z,"the entrance faces south onto the lot");

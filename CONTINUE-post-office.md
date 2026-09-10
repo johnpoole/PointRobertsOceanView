@@ -24,6 +24,14 @@ keeps a pickable name on it.
   back, with the flagpole, the lamp standard, the fence and shed to the west,
   and a mail van standing at that end.
 
+- A photograph of the front supplied by John, in sun and from the parking lot.
+  It is what settled the entrance: the gable and the deep eave stand forward on
+  posts with the glazed front set back under them, so the entrance is a porch
+  and not a wall. It also carries the trim line along the lower wall with the
+  paler panel under it, the dark barge boards down the gable, the run of glass
+  rather than punched windows, the blue plate by the door and the rail off the
+  east end of the walk.
+
 No reference image is bundled and none is used as a texture. The sign is drawn
 locally in a canvas — the wording is the wording on the building, the lettering
 is not a reproduction of the Postal Service's own type. The eagle plaque is a
@@ -41,8 +49,11 @@ surveyed rather than guessed:
 | the eastern 9.47 m of the front stands 1.81 m proud | the entrance bay, and its gable end carries the sign |
 | a 3.81 m bay hangs off the west end over 5.00 m | the lower west wing |
 
-`postOfficeWings()` cuts the ring in two at the step so the west wing can be
-extruded to its own lower wall height. Everything else about the elevation is a
+The traced outline is the **roof**, not the walls. Over the entrance the roof
+stands on two posts with nothing under it but the walk, so `postOfficeWallRing`
+runs the front straight across on the main wall line and the 1.81 m the outline
+steps forward is the porch. `postOfficeWings()` then cuts that wall ring in two
+at the west step so the west wing can be extruded to its own lower height. Everything else about the elevation is a
 visual estimate off the two photographs and is listed here as such:
 
 | estimate | value |

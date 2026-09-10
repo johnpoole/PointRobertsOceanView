@@ -3,7 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { box,tint,gableRoof } from "./parts.js";
 import { fromWorld } from "../geo.js";
 import { disposeArea } from "./area-view.js";
-import { POST_OFFICE as P,postOfficeFrame as F,postOfficePoint,postOfficeRing,postOfficeAerial,postOfficeWings } from "./post-office-plan.js";
+import { POST_OFFICE as P,postOfficeFrame as F,postOfficePoint,postOfficeWallRing,postOfficeAerial,postOfficeWings } from "./post-office-plan.js";
 export const CREAM=0xe3d2a2,TRIM=0x4b3a2c,TILE=0x7a4b3c,GLASS=0x2c3338;
 export function postOfficeTransform(g){g.rotateY(F.angle);g.translate(F.origin.x,0,F.origin.z);return g}
 export function postOfficeBox(x0,x1,z0,z1,y,h,color){return postOfficeTransform(box(x1-x0,z1-z0,h,(x0+x1)/2,y,(z0+z1)/2,color))}
@@ -28,9 +28,9 @@ export function drape(pixels,sample,color,offset,local=false){
 }
 export function buildPostOfficeBase(scene,sample){
   const group=new THREE.Group();group.name="post-office-base";
-  // The floor is set at the entrance, which is the doorway on the projecting
-  // bay, and the walls run down to whatever the terrain does behind.
-  const ground=postOfficeRing.map(p=>postOfficeHeight(sample,p.x,p.z)),
+  // The floor is set at the door under the porch, and the walls run down to
+  // whatever the terrain does behind.
+  const ground=postOfficeWallRing.map(p=>postOfficeHeight(sample,p.x,p.z)),
     floor=postOfficeHeight(sample,(F.bayWest+F.east)/2,F.baySouth)+.09,bottom=Math.min(...ground)-.10,
     wings=postOfficeWings();
   const building=postOfficeMerge([
