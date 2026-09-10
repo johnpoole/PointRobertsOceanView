@@ -124,7 +124,7 @@ export async function buildGolf(scene, sample) {
   // down it as their pace has taken them. The line is the map's; the fraction is
   // fifteen minutes a hole.
   function draw(tee, watched) {
-    const groups = watched && tee && tee.data && tee.data.watching && !tee.data.error
+    const groups = watched && tee && tee.data && !tee.data.error
       ? (tee.data.groups || []) : [];
     flights.forEach((flight, i) => {
       const group = groups[i];
@@ -150,8 +150,7 @@ export async function buildGolf(scene, sample) {
     group,
     holes: holes.length,
     // Whether the course is in front of whoever is looking and near enough to
-    // make out. The server reads the club's booking sheet only while this is
-    // true, so nobody else's sheet is polled for an empty room.
+    // make out. The flights are drawn only while it is.
     watched: false,
     get shown() { return overlay.visible; },
     toggle() { overlay.visible = !overlay.visible; return overlay.visible; },

@@ -290,7 +290,7 @@ class World:
             # Idle until somebody opens the marina, which is the whole point of
             # it: this feed costs the marina's provider a picture every minute.
             "marina": "idle",
-            # The same: read only while somebody has the course in front of them.
+            # Idle until the first read of the day, which is at six.
             "golf": "idle",
         }
 
@@ -541,7 +541,7 @@ def read_position(text: str) -> dict | None:
 
 # Areas a browser may say it is looking at. Anything else is dropped: this is
 # not a free-text channel and it must never grow into one.
-WATCHABLE = {"marina", "golf"}
+WATCHABLE = {"marina"}
 
 
 def read_watching(text: str) -> str | None:
@@ -788,7 +788,7 @@ def snapshot() -> dict:
             ],
             "tee": (envelope("golf.tee",
                             "pointrobertsgc.com booking sheet (foreUP)",
-                            world.tee_time, world.tee, TEE_PERIOD_SECONDS * 3)
+                            world.tee_time, world.tee, TEE_TICK_SECONDS * 5)
                     if world.tee else None),
             "marina": (envelope("marina.presence",
                                 "pointrobertsmarina.com webcam (HDOnTap still)",
@@ -2117,64 +2117,54 @@ def local_now() -> datetime:
 
 
 
-# Once an hour, and only while somebody has the course in front of them. Tee
-# times do not change often. The cost is that a slot booked after one read and
-# teed off before the next is never seen: the sheet stops listing a time once it
-# is past, so that booking leaves no trace to find.
-TEE_PERIOD_SECONDS = 3600.0
-TEE_IDLE_CHECK_SECONDS = 5.0
-TEE_INTEREST_SECONDS = 75.0
+# The first read of the day is at six, before the course opens at half past, so
+# the whole day's grid is on the sheet and nothing has slipped into the past yet.
+# After that, once an hour. This one is not gated on anybody looking: the sheet
+# stops listing a time the moment it is past, so a read missed is a booking that
+# can never be recovered.
+TEE_FIRST_HOUR = 6
+TEE_TICK_SECONDS = 60.0
 
 
 async def tee_task() -> None:
     from server import tee as tee_reader
 
-    last_run: float | None = None
+    # The clock hour the sheet was last read in, and the day it was read for.
+    read_hour: tuple[str, int] | None = None
     async with httpx.AsyncClient(timeout=45) as client:
         while True:
-            if not clients.anyone_watching("golf", TEE_INTEREST_SECONDS):
-                if world.health["golf"] != "idle":
-                    world.health["golf"] = "idle"
+            now = local_now()
+            day = now.strftime("%m-%d-%Y")
+            due = (now.hour >= TEE_FIRST_HOUR
+                   and (read_hour is None or read_hour != (day, now.hour)))
+            if due:
+                try:
+                    world.tee_sheet = await tee_reader.sample(
+                        client, world.tee_sheet, now)
+                    read_hour = (day, now.hour)
+                    world.health["golf"] = "live"
+                except Exception as exc:
+                    world.health["golf"] = "offline"
                     world.tee = None
+                    log.error("Tee sheet read failed: %s", exc)
                     await clients.broadcast(envelope(
-                        "golf.tee", tee_reader.SOURCE, None, {"watching": False}, None))
-                await asyncio.sleep(TEE_IDLE_CHECK_SECONDS)
-                continue
-            now = asyncio.get_running_loop().time()
-            if last_run is not None and now - last_run < TEE_PERIOD_SECONDS:
+                        "golf.tee", tee_reader.SOURCE, None,
+                        {"error": str(exc)[:200]}, None))
+                    await asyncio.sleep(RETRY_SECONDS)
+                    continue
+                log.info("Tee sheet read for %s at %s: %d booked slots, known from %s",
+                         day, now.strftime("%H:%M"),
+                         world.tee_sheet.as_data(now)["booked_slots"],
+                         world.tee_sheet.as_data(now)["known_from"])
+            if world.tee_sheet is not None:
                 # Between reads the clock still moves the groups along, so the
                 # page is told where they are now rather than where they were.
-                if world.tee_sheet is not None:
-                    world.tee = dict(
-                        world.tee_sheet.as_data(local_now()), watching=True)
-                    world.tee_time = utcnow()
-                    await clients.broadcast(envelope(
-                        "golf.tee", tee_reader.SOURCE, world.tee_time, world.tee,
-                        TEE_PERIOD_SECONDS * 3))
-                await asyncio.sleep(TEE_IDLE_CHECK_SECONDS)
-                continue
-            last_run = now
-            try:
-                world.tee_sheet = await tee_reader.sample(
-                    client, world.tee_sheet, local_now())
-            except Exception as exc:
-                world.health["golf"] = "offline"
-                world.tee = None
-                log.error("Tee sheet read failed: %s", exc)
+                world.tee = world.tee_sheet.as_data(now)
+                world.tee_time = utcnow()
                 await clients.broadcast(envelope(
-                    "golf.tee", tee_reader.SOURCE, None,
-                    {"watching": True, "error": str(exc)[:200]}, None))
-                await asyncio.sleep(RETRY_SECONDS)
-                continue
-            world.tee = dict(world.tee_sheet.as_data(local_now()), watching=True)
-            world.tee_time = utcnow()
-            world.health["golf"] = "live"
-            log.info("Tee sheet: %d groups out, %d players, known from %s",
-                     len(world.tee["groups"]), world.tee["players"],
-                     world.tee["known_from"])
-            await clients.broadcast(envelope(
-                "golf.tee", tee_reader.SOURCE, world.tee_time, world.tee,
-                TEE_PERIOD_SECONDS * 3))
+                    "golf.tee", tee_reader.SOURCE, world.tee_time, world.tee,
+                    TEE_TICK_SECONDS * 5))
+            await asyncio.sleep(TEE_TICK_SECONDS)
 
 
 async def reaper_task() -> None:

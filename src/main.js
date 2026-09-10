@@ -267,7 +267,6 @@ let saltwater = null;
 let postOffice = null;
 // When the next "somebody is looking at the marina" goes out, in scene seconds.
 let marinaPingDue = 0;
-let golfPingDue = 0;
 // The car park and what the marina camera says is standing in it.
 let marinaLot = null;
 // The course surfaces, and the hole cards that stand over them on G.
@@ -1848,11 +1847,9 @@ function frame() {
   // While somebody has the marina open, say so. The server reads the marina's
   // camera only for as long as this keeps arriving, and stops when it does not.
   if (marinaLot) marinaLot.update(feed.marina);
-  if (golf) {
-    golf.update(camera, window.innerHeight, feed.tee);
-    // The club's sheet is read only while somebody has the course in view.
-    if (golf.watched && t > golfPingDue) { golfPingDue = t + 30; feed.watching("golf"); }
-  }
+  // The sheet is read on the server's own hour whether anybody is looking or
+  // not; what the view decides is only whether the flights are drawn.
+  if (golf) golf.update(camera, window.innerHeight, feed.tee);
   // The clock the sun runs on is the clock the town runs on.
   if (cast) cast.update(new Date(Date.now() + offsetHours() * 3600 * 1000), camera);
   if (marina && marina.wanted && t > marinaPingDue) {

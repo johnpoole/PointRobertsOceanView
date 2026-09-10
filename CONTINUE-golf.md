@@ -98,19 +98,19 @@ are gone from it. So the server samples while somebody is looking and remembers
 what it saw; `known_from` says the earliest it can speak for, and a server that
 first looked at noon reports an unknown morning rather than an empty one.
 
-### Only while somebody is looking at it
+### When it is read, and when it is drawn
 
-Two gates, and both must be open. The page tells the server it is watching the
-course only while the course is in front of the camera and near enough to make
-out — `areaView` over the whole course, the same test the detailed areas use.
-The server reads the club's sheet **once an hour** while that keeps arriving,
-and stops seventy-five seconds after the last browser looks away. Tee times do
-not change often. Between reads the clock still moves the groups along, so the
-figures walk their hole rather than jumping when a read lands.
+**Read** at six in the morning, before the course opens at half past, and then
+once an hour. Not gated on anybody looking: the sheet stops listing a time the
+moment it is past, so a read missed is a booking that can never be recovered,
+and a server that only read while somebody watched would have holes in its day
+it could not fill. The six o'clock read is what makes `known_from` say six
+rather than whenever the first visitor happened to arrive.
 
-The cost of reading hourly: a slot booked after one read and teed off before the
-next is never seen at all, because the sheet stops listing a time once it is
-past. That booking leaves no trace to find.
+**Drawn** only while the course is in front of the camera and near enough to
+make out — `areaView` over the whole course, the same test the detailed areas
+use. Between reads the clock still moves the groups along, so the figures walk
+their hole rather than jumping when a read lands.
 
 The cast on `P` keeps the same rule: a figure is drawn only when it is inside
 the frustum and within 1.4 km, so somebody four kilometres behind you costs
