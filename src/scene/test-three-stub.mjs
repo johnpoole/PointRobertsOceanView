@@ -122,36 +122,67 @@ export class InstancedMesh {
 }
 
 export class BufferAttribute {
-  constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; }
+  constructor(array, itemSize) {
+    this.array = array; this.itemSize = itemSize;
+    this.count = array.length / itemSize;
+  }
+}
+
+export class Float32BufferAttribute extends BufferAttribute {
+  constructor(array, itemSize) { super(new Float32Array(array), itemSize); }
 }
 
 export class BufferGeometry {
-  constructor() { this.attributes = {}; }
+  constructor() { this.attributes = {}; this.index = null; }
   setAttribute(name, a) { this.attributes[name] = a; return this; }
+  deleteAttribute(name) { delete this.attributes[name]; return this; }
+  getAttribute(name) { return this.attributes[name]; }
+  toNonIndexed() { return this; }
   computeVertexNormals() { return this; }
   scale() { return this; }
   translate() { return this; }
+  rotateX() { return this; }
+  rotateY() { return this; }
+  applyQuaternion() { return this; }
+  dispose() { this.disposed = true; }
 }
 
-export class CylinderGeometry extends BufferGeometry {}
-export class IcosahedronGeometry extends BufferGeometry {}
-export class OctahedronGeometry extends BufferGeometry {}
-export class PlaneGeometry extends BufferGeometry {}
+// Enough vertices that anything counting or copying them has something to hold.
+function corners(g, n) {
+  g.setAttribute("position", new Float32BufferAttribute(new Array(n * 3).fill(0), 3));
+  g.setAttribute("uv", new Float32BufferAttribute(new Array(n * 2).fill(0), 2));
+  return g;
+}
+
+export class BoxGeometry extends BufferGeometry { constructor() { super(); corners(this, 36); } }
+export class ConeGeometry extends BufferGeometry { constructor() { super(); corners(this, 24); } }
+export class CylinderGeometry extends BufferGeometry { constructor() { super(); corners(this, 48); } }
+export class IcosahedronGeometry extends BufferGeometry { constructor() { super(); corners(this, 60); } }
+export class OctahedronGeometry extends BufferGeometry { constructor() { super(); corners(this, 24); } }
+export class PlaneGeometry extends BufferGeometry { constructor() { super(); corners(this, 6); } }
 
 export class MeshStandardMaterial { constructor(o = {}) { Object.assign(this, o); } }
 
 export class Mesh {
-  constructor(geometry, material) { this.geometry = geometry; this.material = material; }
+  constructor(geometry, material) {
+    this.geometry = geometry; this.material = material;
+    this.position = new Vector3();
+    this.rotation = { x: 0, y: 0, z: 0 };
+    this.visible = true;
+    this.name = "";
+    this.children = [];
+    this.userData = {};
+  }
+  add(o) { this.children.push(o); }
+  traverse(fn) { fn(this); for (const c of this.children) (c.traverse ? c.traverse(fn) : fn(c)); }
+  removeFromParent() { return this; }
+  clear() { this.children.length = 0; return this; }
 }
 
-export class Group {
-  constructor() { this.children = []; }
-  add(o) { this.children.push(o); }
+export class Group extends Mesh {
+  constructor() { super(null, null); }
 }
 
-export class Scene {
-  constructor() { this.children = []; }
-  add(o) { this.children.push(o); }
-}
+export class Scene extends Group {}
 
 export function mergeGeometries() { return new BufferGeometry(); }

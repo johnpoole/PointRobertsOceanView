@@ -28,6 +28,7 @@ import { buildCabin } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
+import { buildMarinaLot } from "./scene/marina-lot.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -262,6 +263,8 @@ let saltwater = null;
 let postOffice = null;
 // When the next "somebody is looking at the marina" goes out, in scene seconds.
 let marinaPingDue = 0;
+// The car park and what the marina camera says is standing in it.
+let marinaLot = null;
 let border = null;
 let fireStation = null;
 // Where the fine tile really has ground, which is not its box: it is a rectangle
@@ -359,6 +362,7 @@ stairSpec
     if (stair) buildStair(scene, stair, near.projector);
     lighthouse = buildLighthouse(scene, near.sample);
     marina = buildMarinaArea(scene, near.sample);
+    marinaLot = buildMarinaLot(scene, near.sample);
     reef = buildReefArea(scene, near.sample);
     marketplace = buildMarketplaceArea(scene, near.sample);
     community = buildCommunityArea(scene, near.sample);
@@ -1825,6 +1829,7 @@ function frame() {
   if (marina) marina.update(level, camera, window.innerHeight, performance.now()/1000);
   // While somebody has the marina open, say so. The server reads the marina's
   // camera only for as long as this keeps arriving, and stops when it does not.
+  if (marinaLot) marinaLot.update(feed.marina);
   if (marina && marina.wanted && t > marinaPingDue) {
     marinaPingDue = t + 30;
     feed.watching("marina");
