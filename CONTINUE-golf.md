@@ -109,8 +109,12 @@ rather than whenever the first visitor happened to arrive.
 
 **Drawn** only while the course is in front of the camera and near enough to
 make out — `areaView` over the whole course, the same test the detailed areas
-use. Between reads the clock still moves the groups along, so the figures walk
-their hole rather than jumping when a read lands.
+use.
+
+The server says who teed off and when. How far round they are by now is worked
+out in the page, every frame, off the same clock the cast runs on. Taking the
+server's own hole and fraction moved a group once a minute, which is a step
+rather than a walk.
 
 The cast on `P` keeps the same rule: a figure is drawn only when it is inside
 the frustum and within 1.4 km, so somebody four kilometres behind you costs

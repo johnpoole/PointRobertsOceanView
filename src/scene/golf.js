@@ -14,6 +14,7 @@ import { GOLF } from "../config.js";
 import { fromWorld, toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { areaView } from "./area-view.js";
+import { minutesInZone, minutesOf } from "./cast.js";
 
 // What each kind is drawn in, how far it stands off the ground, and how finely
 // it is broken up to follow the ground under it. A green is small and read
@@ -124,14 +125,26 @@ export async function buildGolf(scene, sample) {
   // down it as their pace has taken them. The line is the map's; the fraction is
   // fifteen minutes a hole.
   function draw(tee, watched) {
-    const groups = watched && tee && tee.data && !tee.data.error
-      ? (tee.data.groups || []) : [];
+    const data = tee && tee.data;
+    const groups = watched && data && !data.error ? (data.groups || []) : [];
+    // The server says who teed off and when; how far round they are by now is
+    // worked out here, every frame. Taking the server's own hole and fraction
+    // moved a group once a minute, which is a step rather than a walk.
+    const pace = (data && data.minutes_per_hole) || 15;
+    const clock = minutesInZone(new Date());
     flights.forEach((flight, i) => {
       const group = groups[i];
       if (!group) { flight.visible = false; return; }
-      const line = lines.get(group.hole);
+      let hole = group.hole, through = group.through;
+      if (group.tee) {
+        const out = clock - minutesOf(group.tee);
+        if (out < 0 || out >= pace * 18) { flight.visible = false; return; }
+        hole = Math.min(Math.floor(out / pace) + 1, 18);
+        through = (out % pace) / pace;
+      }
+      const line = lines.get(hole);
       if (!line || line.length < 2) { flight.visible = false; return; }
-      const at = along(line, Math.min(Math.max(group.through, 0), 1));
+      const at = along(line, Math.min(Math.max(through, 0), 1));
       flight.visible = true;
       flight.position.set(at.x, ground(at.x, at.z), at.z);
       flight.rotation.y = at.heading;
