@@ -23,6 +23,8 @@ export class Feed {
     // What the marina camera was last read to hold, or null when nobody is
     // looking at the marina and the server is not polling it.
     this.marina = null;
+    // Who the golf club's booking sheet says is out on the course, or null.
+    this.tee = null;
     this.selfId = null;         // what the server called us, so we can skip it
 
     this._ws = null;
@@ -146,6 +148,11 @@ export class Feed {
         this._applyVessel(msg);
         this._emit("vessel");
         break;
+      case "golf.tee":
+        // Who the club's booking sheet says is out on the course.
+        this.tee = msg;
+        this._emit("tee");
+        break;
       case "marina.presence":
         // Counts off the marina camera, or the reason there are none.
         this.marina = msg;
@@ -177,6 +184,7 @@ export class Feed {
       ? { data: data.current.data, quality: data.current.quality } : null;
     this.providerHealth = data.provider_health || this.providerHealth;
     this.marina = data.marina || null;
+    this.tee = data.tee || null;
     this.vesselsNote = data.vessels_note || "";
   }
 

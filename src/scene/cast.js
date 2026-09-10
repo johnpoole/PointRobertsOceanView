@@ -24,6 +24,9 @@ const ZONE = "America/Vancouver";
 const COLOURS = [0x4a6fa5, 0x8c5a3c, 0x4f7a55, 0x8a4f6d, 0x5c6b8a, 0x7d6a3f,
                  0x53707d, 0x8a5a4a, 0x46655c, 0x6a5b7d, 0xa0512f];
 
+// Past this there is nothing to read on a card and a figure is two pixels.
+const SEEN_M = 1400;
+
 let castPromise = null;
 export function castData() {
   if (!castPromise) castPromise = fetch(CAST).then((r) => {
@@ -40,6 +43,9 @@ export async function buildCast(scene, sample) {
   group.visible = false;
 
   const ground = (lat, lon) => sample(lat, lon);
+  // Made once and reused every frame rather than thirteen times a frame.
+  const frustum = new THREE.Frustum(), matrix = new THREE.Matrix4(),
+    sphere = new THREE.Sphere(new THREE.Vector3(), 2.4);
   const people = data.cast.map((person, i) => {
     const colour = COLOURS[i % COLOURS.length];
     const figure = new THREE.Group();
@@ -80,20 +86,35 @@ export async function buildCast(scene, sample) {
     toggle() { group.visible = !group.visible; return group.visible; },
     // now is a Date; the page hands in the clock it is standing at, so moving
     // the sun moves the town with it.
+    //
+    // Somebody four kilometres behind you costs a card, a texture and a draw
+    // for nothing, so a figure is only put on the screen when it is in front of
+    // whoever is looking and near enough to see.
     update(now, camera) {
       if (!group.visible) return;
       const minutes = minutesInZone(now);
-      for (const { person, figure, card, legs } of people) {
+      if (camera) {
+        camera.updateMatrixWorld();
+        matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(matrix);
+      }
+      for (const { figure, card, legs } of people) {
         const at = placeAt(legs, minutes);
         if (!at) { figure.visible = false; continue; }
-        figure.visible = true;
-        figure.position.set(at.x, ground(at.lat, at.lon), at.z);
+        const y = ground(at.lat, at.lon);
+        figure.position.set(at.x, y, at.z);
         if (at.heading !== null) figure.rotation.y = at.heading;
         if (camera) {
+          sphere.center.set(at.x, y + 1, at.z);
+          const range = camera.position.distanceTo(sphere.center);
+          figure.visible = range <= SEEN_M && frustum.intersectsSphere(sphere);
+          if (!figure.visible) continue;
           // The card faces the reader; the figure keeps its own heading.
           card.quaternion.copy(camera.quaternion);
           card.quaternion.premultiply(
             new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -figure.rotation.y, 0)));
+        } else {
+          figure.visible = true;
         }
       }
     },

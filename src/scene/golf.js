@@ -12,7 +12,8 @@
 import * as THREE from "three";
 import { GOLF } from "../config.js";
 import { fromWorld, toWorld } from "../geo.js";
-import { tint } from "./parts.js";
+import { box, tint } from "./parts.js";
+import { areaView } from "./area-view.js";
 
 // What each kind is drawn in, how far it stands off the ground, and how finely
 // it is broken up to follow the ground under it. A green is small and read
@@ -27,6 +28,10 @@ const SURFACE = {
 };
 // Cart paths come as lines rather than rings, so they are drawn as ribbons.
 const PATH = { colour: 0x8e8b83, lift: 0.16, width: 2.4 };
+
+// Eighteen tee times can be out at once at a ten-minute grid and a four and a
+// half hour round; this is the most that will ever be drawn.
+const MAX_FLIGHTS = 20;
 
 let coursePromise = null;
 export function golfFeatures() {
@@ -88,16 +93,74 @@ export async function buildGolf(scene, sample) {
     overlay.add(card);
   }
   group.add(overlay);
+
+  // The groups out on the course, drawn on the hole the booking sheet puts them
+  // on. Made once and shown as the count changes.
+  const players = new THREE.Group();
+  players.name = "golf-players";
+  const lines = new Map(holes.map(h => [h.ref, h.coords.map(([lat, lon]) => {
+    const w = toWorld(lat, lon);
+    return { x: w.x, z: w.z, lat, lon };
+  })]));
+  const flights = [];
+  for (let i = 0; i < MAX_FLIGHTS; i++) {
+    const flight = new THREE.Group();
+    flight.name = `golf-flight-${i}`;
+    for (let p = 0; p < 4; p++) {
+      const figure = new THREE.Mesh(figureGeometry(p),
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
+      figure.position.set((p % 2) * 1.6 - 0.8, 0, Math.floor(p / 2) * 1.6 - 0.8);
+      figure.name = `golfer-${p}`;
+      flight.add(figure);
+    }
+    flight.visible = false;
+    players.add(flight);
+    flights.push(flight);
+  }
+  group.add(players);
   scene.add(group);
+
+  // Where a group stands: along the centre line of the hole they are on, as far
+  // down it as their pace has taken them. The line is the map's; the fraction is
+  // fifteen minutes a hole.
+  function draw(tee, watched) {
+    const groups = watched && tee && tee.data && tee.data.watching && !tee.data.error
+      ? (tee.data.groups || []) : [];
+    flights.forEach((flight, i) => {
+      const group = groups[i];
+      if (!group) { flight.visible = false; return; }
+      const line = lines.get(group.hole);
+      if (!line || line.length < 2) { flight.visible = false; return; }
+      const at = along(line, Math.min(Math.max(group.through, 0), 1));
+      flight.visible = true;
+      flight.position.set(at.x, ground(at.x, at.z), at.z);
+      flight.rotation.y = at.heading;
+      flight.children.forEach((figure, p) => { figure.visible = p < group.players; });
+    });
+  }
+
+  const bounds = new THREE.Box3();
+  for (const line of lines.values()) for (const p of line) {
+    bounds.expandByPoint(new THREE.Vector3(p.x, ground(p.x, p.z), p.z));
+  }
+  bounds.expandByScalar(60);
+  const inView = areaView(bounds, { near: 700, far: 900, pixels: 90, keepPixels: 60 });
 
   return {
     group,
     holes: holes.length,
+    // Whether the course is in front of whoever is looking and near enough to
+    // make out. The server reads the club's booking sheet only while this is
+    // true, so nobody else's sheet is polled for an empty room.
+    watched: false,
     get shown() { return overlay.visible; },
     toggle() { overlay.visible = !overlay.visible; return overlay.visible; },
     // The cards face whoever is looking, so they read from the bluff and from
     // straight above alike.
-    update(camera) {
+    update(camera, height, tee) {
+      const view = inView(camera, height || 800);
+      this.watched = view.enter || (this.watched && view.retain);
+      draw(tee, this.watched);
       if (!overlay.visible) return;
       for (const card of overlay.children) card.quaternion.copy(camera.quaternion);
     },
@@ -110,6 +173,48 @@ export async function buildGolf(scene, sample) {
       });
       group.clear();
     },
+  };
+}
+
+// Four figures to a flight, standing where their hole and their pace put them.
+function figureGeometry(which) {
+  const shirt = [0xb8c4cf, 0xc2b48a, 0x9fb0a2, 0xc0a0a8][which % 4];
+  const parts = [box(0.40, 0.26, 0.90, 0, 0.76, 0, shirt),
+                 box(0.34, 0.24, 0.72, 0, 0.04, 0, 0x3a3f47),
+                 box(0.24, 0.22, 0.24, 0, 1.68, 0, 0xb08c72)];
+  const total = parts.reduce((n, g) => n + g.attributes.position.count, 0);
+  const position = new Float32Array(total * 3), color = new Float32Array(total * 3);
+  let at = 0;
+  for (const g of parts) {
+    position.set(g.attributes.position.array, at * 3);
+    color.set(g.attributes.color.array, at * 3);
+    at += g.attributes.position.count;
+    g.dispose();
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(color, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+// A fraction of the way down a hole's centre line, and the way it is facing.
+function along(line, fraction) {
+  let run = 0;
+  const lengths = line.map((p, i) => {
+    if (i > 0) run += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
+    return run;
+  });
+  const want = run * fraction;
+  let i = 1;
+  while (i < lengths.length - 1 && lengths[i] < want) i++;
+  const a = line[i - 1], b = line[i];
+  const span = Math.max(lengths[i] - lengths[i - 1], 1e-6);
+  const t = Math.min(Math.max((want - lengths[i - 1]) / span, 0), 1);
+  return {
+    x: a.x + (b.x - a.x) * t,
+    z: a.z + (b.z - a.z) * t,
+    heading: Math.atan2(b.x - a.x, b.z - a.z),
   };
 }
 

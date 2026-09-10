@@ -67,3 +67,51 @@ metres of a green so a card stands over the hole it names.
 The clubhouse is a bare footprint in OSM with no height and no detail. Building
 it properly is a landmark job like the post office and it needs a photograph of
 the building.
+
+## Who is out on the course
+
+The club books through foreUP, and foreUP answers a plain JSON request with
+every slot still **open**, each carrying how many of its four spots are left.
+What is booked is what is missing: a slot absent from the ten-minute grid is
+four players out, a slot showing one spot left is three.
+
+```
+https://foreupsoftware.com/index.php/api/booking/times?time=all&date=MM-DD-YYYY
+  &holes=all&players=0&schedule_id=2544&schedule_ids[]=2544&specials_only=0&api_key=no_limits
+```
+
+Pace of play is John's figure and the whole of the model: fifteen minutes a
+hole, so a group that went off at T is on hole `(now − T) / 15 + 1` and comes
+off the eighteenth four and a half hours later. Each group stands that far down
+the centre line of the hole the arithmetic puts them on, and the centre lines are
+the map's.
+
+**Two things this cannot know**, and neither is papered over:
+
+A gap in the grid is not proof of golfers. A block held for a tournament, a
+maintenance window or a shotgun start looks exactly like a foursome from here,
+and no field separates them.
+
+The sheet only lists times from now forward. To know who is on the course at
+eleven you need what was booked at half past seven, and by eleven those slots
+are gone from it. So the server samples while somebody is looking and remembers
+what it saw; `known_from` says the earliest it can speak for, and a server that
+first looked at noon reports an unknown morning rather than an empty one.
+
+### Only while somebody is looking at it
+
+Two gates, and both must be open. The page tells the server it is watching the
+course only while the course is in front of the camera and near enough to make
+out — `areaView` over the whole course, the same test the detailed areas use.
+The server reads the club's sheet only while that keeps arriving, and stops
+seventy-five seconds after the last browser looks away. Between reads the clock
+still moves the groups along, so the figures walk their hole rather than jumping
+every two minutes.
+
+The cast on `P` keeps the same rule: a figure is drawn only when it is inside
+the frustum and within 1.4 km, so somebody four kilometres behind you costs
+nothing.
+
+```bash
+python server/test_tee.py
+```

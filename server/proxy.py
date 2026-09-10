@@ -40,6 +40,7 @@ import time
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 import websockets
@@ -267,6 +268,10 @@ class World:
         # The last thing the marina camera was read to hold, and when.
         self.marina: dict | None = None
         self.marina_time: datetime | None = None
+        # The club's booking sheet as far as it has been watched today.
+        self.tee_sheet = None
+        self.tee: dict | None = None
+        self.tee_time: datetime | None = None
         # Why vessels are offline, in the monitor's words. Empty when they are not.
         self.vessels_note = ""
         # What the lookups have answered, kept so the same question is not asked
@@ -285,6 +290,8 @@ class World:
             # Idle until somebody opens the marina, which is the whole point of
             # it: this feed costs the marina's provider a picture every minute.
             "marina": "idle",
+            # The same: read only while somebody has the course in front of them.
+            "golf": "idle",
         }
 
 
@@ -534,7 +541,7 @@ def read_position(text: str) -> dict | None:
 
 # Areas a browser may say it is looking at. Anything else is dropped: this is
 # not a free-text channel and it must never grow into one.
-WATCHABLE = {"marina"}
+WATCHABLE = {"marina", "golf"}
 
 
 def read_watching(text: str) -> str | None:
@@ -779,6 +786,10 @@ def snapshot() -> dict:
                          STALE_SECONDS["aircraft"])
                 for icao, state in world.aircraft.items()
             ],
+            "tee": (envelope("golf.tee",
+                            "pointrobertsgc.com booking sheet (foreUP)",
+                            world.tee_time, world.tee, TEE_PERIOD_SECONDS * 3)
+                    if world.tee else None),
             "marina": (envelope("marina.presence",
                                 "pointrobertsmarina.com webcam (HDOnTap still)",
                                 world.marina_time, world.marina,
@@ -2094,6 +2105,77 @@ async def marina_task() -> None:
                 world.marina, MARINA_PERIOD_SECONDS * 3))
 
 
+# ---- who is out on the golf course ------------------------------------------
+
+# The booking sheet's times carry no zone and mean the course's own clock, so
+# this is what they are compared against wherever the server happens to be.
+PENINSULA = ZoneInfo("America/Vancouver")
+
+
+def local_now() -> datetime:
+    return datetime.now(PENINSULA).replace(tzinfo=None)
+
+
+
+# The sheet only lists times from now forward, so this looks often enough to
+# catch a booking before it slides into the past, and only while somebody has
+# the course in front of them.
+TEE_PERIOD_SECONDS = 120.0
+TEE_IDLE_CHECK_SECONDS = 5.0
+TEE_INTEREST_SECONDS = 75.0
+
+
+async def tee_task() -> None:
+    from server import tee as tee_reader
+
+    last_run: float | None = None
+    async with httpx.AsyncClient(timeout=45) as client:
+        while True:
+            if not clients.anyone_watching("golf", TEE_INTEREST_SECONDS):
+                if world.health["golf"] != "idle":
+                    world.health["golf"] = "idle"
+                    world.tee = None
+                    await clients.broadcast(envelope(
+                        "golf.tee", tee_reader.SOURCE, None, {"watching": False}, None))
+                await asyncio.sleep(TEE_IDLE_CHECK_SECONDS)
+                continue
+            now = asyncio.get_running_loop().time()
+            if last_run is not None and now - last_run < TEE_PERIOD_SECONDS:
+                # Between reads the clock still moves the groups along, so the
+                # page is told where they are now rather than where they were.
+                if world.tee_sheet is not None:
+                    world.tee = dict(
+                        world.tee_sheet.as_data(local_now()), watching=True)
+                    world.tee_time = utcnow()
+                    await clients.broadcast(envelope(
+                        "golf.tee", tee_reader.SOURCE, world.tee_time, world.tee,
+                        TEE_PERIOD_SECONDS * 3))
+                await asyncio.sleep(TEE_IDLE_CHECK_SECONDS)
+                continue
+            last_run = now
+            try:
+                world.tee_sheet = await tee_reader.sample(
+                    client, world.tee_sheet, local_now())
+            except Exception as exc:
+                world.health["golf"] = "offline"
+                world.tee = None
+                log.error("Tee sheet read failed: %s", exc)
+                await clients.broadcast(envelope(
+                    "golf.tee", tee_reader.SOURCE, None,
+                    {"watching": True, "error": str(exc)[:200]}, None))
+                await asyncio.sleep(RETRY_SECONDS)
+                continue
+            world.tee = dict(world.tee_sheet.as_data(local_now()), watching=True)
+            world.tee_time = utcnow()
+            world.health["golf"] = "live"
+            log.info("Tee sheet: %d groups out, %d players, known from %s",
+                     len(world.tee["groups"]), world.tee["players"],
+                     world.tee["known_from"])
+            await clients.broadcast(envelope(
+                "golf.tee", tee_reader.SOURCE, world.tee_time, world.tee,
+                TEE_PERIOD_SECONDS * 3))
+
+
 async def reaper_task() -> None:
     """Runs whether or not anybody is watching, so the first visitor after a
     quiet night is handed the water as it is and not as it was.
@@ -2232,7 +2314,8 @@ async def startup() -> None:
                              (presence_task(), "presence", None),
                              (reaper_task(), "reaper", None),
                              (visitors_task(), "visitors", None),
-                             (marina_task(), "marina", "marina")):
+                             (marina_task(), "marina", "marina"),
+                             (tee_task(), "tee", "golf")):
         _tasks.append(_spawn(coro, name, feed))
 
 
