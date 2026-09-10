@@ -20,15 +20,8 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld, toWorld } from "../geo.js";
 import { box, gableRoof, pick, seeded, tint } from "./parts.js";
+import { LOT, HEDGE_RUNS, AISLES } from "./brademy-lot.js";
 
-// The old Breakers parking lot, clockwise from the northeast. Supplied, not
-// surveyed.
-const LOT = [
-  [48.9841635665451, -123.08228060944315],   // NE
-  [48.98333968343413, -123.08216612219306],  // SE
-  [48.98334018863542, -123.08313207910217],  // SW
-  [48.98418392813251, -123.08315269838253],  // NW
-];
 
 // The Breakers building itself, so the clubhouse can stand where it stands and
 // the old block can be taken away while the proposal is up.
@@ -123,11 +116,13 @@ const LINE_COLOR = 0xf0f0ea;
 const FENCE_COLOR = 0x3f4a52;
 const NET_COLOR = 0x23282c;
 
-// The hedge that is round the lot now. Its line is the lot boundary, which is
-// John's four corners. Two things about it are assumed and neither is measured:
-// it is taken as 3 m, which is what "high" gets you in a clipped cedar, and it
-// is drawn unbroken because nobody has said where the way in is.
+
+// Its height is still assumed: 3 m is what "high" gets you in a clipped cedar,
+// and nobody has measured this one.
 const HEDGE_H = 3.0;
+
+const AISLE_COLOR = 0x6d6f6a;
+const AISLE_LIFT = 0.06;
 const HEDGE_W = 1.15;
 const HEDGE_STEP_M = 1.2;       // how finely it is cut before being laid on the ground
 const HEDGE_TOP_JITTER = 0.13;  // a clipped hedge is level, not flat
@@ -356,20 +351,37 @@ function fence(x0, x1, z0, z1, y) {
 // The jitter is what stops it reading as a painted wall — a clipped hedge is
 // level without being flat.
 function hedgeGeometry(corners, sample, rand) {
+  const pos = [];
+  const col = [];
+  for (const run of HEDGE_RUNS) {
+    const a = corners[run.side], b = corners[(run.side + 1) % corners.length];
+    const start = { x: a.x + (b.x - a.x) * run.from, z: a.z + (b.z - a.z) * run.from };
+    const end = { x: a.x + (b.x - a.x) * run.to, z: a.z + (b.z - a.z) * run.to };
+    hedgeRun(start, end, sample, rand, pos, col);
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geom.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geom.computeVertexNormals();
+  return geom;
+}
+
+// One stretch of hedge, from a corner to a corner. It has two ends now that it
+// is not a loop, so each one is closed off rather than left open on the air.
+function hedgeRun(start, end, sample, rand, pos, col) {
+  const len = Math.hypot(end.x - start.x, end.z - start.z);
+  const steps = Math.max(2, Math.round(len / HEDGE_STEP_M));
   const pts = [];
-  for (let i = 0; i < corners.length; i++) {
-    const a = corners[i], b = corners[(i + 1) % corners.length];
-    const len = Math.hypot(b.x - a.x, b.z - a.z);
-    const steps = Math.max(1, Math.round(len / HEDGE_STEP_M));
-    for (let k = 0; k < steps; k++) {
-      const t = k / steps;
-      pts.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
-    }
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    pts.push({ x: start.x + (end.x - start.x) * t, z: start.z + (end.z - start.z) * t });
   }
 
   const rows = pts.map((p, i) => {
-    const q = pts[(i + 1) % pts.length];
-    const dx = q.x - p.x, dz = q.z - p.z;
+    // The last station has nothing after it, so it takes the run's own direction.
+    const q = i + 1 < pts.length ? pts[i + 1] : p;
+    const dx = i + 1 < pts.length ? q.x - p.x : p.x - pts[i - 1].x;
+    const dz = i + 1 < pts.length ? q.z - p.z : p.z - pts[i - 1].z;
     const l = Math.hypot(dx, dz) || 1;
     const nx = -dz / l, nz = dx / l;          // across the run, horizontal
     const half = (HEDGE_W / 2) * (1 + (rand() - 0.5) * 2 * HEDGE_SIDE_JITTER);
@@ -385,17 +397,15 @@ function hedgeGeometry(corners, sample, rand) {
     };
   });
 
-  const pos = [];
-  const col = [];
   const push = (x, y, z, c) => {
     pos.push(x, y, z);
     col.push(c.r, c.g, c.b);
   };
-  // Two faces and a top per station. The bottom is underground and the loop is
-  // closed, so there is nothing else to draw. Double sided in the material,
-  // which saves getting the winding right on both faces of a shell.
-  for (let i = 0; i < rows.length; i++) {
-    const a = rows[i], b = rows[(i + 1) % rows.length];
+  // Two faces and a top per station, and a cap at each end of the run. The
+  // bottom is underground. Double sided in the material, which saves getting the
+  // winding right on both faces of a shell.
+  for (let i = 0; i < rows.length - 1; i++) {
+    const a = rows[i], b = rows[i + 1];
     const quad = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, ca, cb) => {
       push(ax, ay, az, ca); push(bx, by, bz, cb); push(cx, cy, cz, cb);
       push(ax, ay, az, ca); push(cx, cy, cz, cb); push(dx, dy, dz, ca);
@@ -407,10 +417,47 @@ function hedgeGeometry(corners, sample, rand) {
     quad(a.ox, a.top, a.oz, b.ox, b.top, b.oz, b.ix, b.top, b.iz,
          a.ix, a.top, a.iz, a.color, b.color);
   }
+  // The two ends, which a closed loop never needed.
+  for (const end of [rows[0], rows[rows.length - 1]]) {
+    push(end.ox, end.base, end.oz, end.color);
+    push(end.ix, end.base, end.iz, end.color);
+    push(end.ix, end.top, end.iz, end.color);
+    push(end.ox, end.base, end.oz, end.color);
+    push(end.ix, end.top, end.iz, end.color);
+    push(end.ox, end.top, end.oz, end.color);
+  }
+}
 
+// The old parking aisles, laid on the ground they sit on rather than on one
+// flat number: each strip is broken into four-metre squares and every corner
+// takes its own height.
+function aisleGeometry(sample) {
+  const pos = [], col = [];
+  const colour = new THREE.Color(AISLE_COLOR);
+  for (const [nw, se] of AISLES) {
+    const a = toWorld(nw[0], nw[1], 0), b = toWorld(se[0], se[1], 0);
+    const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+    const z0 = Math.min(a.z, b.z), z1 = Math.max(a.z, b.z);
+    const step = 4;
+    for (let z = z0; z < z1; z += step) {
+      for (let x = x0; x < x1; x += step) {
+        const xe = Math.min(x + step, x1), ze = Math.min(z + step, z1);
+        const corner = (cx, cz) => {
+          const { lat, lon } = fromWorld(cx, cz);
+          return [cx, sample(lat, lon) + AISLE_LIFT, cz];
+        };
+        const p00 = corner(x, z), p10 = corner(xe, z),
+              p11 = corner(xe, ze), p01 = corner(x, ze);
+        for (const p of [p00, p10, p11, p00, p11, p01]) {
+          pos.push(p[0], p[1], p[2]);
+          col.push(colour.r, colour.g, colour.b);
+        }
+      }
+    }
+  }
   const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
-  g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(col), 3));
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
   return g;
 }
@@ -792,13 +839,17 @@ export function buildBrademy(scene, sample) {
 
   scene.add(group);
 
-  // The hedge is round the lot now, so it is drawn now — its own group, outside
-  // the switch.
+  // What is on the lot now is drawn now, in its own group outside the switch:
+  // the hedge where there is one, and the old parking aisles.
   const hedge = new THREE.Group();
   hedge.add(new THREE.Mesh(
     hedgeGeometry(corners, sample, seeded(19940115)),
     new THREE.MeshStandardMaterial({
       vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide })));
+  hedge.add(new THREE.Mesh(
+    aisleGeometry(sample),
+    new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 0.95, metalness: 0, side: THREE.DoubleSide })));
   scene.add(hedge);
   return {
     group,

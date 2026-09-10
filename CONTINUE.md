@@ -26,10 +26,16 @@ between the parking lot and the water. `buildLand` takes an `isolate` predicate 
 footprint its own mesh instead of merging it with the other four thousand, which is what lets a
 single building be hidden without rebuilding them all.
 
-The hedge round that lot is not behind the switch. It is there now, so it is drawn now, in its own
-group. With the courts off you get a hedge round an empty lot, which is what is there. Its height
-of 3 m is assumed rather than measured, and it is drawn unbroken because nobody has said where the
-way in is.
+The hedge is not behind the switch. It is there now, so it is drawn now, in its own group, along
+with the six old parking aisles still on the ground. Both were read off the county 2022 aerial:
+a band a metre either side of each boundary tested for dark green came back 43% on the east, 33%
+on the south, 33% over the eastern half of the north, and 3% on the west, which is nothing. So the
+hedge runs on three sides and the west is open, because the lot runs straight out onto the paved
+yard next door. The aisles came out of the same image by taking every column of the lot that reads
+grey rather than green: six of them, 3.9 to 5.8 m wide and up to 92 m long.
+
+The numbers live in `brademy-lot.js`, which imports nothing, so `test-lot.mjs` checks them without
+a three stub. The hedge's height of 3 m is still assumed rather than measured.
 
 ## The campground
 
