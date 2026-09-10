@@ -81,6 +81,8 @@ export function readViewHash(hash) {
     brademy: got.brademy === "1",
     campground: got.campground === "1",
     pavilion: got.pavilion === "1",
+    cast: got.cast === "1",
+    golf: got.golf === "1",
     map: got.map === "1",
   };
 }

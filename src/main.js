@@ -273,6 +273,9 @@ let marinaLot = null;
 let golf = null;
 // Invented people on real roads, keeping the peninsula's published hours.
 let cast = null;
+// What a shared link asked to be switched on before either had loaded.
+let castWanted = false;
+let golfWanted = false;
 let border = null;
 let clubhouse = null;
 let fireStation = null;
@@ -373,10 +376,14 @@ stairSpec
     marina = buildMarinaArea(scene, near.sample);
     marinaLot = buildMarinaLot(scene, near.sample);
     // Its own fetch, so the page paints without waiting on the course.
-    buildGolf(scene, near.sample).then(built => { golf = built; })
-      .catch(error => console.error("The golf course could not be drawn:", error));
-    buildCast(scene, near.sample).then(built => { cast = built; })
-      .catch(error => console.error("The cast could not be drawn:", error));
+    buildGolf(scene, near.sample).then(built => {
+      golf = built;
+      if (golfWanted) golf.toggle();
+    }).catch(error => console.error("The golf course could not be drawn:", error));
+    buildCast(scene, near.sample).then(built => {
+      cast = built;
+      if (castWanted) cast.toggle();
+    }).catch(error => console.error("The cast could not be drawn:", error));
     reef = buildReefArea(scene, near.sample);
     marketplace = buildMarketplaceArea(scene, near.sample);
     community = buildCommunityArea(scene, near.sample);
@@ -431,6 +438,10 @@ stairSpec
         overview.showNoise = true;
       }
       if (shared && shared.pavilion) pavilion.setVisible(true);
+      // The cast and the hole cards are fetched after this runs, so what the
+      // link asked for is applied when each one arrives rather than now.
+      if (shared && shared.cast) castWanted = true;
+      if (shared && shared.golf) golfWanted = true;
       if (shared && shared.map) overview.toggle();
     });
   })
@@ -1736,6 +1747,8 @@ const share = new Share(camera, () => ({
   brademy: brademy ? brademy.visible : false,
   campground: campground ? campground.visible : false,
   pavilion: pavilion ? pavilion.visible : false,
+  cast: cast ? cast.shown : false,
+  golf: golf ? golf.shown : false,
   map: overview.visible,
   // The hour the scene is standing at, so a link opens on the same light. Left
   // off when the clock is the real one. Quartered, or the address bar would be
