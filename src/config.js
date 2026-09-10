@@ -1,5 +1,5 @@
 // Fixed constants for the Point Roberts West Bluff ocean view.
-// The camera stands at ORIGIN, eye EYE_HEIGHT_M above sea level, looking due west.
+// ORIGIN is the local projection's zero, and the page opens at OPENING_VIEW.
 // These are documented constants, not fetched. The client talks only to the local
 // proxy (same origin), which owns the upstream data sources.
 
@@ -28,6 +28,13 @@ export const STALE_SECONDS = {
 };
 
 export const EYE_HEIGHT_M = 20; // camera eye above sea level
+
+// Where the page opens, and where the view button comes back to. Eye and the
+// point it is aimed at, both in the same lat/lon/metres a shared link carries.
+export const OPENING_VIEW = {
+  eye: { lat: 49.001186, lon: -123.068600, y: 55.3 },
+  aim: { lat: 48.998952, lon: -123.066307, y: 45.6 },
+};
 
 // The proxy serves this page and the feed from one origin, so derive the WS URL
 // from the page location. Never hardcode a port that could drift from the server.

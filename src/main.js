@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, OPENING_VIEW, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -89,7 +89,9 @@ const LOOK_FOV_DEG = 25;
 let lookFov = LOOK_FOV_DEG;
 const camera = new THREE.PerspectiveCamera(
   LOOK_FOV_DEG, window.innerWidth / window.innerHeight, 1, 150000);
-camera.position.set(0, EYE_HEIGHT_M, 0);
+const openingEye = toWorld(OPENING_VIEW.eye.lat, OPENING_VIEW.eye.lon, OPENING_VIEW.eye.y);
+const openingAim = toWorld(OPENING_VIEW.aim.lat, OPENING_VIEW.aim.lon, OPENING_VIEW.aim.y);
+camera.position.set(openingEye.x, openingEye.y, openingEye.z);
 
 // Google Maps' 3D bindings, which is what people already have in their hands:
 // drag to pull the ground about, ctrl-drag or right-drag to swing round and tilt,
@@ -104,7 +106,7 @@ const controls = new MapControls(camera, canvas);
 // bluff — and that also takes the left half of the screen back from a thumb
 // stick which had to be there only because one finger was a pan.
 controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
-controls.target.set(-500, 0, 0); // look west, slightly down to the water
+controls.target.set(openingAim.x, openingAim.y, openingAim.z);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 // Don't drop below the sea surface. Lifted while standing at a wyze camera,
@@ -1123,15 +1125,15 @@ function vehicleHint(spec) {
   return parts.join(" · ");
 }
 
-// Back to where the app opens: the bluff at the house, eye above sea level,
-// looking due west. toOrbit aims the target down the current view, so the
-// position and the target are set after it, not before.
+// Back to where the app opens, which is OPENING_VIEW. toOrbit aims the target
+// down the current view, so the position and the target are set after it, not
+// before.
 function toBluff() {
   lookFov = LOOK_FOV_DEG;
   leaveWyze();
   nav.toOrbit();
-  camera.position.set(0, EYE_HEIGHT_M, 0);
-  controls.target.set(-500, 0, 0);
+  camera.position.set(openingEye.x, openingEye.y, openingEye.z);
+  controls.target.set(openingAim.x, openingAim.y, openingAim.z);
   controls.update();
 }
 
