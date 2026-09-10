@@ -119,10 +119,13 @@ export function buildPostOffice(scene,sample){
     ctx.fillStyle="#e9e6dc";ctx.fillRect(24,44,132,132);ctx.strokeStyle="#3b2f26";ctx.lineWidth=6;ctx.strokeRect(24,44,132,132);
     ctx.fillStyle="#6f7a86";ctx.beginPath();ctx.moveTo(52,142);ctx.quadraticCurveTo(90,58,128,142);ctx.lineTo(90,120);ctx.closePath();ctx.fill();
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
-    // The gable narrows as it rises, so the sign is sized to the triangle at the
-    // height it hangs at, not to the width of the wall under it.
-    const lift=.78,width=(F.east-F.bayWest)*(1-lift/P.entryRise)*.85,
-      face=new THREE.Mesh(new THREE.PlaneGeometry(width,width/4.2),
+    // The gable keeps narrowing above the middle of the sign, so the width has to
+    // be the one that fits at the sign's TOP edge. With B the gable width, r its
+    // rise, m the margin left either side and h the sign's own height w/k:
+    //   w = B m (1 - (lift + w/2k) / r)   solved for w.
+    const lift=.45,k=4.2,B=F.east-F.bayWest,m=.9,r=P.entryRise,
+      width=B*m*(1-lift/r)/(1+B*m/(2*k*r)),
+      face=new THREE.Mesh(new THREE.PlaneGeometry(width,width/k),
         new THREE.MeshStandardMaterial({map:texture,transparent:true,alphaTest:.35,roughness:.9}));
     const p=postOfficePoint((F.bayWest+F.east)/2,F.baySouth+.06);
     // The wall faces south and a plane faces +Z, so the frame's own angle is the
