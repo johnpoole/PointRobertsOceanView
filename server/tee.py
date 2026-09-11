@@ -24,9 +24,11 @@ at T is on hole (now - T) / 15 + 1 and is done four and a half hours later.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
 
 log = logging.getLogger("oceanview.tee")
 
@@ -122,6 +124,32 @@ class Sheet:
             })
         return groups
 
+    def to_json(self) -> dict:
+        return {
+            "day": self.day,
+            "booked": {at.strftime("%Y-%m-%d %H:%M"): n for at, n in self.booked.items()},
+            "seen_from": self.seen_from.strftime("%Y-%m-%d %H:%M") if self.seen_from else None,
+            "open_until": self.open_until.strftime("%Y-%m-%d %H:%M") if self.open_until else None,
+        }
+
+    @classmethod
+    def from_json(cls, raw: dict) -> "Sheet":
+        when = lambda v: datetime.strptime(v, "%Y-%m-%d %H:%M") if v else None
+        return cls(
+            day=raw["day"],
+            booked={when(k): int(v) for k, v in (raw.get("booked") or {}).items()},
+            seen_from=when(raw.get("seen_from")),
+            open_until=when(raw.get("open_until")),
+        )
+
+    def save(self, path: Path) -> None:
+        """Write the day out. Replaced rather than written in place, so a kill
+        halfway through leaves yesterday whole instead of half of today."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.to_json()), encoding="utf-8")
+        tmp.replace(path)
+
     def as_data(self, now: datetime) -> dict:
         groups = self.out_now(now)
         return {
@@ -135,6 +163,26 @@ class Sheet:
             "sheet_until": self.open_until.strftime("%H:%M") if self.open_until else None,
             "booked_slots": sum(1 for v in self.booked.values() if v > 0),
         }
+
+
+def load(path: Path, day: str) -> Sheet | None:
+    """Yesterday's file is no use today, and a broken one is an error.
+
+    A restart in the middle of a day is the whole reason this is on disk: the
+    sheet stops listing a time the moment it is past, so what was read at six
+    cannot be read again at ten.
+    """
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(
+            f"The tee sheet at {path} could not be read: {exc!r}. Move it aside "
+            f"to start the day over rather than leaving it to fail every restart.")
+    if raw.get("day") != day:
+        return None
+    return Sheet.from_json(raw)
 
 
 async def sample(client, sheet: Sheet, now: datetime) -> Sheet:

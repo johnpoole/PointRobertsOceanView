@@ -2156,6 +2156,9 @@ def local_now() -> datetime:
 # can never be recovered.
 TEE_FIRST_HOUR = 6
 TEE_TICK_SECONDS = 60.0
+# Beside the visitor record, in the volume a rebuild keeps. A deploy is a
+# restart, and a restart without this forgets every booking read so far today.
+TEE_PATH = REPO_ROOT / "data" / "tee-sheet.json"
 
 
 async def tee_task() -> None:
@@ -2163,6 +2166,16 @@ async def tee_task() -> None:
 
     # The clock hour the sheet was last read in, and the day it was read for.
     read_hour: tuple[str, int] | None = None
+    started = local_now()
+    try:
+        world.tee_sheet = tee_reader.load(TEE_PATH, started.strftime("%m-%d-%Y"))
+    except RuntimeError as exc:
+        log.error("%s", exc)
+    if world.tee_sheet is not None:
+        log.info("Tee sheet carried over from before the restart: %d booked slots, "
+                 "known from %s", world.tee_sheet.as_data(started)["booked_slots"],
+                 world.tee_sheet.as_data(started)["known_from"])
+        world.health["golf"] = "live"
     async with httpx.AsyncClient(timeout=45) as client:
         while True:
             now = local_now()
@@ -2175,6 +2188,11 @@ async def tee_task() -> None:
                         client, world.tee_sheet, now)
                     read_hour = (day, now.hour)
                     world.health["golf"] = "live"
+                    try:
+                        world.tee_sheet.save(TEE_PATH)
+                    except OSError as exc:
+                        log.error("Tee sheet could not be written to %s: %r",
+                                  TEE_PATH, exc)
                 except Exception as exc:
                     world.health["golf"] = "offline"
                     world.tee = None

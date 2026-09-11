@@ -92,6 +92,19 @@ A gap in the grid is not proof of golfers. A block held for a tournament, a
 maintenance window or a shotgun start looks exactly like a foursome from here,
 and no field separates them.
 
+The sheet is written to `data/tee-sheet.json` after every read, in the same
+volume the ship cache lives in, so a deploy does not forget the day. A restart
+reads it back if it is for today and carries on; yesterday's file is ignored and
+a corrupt one is an error rather than a quiet fresh start. Without this every
+deploy reset `known_from` to the restart, which is how an afternoon of
+deploying left the course looking empty.
+
+The grid is walked from the next slot after now rather than from the sheet's
+earliest open one. When the next three hours are solidly booked the earliest
+offer is three hours out, and starting there steps over every booking before it:
+a full course reading as an empty one, which is exactly what a Friday morning
+looked like — four slots known where there were twenty-three.
+
 The sheet only lists times from now forward. To know who is on the course at
 eleven you need what was booked at half past seven, and by eleven those slots
 are gone from it. So the server samples while somebody is looking and remembers

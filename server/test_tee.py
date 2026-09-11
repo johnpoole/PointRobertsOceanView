@@ -167,6 +167,50 @@ def test_a_page_instead_of_a_sheet_raises_with_the_url():
         raise AssertionError("a dict was accepted as a tee sheet")
 
 
+def test_the_day_survives_a_restart():
+    import tempfile
+    from pathlib import Path as P
+    sheet = sheet_at("09:45", [slot("13:00"), slot("13:10")])
+    with tempfile.TemporaryDirectory() as tmp:
+        path = P(tmp) / "tee-sheet.json"
+        sheet.save(path)
+        back = tee.load(path, "09-10-2026")
+        assert back is not None, "the file was written but not read back"
+        assert back.booked == sheet.booked, "the bookings changed on the way through"
+        assert back.seen_from == sheet.seen_from, "the first look moved"
+        # And the morning it knew about is still out on the course.
+        assert len(back.out_now(clock("10:05"))) == 2
+
+
+def test_yesterdays_sheet_is_not_todays():
+    import tempfile
+    from pathlib import Path as P
+    sheet = sheet_at("09:45", [slot("13:00")])
+    with tempfile.TemporaryDirectory() as tmp:
+        path = P(tmp) / "tee-sheet.json"
+        sheet.save(path)
+        assert tee.load(path, "09-11-2026") is None, "yesterday was read as today"
+
+
+def test_a_broken_sheet_says_so_rather_than_starting_over_quietly():
+    import tempfile
+    from pathlib import Path as P
+    with tempfile.TemporaryDirectory() as tmp:
+        path = P(tmp) / "tee-sheet.json"
+        path.write_text("{not json", encoding="utf-8")
+        try:
+            tee.load(path, "09-10-2026")
+        except RuntimeError as exc:
+            assert str(path) in str(exc), exc
+        else:
+            raise AssertionError("a broken file was passed over in silence")
+
+
+def test_no_sheet_on_disk_is_not_an_error():
+    from pathlib import Path as P
+    assert tee.load(P("/nowhere/tee-sheet.json"), "09-10-2026") is None
+
+
 def test_the_pace_is_johns_figure():
     assert tee.MINUTES_PER_HOLE == 15.0
     assert tee.ROUND_MINUTES == 270.0, "eighteen holes at a quarter of an hour"
