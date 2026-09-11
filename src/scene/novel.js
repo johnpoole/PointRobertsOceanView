@@ -10,7 +10,7 @@
 
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
-import { buildWalker, mesh, box, cyl } from "./vehicles.js";
+import { buildWalker, buildGolfCart, mesh, box, cyl } from "./vehicles.js";
 import { buildCar } from "./cast.js";
 import { buildBoat } from "./boat.js";
 import { DOCK_PLAN } from "./marina-dock-plan.js";
@@ -82,6 +82,15 @@ export function buildNovel(scene, sample) {
         }
       }
     },
+    // Where one actor is standing at this second, for a camera that follows it
+    // rather than waiting for it. Null before it starts and after it is gone.
+    spotOf(index, actor, at, water, dwell) {
+      const a = scenes[index] && scenes[index].actors[actor];
+      if (!a) return null;
+      const spot = along(a.keys, at, dwell);
+      if (!spot) return null;
+      return { x: spot.x, y: hold(a.on, spot, water, sample), z: spot.z };
+    },
     dispose() {
       group.removeFromParent();
       group.traverse(o => {
@@ -131,6 +140,7 @@ function along(keys, at, dwell) {
 
 function shape(mode) {
   if (mode === "walk") return buildWalker();
+  if (mode === "cart") return buildGolfCart();
   if (mode === "car") return buildCar(0x6a6f76);
   if (mode === "boat") return working();
   if (mode === "sloop") return sloop();

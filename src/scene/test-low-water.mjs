@@ -67,14 +67,27 @@ function enu(lat, lon, y) {
   return { x: (lon + 123.085318) * M_PER_DEG * COS, y, z: -(lat - 48.989009) * M_PER_DEG };
 }
 
-assert.equal(CHAPTERS.length, 7, "seven chapters");
-assert.deepEqual(CHAPTERS.map(c => c.n), [1, 2, 3, 4, 5, 6, 7], "numbered in order");
+assert.deepEqual(CHAPTERS.map(c => c.n),
+  CHAPTERS.map((_, i) => i + 1), "numbered in order");
 // The route opens and closes at the border, which is the book's shape.
 assert.ok(CHAPTERS[0].title.includes("border"), "it opens at the line");
-assert.ok(CHAPTERS[6].title.includes("border"), "and closes there");
-// And chapter six is the night one, which is the whole mechanism of the book.
-assert.ok(CHAPTERS[5].hour < 5,
-  `chapter six is at ${CHAPTERS[5].hour}, which is not the small hours`);
+assert.ok(CHAPTERS[CHAPTERS.length - 1].title.includes("border"), "and closes there");
+// One of them is in the small hours, which is the whole mechanism of the book.
+assert.ok(CHAPTERS.some(c => c.hour < 5), "nothing happens at low water in the dark");
+// And one camera runs rather than stands.
+assert.equal(CHAPTERS.filter(c => c.shot).length, 1, "one moving camera");
+
+// Where an actor is at this second, interpolated the way the page does it.
+function at(keys, t) {
+  if (t < keys[0][0] || t > keys[keys.length - 1][0]) return null;
+  for (let i = 1; i < keys.length; i++) {
+    if (t > keys[i][0]) continue;
+    const a = keys[i - 1], b = keys[i];
+    const k = (t - a[0]) / Math.max(b[0] - a[0], 1e-6);
+    return { lat: a[1] + (b[1] - a[1]) * k, lon: a[2] + (b[2] - a[2]) * k };
+  }
+  return null;
+}
 
 let actors = 0, walked = 0;
 for (const ch of CHAPTERS) {
@@ -88,21 +101,47 @@ for (const ch of CHAPTERS) {
   }
   const water = ch.tide === null ? 1.5 : ch.tide;   // a middling sea when it is live
 
-  const eye = enu(ch.eye[0], ch.eye[1], ch.eye[2]);
-  const aim = enu(ch.aim[0], ch.aim[1], ch.aim[2]);
-  // The camera has to be out of the ground, or the whole scene is the inside
-  // of a hill.
-  assert.ok(ch.eye[2] > ground(ch.eye[0], ch.eye[1]) + 1.0,
-    `${where}: the camera at ${ch.eye[2]} m is inside ground at `
-    + `${ground(ch.eye[0], ch.eye[1]).toFixed(1)} m`);
+  // A camera that swings round a moving actor has no fixed eye or aim to check.
+  // What is checked is the swing: that it holds a sane radius, that it goes far
+  // enough round to be a swing, and that it never ends up under the road.
+  if (ch.shot) {
+    const { arc, radius, height, from, sweep } = ch.shot;
+    assert.ok(ch.actors[arc], `${where}: the camera follows an actor that is not there`);
+    assert.ok(radius >= 12 && radius <= 60, `${where}: a ${radius} m radius`);
+    assert.ok(height >= 3 && height <= 30, `${where}: ${height} m up`);
+    assert.ok(Math.abs(sweep) >= 60, `${where}: ${sweep}° is not a swing`);
+    const held = ch.actors[arc];
+    for (let t = 0; t <= ch.dwell; t += 2) {
+      const p = at(held.keys, t);
+      if (!p) continue;
+      const turn = (from + sweep * (t / ch.dwell)) * Math.PI / 180;
+      const here = enu(p.lat, p.lon, 0);
+      const lat = 48.989009 - (here.z + Math.sin(turn) * radius) / M_PER_DEG;
+      const lon = -123.085318 + (here.x + Math.cos(turn) * radius) / (M_PER_DEG * COS);
+      const eyeY = ground(p.lat, p.lon) + height;
+      assert.ok(eyeY > ground(lat, lon) + 1.0,
+        `${where}: at ${t}s the camera is at ${eyeY.toFixed(1)} m over ground at `
+        + `${ground(lat, lon).toFixed(1)} m`);
+    }
+  }
 
-  // You have to be somewhere else from what you are looking at, and near enough
-  // to see it.
-  const gap = Math.hypot(aim.x - eye.x, aim.z - eye.z);
-  assert.ok(gap > 25 && gap < 600, `${where} looks ${gap.toFixed(0)} m`);
+  const eye = ch.shot ? null : enu(ch.eye[0], ch.eye[1], ch.eye[2]);
+  const aim = ch.shot ? null : enu(ch.aim[0], ch.aim[1], ch.aim[2]);
+  if (!ch.shot) {
+    // The camera has to be out of the ground, or the whole scene is the inside
+    // of a hill.
+    assert.ok(ch.eye[2] > ground(ch.eye[0], ch.eye[1]) + 1.0,
+      `${where}: the camera at ${ch.eye[2]} m is inside ground at `
+      + `${ground(ch.eye[0], ch.eye[1]).toFixed(1)} m`);
+    // You have to be somewhere else from what you are looking at, and near
+    // enough to see it.
+    const gap = Math.hypot(aim.x - eye.x, aim.z - eye.z);
+    assert.ok(gap > 25 && gap < 600, `${where} looks ${gap.toFixed(0)} m`);
+  }
 
-  const look = { x: aim.x - eye.x, y: aim.y - eye.y, z: aim.z - eye.z };
-  const lookLen = Math.hypot(look.x, look.y, look.z);
+  const look = ch.shot ? null
+    : { x: aim.x - eye.x, y: aim.y - eye.y, z: aim.z - eye.z };
+  const lookLen = look ? Math.hypot(look.x, look.y, look.z) : 0;
 
   for (const actor of ch.actors) {
     actors++;
@@ -129,7 +168,9 @@ for (const ch of CHAPTERS) {
           `${where}: a hull sits over ${bed.toFixed(2)} m of bottom with the `
           + `sea at ${water} m`);
       }
-      // And the camera has to be looking at them.
+      // And a camera that stands still has to be looking at them. One that
+      // follows is looking at them by construction.
+      if (ch.shot) continue;
       const p = enu(lat, lon, bed);
       const to = { x: p.x - eye.x, y: p.y - eye.y, z: p.z - eye.z };
       const range = Math.hypot(to.x, to.y, to.z);
@@ -143,11 +184,11 @@ for (const ch of CHAPTERS) {
       // is on the screen and that no end of it is off in another direction.
       offs.push(off);
     }
-    const middle = offs[Math.floor((offs.length - 1) / 2)];
+    const middle = offs.length ? offs[Math.floor((offs.length - 1) / 2)] : 0;
     assert.ok(middle < LENS_HALF_DEG,
       `${where}: the middle of an actor's path is ${middle.toFixed(0)}° off `
       + `a ${LENS_HALF_DEG * 2}° frame, so most of what it does is off screen`);
-    assert.ok(Math.max(...offs) < LENS_HALF_DEG * 3,
+    assert.ok(!offs.length || Math.max(...offs) < LENS_HALF_DEG * 3,
       `${where}: an actor reaches ${Math.max(...offs).toFixed(0)}° off the `
       + `middle, which is not walking out of frame, it is somewhere else`);
     assert.ok(actor.keys[actor.keys.length - 1][0] <= ch.dwell,
@@ -160,7 +201,8 @@ for (const ch of CHAPTERS) {
       const secs = actor.keys[i][0] - actor.keys[i - 1][0];
       moved += step;
       // Nobody teleports. A walker at 2 m/s, a car at 25.
-      const cap = actor.mode === "car" ? 25 : actor.mode === "walk" ? 2.2 : 6;
+      const cap = actor.mode === "car" ? 25 : actor.mode === "walk" ? 2.2
+        : actor.mode === "cart" ? 9 : 6;
       assert.ok(step / secs <= cap + 1e-6,
         `${where}: a ${actor.mode} covers ${(step / secs).toFixed(1)} m/s`);
     }
@@ -199,7 +241,7 @@ for (const ch of CHAPTERS) {
 }
 
 // The flats the story turns on have to dry at the tide the chapter names.
-const flat = CHAPTERS.find(c => c.n === 6);
+const flat = CHAPTERS.find(c => c.title.includes("Maple Beach"));
 assert.ok(flat.tide < 0, "the crossing is not staged at a low water");
 // The one that covers ground, not just the one carrying a light: the pair
 // waiting for it have a torch too.

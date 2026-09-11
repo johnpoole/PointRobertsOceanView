@@ -61,6 +61,15 @@ const SURVEY = [[48.973330, -123.085720], [48.973540, -123.085840]];
 const BANK = [[48.981530, -123.027560], [48.981600, -123.027480],
               [48.981670, -123.027400]];
 
+// Tyee Drive through the village, dead straight south past the post office and
+// the marketplace, off the OSM way. Carts are licensed on these roads and they
+// do about eight metres a second flat out, which is a hundred and seventy of
+// this in the length of a scene.
+const TYEE = (lat) => [lat, -123.067850];
+// The lane beside it. A car overtaking has to be somewhere, and it is not in
+// the same wheel tracks.
+const LANE_W = -123.067900;
+
 // Boundary Bay off Maple Beach. The bottom here stands between five centimetres
 // above MLLW and twenty below, so a tide half a metre under it leaves the whole
 // flat dry, and the 49th parallel runs across the middle of this walk. That is
@@ -160,7 +169,32 @@ export const CHAPTERS = [
     ],
   },
   {
-    n: 6, title: "Maple Beach",
+    n: 6, title: "Tyee Drive",
+    hour: 12.2, sun: 27.5, west: false, tide: null, dwell: 26,
+    // The camera does not stand still for this one. It holds a fixed radius off
+    // the cart and swings round it the whole way down the road, which is the
+    // only way a cart with a car behind it reads as a chase rather than as two
+    // things going the same way. arc is which actor it holds, radius and height
+    // where it holds it from, from where the swing starts in degrees and sweep
+    // how far round it goes by the end of the scene.
+    shot: { arc: 0, radius: 26, height: 9, from: 200, sweep: 170 },
+    actors: [
+      // Whoever has been paying cash for that slip, going south down Tyee in
+      // the first thing on the point with a key left in it. Carts are licensed
+      // on these roads, which is why this is not as strange as it sounds.
+      { mode: "cart", on: "ground", keys: [
+        [0, ...TYEE(48.987600)], [9, ...TYEE(48.986950)],
+        [18, ...TYEE(48.986300)], [26, ...TYEE(48.985720)],
+      ] },
+      // And a car coming up behind it, out of the lane and closing.
+      { mode: "car", on: "ground", keys: [
+        [2, 48.987980, LANE_W], [10, 48.987150, LANE_W],
+        [18, 48.986420, LANE_W], [26, 48.985800, LANE_W],
+      ] },
+    ],
+  },
+  {
+    n: 7, title: "Maple Beach",
     // The book has this at twenty past three, which is forty degrees under the
     // horizon and a black screen. A big ebb an hour before first light is the
     // same tide out of the same series, and four degrees under leaves a flat to
@@ -182,7 +216,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    n: 7, title: "The border station, opening",
+    n: 8, title: "The border station, opening",
     hour: 8.5, sun: 8.7, west: false, tide: null, dwell: 24,
     eye: [49.000539, -123.068558, 57.1],
     aim: [49.001405, -123.068490, 51.9],

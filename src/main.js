@@ -1743,11 +1743,37 @@ function stepTour(now) {
   nav.toOrbit();
 }
 
+// Where the camera stands for a chapter this second. Most of them stand still
+// and their eye and aim are written down. One of them runs: the camera holds a
+// fixed radius off the cart and swings round it the whole way down the fairway,
+// because two carts crossing a lawn seen from a fence post is not a chase.
+function tourCamera(chapter, acted, at) {
+  const shot = chapter.shot;
+  if (!shot) return chapterPoints(chapter);
+  const s = novel.spotOf(at, shot.arc, acted, tideLevel(), chapter.dwell);
+  // A following camera has nobody to follow only if the staging is wrong, and
+  // there is no fixed viewpoint to fall back to. Stay where you are.
+  if (!s) return { eye: camera.position.clone(), aim: controls.target.clone() };
+  const turn = (shot.from + shot.sweep * (acted / chapter.dwell)) * Math.PI / 180;
+  const eye = {
+    x: s.x + Math.cos(turn) * shot.radius,
+    y: s.y + shot.height,
+    z: s.z + Math.sin(turn) * shot.radius,
+  };
+  // The ground under a swinging camera is not the ground under the cart, and
+  // Tyee runs downhill the whole way. Keep the lens out of the verge.
+  eye.y = Math.max(eye.y, floorAt(eye.x, eye.z) + 3);
+  return { eye, aim: { x: s.x, y: s.y + 1.1, z: s.z } };
+}
+
 function updateTour(now) {
   if (!tour) return;
   const chapter = CHAPTERS[tour.at];
-  const { eye, aim } = chapterPoints(chapter);
   const gone = now - tour.since;
+  // Nothing happens until the camera gets there. The scene is set on its marks
+  // while it flies in, and the chapter's own clock starts when it arrives.
+  const acted = Math.max(gone - TRAVEL_S, 0);
+  const { eye, aim } = tourCamera(chapter, acted, tour.at);
   // Ease across, then hold. A cut would lose where one place is from another,
   // which is most of what the route is for.
   const k = Math.min(gone / TRAVEL_S, 1);
@@ -1761,9 +1787,7 @@ function updateTour(now) {
     tour.from.aim.y + (aim.y - tour.from.aim.y) * ease,
     tour.from.aim.z + (aim.z - tour.from.aim.z) * ease);
   controls.update();
-  // The action runs from the moment the camera starts moving, so it is already
-  // under way when the camera arrives rather than waiting to be watched.
-  novel.place(tour.at, gone, tideLevel(), chapter.dwell);
+  novel.place(tour.at, acted, tideLevel(), chapter.dwell);
   if (gone >= TRAVEL_S + chapter.dwell) stepTour(now);
 }
 
