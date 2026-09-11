@@ -22,6 +22,9 @@ export const BORDER={
   wing:[17,18,19,20,21,22,23,24,25,26,27],
   officeHeight:6.6,middleHeight:4.6,wingHeight:5.0,wingRise:.8,
   canopyDeck:5.4,canopyFascia:.55,canopyEave:.9,
+  // Both roofs are low-pitched standing seam, off the Street View frame looking
+  // north over the station. Neither is flat, which is how they were first built.
+  officeRise:1.7,officeEave:.55,canopyRise:.75,
   // Under the canopy, across the lanes, in the frame's own metres.
   posts:[[1.4,.9],[1.4,9.6],[9.5,.9],[9.5,9.6],[17.6,.9],[17.6,9.6]],
   gates:[3.4,11.5],gateZ:6.4,

@@ -26,6 +26,14 @@ footprint and keeps a pickable name on it.
   hanging under the canopy, the booths, the light mast, the flag, and the sign
   in the grass reading BE PREPARED TO SHOW IDENTIFICATION / DECLARE ALL ARTICLES
   ACQUIRED OUTSIDE USA.
+- A second Google frame, looking north over the station from above the line,
+  supplied by John on 11 September 2026. It settled both roofs: the office is a
+  low-pitched standing-seam roof running the length of the block and the canopy
+  over the lanes is the same, pitched the same shallow way. Both were built flat
+  before this. It also shows two things that are still not modelled — a second
+  canopy on stilts with a green roof, north-east over the outbound lanes, and a
+  green-roofed open shelter east of the highway — neither of which is in the OSM
+  footprint this area replaces.
 - A Google aerial oblique looking north over the station, supplied by John. It
   is the only view of the roofs from above at an angle, and it corrected three
   things: the walls are tan metal panel over a concrete plinth rather than
@@ -76,9 +84,10 @@ by eye would have missed the walls.
 
 ## What is not known
 
-- The office roof is drawn flat with a lip. The August photograph shows its top
-  edge falling from front to back, which could be a shallow mono-pitch rather
-  than a flat roof with a parapet; the oblique does not settle it either.
+- The two structures the second Google frame shows and this does not model: the
+  green-roofed canopy on stilts north-east over the outbound lanes, and the
+  green-roofed shelter east of the highway. Both stand outside the traced
+  footprint and would have to be read off the aerial on their own.
 - The south and east elevations have no reference coverage. They carry the mass
   and nothing else. No window on a hidden wall was invented.
 - The lane markings, the queue islands and the northbound Canadian side are not

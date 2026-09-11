@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { box,tint } from "./parts.js";
+import { box,tint,gableRoof } from "./parts.js";
 import { fromWorld } from "../geo.js";
 import { disposeArea } from "./area-view.js";
 import { BORDER as P,borderFrame as F,borderPoint,borderRing,borderPart } from "./border-plan.js";
@@ -43,28 +43,46 @@ export function buildBorderBase(scene,sample){
   ],group,"border-walls");
   building.userData.landmark={name:"US Customs and Border Protection — Point Roberts",kind:"building"};
   const roofs=[];
-  // The office roof is seamed grey, the middle section white, and the wing takes
-  // the ribbed pitch built off its own four corners.
-  for(const [part,height,color] of [["office",P.officeHeight,STEEL],["middle",P.middleHeight,WHITEROOF]]){
-    const ring=borderPart(part),shape=new THREE.Shape(ring.map(p=>new THREE.Vector2(p.x,-p.z))),
+  // The office roof is a low-pitched standing-seam one running the length of the
+  // block, not the flat slab this had first. The Street View frame looking north
+  // over the station shows the ridge and both slopes plainly.
+  {
+    const x0=F.canopyEast,x1=F.officeEast,z0=F.stepNorth,z1=borderPart("office")[3].z;
+    const g=gableRoof((x1-x0)/2,(z1-z0)/2,floor+P.officeHeight,P.officeRise,P.officeEave,STEEL),
+      c=new THREE.Color(PANEL),a=g.attributes.color;
+    // The helper closes its ends; those two triangles are wall, not roof.
+    for(let i=a.count-6;i<a.count;i++)a.setXYZ(i,c.r,c.g,c.b);
+    g.translate((x0+x1)/2,0,(z0+z1)/2);roofs.push(borderTransform(g));
+  }
+  // The middle section stays flat and white, which is what the aerial shows.
+  {
+    const ring=borderPart("middle"),shape=new THREE.Shape(ring.map(p=>new THREE.Vector2(p.x,-p.z))),
       slab=new THREE.ExtrudeGeometry(shape,{depth:.22,bevelEnabled:false});
-    slab.rotateX(-Math.PI/2);slab.translate(0,floor+height,0);roofs.push(borderTransform(tint(slab,color)));
+    slab.rotateX(-Math.PI/2);slab.translate(0,floor+P.middleHeight,0);
+    roofs.push(borderTransform(tint(slab,WHITEROOF)));
   }
   // White membrane over the north end of the office, with the plant standing on
   // it, which is what the aerial shows and the oblique confirms.
-  roofs.push(borderBox(F.letterWest-.2,F.officeEast,F.officeNorth,-2.4,floor+P.officeHeight+.22,.06,WHITEROOF));
+  roofs.push(borderBox(F.letterWest-.2,F.officeEast,F.officeNorth,F.stepNorth,floor+P.officeHeight,.1,WHITEROOF));
   for(const [x,z,w,d,h] of [[27.4,-14.4,2.2,1.5,.9],[30.6,-11.2,1.6,1.2,.7],[27.9,-8.2,2.6,1.8,1.0],[31.4,-5.4,1.4,1.4,.6]])
     roofs.push(borderBox(x-w/2,x+w/2,z-d/2,z+d/2,floor+P.officeHeight+.28,h,0xa8a8a0));
   {
     const r=borderPart("wing");
     roofs.push(slopedRoof(r[0],r[4],r[5],r[9],floor+P.wingHeight,P.wingRise,METAL));
   }
-  // The canopy: a deck over the lanes on six posts, with nothing under it.
+  // The canopy over the lanes: standing-seam like the office and pitched the same
+  // shallow way, on six posts with nothing under it. It was a flat deck until
+  // the Street View frame showed the ridge running the length of it.
   {
-    const ring=borderPart("canopy"),shape=new THREE.Shape(ring.map(p=>new THREE.Vector2(p.x,-p.z))),
-      deck=new THREE.ExtrudeGeometry(shape,{depth:P.canopyFascia,bevelEnabled:false});
-    deck.rotateX(-Math.PI/2);deck.translate(0,floor+P.canopyDeck,0);roofs.push(borderTransform(tint(deck,STEEL)));
-    for(const [x,z] of P.posts) roofs.push(borderBox(x-.16,x+.16,z-.16,z+.16,floor,P.canopyDeck,DARK));
+    const ring=borderPart("canopy"),xs=ring.map(p=>p.x),zs=ring.map(p=>p.z),
+      x0=Math.min(...xs),x1=Math.max(...xs),z0=Math.min(...zs),z1=Math.max(...zs);
+    const g=gableRoof((z1-z0)/2,(x1-x0)/2,floor+P.canopyDeck,P.canopyRise,P.canopyEave,STEEL);
+    g.rotateY(Math.PI/2);g.translate((x0+x1)/2,0,(z0+z1)/2);roofs.push(borderTransform(g));
+    // The fascia band under the eave, which is what reads from the road.
+    for(const z of [z0,z1]) roofs.push(borderBox(x0-P.canopyEave,x1+P.canopyEave,
+      z-(z===z0?P.canopyEave:0),z+(z===z1?P.canopyEave:0),
+      floor+P.canopyDeck-P.canopyFascia,P.canopyFascia,DARK));
+    for(const [x,z] of P.posts) roofs.push(borderBox(x-.16,x+.16,z-.16,z+.16,floor,P.canopyDeck-P.canopyFascia,DARK));
   }
   borderMerge(roofs,group,"border-roofs-and-canopy");
   borderMerge([drape(APRON,sample,0x53565a,.05),drape(WALK,sample,0xa8a79b,.09)],group,"border-apron");
