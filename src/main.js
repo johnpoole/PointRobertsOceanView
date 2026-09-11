@@ -91,6 +91,10 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 
+// The middle of the basin, for how loud the halyards are. The masts are real
+// and so is their position; only the sound of them is made up.
+const MARINA_AT = toWorld(48.977100, -123.063600, 0);
+
 // Narrower than a phone's wide lens, closer to how the eye frames the vista, so
 // the islands and mountains across the strait read at the height they feel.
 // Live mode takes the phone's lens instead — see applyFov.
@@ -1985,6 +1989,11 @@ function frame() {
     wavePeriodS: wx ? wx.wave_period_s : null,
     waterDistanceM: waterDistance,
     listenerHeightM: camera.position.y - level,
+    // The wind that moves the halyards and the trees is the wind the station is
+    // reporting, not a number chosen to sound good.
+    windSpeedMps: wx ? wx.wind_speed_mps : null,
+    marinaDistanceM: Math.hypot(camera.position.x - MARINA_AT.x,
+                                camera.position.z - MARINA_AT.z),
     boat: nav.mode === "boat" ? nav.boat : null,
   });
 

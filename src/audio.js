@@ -1,10 +1,14 @@
-// Sound, synthesised rather than sampled. Two voices:
+// Sound, synthesised rather than sampled. Four voices:
 //
-//   water  - always on, filtered noise driven by the real sea state and how far
-//            away the water actually is at the current tide.
-//   engine - boat mode only, a two-stroke outboard: one bang per firing, into
-//            fixed resonances, at a rate that follows engine revs rather than
-//            boat speed.
+//   water    - always on, filtered noise driven by the real sea state and how far
+//              away the water actually is at the current tide.
+//   engine   - boat mode only, a two-stroke outboard: one bang per firing, into
+//              fixed resonances, at a rate that follows engine revs rather than
+//              boat speed.
+//   halyards - near the marina, three hundred masts: a rope slapping aluminium,
+//              struck at a rate the real wind sets, each tap a short ring.
+//   wind     - noise through a band that opens as the wind gets up, and louder
+//              the higher and barer the ground you are standing on.
 //
 // Nothing is loaded from disk. Both voices are a handful of oscillators and a
 // noise buffer, which costs nothing in payload and, more to the point, lets the
@@ -15,6 +19,49 @@
 // silent, deliberately: there is no way to make noise sooner.
 
 const STORE_KEY = "oceanview.sound";
+
+// ---- halyards ---------------------------------------------------------------
+//
+// A marina in any breeze is one sound above all others: rope on mast. It is not
+// a tone, it is a tap — a short strike with a metal ring after it, and three
+// hundred boats means taps arriving at random all the time.
+//
+// The rate is what carries the wind. Nothing at a whisper, a lazy knock every
+// second or two at five metres a second, and a continuous rattle at fifteen.
+const HALYARD_HZ = [0.0, 9.0];         // taps a second, at no wind and at gale
+const HALYARD_WIND = [1.2, 15.0];      // metres a second, over which that maps
+// Masts ring where their section rings. Aluminium spars land in this range and
+// the spread is what stops three hundred boats sounding like one.
+const HALYARD_RING = [420, 1500];
+const HALYARD_DECAY = [0.05, 0.16];    // seconds for a tap to die away
+// How far the sound carries. Beyond this the basin is quiet.
+const MARINA_REF_M = 260;
+
+// ---- wind -------------------------------------------------------------------
+//
+// Noise through a band. What changes with strength is not just level: a breeze
+// in firs is low and soft, and a blow is higher and harder, so the band opens
+// upward as it gets up.
+const WIND_BAND_HZ = [300, 1250];
+const WIND_GAIN = [0.0, 0.14];
+// Exposure: on the beach with the bank behind you it is quieter than it is on
+// the bluff. Height above the water stands in for that.
+const WIND_HEIGHT_M = 45;
+
+// ---- the rhythm of the surf -------------------------------------------------
+//
+// Three slow sines at rates with no common multiple. Their sum wanders forever
+// instead of repeating, so sets build and there are lulls between them.
+const SWELL_RATIOS = [1, 0.61, 0.37];
+
+// What the ear hears break on a beach is not the wind chop the station counts.
+// A 2.5 second period is a wash, not a beat, so the audible rhythm is held to
+// this range however short the reading is.
+const SWELL_PERIOD_S = [7, 17];
+
+// And a short-period sea barely pulses at all: the depth of the rhythm follows
+// how long the swell is, from a flat wash to distinct breakers.
+const SWELL_DEPTH = [0.18, 0.85];
 
 const IDLE_RPM = 1100;
 // OMC propped these to turn 4000-5000 at wide open throttle.
@@ -141,14 +188,57 @@ export class Audio {
     this.surfGain.gain.value = 0;
     this.surfNoise.connect(this.surfFilter).connect(this.surfGain).connect(this.master);
 
-    // One breaker at a time, at the real wave period, so a long swell sounds
-    // like a long swell rather than hiss.
-    this.swellLfo = ctx.createOscillator();
-    this.swellLfo.type = "sine";
-    this.swellLfo.frequency.value = 0.2;
-    this.swellDepth = ctx.createGain();
-    this.swellDepth.gain.value = 0;
-    this.swellLfo.connect(this.swellDepth).connect(this.surfGain.gain);
+    // The rhythm of the water. One sine at the wave period was a metronome: with
+    // the station reporting a two and a half second chop it ticked twice a
+    // second, forever, which is the one thing the sea never does.
+    //
+    // Three sines instead, at rates that share no common multiple, summed. The
+    // envelope never repeats, sets build and fade, and there are lulls — which
+    // is what a beach actually sounds like.
+    this.swellLfos = [];
+    this.swellDepths = [];
+    for (const ratio of SWELL_RATIOS) {
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 0.1 * ratio;
+      const depth = ctx.createGain();
+      depth.gain.value = 0;
+      lfo.connect(depth).connect(this.surfGain.gain);
+      lfo.start();
+      this.swellLfos.push({ lfo, ratio });
+      this.swellDepths.push(depth);
+    }
+
+    // ---- wind --------------------------------------------------------------
+    this.windNoise = ctx.createBufferSource();
+    this.windNoise.buffer = buf;
+    this.windNoise.loop = true;
+    this.windFilter = ctx.createBiquadFilter();
+    this.windFilter.type = "bandpass";
+    this.windFilter.frequency.value = WIND_BAND_HZ[0];
+    this.windFilter.Q.value = 0.6;
+    this.windGain = ctx.createGain();
+    this.windGain.gain.value = 0;
+    this.windNoise.connect(this.windFilter).connect(this.windGain).connect(this.master);
+    // Wind is not steady. A slow wander on the level is the difference between
+    // weather and a hiss.
+    this.gustLfo = ctx.createOscillator();
+    this.gustLfo.type = "sine";
+    this.gustLfo.frequency.value = 0.09;
+    this.gustDepth = ctx.createGain();
+    this.gustDepth.gain.value = 0;
+    this.gustLfo.connect(this.gustDepth).connect(this.windGain.gain);
+    this.gustLfo.start();
+    this.windNoise.start();
+
+    // ---- halyards ----------------------------------------------------------
+    // No source of its own: each tap is made when it is struck and thrown away.
+    this.halyardGain = ctx.createGain();
+    this.halyardGain.gain.value = 0;
+    this.halyardGain.connect(this.master);
+    this.halyardNoise = buf;
+    this.halyardDue = 0;
+    this.halyardRate = 0;
 
     // ---- engine ------------------------------------------------------------
     const idleFire = IDLE_RPM * FIRINGS_PER_REV / 60;
@@ -210,9 +300,33 @@ export class Audio {
     }
 
     this.surfNoise.start();
-    this.swellLfo.start();
     if (this.enabled) ctx.resume();
     this._onChange(this.enabled);
+  }
+
+  // One halyard against one mast: a struck ring that dies in a tenth of a
+  // second. Made, played and dropped, which is cheaper than it sounds and is
+  // the only way three hundred of them stay uncorrelated.
+  _tap() {
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const f = HALYARD_RING[0] + Math.random() * (HALYARD_RING[1] - HALYARD_RING[0]);
+    const decay = HALYARD_DECAY[0] + Math.random() * (HALYARD_DECAY[1] - HALYARD_DECAY[0]);
+    const src = ctx.createBufferSource();
+    src.buffer = this.halyardNoise;
+    src.loop = true;
+    // A narrow band on noise is a ring; the Q sets how long it hangs on.
+    const ring = ctx.createBiquadFilter();
+    ring.type = "bandpass";
+    ring.frequency.value = f;
+    ring.Q.value = ringQ(f, decay);
+    const hit = ctx.createGain();
+    hit.gain.setValueAtTime(0, now);
+    hit.gain.linearRampToValueAtTime(0.7 + Math.random() * 0.3, now + 0.002);
+    hit.gain.exponentialRampToValueAtTime(0.0008, now + decay);
+    src.connect(ring).connect(hit).connect(this.halyardGain);
+    src.start(now);
+    src.stop(now + decay + 0.02);
   }
 
   // s: { waveHeightM, wavePeriodS, waterDistanceM, listenerHeightM,
@@ -231,9 +345,49 @@ export class Audio {
     const level = clamp(0.16 * Math.pow(h / 0.5, 0.7) * near, 0, 0.5);
     at(this.surfGain.gain, level, 0.4);
     at(this.surfFilter.frequency, 260 + 420 * clamp(h / 2, 0, 1), 0.4);
-    at(this.swellDepth.gain, level * 0.7, 0.4);
-    const period = clamp(s.wavePeriodS != null ? s.wavePeriodS : 5, 2, 14);
-    at(this.swellLfo.frequency, 1 / period, 0.5);
+
+    // The reading is the wind chop. What breaks on a beach is slower than that,
+    // so it is stretched into a rhythm an ear reads as water rather than as a
+    // tick, and the longer the swell the more it is a beat rather than a wash.
+    const reading = clamp(s.wavePeriodS != null ? s.wavePeriodS : 5, 2, 20);
+    const longness = clamp((reading - 2) / 10, 0, 1);
+    const period = SWELL_PERIOD_S[0] + (SWELL_PERIOD_S[1] - SWELL_PERIOD_S[0]) * longness;
+    const depth = SWELL_DEPTH[0] + (SWELL_DEPTH[1] - SWELL_DEPTH[0]) * longness;
+    for (let i = 0; i < this.swellLfos.length; i++) {
+      at(this.swellLfos[i].lfo.frequency, this.swellLfos[i].ratio / period, 0.8);
+      // The first carries the set, the others take less and less.
+      at(this.swellDepths[i].gain, level * depth * [0.55, 0.3, 0.15][i], 0.6);
+    }
+
+    // ---- wind --------------------------------------------------------------
+    const wind = clamp(s.windSpeedMps != null ? s.windSpeedMps : 0, 0, 25);
+    const blow = clamp((wind - HALYARD_WIND[0]) / (HALYARD_WIND[1] - HALYARD_WIND[0]), 0, 1);
+    // Higher and barer is windier. On the beach the bank takes it off you.
+    const exposure = clamp(Math.max(0, s.listenerHeightM) / WIND_HEIGHT_M, 0.25, 1);
+    const windLevel = (WIND_GAIN[0] + (WIND_GAIN[1] - WIND_GAIN[0]) * Math.pow(blow, 0.8))
+      * exposure;
+    at(this.windGain.gain, windLevel, 0.6);
+    at(this.windFilter.frequency,
+      WIND_BAND_HZ[0] + (WIND_BAND_HZ[1] - WIND_BAND_HZ[0]) * blow, 0.6);
+    at(this.gustDepth.gain, windLevel * 0.5, 0.6);
+
+    // ---- halyards ----------------------------------------------------------
+    // Only near the basin, and only when there is wind to move them.
+    const toMarina = s.marinaDistanceM != null ? s.marinaDistanceM : Infinity;
+    const nearBasin = 1 / (1 + toMarina / MARINA_REF_M);
+    const halyardLevel = clamp(0.22 * nearBasin * Math.pow(blow, 0.5), 0, 0.3);
+    at(this.halyardGain.gain, halyardLevel, 0.5);
+    this.halyardRate = (HALYARD_HZ[0] + (HALYARD_HZ[1] - HALYARD_HZ[0]) * blow)
+      * (toMarina < MARINA_REF_M * 4 ? 1 : 0);
+    if (halyardLevel > 0.004 && this.halyardRate > 0) {
+      this.halyardDue -= dt * this.halyardRate;
+      // Poisson rather than a metronome: they do not knock in time.
+      let guard = 0;
+      while (this.halyardDue <= 0 && guard++ < 8) {
+        this._tap();
+        this.halyardDue += -Math.log(1 - Math.random());
+      }
+    }
 
     // ---- engine ------------------------------------------------------------
     const b = s.boat;
