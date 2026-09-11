@@ -31,6 +31,7 @@ import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
 import { buildCast } from "./scene/cast.js";
+import { CHAPTERS, DWELL_S, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -1662,6 +1663,57 @@ function toggleBrademy() {
   if (on) lookAtBrademy();
 }
 
+// The novel's route, on R. Seven places in the order Low Water visits them, each
+// held for a few seconds with the sun wound to the hour that scene is set at.
+// The water is whatever the tide is really doing at that hour: the light is
+// moved, the feed is not.
+let tour = null;
+
+function toggleTour() {
+  if (tour) {
+    tour = null;
+    setClockOffset(0);
+    return;
+  }
+  tour = { at: -1, since: 0, from: null };
+  stepTour(0);
+}
+
+function stepTour(now) {
+  tour.at = (tour.at + 1) % CHAPTERS.length;
+  tour.since = now;
+  tour.from = {
+    eye: camera.position.clone(),
+    aim: controls.target.clone(),
+  };
+  const chapter = CHAPTERS[tour.at];
+  // The hour the scene is set at, as an offset from the hour it is now.
+  const clock = new Date();
+  setClockOffset(chapter.hour - (clock.getHours() + clock.getMinutes() / 60));
+  nav.toOrbit();
+}
+
+function updateTour(now) {
+  if (!tour) return;
+  const chapter = CHAPTERS[tour.at];
+  const { eye, aim } = chapterPoints(chapter);
+  const gone = now - tour.since;
+  // Ease across, then hold. A cut would lose where one place is from another,
+  // which is most of what the route is for.
+  const k = Math.min(gone / TRAVEL_S, 1);
+  const ease = k * k * (3 - 2 * k);
+  camera.position.set(
+    tour.from.eye.x + (eye.x - tour.from.eye.x) * ease,
+    tour.from.eye.y + (eye.y - tour.from.eye.y) * ease,
+    tour.from.eye.z + (eye.z - tour.from.eye.z) * ease);
+  controls.target.set(
+    tour.from.aim.x + (aim.x - tour.from.aim.x) * ease,
+    tour.from.aim.y + (aim.y - tour.from.aim.y) * ease,
+    tour.from.aim.z + (aim.z - tour.from.aim.z) * ease);
+  controls.update();
+  if (gone >= TRAVEL_S + DWELL_S) stepTour(now);
+}
+
 function lookAtBrademy() {
   const c = brademy.centre;
   // Far enough back that the whole facility sits inside the vertical field of
@@ -1769,6 +1821,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyG") toggleCampground();
   if (e.code === "KeyF" && golf) golf.toggle();
   if (e.code === "KeyP" && cast) cast.toggle();
+  if (e.code === "KeyR" && !e.repeat) toggleTour();
   if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
@@ -1869,6 +1922,7 @@ function frame() {
   if (golf) golf.update(camera, window.innerHeight, feed.tee);
   // The clock the sun runs on is the clock the town runs on.
   if (cast) cast.update(new Date(Date.now() + offsetHours() * 3600 * 1000), camera);
+  updateTour(t);
   if (marina && marina.wanted && t > marinaPingDue) {
     marinaPingDue = t + 30;
     feed.watching("marina");
