@@ -122,8 +122,14 @@ export const CHAPTERS = [
   {
     n: 4, title: "Lily Point",
     hour: 17.7, sun: -3.0, west: true, tide: null, dwell: 26,
-    eye: [48.981621, -123.026453, 73.2],
-    aim: [48.981633, -123.027445, 65.3],
+    // Above the bank and clear of the firs. The camera solver puts this where
+    // the angles work and knows nothing about trees, and the trees here are the
+    // whole of Lily Point.
+    // In among the trunks rather than above them. Lily Point's bank top is
+    // wooded and a camera clear of the canopy is a camera looking at the top of
+    // it, so this stands on the bank with them and the torch does the work.
+    eye: [48.981640, -123.026960, 69.0],
+    aim: [48.981618, -123.027480, 65.6],
     actors: [
       // Dark by now. He walks her out along the bank and stops at the edge of
       // it, and the torch is the only reason there is anything to see.

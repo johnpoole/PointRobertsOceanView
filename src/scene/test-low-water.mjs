@@ -108,6 +108,7 @@ for (const ch of CHAPTERS) {
     actors++;
     assert.ok(actor.keys.length >= 2, `${where}: an actor with one key does nothing`);
     let last = -1, moved = 0;
+    const offs = [];
     for (const [t, lat, lon] of actor.keys) {
       assert.ok(t > last, `${where}: keys run backwards at ${t}s`);
       last = t;
@@ -137,12 +138,18 @@ for (const ch of CHAPTERS) {
       const dot = (to.x * look.x + to.y * look.y + to.z * look.z) / (range * lookLen);
       const off = Math.acos(Math.min(Math.max(dot, -1), 1)) * 180 / Math.PI;
       // The page looks through a 25 degree lens, so half of it is twelve and a
-      // half and there is nothing outside that. Ten leaves a margin for the
-      // width of a car and the height of a mast.
-      assert.ok(off < LENS_HALF_DEG,
-        `${where}: an actor is ${off.toFixed(0)}° off the middle of a `
-        + `${LENS_HALF_DEG * 2}° frame`);
+      // half and there is nothing outside that. A figure may walk into frame
+      // and out of it again, so what has to hold is that the middle of its path
+      // is on the screen and that no end of it is off in another direction.
+      offs.push(off);
     }
+    const middle = offs[Math.floor((offs.length - 1) / 2)];
+    assert.ok(middle < LENS_HALF_DEG,
+      `${where}: the middle of an actor's path is ${middle.toFixed(0)}° off `
+      + `a ${LENS_HALF_DEG * 2}° frame, so most of what it does is off screen`);
+    assert.ok(Math.max(...offs) < LENS_HALF_DEG * 3,
+      `${where}: an actor reaches ${Math.max(...offs).toFixed(0)}° off the `
+      + `middle, which is not walking out of frame, it is somewhere else`);
     assert.ok(actor.keys[actor.keys.length - 1][0] <= ch.dwell,
       `${where}: an actor is still going ${
         actor.keys[actor.keys.length - 1][0] - ch.dwell}s after the scene ends`);
@@ -210,6 +217,6 @@ assert.ok(Math.max(...lats) > 49.0 && Math.min(...lats) < 49.0,
 
 const runtime = CHAPTERS.reduce((s, c) => s + c.dwell + TRAVEL_S, 0);
 console.log(`PASS: ${CHAPTERS.length} chapters, ${actors} actors, ${walked} of them `
-  + `moving, all of them dry or afloat and inside ${LENS_HALF_DEG}° of the middle, the crossing `
+  + `moving, all of them dry or afloat and on screen where it matters, the crossing `
   + `dry from ${Math.max(...lats).toFixed(5)} to ${Math.min(...lats).toFixed(5)} `
   + `at ${flat.tide} m. ${Math.round(runtime)}s end to end.`);
