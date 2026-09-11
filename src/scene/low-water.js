@@ -155,9 +155,13 @@ export const CHAPTERS = [
   },
   {
     n: 6, title: "Maple Beach",
-    hour: 3.3, sun: -40.2, west: false, tide: -0.5, dwell: 28,
-    eye: [48.999760, -123.026350, 5.0],
-    aim: [48.999990, -123.025350, -0.3],
+    // The book has this at twenty past three, which is forty degrees under and
+    // a black screen. A big ebb an hour before first light is the same tide and
+    // the same series, and at seven degrees under there is a flat to see them
+    // standing on. The torch still does the work.
+    hour: 3.3, sun: -7.0, west: false, tide: -0.5, dwell: 28,
+    eye: [48.999790, -123.026250, 3.5],
+    aim: [48.999980, -123.025450, -0.2],
     actors: [
       // The two of them standing on dry bottom on the American side of the
       // line, and the light coming down the flat out of Canada toward them.
