@@ -34,6 +34,10 @@ const PATH = { colour: 0x8e8b83, lift: 0.16, width: 2.4 };
 // half hour round; this is the most that will ever be drawn.
 const MAX_FLIGHTS = 20;
 
+// Where each of the four stands relative to the group: across the hole, then
+// along it.
+const SPREAD = [[-2.6, -6.5], [1.8, -2.2], [-1.4, 2.4], [2.9, 6.8]];
+
 let coursePromise = null;
 export function golfFeatures() {
   if (!coursePromise) coursePromise = fetch(GOLF).then((r) => {
@@ -110,7 +114,11 @@ export async function buildGolf(scene, sample) {
     for (let p = 0; p < 4; p++) {
       const figure = new THREE.Mesh(figureGeometry(p),
         new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
-      figure.position.set((p % 2) * 1.6 - 0.8, 0, Math.floor(p / 2) * 1.6 - 0.8);
+      // Strung out down the hole rather than bunched in a square. The flight is
+      // turned to the hole's heading, so +z is the way they are walking: this
+      // spreads them over about fourteen metres of it and a few either side,
+      // which is what a fourball looks like from the next tee.
+      figure.position.set(SPREAD[p][0], 0, SPREAD[p][1]);
       figure.name = `golfer-${p}`;
       flight.add(figure);
     }
