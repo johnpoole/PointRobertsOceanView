@@ -9,6 +9,10 @@
 //              struck at a rate the real wind sets, each tap a short ring.
 //   wind     - noise through a band that opens as the wind gets up, and louder
 //              the higher and barer the ground you are standing on.
+//   rain     - only when it is actually falling, at the rate the station gives,
+//              from a hiss in drizzle to a hard rattle.
+//   gulls    - the one voice with no reading behind it. Near the water, now and
+//              then, and hardly at all in the dark.
 //
 // Nothing is loaded from disk. Both voices are a handful of oscillators and a
 // noise buffer, which costs nothing in payload and, more to the point, lets the
@@ -50,18 +54,48 @@ const WIND_HEIGHT_M = 45;
 
 // ---- the rhythm of the surf -------------------------------------------------
 //
-// Three slow sines at rates with no common multiple. Their sum wanders forever
-// instead of repeating, so sets build and there are lulls between them.
-const SWELL_RATIOS = [1, 0.61, 0.37];
+// Two things, and they are not the same thing.
+//
+// Sets. A beach is loud for a minute and quiet for the next two, whatever the
+// sea is doing. Two slow sines with no common multiple, always running, and
+// their sum never repeats.
+const SET_PERIOD_S = [43, 67];
+const SET_DEPTH = [0.34, 0.22];
 
-// What the ear hears break on a beach is not the wind chop the station counts.
-// A 2.5 second period is a wash, not a beat, so the audible rhythm is held to
-// this range however short the reading is.
-const SWELL_PERIOD_S = [7, 17];
+// Waves. The beat of one breaker after the next, and it runs at the period the
+// station is reporting rather than at a period chosen to sound better. Here
+// that is two or three seconds nearly always: the Strait is fetch-limited, no
+// Pacific swell gets past Vancouver Island, and chop has no beat in it.
+//
+// So the rate is the real one and the DEPTH carries the sea state. Below the
+// first of these there is nothing to hear and the water is a wash. Above the
+// second there are separate breakers.
+const WAVE_RATIOS = [1, 0.61];
+const WAVE_HEARD_S = [4.0, 10.0];
+const WAVE_DEPTH = 0.5;
 
-// And a short-period sea barely pulses at all: the depth of the rhythm follows
-// how long the swell is, from a flat wash to distinct breakers.
-const SWELL_DEPTH = [0.18, 0.85];
+// ---- rain -------------------------------------------------------------------
+//
+// Broadband hiss, and the harder it falls the more of it is high. Driven by
+// what the station says is falling, in millimetres in the last hour, and not by
+// whether it might. A probability makes no sound.
+const RAIN_MM = [0.02, 4.0];           // drizzle, and hard rain
+const RAIN_GAIN = [0.0, 0.20];
+const RAIN_HP_HZ = [700, 2600];
+// Heavy rain has grains in it. Single drops on something hard, struck the way
+// the halyards are.
+const RAIN_DROPS_HZ = 26;              // drops a second, at the hard end
+const RAIN_DROP_HZ = [1400, 4200];
+
+// ---- gulls ------------------------------------------------------------------
+//
+// The one voice with nothing behind it. There is no gull feed. They are here
+// because a shore without them is wrong, and the model is only this: near the
+// water, sparsely, and quiet in the dark.
+const GULL_EVERY_S = [16, 90];         // seconds between calls, near and far
+const GULL_REF_M = 400;
+const GULL_NOTE_HZ = [1250, 620];      // each cry falls through this
+const GULL_NOTES = [2, 5];
 
 const IDLE_RPM = 1100;
 // OMC propped these to turn 4000-5000 at wide open throttle.
@@ -188,25 +222,32 @@ export class Audio {
     this.surfGain.gain.value = 0;
     this.surfNoise.connect(this.surfFilter).connect(this.surfGain).connect(this.master);
 
-    // The rhythm of the water. One sine at the wave period was a metronome: with
-    // the station reporting a two and a half second chop it ticked twice a
-    // second, forever, which is the one thing the sea never does.
-    //
-    // Three sines instead, at rates that share no common multiple, summed. The
-    // envelope never repeats, sets build and fade, and there are lulls — which
-    // is what a beach actually sounds like.
-    this.swellLfos = [];
-    this.swellDepths = [];
-    for (const ratio of SWELL_RATIOS) {
+    // Sets: slow, always running, and nothing to do with the reading.
+    this.setDepths = [];
+    for (const seconds of SET_PERIOD_S) {
       const lfo = ctx.createOscillator();
       lfo.type = "sine";
-      lfo.frequency.value = 0.1 * ratio;
+      lfo.frequency.value = 1 / seconds;
       const depth = ctx.createGain();
       depth.gain.value = 0;
       lfo.connect(depth).connect(this.surfGain.gain);
       lfo.start();
-      this.swellLfos.push({ lfo, ratio });
-      this.swellDepths.push(depth);
+      this.setDepths.push(depth);
+    }
+
+    // Waves: the beat on top, at whatever period the water is running at now.
+    this.waveLfos = [];
+    this.waveDepths = [];
+    for (const ratio of WAVE_RATIOS) {
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = ratio / 5;
+      const depth = ctx.createGain();
+      depth.gain.value = 0;
+      lfo.connect(depth).connect(this.surfGain.gain);
+      lfo.start();
+      this.waveLfos.push({ lfo, ratio });
+      this.waveDepths.push(depth);
     }
 
     // ---- wind --------------------------------------------------------------
@@ -230,6 +271,29 @@ export class Audio {
     this.gustLfo.connect(this.gustDepth).connect(this.windGain.gain);
     this.gustLfo.start();
     this.windNoise.start();
+
+    // ---- rain --------------------------------------------------------------
+    this.rainNoise = ctx.createBufferSource();
+    this.rainNoise.buffer = buf;
+    this.rainNoise.loop = true;
+    this.rainFilter = ctx.createBiquadFilter();
+    this.rainFilter.type = "highpass";
+    this.rainFilter.frequency.value = RAIN_HP_HZ[0];
+    this.rainGain = ctx.createGain();
+    this.rainGain.gain.value = 0;
+    this.rainNoise.connect(this.rainFilter).connect(this.rainGain).connect(this.master);
+    this.rainNoise.start();
+    // The grains in it, struck one at a time like the halyards.
+    this.dropGain = ctx.createGain();
+    this.dropGain.gain.value = 0;
+    this.dropGain.connect(this.master);
+    this.dropDue = 0;
+
+    // ---- gulls -------------------------------------------------------------
+    this.gullGain = ctx.createGain();
+    this.gullGain.gain.value = 0.5;
+    this.gullGain.connect(this.master);
+    this.gullDue = GULL_EVERY_S[0];
 
     // ---- halyards ----------------------------------------------------------
     // No source of its own: each tap is made when it is struck and thrown away.
@@ -329,8 +393,63 @@ export class Audio {
     src.stop(now + decay + 0.02);
   }
 
-  // s: { waveHeightM, wavePeriodS, waterDistanceM, listenerHeightM,
-  //      boat: { throttle, speed, planing, maxSpeed } | null }
+  // One drop on something hard: the halyard trick at an eighth of the length.
+  _drop() {
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const f = RAIN_DROP_HZ[0] + Math.random() * (RAIN_DROP_HZ[1] - RAIN_DROP_HZ[0]);
+    const decay = 0.012 + Math.random() * 0.02;
+    const src = ctx.createBufferSource();
+    src.buffer = this.halyardNoise;
+    src.loop = true;
+    const ring = ctx.createBiquadFilter();
+    ring.type = "bandpass";
+    ring.frequency.value = f;
+    ring.Q.value = ringQ(f, decay);
+    const hit = ctx.createGain();
+    hit.gain.setValueAtTime(0, now);
+    hit.gain.linearRampToValueAtTime(0.5 + Math.random() * 0.5, now + 0.001);
+    hit.gain.exponentialRampToValueAtTime(0.0008, now + decay);
+    src.connect(ring).connect(hit).connect(this.dropGain);
+    src.start(now);
+    src.stop(now + decay + 0.02);
+  }
+
+  // One gull. Three or four harsh notes, each falling in pitch, each shorter
+  // and quieter than the one before as the bird runs out of breath.
+  _gull(level) {
+    const ctx = this.ctx;
+    let at = ctx.currentTime + 0.05;
+    const notes = GULL_NOTES[0]
+      + Math.floor(Math.random() * (GULL_NOTES[1] - GULL_NOTES[0] + 1));
+    const top = GULL_NOTE_HZ[0] * (0.85 + Math.random() * 0.3);
+    for (let n = 0; n < notes; n++) {
+      const fade = Math.pow(0.82, n);
+      const length = (0.20 + Math.random() * 0.10) * fade;
+      const osc = ctx.createOscillator();
+      // A saw through a narrow band is the harshness. A sine is a whistle.
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(top * fade, at);
+      osc.frequency.exponentialRampToValueAtTime(GULL_NOTE_HZ[1] * fade, at + length);
+      const throat = ctx.createBiquadFilter();
+      throat.type = "bandpass";
+      throat.frequency.value = 1100;
+      throat.Q.value = 1.4;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(level * 0.5 * fade, at + 0.02);
+      g.gain.setValueAtTime(level * 0.5 * fade, at + length * 0.6);
+      g.gain.exponentialRampToValueAtTime(0.0006, at + length);
+      osc.connect(throat).connect(g).connect(this.gullGain);
+      osc.start(at);
+      osc.stop(at + length + 0.02);
+      at += length + 0.06 + Math.random() * 0.05;
+    }
+  }
+
+  // s: { waveHeightM, wavePeriodS, swellPeriodS, waterDistanceM,
+  //      listenerHeightM, windSpeedMps, marinaDistanceM, precipitationMm,
+  //      dayFactor, boat: { throttle, speed, planing, maxSpeed } | null }
   update(dt, s) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
@@ -346,17 +465,23 @@ export class Audio {
     at(this.surfGain.gain, level, 0.4);
     at(this.surfFilter.frequency, 260 + 420 * clamp(h / 2, 0, 1), 0.4);
 
-    // The reading is the wind chop. What breaks on a beach is slower than that,
-    // so it is stretched into a rhythm an ear reads as water rather than as a
-    // tick, and the longer the swell the more it is a beat rather than a wash.
-    const reading = clamp(s.wavePeriodS != null ? s.wavePeriodS : 5, 2, 20);
-    const longness = clamp((reading - 2) / 10, 0, 1);
-    const period = SWELL_PERIOD_S[0] + (SWELL_PERIOD_S[1] - SWELL_PERIOD_S[0]) * longness;
-    const depth = SWELL_DEPTH[0] + (SWELL_DEPTH[1] - SWELL_DEPTH[0]) * longness;
-    for (let i = 0; i < this.swellLfos.length; i++) {
-      at(this.swellLfos[i].lfo.frequency, this.swellLfos[i].ratio / period, 0.8);
-      // The first carries the set, the others take less and less.
-      at(this.swellDepths[i].gain, level * depth * [0.55, 0.3, 0.15][i], 0.6);
+    // Sets run whatever the sea is doing.
+    for (let i = 0; i < this.setDepths.length; i++) {
+      at(this.setDepths[i].gain, level * SET_DEPTH[i], 0.6);
+    }
+
+    // The beat runs at the period the station is reporting. Where there is a
+    // long swell under the chop it is the swell that breaks, so the beat takes
+    // the longer of the two. A short sea is not slowed down to sound better. It
+    // has no beat to hear and the depth goes to nothing.
+    const chop = s.wavePeriodS != null ? s.wavePeriodS : 3;
+    const swell = s.swellPeriodS != null ? s.swellPeriodS : 0;
+    const period = clamp(Math.max(chop, swell), 1.2, 22);
+    const heard = clamp((period - WAVE_HEARD_S[0])
+      / (WAVE_HEARD_S[1] - WAVE_HEARD_S[0]), 0, 1);
+    for (let i = 0; i < this.waveLfos.length; i++) {
+      at(this.waveLfos[i].lfo.frequency, this.waveLfos[i].ratio / period, 0.8);
+      at(this.waveDepths[i].gain, level * WAVE_DEPTH * heard * [1, 0.55][i], 0.6);
     }
 
     // ---- wind --------------------------------------------------------------
@@ -386,6 +511,39 @@ export class Audio {
       while (this.halyardDue <= 0 && guard++ < 8) {
         this._tap();
         this.halyardDue += -Math.log(1 - Math.random());
+      }
+    }
+
+    // ---- rain ----------------------------------------------------------------
+    const mm = clamp(s.precipitationMm != null ? s.precipitationMm : 0, 0, 20);
+    const hard = mm <= RAIN_MM[0] ? 0
+      : clamp((mm - RAIN_MM[0]) / (RAIN_MM[1] - RAIN_MM[0]), 0, 1);
+    at(this.rainGain.gain,
+      RAIN_GAIN[0] + (RAIN_GAIN[1] - RAIN_GAIN[0]) * Math.pow(hard, 0.6), 0.8);
+    at(this.rainFilter.frequency,
+      RAIN_HP_HZ[0] + (RAIN_HP_HZ[1] - RAIN_HP_HZ[0]) * hard, 0.8);
+    at(this.dropGain.gain, 0.05 * hard, 0.8);
+    if (hard > 0.01) {
+      this.dropDue -= dt * RAIN_DROPS_HZ * hard;
+      let guard = 0;
+      while (this.dropDue <= 0 && guard++ < 12) {
+        this._drop();
+        this.dropDue += -Math.log(1 - Math.random());
+      }
+    }
+
+    // ---- gulls ---------------------------------------------------------------
+    // Near the water, sparsely, and quiet in the dark.
+    const nearWater = 1 / (1 + range / GULL_REF_M);
+    const day = s.dayFactor != null ? clamp(s.dayFactor, 0, 1) : 1;
+    const gullLevel = clamp(nearWater * day, 0, 1);
+    if (gullLevel > 0.08) {
+      const every = GULL_EVERY_S[1] + (GULL_EVERY_S[0] - GULL_EVERY_S[1]) * gullLevel;
+      this.gullDue -= dt;
+      if (this.gullDue <= 0) {
+        this._gull(gullLevel);
+        // Poisson again. They do not call to a clock.
+        this.gullDue = every * (0.4 + -Math.log(1 - Math.random()));
       }
     }
 

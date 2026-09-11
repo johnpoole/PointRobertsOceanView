@@ -1799,15 +1799,19 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
     except Exception as exc:
         log.warning("Aerosol optical depth unavailable, sky turbidity held: %s", exc)
 
-    wave_h = wave_dir = wave_period = None
+    wave_h = wave_dir = wave_period = swell_period = None
     try:
         marine = await client.get(MARINE_URL, params={
             "latitude": POINT[0], "longitude": POINT[1],
-            "current": "wave_height,wave_direction,wave_period",
+            # The combined period is the whole sea surface. The swell period is
+            # the long part of it underneath the chop, and on the days there is
+            # any it is the part that breaks on the beach.
+            "current": "wave_height,wave_direction,wave_period,swell_wave_period",
         })
         marine.raise_for_status()
         m = marine.json().get("current", {})
         wave_h, wave_dir, wave_period = m.get("wave_height"), m.get("wave_direction"), m.get("wave_period")
+        swell_period = m.get("swell_wave_period")
     except Exception as exc:
         log.warning("Marine waves unavailable: %s", exc)
 
@@ -1825,10 +1829,15 @@ async def fetch_weather(client: httpx.AsyncClient) -> dict:
             "cloud_cover_high_percent": cur.get("cloud_cover_high"),
             "aerosol_optical_depth": aod,
             "precipitation_probability_percent": pprob,
+            # What is falling now, in millimetres for the last hour. The
+            # probability says it might; this says it is. Already asked for in
+            # the current block and thrown away until the sound wanted it.
+            "precipitation_mm": cur.get("precipitation"),
             "description": WMO_CODES.get(cur.get("weather_code")),
             "wave_height_m": wave_h,
             "wave_direction_degrees": wave_dir,
             "wave_period_s": wave_period,
+            "swell_period_s": swell_period,
             # The hourly run, for a page standing at another hour. The sea state
             # is not in it: Open-Meteo's marine call gives the wave now and no
             # forecast, so a page off the present hour keeps the present sea and

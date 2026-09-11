@@ -1987,6 +1987,7 @@ function frame() {
   audio.update(dt, {
     waveHeightM: wx ? wx.wave_height_m : null,
     wavePeriodS: wx ? wx.wave_period_s : null,
+    swellPeriodS: wx ? wx.swell_period_s : null,
     waterDistanceM: waterDistance,
     listenerHeightM: camera.position.y - level,
     // The wind that moves the halyards and the trees is the wind the station is
@@ -1994,6 +1995,11 @@ function frame() {
     windSpeedMps: wx ? wx.wind_speed_mps : null,
     marinaDistanceM: Math.hypot(camera.position.x - MARINA_AT.x,
                                 camera.position.z - MARINA_AT.z),
+    // What is falling, not what might fall.
+    precipitationMm: wx ? wx.precipitation_mm : null,
+    // The gulls go quiet in the dark, and this is already how light the scene
+    // is at the hour it is standing at.
+    dayFactor: weather.dayFactor,
     boat: nav.mode === "boat" ? nav.boat : null,
   });
 
