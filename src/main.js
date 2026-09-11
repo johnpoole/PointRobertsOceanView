@@ -31,7 +31,8 @@ import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
 import { buildCast } from "./scene/cast.js";
-import { CHAPTERS, DWELL_S, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
+import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
+import { buildNovel } from "./scene/novel.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -249,6 +250,7 @@ const overview = new OverviewMap(document.getElementById("overview"));
 // Point Roberts land reference on it. Far tile: the Gulf Islands skyline.
 let landmarkPicks = [];
 let pavilion = null;
+let novel = null;
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
@@ -405,6 +407,8 @@ stairSpec
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.
     pavilion = buildPavilion(scene, near.sample);
+    // The novel's people. Off until R, the same as the pavilion.
+    novel = buildNovel(scene, near.sample);
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.
     drift = buildDrift(scene, { seaAt: nav.seaAt });
@@ -447,6 +451,7 @@ stairSpec
         overview.showNoise = true;
       }
       if (shared && shared.pavilion) pavilion.setVisible(true);
+      if (shared && shared.novel) toggleTour();
       // The cast and the hole cards are fetched after this runs, so what the
       // link asked for is applied when each one arrives rather than now.
       if (shared && shared.cast) castWanted = true;
@@ -519,11 +524,17 @@ const feed = new Feed();
 // saying otherwise.
 let heldTide = null;
 
+// And the sea a novel scene is set at. Two of the seven chapters turn on a tide
+// that dries a flat, so those hold the water where the scene needs it. The rest
+// carry null and take whatever the sea is really doing.
+let novelTide = null;
+
 function applyHeldTide() {
   heldTide = wyzeView && wyzePhoto ? WYZE_CAMS[wyzeCam].tide : null;
 }
 
 function tideLevel() {
+  if (novelTide !== null) return novelTide;
   if (heldTide !== null) return heldTide;
   const t = tideAt();
   return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
@@ -1667,20 +1678,26 @@ function toggleBrademy() {
   if (on) lookAtBrademy();
 }
 
-// The novel's route, on R. Seven places in the order Low Water visits them, each
-// held for a few seconds with the sun wound to the hour that scene is set at.
-// The water is whatever the tide is really doing at that hour: the light is
-// moved, the feed is not.
+// The novel's route, on R. Seven scenes in the order Low Water goes through
+// them. Each one winds the sun to its hour, holds the sea at its tide, puts the
+// camera where it can see, and then lets the people in it get on with it.
+//
+// There are no captions and there is no voice. If a chapter cannot be read off
+// what is moving on the screen then the staging in low-water.js is wrong.
 let tour = null;
 
 function toggleTour() {
   if (tour) {
     tour = null;
+    novelTide = null;
+    if (novel) novel.setVisible(false);
     setClockOffset(0);
     return;
   }
+  if (!novel) return;      // the ground is not up yet, so neither are they
+  novel.setVisible(true);
   tour = { at: -1, since: 0, from: null };
-  stepTour(0);
+  stepTour(clock.elapsedTime);
 }
 
 function stepTour(now) {
@@ -1692,8 +1709,10 @@ function stepTour(now) {
   };
   const chapter = CHAPTERS[tour.at];
   // The hour the scene is set at, as an offset from the hour it is now.
-  const clock = new Date();
-  setClockOffset(chapter.hour - (clock.getHours() + clock.getMinutes() / 60));
+  const wall = new Date();
+  setClockOffset(chapter.hour - (wall.getHours() + wall.getMinutes() / 60));
+  // And the water. A scene that turns on a dried flat has to have the flat dry.
+  novelTide = chapter.tide;
   nav.toOrbit();
 }
 
@@ -1715,7 +1734,10 @@ function updateTour(now) {
     tour.from.aim.y + (aim.y - tour.from.aim.y) * ease,
     tour.from.aim.z + (aim.z - tour.from.aim.z) * ease);
   controls.update();
-  if (gone >= TRAVEL_S + DWELL_S) stepTour(now);
+  // The action runs from the moment the camera starts moving, so it is already
+  // under way when the camera arrives rather than waiting to be watched.
+  novel.place(tour.at, gone, tideLevel());
+  if (gone >= TRAVEL_S + chapter.dwell) stepTour(now);
 }
 
 function lookAtBrademy() {
@@ -1807,6 +1829,7 @@ const share = new Share(camera, () => ({
   campground: campground ? campground.visible : false,
   pavilion: pavilion ? pavilion.visible : false,
   cast: cast ? cast.shown : false,
+  novel: tour != null,
   golf: golf ? golf.shown : false,
   map: overview.visible,
   // The hour the scene is standing at, so a link opens on the same light. Left

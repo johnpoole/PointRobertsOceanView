@@ -197,7 +197,7 @@ function shape(mode, colour) {
 
 // Four and a half metres of estate car: body, a cabin set into it with glass, a
 // bonnet and boot, wheels on their axles, and somebody driving.
-function buildCar(colour) {
+export function buildCar(colour) {
   const group = new THREE.Group();
   const body = [
     box(1.78, 0.62, 4.42, 0, 0.72, 0),             // sides, sill to waist

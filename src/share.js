@@ -82,6 +82,7 @@ export function readViewHash(hash) {
     campground: got.campground === "1",
     pavilion: got.pavilion === "1",
     cast: got.cast === "1",
+    novel: got.novel === "1",
     golf: got.golf === "1",
     map: got.map === "1",
   };
