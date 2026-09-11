@@ -30,7 +30,7 @@ import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
-import { buildCast } from "./scene/cast.js";
+import { buildCast, minutesInZone } from "./scene/cast.js";
 import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { buildNovel } from "./scene/novel.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
@@ -1708,9 +1708,11 @@ function stepTour(now) {
     aim: controls.target.clone(),
   };
   const chapter = CHAPTERS[tour.at];
-  // The hour the scene is set at, as an offset from the hour it is now.
-  const wall = new Date();
-  setClockOffset(chapter.hour - (wall.getHours() + wall.getMinutes() / 60));
+  // The hour the scene is set at, as an offset from the hour it is now on the
+  // peninsula. Not the hour it is where the reader is sitting: half eight in
+  // the morning at Point Roberts is the middle of the night in London, and
+  // winding the sun to the reader's half eight lights the scene wrong.
+  setClockOffset(chapter.hour - minutesInZone(new Date()) / 60);
   // And the water. A scene that turns on a dried flat has to have the flat dry.
   novelTide = chapter.tide;
   nav.toOrbit();
