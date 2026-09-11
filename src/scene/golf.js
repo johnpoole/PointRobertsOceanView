@@ -34,9 +34,6 @@ const PATH = { colour: 0x8e8b83, lift: 0.16, width: 2.4 };
 // half hour round; this is the most that will ever be drawn.
 const MAX_FLIGHTS = 20;
 
-// Where each of the four stands relative to the group: across the hole, then
-// along it.
-const SPREAD = [[-2.6, -6.5], [1.8, -2.2], [-1.4, 2.4], [2.9, 6.8]];
 
 let coursePromise = null;
 export function golfFeatures() {
@@ -114,11 +111,8 @@ export async function buildGolf(scene, sample) {
     for (let p = 0; p < 4; p++) {
       const figure = new THREE.Mesh(figureGeometry(p),
         new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
-      // Strung out down the hole rather than bunched in a square. The flight is
-      // turned to the hole's heading, so +z is the way they are walking: this
-      // spreads them over about fourteen metres of it and a few either side,
-      // which is what a fourball looks like from the next tee.
-      figure.position.set(SPREAD[p][0], 0, SPREAD[p][1]);
+      // Placed every frame in draw(), each on their own ball.
+      figure.position.set(0, 0, 0);
       figure.name = `golfer-${p}`;
       flight.add(figure);
     }
@@ -152,11 +146,21 @@ export async function buildGolf(scene, sample) {
       }
       const line = lines.get(hole);
       if (!line || line.length < 2) { flight.visible = false; return; }
-      const at = along(line, Math.min(Math.max(through, 0), 1));
       flight.visible = true;
-      flight.position.set(at.x, ground(at.x, at.z), at.z);
-      flight.rotation.y = at.heading;
-      flight.children.forEach((figure, p) => { figure.visible = p < group.players; });
+      // The flight itself is only a bag to hold them; every player stands on
+      // their own ball, so each one is placed in the world on its own.
+      flight.position.set(0, 0, 0);
+      flight.rotation.y = 0;
+      flight.children.forEach((figure, p) => {
+        figure.visible = p < group.players;
+        if (!figure.visible) return;
+        const spot = playing(through, p);
+        const at = along(line, Math.min(Math.max(spot.along, 0), 1));
+        // Off the centre line, square to the way the hole runs.
+        const ox = Math.cos(at.heading) * spot.off, oz = -Math.sin(at.heading) * spot.off;
+        figure.position.set(at.x + ox, ground(at.x + ox, at.z + oz), at.z + oz);
+        figure.rotation.y = at.heading;
+      });
     });
   }
 
@@ -216,6 +220,60 @@ function figureGeometry(which) {
   geometry.setAttribute("color", new THREE.BufferAttribute(color, 3));
   geometry.computeVertexNormals();
   return geometry;
+}
+
+// How a hole is played, as a place to be at each moment of it.
+//
+// A group does not slide down the fairway at a constant crawl: they stand on the
+// tee, walk to their ball, stand over it, walk again, and gather on the green.
+// Each player keeps their own line down the hole and their own ball, so they
+// spread out through the middle of it and come back together at the end.
+//
+// The tee time and the four players are the club's; this rhythm is not. It is a
+// depiction of how the fifteen minutes are spent, and nothing in the sheet says
+// where anybody is standing.
+//
+// Keyframes are (time through the hole, distance down it, metres off the line).
+// Where two in a row hold the same place, the player is standing still over the
+// ball.
+const PLAY = [
+  { t: 0.00, along: 0.02, off: 0 },
+  { t: 0.09, along: 0.02, off: 0 },   // waiting on the tee
+  { t: 0.26, along: 0.33, off: 1 },   // out to the first ball
+  { t: 0.34, along: 0.33, off: 1 },   // standing over it
+  { t: 0.50, along: 0.62, off: 1 },
+  { t: 0.58, along: 0.62, off: 1 },
+  { t: 0.72, along: 0.85, off: 1 },
+  { t: 0.79, along: 0.85, off: 1 },
+  { t: 0.88, along: 0.97, off: 0 },   // onto the green, together again
+  { t: 1.00, along: 1.00, off: 0 },
+];
+
+// How far off the centre line each player's own ball lies, in metres, and how
+// much further or shorter they hit it. Fixed per player rather than random, so
+// the same group walks the same way every time it is looked at.
+const PLAYER_LINE = [-13, 7, -5, 15];
+const PLAYER_REACH = [0.04, -0.03, 0.06, -0.05];
+
+// Where one player stands at this moment of their hole.
+function playing(fraction, player) {
+  const t = Math.min(Math.max(fraction, 0), 1);
+  let i = 1;
+  while (i < PLAY.length - 1 && PLAY[i].t < t) i++;
+  const a = PLAY[i - 1], b = PLAY[i];
+  const span = Math.max(b.t - a.t, 1e-6);
+  let k = (t - a.t) / span;
+  // Ease in and out of every walk, so they set off and pull up rather than
+  // snapping from standing to walking.
+  k = k * k * (3 - 2 * k);
+  const reach = PLAYER_REACH[player % PLAYER_REACH.length];
+  const lineOff = PLAYER_LINE[player % PLAYER_LINE.length];
+  const alongA = a.along + (a.off ? reach : 0);
+  const alongB = b.along + (b.off ? reach : 0);
+  return {
+    along: alongA + (alongB - alongA) * k,
+    off: (a.off + (b.off - a.off) * k) * lineOff,
+  };
 }
 
 // A fraction of the way down a hole's centre line, and the way it is facing.

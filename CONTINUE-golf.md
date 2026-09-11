@@ -80,6 +80,17 @@ https://foreupsoftware.com/index.php/api/booking/times?time=all&date=MM-DD-YYYY
   &holes=all&players=0&schedule_id=2544&schedule_ids[]=2544&specials_only=0&api_key=no_limits
 ```
 
+Within a hole they are not slid down the fairway at a constant crawl. They stand
+on the tee, walk to their ball, stand over it, walk again, and gather on the
+green, each player on their own line and their own ball — so a group spreads to
+forty metres through the middle of a hole and comes back together at the end.
+Walking is fifty to sixty metres a minute and the pauses are still.
+
+**That rhythm is a depiction.** The tee time and the four players are the club's;
+nothing in their sheet says where anybody is standing, and this does not claim
+to. It is fixed per player rather than random, so the same group walks the same
+way every time it is looked at.
+
 Pace of play is John's figure and the whole of the model: fifteen minutes a
 hole, so a group that went off at T is on hole `(now − T) / 15 + 1` and comes
 off the eighteenth four and a half hours later. Each group stands that far down
