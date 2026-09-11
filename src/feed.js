@@ -5,6 +5,31 @@
 
 import { BACKEND_WS, STALE_SECONDS } from "./config.js";
 
+// How old a reading is now, rather than how old it was when it arrived.
+//
+// quality.age_seconds is worked out on the proxy at the moment the envelope is
+// built, so it is true once and never again. The client used to read it and
+// nothing else, which meant a track only aged when a fresh envelope happened to
+// arrive for it — and the reaper broadcasts a snapshot only when it actually
+// drops something, so on a quiet stretch nothing arrived and a ship gone quiet
+// for six minutes still drew live at "age 0 s".
+//
+// Ageing it from receipt is what lets a track grey on its own, which is what
+// the proxy's own drop cutoff already assumes happens.
+//
+// With no age upstream there is no base to add to, and the time held here is
+// the floor: it says how long since anything was heard, which can only mark a
+// track staler than it is known to be, never fresher.
+export function ageSeconds(entry) {
+  if (!entry) return null;
+  const held = entry.receivedTime == null
+    ? null
+    : Math.max(0, (performance.now() - entry.receivedTime) / 1000);
+  const reported = entry.quality ? entry.quality.age_seconds : null;
+  if (reported == null) return held;
+  return held == null ? reported : reported + held;
+}
+
 export class Feed {
   constructor() {
     this.connected = false;
@@ -127,17 +152,17 @@ export class Feed {
         break;
       case "weather.state":
         this.weather = { data: msg.data, quality: msg.quality };
-        this.providerHealth.weather = "live";
+        this._providerLive("weather", msg);
         this._emit("weather");
         break;
       case "tide.state":
         this.tide = { data: msg.data, quality: msg.quality };
-        this.providerHealth.tide = "live";
+        this._providerLive("tide", msg);
         this._emit("tide");
         break;
       case "current.state":
         this.current = { data: msg.data, quality: msg.quality };
-        this.providerHealth.currents = "live";
+        this._providerLive("currents", msg);
         this._emit("current");
         break;
       case "aircraft.state":
@@ -188,10 +213,21 @@ export class Feed {
     this.vesselsNote = data.vessels_note || "";
   }
 
+  // Arriving is not the same as being current. A reading the proxy has already
+  // flagged too old to be the present one does not make its provider live: the
+  // health the server sends, whenever it changes, stands instead. Without this
+  // a provider that answers with hours-old numbers reads as live for as long as
+  // it keeps answering.
+  _providerLive(key, msg) {
+    if (!(msg.quality && msg.quality.stale)) this.providerHealth[key] = "live";
+  }
+
   _applyAircraft(env) {
     const icao = env.data.icao;
     if (icao == null) return;
-    this.aircraft.set(icao, env);
+    // Stamped the same as a vessel. The constructor above said aircraft carried
+    // a receivedTime and they did not, so there was nothing to age them from.
+    this.aircraft.set(icao, { ...env, receivedTime: performance.now() });
     this.providerHealth.aircraft = "live";
   }
 
@@ -228,7 +264,7 @@ export class Feed {
     }
     if (!entry) return true;
     if (entry.quality && entry.quality.stale) return true;
-    const age = entry.quality ? entry.quality.age_seconds : null;
+    const age = ageSeconds(entry);
     if (age != null && age > limit) return true;
     return false;
   }

@@ -14,6 +14,7 @@ and its draught all arrive in AIS message 5 and none of them was being kept.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 from datetime import timedelta
@@ -325,6 +326,98 @@ def test_a_track_greys_before_it_goes() -> None:
     at the drop. Equal thresholds would take it off the moment it dimmed."""
     for kind in ("vessels", "aircraft"):
         assert proxy.DROP_SECONDS[kind] > proxy.STALE_SECONDS[kind], kind
+
+
+# ---- health that is written down but never sent -----------------------------
+#
+# provider_health rides in the snapshot and nowhere else, so a provider that
+# stopped answering was recorded on the server, logged, and never mentioned
+# again: a page already open went on reading "live" over the last good numbers.
+# Nothing on screen looked wrong, which is why this is a test. Issue #65.
+
+
+def _collect_broadcasts():
+    """Swap clients.broadcast for a recorder. Returns (sent, restore)."""
+    sent: list[dict] = []
+
+    async def record(message: dict) -> None:
+        sent.append(message)
+
+    original = proxy.clients.broadcast
+    proxy.clients.broadcast = record
+    return sent, (lambda: setattr(proxy.clients, "broadcast", original))
+
+
+def test_a_provider_going_offline_is_broadcast() -> None:
+    sent, restore = _collect_broadcasts()
+    try:
+        proxy.world.health["weather"] = "live"
+        asyncio.run(proxy.set_health("weather", "offline"))
+        assert proxy.world.health["weather"] == "offline"
+        assert len(sent) == 1, f"expected one broadcast, got {len(sent)}"
+        assert sent[0]["message_type"] == "initial.snapshot"
+        assert sent[0]["data"]["provider_health"]["weather"] == "offline"
+    finally:
+        restore()
+
+
+def test_a_provider_coming_back_is_broadcast() -> None:
+    sent, restore = _collect_broadcasts()
+    try:
+        proxy.world.health["tide"] = "offline"
+        asyncio.run(proxy.set_health("tide", "live"))
+        assert sent and sent[0]["data"]["provider_health"]["tide"] == "live"
+    finally:
+        restore()
+
+
+def test_health_that_has_not_changed_sends_nothing() -> None:
+    """A provider answering normally writes the same value every poll. That must
+    not put a snapshot on the wire each time."""
+    sent, restore = _collect_broadcasts()
+    try:
+        proxy.world.health["currents"] = "live"
+        for _ in range(5):
+            asyncio.run(proxy.set_health("currents", "live"))
+        assert sent == [], f"expected no broadcast, got {len(sent)}"
+    finally:
+        restore()
+
+
+def test_every_polled_provider_can_be_condemned_by_age() -> None:
+    """The weather, tide and current envelopes carried no stale threshold, so
+    quality.stale was computed as False whatever the age and no reading could be
+    called old on its own."""
+    for feed in ("weather", "tide", "currents"):
+        assert proxy.STALE_SECONDS.get(feed), f"{feed} has no stale threshold"
+
+
+def test_a_reading_older_than_its_threshold_is_flagged() -> None:
+    for feed, message_type in (("weather", "weather.state"),
+                               ("tide", "tide.state"),
+                               ("currents", "current.state")):
+        limit = proxy.STALE_SECONDS.get(feed)
+        assert limit, f"{feed} has no stale threshold"
+        fresh = proxy.envelope(message_type, "test",
+                               proxy.utcnow() - timedelta(seconds=limit - 60),
+                               {}, limit)
+        old = proxy.envelope(message_type, "test",
+                             proxy.utcnow() - timedelta(seconds=limit + 60),
+                             {}, limit)
+        assert fresh["quality"]["stale"] is False, feed
+        assert old["quality"]["stale"] is True, feed
+
+
+def test_the_snapshot_carries_the_thresholds_too() -> None:
+    """A page that joins mid-flight reads the same envelopes out of the snapshot,
+    so a threshold set only on the live broadcast would leave it unable to judge
+    what it was handed on arrival."""
+    limit = proxy.STALE_SECONDS.get("weather")
+    assert limit, "weather has no stale threshold"
+    proxy.world.weather = {"description": "test"}
+    proxy.world.weather_time = proxy.utcnow() - timedelta(seconds=limit + 60)
+    snap = proxy.snapshot()
+    assert snap["data"]["weather"]["quality"]["stale"] is True
 
 
 def main() -> int:

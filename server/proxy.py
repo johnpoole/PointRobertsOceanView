@@ -69,7 +69,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # before this, at 211 and 130 vessels; ten leaves what is close enough to pick
 # out from the window.
 BBOX = {"min_lat": 48.899, "min_lon": -123.222, "max_lat": 49.079, "max_lon": -122.949}
-STALE_SECONDS = {"vessels": 300, "aircraft": 120}
+# A reading older than this is no longer the present one. Vessels and aircraft
+# are live positions and go stale quickly. The three polled providers are asked
+# every 300 s, so 900 s is three missed polls: long enough that one slow answer
+# is not a fault, short enough that nobody reads a quarter-hour-old sky as now.
+# These were None, which made quality.stale false for those three whatever the
+# age, so a reading could not be condemned by age at all.
+STALE_SECONDS = {"vessels": 300, "aircraft": 120,
+                 "weather": 900, "tide": 900, "currents": 900}
 
 # When a ship stops being a ship on the water. Nothing upstream ever says a
 # vessel has gone: AISStream simply stops sending once it leaves the box, and so
@@ -748,17 +755,17 @@ def snapshot() -> dict:
     ]
     weather = (
         envelope("weather.state", "open-meteo.com", world.weather_time,
-                 world.weather, None)
+                 world.weather, STALE_SECONDS["weather"])
         if world.weather else None
     )
     tide = (
         envelope("tide.state", "tidesandcurrents.noaa.gov", world.tide_time,
-                 world.tide, None)
+                 world.tide, STALE_SECONDS["tide"])
         if world.tide else None
     )
     current = (
         envelope("current.state", "tidesandcurrents.noaa.gov", world.current_time,
-                 world.current, None)
+                 world.current, STALE_SECONDS["currents"])
         if world.current else None
     )
     # Monthly, and a month or two behind, so it carries the month it belongs to
@@ -799,6 +806,31 @@ def snapshot() -> dict:
             "vessels_note": world.vessels_note,
         },
     }
+
+
+async def set_health(feed: str, status: str) -> None:
+    """Write a provider's health down and, when it changes, tell the browsers.
+
+    provider_health rides in the snapshot and nowhere else, so a provider that
+    stopped answering used to be recorded here, logged, and never mentioned
+    again: a page already open went on reading "live" over the last good numbers
+    until something unrelated happened to rebroadcast. Health that is not sent
+    is not health.
+
+    Only a change is broadcast. A provider answering normally sets the same
+    value every poll and that must not put a snapshot on the wire each time.
+    """
+    if world.health.get(feed) == status:
+        return
+    world.health[feed] = status
+    try:
+        await clients.broadcast(snapshot())
+    except Exception as exc:
+        # Saying a feed is down must never be the thing that takes it down. This
+        # is called from the failure path of every poll loop, inside its except
+        # block, where an exception would escape the while and stop the task for
+        # the life of the container.
+        log.error("Could not broadcast %s health %r: %s", feed, status, exc)
 
 
 # ---- AISStream vessel feed --------------------------------------------------
@@ -1519,17 +1551,17 @@ async def tide_task() -> None:
                 result = await fetch_tide(client)
                 world.tide = result["state"]
                 world.tide_time = result["time"]
-                world.health["tide"] = "live"
+                await set_health("tide", "live")
                 await clients.broadcast(envelope(
                     "tide.state", "tidesandcurrents.noaa.gov",
-                    world.tide_time, world.tide, None))
+                    world.tide_time, world.tide, STALE_SECONDS["tide"]))
                 log.info("Tide %.3f m %s (%s), surge %+.3f m from %s",
                          world.tide["water_level_m"], TIDE_DATUM,
                          world.tide["trend"], world.tide["surge_m"],
                          TIDE_GAUGE_STATION)
                 ok = True
             except Exception as exc:
-                world.health["tide"] = "offline"
+                await set_health("tide", "offline")
                 log.error("Tide fetch failed: %s", exc)
             await asyncio.sleep(TIDE_POLL_SECONDS if ok else RETRY_SECONDS)
 
@@ -1642,17 +1674,17 @@ async def current_task() -> None:
                     ],
                 }
                 world.current_time = now
-                world.health["currents"] = "live"
+                await set_health("currents", "live")
                 await clients.broadcast(envelope(
                     "current.state", "tidesandcurrents.noaa.gov",
-                    world.current_time, world.current, None))
+                    world.current_time, world.current, STALE_SECONDS["currents"]))
                 log.info("Current %.2f kn %s (%s)", world.current["drift_kn"],
                          world.current["state"],
                          "slack" if world.current["set_degrees"] is None
                          else f"{world.current['set_degrees']:.0f}°")
                 ok = True
             except Exception as exc:
-                world.health["currents"] = "offline"
+                await set_health("currents", "offline")
                 log.error("Current fetch failed: %s", exc)
             await asyncio.sleep(CURRENT_POLL_SECONDS if ok else RETRY_SECONDS)
 
@@ -1901,10 +1933,10 @@ async def weather_task() -> None:
                 result = await fetch_weather(client)
                 world.weather = result["state"]
                 world.weather_time = result["time"]
-                world.health["weather"] = "live"
+                await set_health("weather", "live")
                 await clients.broadcast(envelope(
                     "weather.state", "open-meteo.com",
-                    world.weather_time, world.weather, None))
+                    world.weather_time, world.weather, STALE_SECONDS["weather"]))
                 log.info("Weather %s, wind %s m/s from %s, waves %s m",
                          world.weather["description"],
                          world.weather["wind_speed_mps"],
@@ -1912,7 +1944,7 @@ async def weather_task() -> None:
                          world.weather["wave_height_m"])
                 ok = True
             except Exception as exc:
-                world.health["weather"] = "offline"
+                await set_health("weather", "offline")
                 log.error("Weather fetch failed: %s", exc)
             await asyncio.sleep(WEATHER_POLL_SECONDS if ok else RETRY_SECONDS)
 

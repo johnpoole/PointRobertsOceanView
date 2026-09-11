@@ -14,6 +14,7 @@
 // in that keeps the hand at the bottom of the glass and the reading at the top.
 
 import { toWorld } from "./geo.js";
+import { ageSeconds } from "./feed.js";
 import { Vessels } from "./scene/vessels.js";
 import { Aircraft } from "./scene/aircraft.js";
 
@@ -140,7 +141,9 @@ export class Selection {
     // rows under one label is a card that cannot be read.
     if (entry.source) rows.push(["from", entry.source]);
     if (entry.source_time) rows.push(["fix", clockText(entry.source_time)]);
-    const age = entry.quality ? entry.quality.age_seconds : null;
+    // Aged from when it arrived here, not frozen at what the proxy worked out
+    // when it sent it: the card is read long after the envelope landed.
+    const age = ageSeconds(entry);
     if (age != null) rows.push(["age", `${Math.round(age)} s`]);
     for (const w of (entry.quality && entry.quality.warnings) || []) {
       rows.push(["warning", w]);
