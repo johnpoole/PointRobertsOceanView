@@ -31,9 +31,12 @@ export const EYE_HEIGHT_M = 20; // camera eye above sea level
 
 // Where the page opens, and where the view button comes back to. Eye and the
 // point it is aimed at, both in the same lat/lon/metres a shared link carries.
+// The page opens where you sit waiting to be waved through: on Tyee Drive north
+// of the US canopy, at a driver's eye height, looking south at the booths. The
+// ground at the crossing is 51 m, which is what these heights are measured off.
 export const OPENING_VIEW = {
-  eye: { lat: 49.001186, lon: -123.068600, y: 55.3 },
-  aim: { lat: 48.998952, lon: -123.066307, y: 45.6 },
+  eye: { lat: 49.001930, lon: -123.068460, y: 53.4 },
+  aim: { lat: 49.001300, lon: -123.068400, y: 54.0 },
 };
 
 // The proxy serves this page and the feed from one origin, so derive the WS URL

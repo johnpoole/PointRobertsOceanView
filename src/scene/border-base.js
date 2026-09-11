@@ -7,7 +7,7 @@ import { BORDER as P,borderFrame as F,borderPoint,borderRing,borderPart } from "
 // The roofs are pale ribbed metal in both photographs, not the near-black they
 // were first painted. At this latitude an overcast afternoon takes a lot out of
 // a colour, so these are chosen to read grey rather than to match a swatch.
-export const CONCRETE=0x9a9a92,SLAT=0xa9803f,GLASS=0x2d3a3f,STEEL=0xa2a49f,DARK=0x45453f,WHITEROOF=0xd2d2ca,METAL=0x8d908a,PANEL=0xa8896a;
+export const CONCRETE=0x9a9a92,SLAT=0xa9803f,GLASS=0x2d3a3f,STEEL=0xa2a49f,DARK=0x45453f,WHITEROOF=0xd2d2ca,METAL=0x8d908a,PANEL=0xb9a081;
 export function borderTransform(g){g.rotateY(F.angle);g.translate(F.origin.x,0,F.origin.z);return g}
 export function borderBox(x0,x1,z0,z1,y,h,color){return borderTransform(box(x1-x0,z1-z0,h,(x0+x1)/2,y,(z0+z1)/2,color))}
 export function borderMerge(parts,group,name){const g=mergeGeometries(parts,false);for(const p of parts)p.dispose();const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,side:THREE.DoubleSide}));m.name=name;group.add(m);return m}
