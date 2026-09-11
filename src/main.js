@@ -1764,7 +1764,6 @@ function togglePavilion() {
   controls.target.set(c.x, c.y + 1.2, c.z);
   controls.update();
 }
-document.getElementById("pavilion-btn").addEventListener("click", togglePavilion);
 
 // Whales, now, on the water beside wherever you are, and then it puts you where
 // you can watch them, the way turning the courts on takes you to the courts.
