@@ -12,9 +12,14 @@
 // positions are metres in the station's own frame, turned into lat and lon here
 // so everything downstream sees one kind of coordinate.
 //
-// The hours are February hours, which is when the book is set: it is dark at
-// half five and it is dark at twenty past three in the morning, so the two night
-// scenes carry a light and the light is the scene.
+// The hours are February hours, which is when the book is set. But an hour is
+// not a light. Twenty to six is dark in February and a bright afternoon in June,
+// and a scene written for a torch has to be dark whoever looks at it and
+// whenever. So each chapter also carries the sun it was written under — the
+// elevation in degrees on 12 February at that hour, and which side of noon it
+// is on — and the page finds the minute today when the sun is there.
+//
+// hour stays because it is the book's, and because it is what the scene is.
 //
 // tide is metres MLLW, and null means leave the sea wherever it really is now.
 // The two flat scenes name their tide because the whole story is that bottom
@@ -72,7 +77,7 @@ const WAITING = [[48.999900, -123.025900], [48.999870, -123.026000]];
 export const CHAPTERS = [
   {
     n: 1, title: "The border station",
-    hour: 16.2, tide: null, dwell: 26,
+    hour: 16.2, sun: 10.3, west: true, tide: null, dwell: 26,
     eye: [49.001930, -123.068455, 53.4],
     aim: [49.001420, -123.068515, 52.0],
     actors: [
@@ -89,7 +94,7 @@ export const CHAPTERS = [
   },
   {
     n: 2, title: "D dock",
-    hour: 8.5, tide: null, dwell: 26,
+    hour: 8.5, sun: 8.7, west: false, tide: null, dwell: 26,
     eye: [48.977300, -123.063420, 13.0],
     aim: [48.976900, -123.063960, 1.5],
     actors: [
@@ -105,7 +110,7 @@ export const CHAPTERS = [
   },
   {
     n: 3, title: "The flats off the lighthouse",
-    hour: 11.0, tide: 0.4, dwell: 24,
+    hour: 11.0, sun: 24.6, west: false, tide: 0.4, dwell: 24,
     eye: [48.973560, -123.084850, 22.0],
     aim: [48.973480, -123.085800, 0.0],
     actors: [
@@ -116,7 +121,7 @@ export const CHAPTERS = [
   },
   {
     n: 4, title: "Lily Point",
-    hour: 17.7, tide: null, dwell: 26,
+    hour: 17.7, sun: -3.0, west: true, tide: null, dwell: 26,
     eye: [48.981640, -123.026960, 69.0],
     aim: [48.981660, -123.027390, 64.5],
     actors: [
@@ -135,7 +140,7 @@ export const CHAPTERS = [
   },
   {
     n: 5, title: "The marina office",
-    hour: 11.5, tide: null, dwell: 24,
+    hour: 11.5, sun: 26.3, west: false, tide: null, dwell: 24,
     eye: [48.977000, -123.062960, 13.0],
     aim: [48.977150, -123.063490, 6.0],
     actors: [
@@ -150,7 +155,7 @@ export const CHAPTERS = [
   },
   {
     n: 6, title: "Maple Beach",
-    hour: 3.3, tide: -0.5, dwell: 28,
+    hour: 3.3, sun: -40.2, west: false, tide: -0.5, dwell: 28,
     eye: [48.999760, -123.026350, 5.0],
     aim: [48.999990, -123.025350, -0.3],
     actors: [
@@ -165,7 +170,7 @@ export const CHAPTERS = [
   },
   {
     n: 7, title: "The border station, opening",
-    hour: 8.5, tide: null, dwell: 24,
+    hour: 8.5, sun: 8.7, west: false, tide: null, dwell: 24,
     eye: [49.000982, -123.068523, 54.5],
     aim: [49.001330, -123.068455, 52.5],
     actors: [

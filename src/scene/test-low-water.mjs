@@ -159,11 +159,29 @@ for (const ch of CHAPTERS) {
   }), `${where}: nothing in it moves`);
 }
 
-// The two scenes set in the dark carry a light, or there is nothing on screen.
+// Every chapter names the light it was written under, and the two that were
+// written under no light at all carry a torch. A scene that needs a torch has
+// to be dark whenever anybody looks at it, which is why the sun and not the
+// hour is what the page winds to.
 for (const ch of CHAPTERS) {
-  if (ch.hour > 7.5 && ch.hour < 17.0) continue;
+  assert.equal(typeof ch.sun, "number", `chapter ${ch.n} names no sun`);
+  assert.ok(ch.sun > -55 && ch.sun < 65, `chapter ${ch.n} sun at ${ch.sun}`);
+  assert.equal(typeof ch.west, "boolean", `chapter ${ch.n} names no side of noon`);
+  if (ch.sun > 0) continue;
   assert.ok(ch.actors.some(a => a.lamp),
-    `chapter ${ch.n} is set at ${ch.hour} in February and nobody has a light`);
+    `chapter ${ch.n} is under a sun at ${ch.sun}° and nobody has a light`);
+}
+
+// An actor whose last key lands on the dwell is still standing there when the
+// chapter ends. One that stops earlier has gone inside, and that only reads as
+// a door if there is a door to have gone through.
+for (const ch of CHAPTERS) {
+  for (const a of ch.actors) {
+    const ends = a.keys[a.keys.length - 1][0];
+    assert.ok(ends === ch.dwell || ends <= ch.dwell - 2,
+      `chapter ${ch.n}: an actor stops at ${ends}s of ${ch.dwell}, which is `
+      + `neither standing there nor gone`);
+  }
 }
 
 // The flats the story turns on have to dry at the tide the chapter names.

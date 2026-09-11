@@ -62,14 +62,16 @@ export function buildNovel(scene, sample) {
       group.visible = on;
       if (!on) for (const s of scenes) for (const a of s.actors) a.figure.visible = false;
     },
-    // at is seconds into the chapter, water the sea level the page is drawing.
-    place(index, at, water) {
+    // at is seconds into the chapter, water the sea level the page is drawing,
+    // and dwell how long the chapter runs. An actor whose last key lands on the
+    // dwell stays put to the end of it; one that ends sooner has gone inside.
+    place(index, at, water, dwell) {
       if (!group.visible) return;
       for (let i = 0; i < scenes.length; i++) {
         const live = i === index;
         for (const actor of scenes[i].actors) {
           if (!live) { actor.figure.visible = false; continue; }
-          const spot = along(actor.keys, at);
+          const spot = along(actor.keys, at, dwell);
           if (!spot) { actor.figure.visible = false; continue; }
           actor.figure.position.set(spot.x, hold(actor.on, spot, water, sample), spot.z);
           // Standing still keeps whichever way they were last facing, or a
@@ -100,8 +102,15 @@ function hold(on, spot, water, sample) {
 
 // Where an actor is at this second, or null when the scene has not reached them
 // or has finished with them.
-function along(keys, at) {
-  if (at < keys[0].t || at > keys[keys.length - 1].t) return null;
+function along(keys, at, dwell) {
+  const last = keys[keys.length - 1];
+  if (at < keys[0].t) return null;
+  if (at > last.t) {
+    // Their last key is the end of the chapter, so they are still standing
+    // there. Anything that stopped earlier went in through a door.
+    if (last.t < dwell - 0.001) return null;
+    return { x: last.x, z: last.z, lat: last.lat, lon: last.lon, heading: null };
+  }
   for (let i = 1; i < keys.length; i++) {
     if (at > keys[i].t) continue;
     const a = keys[i - 1], b = keys[i];

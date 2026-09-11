@@ -30,7 +30,7 @@ import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
-import { buildCast, minutesInZone } from "./scene/cast.js";
+import { buildCast } from "./scene/cast.js";
 import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { buildNovel } from "./scene/novel.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
@@ -1700,6 +1700,24 @@ function toggleTour() {
   stepTour(clock.elapsedTime);
 }
 
+// The minute in the next day when the sun stands where a chapter needs it, as
+// an offset from now in hours. west picks the afternoon branch from the morning
+// one. Deep night is on neither branch and in summer is nowhere near as deep as
+// February, so for that the darkest the day gets is the best there is.
+function offsetForSun(wanted, west) {
+  const from = Date.now();
+  let best = from, bestErr = Infinity, darkest = from, lowest = 91;
+  for (let m = 0; m < 1440; m += 2) {
+    const when = new Date(from + m * 60000);
+    const { azimuth, elevation } = solarPosition(when, ORIGIN.lat, ORIGIN.lon);
+    if (elevation < lowest) { lowest = elevation; darkest = when.getTime(); }
+    if ((azimuth > 180) !== west) continue;
+    const err = Math.abs(elevation - wanted);
+    if (err < bestErr) { bestErr = err; best = when.getTime(); }
+  }
+  return ((wanted <= -15 ? darkest : best) - from) / 3600000;
+}
+
 function stepTour(now) {
   tour.at = (tour.at + 1) % CHAPTERS.length;
   tour.since = now;
@@ -1708,11 +1726,10 @@ function stepTour(now) {
     aim: controls.target.clone(),
   };
   const chapter = CHAPTERS[tour.at];
-  // The hour the scene is set at, as an offset from the hour it is now on the
-  // peninsula. Not the hour it is where the reader is sitting: half eight in
-  // the morning at Point Roberts is the middle of the night in London, and
-  // winding the sun to the reader's half eight lights the scene wrong.
-  setClockOffset(chapter.hour - minutesInZone(new Date()) / 60);
+  // The light the scene was written under, found in today's sky rather than
+  // taken off a clock. The book is February and the page is whatever month it
+  // is standing in.
+  setClockOffset(offsetForSun(chapter.sun, chapter.west));
   // And the water. A scene that turns on a dried flat has to have the flat dry.
   novelTide = chapter.tide;
   nav.toOrbit();
@@ -1738,7 +1755,7 @@ function updateTour(now) {
   controls.update();
   // The action runs from the moment the camera starts moving, so it is already
   // under way when the camera arrives rather than waiting to be watched.
-  novel.place(tour.at, gone, tideLevel());
+  novel.place(tour.at, gone, tideLevel(), chapter.dwell);
   if (gone >= TRAVEL_S + chapter.dwell) stepTour(now);
 }
 
