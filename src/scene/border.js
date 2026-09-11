@@ -67,12 +67,29 @@ export function buildBorder(scene,sample){
     b(x-.1,x+.1,z-.22,z-.18,P.canopyDeck-.9,.16,0xb2322c);
     b(x-.1,x+.1,z-.22,z-.18,P.canopyDeck-1.32,.16,0x3f8f4e);
   }
-  // Two booths under the canopy, glass over a low base.
+  // Two booths under the canopy: a pale kiosk with a window band all round and a
+  // lip over it, not the dark box they were.
   for(const [x,z] of P.booths){
     const g=borderHeight(sample,x,z)-floor;
-    b(x-1.05,x+1.05,z-.85,z+.85,g,.95,CONCRETE);
-    b(x-1.05,x+1.05,z-.85,z+.85,g+.95,1.75,GLASS);
-    b(x-1.1,x+1.1,z-.9,z+.9,g+2.7,.16,DARK);
+    b(x-1.05,x+1.05,z-.85,z+.85,g,1.02,0xcfcabb);
+    b(x-1.02,x+1.02,z-.82,z+.82,g+1.02,1.52,GLASS);
+    // The frame round the glass, which is what makes it read as a window.
+    for(const [x0,x1,z0,z1] of [[x-1.05,x+1.05,z-.85,z-.78],[x-1.05,x+1.05,z+.78,z+.85],
+        [x-1.05,x-.98,z-.85,z+.85],[x+.98,x+1.05,z-.85,z+.85]])
+      b(x0,x1,z0,z1,g+1.02,1.52,0x8d8a80);
+    b(x-1.18,x+1.18,z-.98,z+.98,g+2.54,.2,0xcfcabb);
+    b(x-1.24,x+1.24,z-1.04,z+1.04,g+2.74,.1,DARK);
+  }
+
+  // The lanes on the ground: a white line between each pair and a stop bar
+  // across each one at the booth. Nothing on the tarmac read as a lane before.
+  {
+    const apronY=(x,z)=>borderHeight(sample,x,z)-floor+.07;
+    for(const x of [0,4.6,9.2,13.8,18.4]){
+      for(let z=-13;z<9;z+=2.4) b(x-.09,x+.09,z,z+1.4,apronY(x,z),.02,0xe3e0d6);
+    }
+    for(const [x0,x1] of [[.4,4.2],[5.0,8.8],[9.6,13.4],[14.2,18.0]])
+      b(x0,x1,P.gateZ+1.9,P.gateZ+2.4,apronY((x0+x1)/2,P.gateZ+2),.02,0xe3e0d6);
   }
   borderMerge(parts,group,"border-frontage");
   // The two signs. Both drawn here rather than sampled off a photograph.
