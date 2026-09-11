@@ -409,7 +409,7 @@ stairSpec
     pavilion = buildPavilion(scene, near.sample);
     // The novel's people. Off until R, the same as the pavilion.
     novel = buildNovel(scene, near.sample);
-    window.__novel = novel;   // TEMPORARY: reading positions out of a headless run
+    window.__probe = { novel, camera, controls, tour: () => tour };   // TEMPORARY
     // What the water is carrying. Uses the same seaAt the boat floats on, so it
     // rides the same swell and knows the same shoreline.
     drift = buildDrift(scene, { seaAt: nav.seaAt });
