@@ -155,17 +155,20 @@ export const CHAPTERS = [
   },
   {
     n: 6, title: "Maple Beach",
-    // The book has this at twenty past three, which is forty degrees under and
-    // a black screen. A big ebb an hour before first light is the same tide and
-    // the same series, and at seven degrees under there is a flat to see them
-    // standing on. The torch still does the work.
-    hour: 3.3, sun: -7.0, west: false, tide: -0.5, dwell: 28,
+    // The book has this at twenty past three, which is forty degrees under the
+    // horizon and a black screen. A big ebb an hour before first light is the
+    // same tide out of the same series, and four degrees under leaves a flat to
+    // see them standing on.
+    hour: 3.3, sun: -4.0, west: false, tide: -0.5, dwell: 28,
     eye: [48.999790, -123.026250, 3.5],
     aim: [48.999980, -123.025450, -0.2],
     actors: [
       // The two of them standing on dry bottom on the American side of the
       // line, and the light coming down the flat out of Canada toward them.
-      { mode: "walk", on: "ground", keys: [[0, ...WAITING[0]], [28, ...WAITING[0]]] },
+      // They have a light of their own: nobody stands on a tidal flat in the
+      // dark without one, and without it there is nobody there to see.
+      { mode: "walk", on: "ground", lamp: true,
+        keys: [[0, ...WAITING[0]], [28, ...WAITING[0]]] },
       { mode: "walk", on: "ground", keys: [[0, ...WAITING[1]], [28, ...WAITING[1]]] },
       { mode: "walk", on: "ground", lamp: true, keys: [
         [0, ...CROSS_FROM], [25, ...CROSS_TO], [28, ...CROSS_TO],

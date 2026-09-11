@@ -187,7 +187,10 @@ for (const ch of CHAPTERS) {
 // The flats the story turns on have to dry at the tide the chapter names.
 const flat = CHAPTERS.find(c => c.n === 6);
 assert.ok(flat.tide < 0, "the crossing is not staged at a low water");
-const crosser = flat.actors.find(a => a.lamp);
+// The one that covers ground, not just the one carrying a light: the pair
+// waiting for it have a torch too.
+const crosser = flat.actors.find(a =>
+  Math.abs(a.keys[a.keys.length - 1][2] - a.keys[0][2]) > 1e-5);
 for (const [, lat, lon] of crosser.keys) {
   assert.ok(ground(lat, lon) > flat.tide,
     `the crossing runs through ${ground(lat, lon).toFixed(2)} m of bottom, `
