@@ -48,6 +48,7 @@ import { buildPostOfficeArea } from "./scene/post-office-area.js";
 import { isPostOfficeBuilding } from "./scene/post-office-plan.js";
 import { buildBorderArea } from "./scene/border-area.js";
 import { isBorderBuilding } from "./scene/border-plan.js";
+import { buildBoundaryBay } from "./scene/boundary-bay.js";
 import { buildClubhouseArea } from "./scene/clubhouse-area.js";
 import { isClubhouseBuilding } from "./scene/clubhouse-plan.js";
 import { buildPavilion } from "./scene/pavilion.js";
@@ -392,6 +393,9 @@ stairSpec
     fireStation = buildFireStationArea(scene, near.sample);
     postOffice = buildPostOfficeArea(scene, near.sample);
     border = buildBorderArea(scene, near.sample);
+    // The Canadian side of the crossing, which is most of what you see looking
+    // north from the US booths.
+    buildBoundaryBay(scene, near.sample);
     clubhouse = buildClubhouseArea(scene, near.sample);
     // Not built, so it stands there only when it is asked for, the same as the
     // courts and the campground.

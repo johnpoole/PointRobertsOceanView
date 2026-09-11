@@ -84,10 +84,8 @@ by eye would have missed the walls.
 
 ## What is not known
 
-- The two structures the second Google frame shows and this does not model: the
-  green-roofed canopy on stilts north-east over the outbound lanes, and the
-  green-roofed shelter east of the highway. Both stand outside the traced
-  footprint and would have to be read off the aerial on their own.
+- The lane markings, the queue islands and the barrier arms north of the canopy
+  are not modelled beyond the yellow posts down the islands.
 - The south and east elevations have no reference coverage. They carry the mass
   and nothing else. No window on a hidden wall was invented.
 - The lane markings, the queue islands and the northbound Canadian side are not
@@ -96,6 +94,34 @@ by eye would have missed the walls.
   surveyed. OSM has one small 11 m² structure nearby (way 1009210199) which is
   left as the bake draws it.
 - Vehicles, people and the overhead wires are left out.
+
+## The Canadian side
+
+Looking north from the US booths you are looking at Canada, and none of it is in
+the OSM bake — that stops at the line. `boundary-bay.js` carries the three
+structures that make that view what it is, all measured off the county 2022
+aerial by colour rather than by eye: each red roof and the office's grey one was
+found as a blob of pixels, and its centre, size and the bearing of its long axis
+came out of the blob.
+
+| what | size | where |
+| --- | --- | --- |
+| the canopy over the inbound lanes | 19.8 × 7.9 m | 49.0022403, -123.0681209 |
+| the canopy over the staff parking | 27.9 × 8.4 m | 49.0023293, -123.0682773 |
+| the office | 16.2 × 17.3 m | 49.0021744, -123.0682732 |
+
+The office came out nearly square, so its own principal axis means nothing and
+it takes the bearing of the canopies beside it. Heights are estimates off the
+Street View frame.
+
+The fine terrain stops at the line too, and a sample north of it clamps to the
+last row, so all of this stands on the height of the 49th parallel rather than
+on its own ground. The ground there is flat and the error is small, but it is an
+error.
+
+```bash
+node src/scene/test-boundary-bay.mjs
+```
 
 ## Checking it
 
