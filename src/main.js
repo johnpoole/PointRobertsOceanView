@@ -1691,11 +1691,19 @@ function toggleTour() {
     tour = null;
     novelTide = null;
     if (novel) novel.setVisible(false);
+    controls.maxPolarAngle = MAP_MAX_POLAR;
     setClockOffset(0);
     return;
   }
   if (!novel) return;      // the ground is not up yet, so neither are they
   novel.setVisible(true);
+  // A dragged view may not tip past level, because under the sea there is
+  // nothing to hold on to. A scripted one is not dragged, and half these scenes
+  // are somebody standing on a flat looking along it: with the stop in place,
+  // update() reads a near-level view as an illegal angle and swings the camera
+  // up and back until it is legal, which is why the crossing kept coming out as
+  // an empty beach. toWyzeCam lifts it for the same reason.
+  controls.maxPolarAngle = Math.PI;
   tour = { at: -1, since: 0, from: null };
   stepTour(clock.elapsedTime);
 }
