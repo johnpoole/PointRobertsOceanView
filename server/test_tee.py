@@ -90,6 +90,17 @@ def test_who_is_out_and_which_hole_they_are_on():
     assert 0 <= out[0]["through"] <= 1, out
 
 
+def test_a_solid_morning_is_not_an_empty_one():
+    # The sheet's earliest entry is hours away because everything before it is
+    # taken. Those slots are missing from the grid and they are bookings.
+    sheet = sheet_at("09:45", [slot("13:00"), slot("13:10")])
+    assert sheet.booked[clock("09:50")] == tee.FULL, sheet.booked
+    assert sheet.booked[clock("12:50")] == tee.FULL, sheet.booked
+    # Both the 09:50 and the 10:00 are out by five past ten.
+    out = sheet.out_now(clock("10:05"))
+    assert [g["tee"] for g in out] == ["09:50", "10:00"], out
+
+
 def test_a_group_comes_off_after_the_round():
     sheet = sheet_at("07:00", [slot("07:10", 0)])
     assert len(sheet.out_now(clock("11:30"))) == 1, "still out at four and a half hours"
@@ -97,7 +108,8 @@ def test_a_group_comes_off_after_the_round():
 
 
 def test_a_group_is_not_out_before_it_tees():
-    sheet = sheet_at("09:00", [slot("09:30", 0)])
+    # 09:10 and 09:20 are open, so the only booking is the 09:30.
+    sheet = sheet_at("09:00", [slot("09:10"), slot("09:20"), slot("09:30", 0)])
     assert sheet.out_now(clock("09:20")) == []
     assert len(sheet.out_now(clock("09:35"))) == 1
 

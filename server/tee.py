@@ -81,9 +81,19 @@ class Sheet:
         # moves later: what has been seen stays seen.
         if self.seen_from is None:
             self.seen_from = now
-        # Every slot the grid should hold between the first and last on offer.
+        # Every slot the grid should hold, from now to the last on offer.
+        #
+        # Not from the first on offer: when the next three hours are solidly
+        # booked the sheet's earliest entry is three hours away, and starting
+        # there steps straight over every one of those bookings. That is exactly
+        # what a busy Friday morning looked like — a full course reading as an
+        # empty one.
         step = timedelta(minutes=GRID_MINUTES)
-        at = first
+        # The first grid time strictly after now: a slot at this very minute has
+        # gone whether it was booked or not.
+        edge = (now - timedelta(minutes=now.minute % GRID_MINUTES, seconds=now.second,
+                                microseconds=now.microsecond)) + step
+        at = min(first, edge)
         while at <= last:
             if at in times:
                 self.booked[at] = FULL - times[at]
