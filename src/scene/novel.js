@@ -18,7 +18,10 @@ import { CHAPTERS } from "./low-water.js";
 
 // A torch in the dark. Both night scenes turn on this: two figures on a black
 // flat are nothing at all, and one moving light is the whole picture.
-const LAMP_RANGE_M = 26;
+// It has to carry across a flat at night from a long way off, so it is brighter
+// than a hand torch really is. A torch lit to life size is one dark pixel.
+const LAMP_RANGE_M = 70;
+const LAMP_INTENSITY = 140;
 const LAMP_COLOUR = 0xffe2a8;
 
 export function buildNovel(scene, sample) {
@@ -163,11 +166,11 @@ function sloop() {
 function lamp() {
   const group = new THREE.Group();
   const bulb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.09, 8, 6),
+    new THREE.SphereGeometry(0.22, 10, 8),
     new THREE.MeshBasicMaterial({ color: LAMP_COLOUR }));
   bulb.position.set(0.32, 1.05, -0.25);
   group.add(bulb);
-  const light = new THREE.PointLight(LAMP_COLOUR, 14, LAMP_RANGE_M, 2);
+  const light = new THREE.PointLight(LAMP_COLOUR, LAMP_INTENSITY, LAMP_RANGE_M, 2);
   light.position.copy(bulb.position);
   group.add(light);
   return group;

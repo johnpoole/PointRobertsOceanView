@@ -73,8 +73,8 @@ export const CHAPTERS = [
   {
     n: 1, title: "The border station",
     hour: 16.2, tide: null, dwell: 26,
-    eye: [49.001780, -123.068040, 57.5],
-    aim: [49.001380, -123.068470, 52.5],
+    eye: [49.001930, -123.068455, 53.4],
+    aim: [49.001420, -123.068515, 52.0],
     actors: [
       // Eleven minutes in an empty lane. She has been sitting there a while
       // when the scene opens and he is still inside with her passport.
@@ -117,8 +117,8 @@ export const CHAPTERS = [
   {
     n: 4, title: "Lily Point",
     hour: 17.7, tide: null, dwell: 26,
-    eye: [48.981420, -123.026650, 76.0],
-    aim: [48.981620, -123.027450, 64.5],
+    eye: [48.981640, -123.026960, 69.0],
+    aim: [48.981660, -123.027390, 64.5],
     actors: [
       // Dark by now. He walks her out along the bank and stops at the edge of
       // it, and the torch is the only reason there is anything to see.
@@ -151,8 +151,8 @@ export const CHAPTERS = [
   {
     n: 6, title: "Maple Beach",
     hour: 3.3, tide: -0.5, dwell: 28,
-    eye: [48.999640, -123.026900, 12.0],
-    aim: [48.999980, -123.025300, 0.0],
+    eye: [48.999760, -123.026350, 5.0],
+    aim: [48.999990, -123.025350, -0.3],
     actors: [
       // The two of them standing on dry bottom on the American side of the
       // line, and the light coming down the flat out of Canada toward them.
@@ -166,8 +166,8 @@ export const CHAPTERS = [
   {
     n: 7, title: "The border station, opening",
     hour: 8.5, tide: null, dwell: 24,
-    eye: [49.001880, -123.068920, 56.5],
-    aim: [49.001420, -123.068510, 52.5],
+    eye: [49.000982, -123.068523, 54.5],
+    aim: [49.001330, -123.068455, 52.5],
     actors: [
       // Half eight and the station open. She comes back up the lane, and this
       // time she is the one who gets out and goes inside.
