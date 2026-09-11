@@ -55,11 +55,11 @@ const OFFICE = [48.977092, -123.063342];
 // The survey line off the drop-off south-west of the lighthouse. The bottom
 // under it runs from five metres to seven, which is water a boat can work, and
 // the boat covers it at two metres a second, which is survey speed.
-const SURVEY = [[48.973300, -123.085700], [48.973650, -123.085900]];
+const SURVEY = [[48.973330, -123.085720], [48.973540, -123.085840]];
 
 // The bank top at Lily Point, above the old cannery beach.
-const BANK = [[48.981500, -123.027600], [48.981610, -123.027470],
-              [48.981720, -123.027340]];
+const BANK = [[48.981530, -123.027560], [48.981600, -123.027480],
+              [48.981670, -123.027400]];
 
 // Boundary Bay off Maple Beach. The bottom here stands between five centimetres
 // above MLLW and twenty below, so a tide half a metre under it leaves the whole
@@ -78,14 +78,14 @@ export const CHAPTERS = [
   {
     n: 1, title: "The border station",
     hour: 16.2, sun: 10.3, west: true, tide: null, dwell: 26,
-    eye: [49.001930, -123.068455, 53.4],
-    aim: [49.001420, -123.068515, 52.0],
+    eye: [49.002109, -123.068457, 53.8],
+    aim: [49.001285, -123.068453, 52.0],
     actors: [
       // Eleven minutes in an empty lane. She has been sitting there a while
       // when the scene opens and he is still inside with her passport.
       { mode: "car", on: "ground", keys: [
         [0, ...LANE(3.4)], [16, ...LANE(3.4)],
-        [21, ...LANE(20)], [26, ...LANE(80)],
+        [21, ...LANE(18)], [26, ...LANE(45)],
       ] },
       { mode: "walk", on: "ground", keys: [
         [2, ...DOOR], [8, ...APRON], [14, ...BOOTH], [26, ...BOOTH],
@@ -95,8 +95,8 @@ export const CHAPTERS = [
   {
     n: 2, title: "D dock",
     hour: 8.5, sun: 8.7, west: false, tide: null, dwell: 26,
-    eye: [48.977300, -123.063420, 13.0],
-    aim: [48.976900, -123.063960, 1.5],
+    eye: [48.977986, -123.062557, 33.2],
+    aim: [48.976895, -123.063929, 1.1],
     actors: [
       { mode: "sloop", on: "water", keys: [[0, ...SLOOP], [26, ...SLOOP]] },
       // Down the float to the far end, and that is the hire.
@@ -111,8 +111,8 @@ export const CHAPTERS = [
   {
     n: 3, title: "The flats off the lighthouse",
     hour: 11.0, sun: 24.6, west: false, tide: 0.4, dwell: 24,
-    eye: [48.973560, -123.084850, 22.0],
-    aim: [48.973480, -123.085800, 0.0],
+    eye: [48.973551, -123.084355, 35.7],
+    aim: [48.973470, -123.085800, -5.4],
     actors: [
       { mode: "boat", on: "water", keys: [
         [0, ...SURVEY[0]], [22, ...SURVEY[1]], [24, ...SURVEY[1]],
@@ -122,8 +122,8 @@ export const CHAPTERS = [
   {
     n: 4, title: "Lily Point",
     hour: 17.7, sun: -3.0, west: true, tide: null, dwell: 26,
-    eye: [48.981640, -123.026960, 69.0],
-    aim: [48.981660, -123.027390, 64.5],
+    eye: [48.981621, -123.026453, 73.2],
+    aim: [48.981633, -123.027445, 65.3],
     actors: [
       // Dark by now. He walks her out along the bank and stops at the edge of
       // it, and the torch is the only reason there is anything to see.
@@ -141,8 +141,8 @@ export const CHAPTERS = [
   {
     n: 5, title: "The marina office",
     hour: 11.5, sun: 26.3, west: false, tide: null, dwell: 24,
-    eye: [48.977000, -123.062960, 13.0],
-    aim: [48.977150, -123.063490, 6.0],
+    eye: [48.977210, -123.064552, 13.6],
+    aim: [48.977181, -123.063496, 5.8],
     actors: [
       // Up from the dock to the office, and in. The door is where they stop
       // being on the screen.
@@ -160,8 +160,8 @@ export const CHAPTERS = [
     // same tide out of the same series, and four degrees under leaves a flat to
     // see them standing on.
     hour: 3.3, sun: -4.0, west: false, tide: -0.5, dwell: 28,
-    eye: [48.999790, -123.026250, 3.5],
-    aim: [48.999980, -123.025450, -0.2],
+    eye: [48.999785, -123.026269, 3.6],
+    aim: [48.999929, -123.025694, 0.8],
     actors: [
       // The two of them standing on dry bottom on the American side of the
       // line, and the light coming down the flat out of Canada toward them.
@@ -178,8 +178,8 @@ export const CHAPTERS = [
   {
     n: 7, title: "The border station, opening",
     hour: 8.5, sun: 8.7, west: false, tide: null, dwell: 24,
-    eye: [49.000982, -123.068523, 54.5],
-    aim: [49.001330, -123.068455, 52.5],
+    eye: [49.000539, -123.068558, 57.1],
+    aim: [49.001405, -123.068490, 51.9],
     actors: [
       // Half eight and the station open. She comes back up the lane, and this
       // time she is the one who gets out and goes inside.

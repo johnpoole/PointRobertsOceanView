@@ -58,6 +58,9 @@ function ground(lat, lon) {
   return a * (1 - fr) + b * fr;
 }
 
+// src/main.js: LOOK_FOV_DEG, less a margin.
+const LENS_HALF_DEG = 10;
+
 const M_PER_DEG = 111320;
 const COS = Math.cos(48.989009 * Math.PI / 180);
 function enu(lat, lon, y) {
@@ -133,8 +136,12 @@ for (const ch of CHAPTERS) {
         `${where}: an actor is ${range.toFixed(0)} m from the camera`);
       const dot = (to.x * look.x + to.y * look.y + to.z * look.z) / (range * lookLen);
       const off = Math.acos(Math.min(Math.max(dot, -1), 1)) * 180 / Math.PI;
-      assert.ok(off < 30,
-        `${where}: an actor is ${off.toFixed(0)}° off the middle of the frame`);
+      // The page looks through a 25 degree lens, so half of it is twelve and a
+      // half and there is nothing outside that. Ten leaves a margin for the
+      // width of a car and the height of a mast.
+      assert.ok(off < LENS_HALF_DEG,
+        `${where}: an actor is ${off.toFixed(0)}° off the middle of a `
+        + `${LENS_HALF_DEG * 2}° frame`);
     }
     assert.ok(actor.keys[actor.keys.length - 1][0] <= ch.dwell,
       `${where}: an actor is still going ${
@@ -203,6 +210,6 @@ assert.ok(Math.max(...lats) > 49.0 && Math.min(...lats) < 49.0,
 
 const runtime = CHAPTERS.reduce((s, c) => s + c.dwell + TRAVEL_S, 0);
 console.log(`PASS: ${CHAPTERS.length} chapters, ${actors} actors, ${walked} of them `
-  + `moving, all of them dry or afloat and inside 30° of the frame, the crossing `
+  + `moving, all of them dry or afloat and inside ${LENS_HALF_DEG}° of the middle, the crossing `
   + `dry from ${Math.max(...lats).toFixed(5)} to ${Math.min(...lats).toFixed(5)} `
   + `at ${flat.tide} m. ${Math.round(runtime)}s end to end.`);
