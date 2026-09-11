@@ -4,7 +4,10 @@ import { box,tint,gableRoof } from "./parts.js";
 import { fromWorld } from "../geo.js";
 import { disposeArea } from "./area-view.js";
 import { BORDER as P,borderFrame as F,borderPoint,borderRing,borderPart } from "./border-plan.js";
-export const CONCRETE=0x9a9a92,SLAT=0xa9803f,GLASS=0x2d3a3f,STEEL=0x6a6a63,DARK=0x45453f,WHITEROOF=0xc4c4bc,METAL=0x7d8079,PANEL=0x9d7a55;
+// The roofs are pale ribbed metal in both photographs, not the near-black they
+// were first painted. At this latitude an overcast afternoon takes a lot out of
+// a colour, so these are chosen to read grey rather than to match a swatch.
+export const CONCRETE=0x9a9a92,SLAT=0xa9803f,GLASS=0x2d3a3f,STEEL=0xa2a49f,DARK=0x45453f,WHITEROOF=0xd2d2ca,METAL=0x8d908a,PANEL=0xa8896a;
 export function borderTransform(g){g.rotateY(F.angle);g.translate(F.origin.x,0,F.origin.z);return g}
 export function borderBox(x0,x1,z0,z1,y,h,color){return borderTransform(box(x1-x0,z1-z0,h,(x0+x1)/2,y,(z0+z1)/2,color))}
 export function borderMerge(parts,group,name){const g=mergeGeometries(parts,false);for(const p of parts)p.dispose();const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,side:THREE.DoubleSide}));m.name=name;group.add(m);return m}
@@ -78,10 +81,14 @@ export function buildBorderBase(scene,sample){
       x0=Math.min(...xs),x1=Math.max(...xs),z0=Math.min(...zs),z1=Math.max(...zs);
     const g=gableRoof((z1-z0)/2,(x1-x0)/2,floor+P.canopyDeck,P.canopyRise,P.canopyEave,STEEL);
     g.rotateY(Math.PI/2);g.translate((x0+x1)/2,0,(z0+z1)/2);roofs.push(borderTransform(g));
-    // The fascia band under the eave, which is what reads from the road.
-    for(const z of [z0,z1]) roofs.push(borderBox(x0-P.canopyEave,x1+P.canopyEave,
-      z-(z===z0?P.canopyEave:0),z+(z===z1?P.canopyEave:0),
-      floor+P.canopyDeck-P.canopyFascia,P.canopyFascia,DARK));
+    // A fascia band round the edge, not a slab across the whole thing: the slab
+    // was what you actually saw from above, a black rectangle where the roof
+    // should have been.
+    const e=P.canopyEave,f=P.canopyFascia,deck=floor+P.canopyDeck-f;
+    roofs.push(borderBox(x0-e,x1+e,z0-e,z0-e+.22,deck,f,DARK));
+    roofs.push(borderBox(x0-e,x1+e,z1+e-.22,z1+e,deck,f,DARK));
+    roofs.push(borderBox(x0-e,x0-e+.22,z0-e,z1+e,deck,f,DARK));
+    roofs.push(borderBox(x1+e-.22,x1+e,z0-e,z1+e,deck,f,DARK));
     for(const [x,z] of P.posts) roofs.push(borderBox(x-.16,x+.16,z-.16,z+.16,floor,P.canopyDeck-P.canopyFascia,DARK));
   }
   borderMerge(roofs,group,"border-roofs-and-canopy");
