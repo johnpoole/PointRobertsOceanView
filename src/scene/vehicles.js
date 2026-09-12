@@ -206,10 +206,12 @@ export function buildWalker(coat = COAT) {
     const rate = Math.cos(phase);          // which way the leg is going
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? 1 : -1;
-      // Forward in this frame is -Z, so a leg is coming forward while its own
-      // angle is falling. That is the half of the cycle the knee folds in.
+      // The leg is coming forward while its own angle is rising, and that is
+      // the half of the cycle the knee folds in. It was the other way round,
+      // which folded the knee on the leg carrying the weight and walked like a
+      // limp.
       thighs[i].rotation.x = side * swing * SWING_LEG;
-      const coming = Math.max(0, -side * rate);
+      const coming = Math.max(0, side * rate);
       shins[i].rotation.x = KNEE * Math.pow(coming, KNEE_SHAPE);
       // Arms go the other way to the leg on their own side, which is what a
       // body does and what stops a walk looking like a march.
