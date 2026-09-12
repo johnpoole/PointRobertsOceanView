@@ -1830,10 +1830,6 @@ function toggleCampground() {
 document.getElementById("campground-btn").addEventListener("click", toggleCampground);
 // The novel had a key and nothing else, which on a phone is nothing at all.
 document.getElementById("novel-btn").addEventListener("click", toggleTour);
-// Taking hold of the view takes it back. The tour rewrites the camera every
-// frame, so a drag against it went nowhere and the only way out was the button
-// you came in by. OrbitControls raises this the moment a hand is on it.
-controls.addEventListener("start", () => { if (tour) toggleTour(); });
 
 // The shelter at the foot of the bank stands 8 m west of the cabin and 40 m
 // below the eye, so from the bluff you are looking down on its roof. Turning it
