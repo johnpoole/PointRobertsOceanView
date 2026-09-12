@@ -220,15 +220,15 @@ export function buildCar(colour) {
   for (const b of [
     box(1.80, 0.34, 4.30, 0, 0.50, 0),             // sill and lower body
     box(1.76, 0.34, 4.10, 0, 0.82, 0),             // body side, up to the waist
-    box(1.60, 0.30, 2.10, 0, 1.18, 0.10),          // roof, narrower than the body
+    box(1.58, 0.34, 2.62, 0, 1.30, 0.26),          // roof, narrower than the body
     box(1.70, 0.16, 1.34, 0, 0.96, -1.52),         // bonnet
-    box(1.70, 0.18, 0.86, 0, 0.99, 1.74),          // boot lid
+    box(1.70, 0.18, 0.54, 0, 0.99, 1.90),          // tailgate
     box(1.66, 0.14, 0.22, 0, 1.06, -1.02),         // scuttle under the screen
   ]) g.push(paint(b, colour));
   for (const b of [
-    box(1.62, 0.36, 1.96, 0, 1.16, 0.10),          // side glass
-    box(1.54, 0.40, 0.34, 0, 1.12, -1.02),         // windscreen
-    box(1.52, 0.36, 0.24, 0, 1.14, 1.26),          // rear screen
+    box(1.62, 0.40, 2.48, 0, 1.14, 0.26),          // side glass
+    box(1.54, 0.42, 0.34, 0, 1.12, -1.02),         // windscreen
+    box(1.52, 0.40, 0.20, 0, 1.14, 1.56),          // rear screen
   ]) g.push(paint(b, GLASS));
   for (const b of [
     box(1.78, 0.16, 0.22, 0, 0.46, -2.16),         // bumpers
@@ -243,7 +243,7 @@ export function buildCar(colour) {
   for (const x of [-0.82, 0.82]) for (const z of [-1.40, 1.36]) {
     g.push(...road(colour, 0.32, 0.20, x, 0.34, z));
   }
-  g.push(...personGeoms(0.66, true));
+  g.push(...personGeoms(0.45, true));
   group.add(painted(g));
   return group;
 }
@@ -255,14 +255,14 @@ function buildVan(colour) {
   const g = [];
   for (const b of [
     box(1.96, 1.70, 3.20, 0, 1.32, 0.80),          // the box behind the cab
-    box(1.88, 0.94, 1.74, 0, 0.94, -1.28),         // the cab
+    box(1.88, 1.22, 1.74, 0, 1.06, -1.28),         // the cab
     box(1.90, 0.26, 0.66, 0, 0.66, -2.18),         // the nose
     box(1.92, 0.06, 3.26, 0, 2.20, 0.80),          // roof cap
   ]) g.push(paint(b, colour));
   for (const b of [
-    box(1.72, 0.56, 0.16, 0, 1.24, -2.08),         // windscreen
-    box(0.10, 0.48, 0.92, -0.95, 1.22, -1.28),     // cab windows
-    box(0.10, 0.48, 0.92, 0.95, 1.22, -1.28),
+    box(1.72, 0.62, 0.16, 0, 1.32, -2.08),         // windscreen
+    box(0.10, 0.54, 0.92, -0.95, 1.30, -1.28),     // cab windows
+    box(0.10, 0.54, 0.92, 0.95, 1.30, -1.28),
   ]) g.push(paint(b, GLASS));
   for (const b of [
     box(1.84, 1.46, 0.06, 0, 1.28, 2.42),          // the door at the back
@@ -275,7 +275,7 @@ function buildVan(colour) {
   for (const x of [-0.90, 0.90]) for (const z of [-1.40, 1.60]) {
     g.push(...road(colour, 0.37, 0.22, x, 0.38, z));
   }
-  g.push(...personGeoms(0.90, true));
+  g.push(...personGeoms(0.62, true));
   group.add(painted(g));
   return group;
 }
