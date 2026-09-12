@@ -50,6 +50,7 @@ export class Feed {
     this.marina = null;
     // Who the golf club's booking sheet says is out on the course, or null.
     this.tee = null;
+    this.calls = null;
     this.selfId = null;         // what the server called us, so we can skip it
 
     this._ws = null;
@@ -173,6 +174,11 @@ export class Feed {
         this._applyVessel(msg);
         this._emit("vessel");
         break;
+      case "blotter.calls":
+        // What the Sheriff's daily report says the deputy was called out to.
+        this.calls = msg;
+        this._emit("calls");
+        break;
       case "golf.tee":
         // Who the club's booking sheet says is out on the course.
         this.tee = msg;
@@ -210,6 +216,7 @@ export class Feed {
     this.providerHealth = data.provider_health || this.providerHealth;
     this.marina = data.marina || null;
     this.tee = data.tee || null;
+    this.calls = data.calls || null;
     this.vesselsNote = data.vessels_note || "";
   }
 

@@ -30,9 +30,11 @@ import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
-import { buildCast } from "./scene/cast.js";
+import { buildCast, minutesInZone } from "./scene/cast.js";
 import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { buildNovel } from "./scene/novel.js";
+import { buildBlotter } from "./scene/blotter.js";
+import { buildRecreation } from "./scene/recreation.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -251,6 +253,8 @@ const overview = new OverviewMap(document.getElementById("overview"));
 let landmarkPicks = [];
 let pavilion = null;
 let novel = null;
+let blotter = null;
+let recreation = null;
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
@@ -417,6 +421,11 @@ stairSpec
       skipHome: true,
       skipBuilding: b => obsoleteMarinaBlock(b) || isReefBuilding(b) || isMarketplaceBuilding(b) || !!communityBuildingKind(b) || isMarinaMainBuilding(b) || isSaltwaterBuilding(b) || isFireStationBuilding(b) || isPostOfficeBuilding(b) || isBorderBuilding(b) || isClubhouseBuilding(b),
     }).then((land) => {
+      // Where the deputy was called out. The roads have to exist first: a call
+      // says GULF RD and nothing else, so it is put on the road of that name.
+      blotter = buildBlotter(scene, near.sample, land.features.roads);
+      recreation = buildRecreation(scene, near.sample);
+      if (feed.calls) showCalls();
       landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks, postOffice.landmarks, border.landmarks, clubhouse.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
@@ -550,6 +559,7 @@ function tideShown() {
 }
 
 feed.onChange((kind) => {
+  if (kind === "calls" || kind === "snapshot") showCalls();
   if (kind === "close") {
     // Feed down: blank the world rather than show last-known as if it were live.
     feed.vessels.clear();
@@ -866,6 +876,11 @@ function pickTrack(e) {
   if (nav.lock.isLocked) pointer.set(0, 0);
   else setPointerFrom(e);
   raycaster.setFromCamera(pointer, camera);
+  // A call marker first: it is a post at arm's length and a ship is a mile out.
+  if (blotter) {
+    const found = blotter.pick(raycaster);
+    if (found) { openCall(found); return; }
+  }
   const hits = raycaster.intersectObjects(
     vessels.pickList().concat(aircraft.pickList()), true);
   let o = hits.length ? hits[0].object : null;
@@ -1677,6 +1692,111 @@ function toggleBrademy() {
   if (on) lookAtBrademy();
 }
 
+// ---- the Sheriff's calls ----------------------------------------------------
+//
+// A marker on the road each call came from, and pressing one plays what the
+// record supports: a car arrives at the hour it arrived, a deputy attends, the
+// car goes. The log says a street, a time, a nature, a deputy and a
+// disposition, and this shows exactly those and invents nothing else.
+const callCard = document.getElementById("call-card");
+const callNature = document.getElementById("call-nature");
+const callWhere = document.getElementById("call-where");
+const callRows = document.getElementById("call-rows");
+
+function showCalls() {
+  if (!blotter || !feed.calls) return;
+  blotter.setCalls(feed.calls.data.calls || []);
+}
+
+function toggleCalls() {
+  if (!blotter) return;
+  const on = !blotter.shown;
+  blotter.setVisible(on);
+  if (!on) { closeCall(); stopRecreation(); }
+}
+
+function closeCall() {
+  callCard.classList.add("hidden");
+}
+
+function row(name, value) {
+  if (!value) return "";
+  return `<dt>${name}</dt><dd>${String(value).toLowerCase()}</dd>`;
+}
+
+function openCall(found) {
+  const c = found.call;
+  callNature.textContent = (c.nature || "a call").toLowerCase();
+  callWhere.textContent = c.location || "";
+  callRows.innerHTML = [
+    row("when", c.when),
+    row("deputy", c.deputy),
+    row("closed", c.disposition),
+    row("incident", c.number),
+    c.arrest ? row("arrested", `${c.arrest.name}, ${c.arrest.age}`) : "",
+    c.arrest ? row("offences", c.arrest.offences) : "",
+  ].join("");
+  callCard.classList.remove("hidden");
+  playRecreation(found);
+}
+
+// The recreation runs on its own clock, the way the novel's route does, and it
+// takes the camera for as long as it lasts.
+let acting = null;
+
+function playRecreation(found) {
+  if (!recreation) return;
+  const c = found.call;
+  recreation.play(c, found.spot);
+  acting = { since: clock.elapsedTime, from: null };
+  // The hour it came in. A music complaint at twenty to one in the morning is
+  // a scene in the dark and should look like one.
+  const at = /(\d+):(\d+):\d+ ([AP])M/.exec(c.when || "");
+  if (at) {
+    let hour = Number(at[1]) % 12 + Number(at[2]) / 60;
+    if (at[3] === "P") hour += 12;
+    setClockOffset(hour - minutesInZone(new Date()) / 60);
+  }
+  controls.maxPolarAngle = Math.PI;
+  nav.toOrbit();
+}
+
+function stopRecreation() {
+  if (!recreation || !acting) return;
+  recreation.stop();
+  acting = null;
+  controls.maxPolarAngle = MAP_MAX_POLAR;
+  setClockOffset(0);
+}
+
+function updateRecreation(now) {
+  if (!acting || !recreation) return;
+  const at = now - acting.since;
+  if (at >= recreation.length) { stopRecreation(); return; }
+  const shot = recreation.update(at);
+  if (!shot) return;
+  if (!acting.from) {
+    acting.from = { eye: camera.position.clone(), aim: controls.target.clone() };
+  }
+  // Ease in over the first couple of seconds so it does not cut.
+  const k = Math.min(at / 2.5, 1);
+  const ease = k * k * (3 - 2 * k);
+  camera.position.set(
+    acting.from.eye.x + (shot.eye.x - acting.from.eye.x) * ease,
+    acting.from.eye.y + (shot.eye.y - acting.from.eye.y) * ease,
+    acting.from.eye.z + (shot.eye.z - acting.from.eye.z) * ease);
+  controls.target.set(
+    acting.from.aim.x + (shot.aim.x - acting.from.aim.x) * ease,
+    acting.from.aim.y + (shot.aim.y - acting.from.aim.y) * ease,
+    acting.from.aim.z + (shot.aim.z - acting.from.aim.z) * ease);
+  controls.update();
+}
+
+document.getElementById("call-close").addEventListener("click", () => {
+  closeCall();
+  stopRecreation();
+});
+
 // The novel's route, on R. Seven scenes in the order Low Water goes through
 // them. Each one winds the sun to its hour, holds the sea at its tide, puts the
 // camera where it can see, and then lets the people in it get on with it.
@@ -1830,6 +1950,7 @@ function toggleCampground() {
 document.getElementById("campground-btn").addEventListener("click", toggleCampground);
 // The novel had a key and nothing else, which on a phone is nothing at all.
 document.getElementById("novel-btn").addEventListener("click", toggleTour);
+document.getElementById("calls-btn").addEventListener("click", toggleCalls);
 
 // The shelter at the foot of the bank stands 8 m west of the cabin and 40 m
 // below the eye, so from the bluff you are looking down on its roof. Turning it
@@ -1908,6 +2029,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyF" && golf) golf.toggle();
   if (e.code === "KeyP" && cast) cast.toggle();
   if (e.code === "KeyR" && !e.repeat) toggleTour();
+  if (e.code === "KeyK" && !e.repeat) toggleCalls();
   if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
@@ -2009,6 +2131,8 @@ function frame() {
   // The clock the sun runs on is the clock the town runs on.
   if (cast) cast.update(new Date(Date.now() + offsetHours() * 3600 * 1000), camera);
   updateTour(t);
+  if (blotter) blotter.update(camera, t);
+  updateRecreation(t);
   if (marina && marina.wanted && t > marinaPingDue) {
     marinaPingDue = t + 30;
     feed.watching("marina");

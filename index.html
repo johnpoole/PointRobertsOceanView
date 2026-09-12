@@ -82,6 +82,7 @@
     <div class="keys-row"><span class="keys-k">F</span><span class="keys-v">golf holes</span></div>
     <div class="keys-row"><span class="keys-k">P</span><span class="keys-v">the cast</span></div>
     <div class="keys-row"><span class="keys-k">R</span><span class="keys-v">the novel's route</span></div>
+    <div class="keys-row"><span class="keys-k">K</span><span class="keys-v">the Sheriff's calls</span></div>
     <div class="keys-row"><span class="keys-k">H</span><span class="keys-v">pavilion</span></div>
     <div class="keys-row"><span class="keys-k">L</span><span class="keys-v">vessel tracks</span></div>
     <div class="keys-row"><span class="keys-k">C</span><span class="keys-v">the photograph</span></div>
@@ -199,6 +200,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 3 20.5h18Z"/><path d="M12 3.5 12 20.5"/></svg>
         <span class="btn-label">the campground (G)</span>
       </button>
+      <button class="icon-btn" id="calls-btn" title="the Sheriff's calls (K)" aria-label="the Sheriff's calls">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 5.5v6c0 4.4 3.3 8.4 8 10 4.7-1.6 8-5.6 8-10v-6Z"/><path d="M12 8v5M12 15.5v.5"/></svg>
+        <span class="btn-label">the Sheriff's calls (K)</span>
+      </button>
       <button class="icon-btn" id="novel-btn" title="the novel's route (R)" aria-label="the novel's route">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 4.8 7 4.3 3.5 4.8v13C7 17.3 10 17.8 12 19.5c2-1.7 5-2.2 8.5-1.7v-13C17 4.3 14 4.8 12 6.5Z"/><path d="M12 6.5v13"/></svg>
         <span class="btn-label">the novel's route (R)</span>
@@ -227,6 +232,16 @@
     <div class="row"><span class="k">heading</span><span id="helm-heading" class="v">—</span></div>
     <div class="row"><span class="k">course</span><span id="helm-course" class="v">—</span></div>
     <div class="helm-note" id="helm-note"></div>
+  </div>
+
+  <!-- One call off the Sheriff's daily report, when its marker is pressed. -->
+  <div id="call-card" class="call-card hidden">
+    <button id="call-close" class="call-close" aria-label="close">&times;</button>
+    <div id="call-nature" class="call-nature"></div>
+    <div id="call-where" class="call-where"></div>
+    <dl id="call-rows" class="call-rows"></dl>
+    <div class="call-note">Whatcom County Sheriff, Law Incident Media Summary
+      Report. A call for service, not a finding.</div>
   </div>
 
   <!-- Where the stick may be opened: the left of the screen, while something

@@ -371,7 +371,12 @@ def main() -> None:
         if el["type"] == "way" and "highway" in tags:
             pts = coords(el)
             if len(pts) >= 2:
-                roads.append({"coords": pts, "kind": tags["highway"]})
+                # The name is what lets a street in the Sheriff's log be found
+                # on the ground: his rows say GULF RD and nothing else.
+                road = {"coords": pts, "kind": tags["highway"]}
+                if tags.get("name"):
+                    road["name"] = tags["name"]
+                roads.append(road)
         elif el["type"] == "way" and "building" in tags:
             pts = coords(el)
             if len(pts) >= 3:

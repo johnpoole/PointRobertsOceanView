@@ -328,6 +328,46 @@ body.hud-visible .clock:not(.hidden) { display: flex; }
   pointer-events: none;
 }
 
+/* One call, when its marker is pressed. Sits where the vessel card sits and
+   reads the same way: the record, and nothing added to it. */
+.call-card {
+  position: fixed;
+  left: 12px;
+  bottom: 84px;
+  width: min(330px, calc(100vw - 24px));
+  background: rgba(8, 16, 24, 0.86);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 12px 14px 10px;
+  z-index: 8;
+  font-size: 12px;
+  line-height: 1.45;
+  backdrop-filter: blur(6px);
+}
+.call-card.hidden { display: none; }
+.call-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: 0;
+  color: var(--dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.call-nature {
+  font-size: 13px;
+  letter-spacing: .02em;
+  text-transform: lowercase;
+  margin-right: 18px;
+}
+.call-where { color: var(--dim); margin-bottom: 8px; }
+.call-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+.call-rows dt { color: var(--dim); }
+.call-rows dd { margin: 0; }
+.call-note { color: var(--dim); font-size: 11px; margin-top: 9px; }
+
 /* The half of the screen a thumb may open the stick in. It is invisible and it
    is only there while something is being driven; with it gone the left of the
    screen drags the view like the right does. The ring and knob inside it are
