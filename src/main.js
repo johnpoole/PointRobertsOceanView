@@ -1750,10 +1750,18 @@ function stepTour(now) {
 function tourCamera(chapter, acted, at) {
   const shot = chapter.shot;
   if (!shot) return chapterPoints(chapter);
-  const s = novel.spotOf(at, shot.arc, acted, tideLevel(), chapter.dwell);
+  const lead = novel.spotOf(at, shot.arc, acted, tideLevel(), chapter.dwell);
   // A following camera has nobody to follow only if the staging is wrong, and
   // there is no fixed viewpoint to fall back to. Stay where you are.
-  if (!s) return { eye: camera.position.clone(), aim: controls.target.clone() };
+  if (!lead) return { eye: camera.position.clone(), aim: controls.target.clone() };
+  // Hold the point between the two of them, so what is in the middle of the
+  // frame is the gap rather than the thing in front.
+  const chaser = shot.with == null ? null
+    : novel.spotOf(at, shot.with, acted, tideLevel(), chapter.dwell);
+  const s = chaser
+    ? { x: (lead.x + chaser.x) / 2, y: (lead.y + chaser.y) / 2,
+        z: (lead.z + chaser.z) / 2 }
+    : lead;
   const turn = (shot.from + shot.sweep * (acted / chapter.dwell)) * Math.PI / 180;
   const eye = {
     x: s.x + Math.cos(turn) * shot.radius,

@@ -177,7 +177,10 @@ export const CHAPTERS = [
     // things going the same way. arc is which actor it holds, radius and height
     // where it holds it from, from where the swing starts in degrees and sweep
     // how far round it goes by the end of the scene.
-    shot: { arc: 0, radius: 26, height: 9, from: 200, sweep: 170 },
+    // with is the other end of the chase: the camera swings round the point
+    // between the two of them, so the gap is the subject rather than the cart.
+    // Low, because a camera nine metres up over a road is a road.
+    shot: { arc: 0, with: 1, radius: 33, height: 5.5, from: 250, sweep: 150 },
     actors: [
       // Whoever has been paying cash for that slip, going south down Tyee in
       // the first thing on the point with a key left in it. Carts are licensed
@@ -186,10 +189,11 @@ export const CHAPTERS = [
         [0, ...TYEE(48.987600)], [9, ...TYEE(48.986950)],
         [18, ...TYEE(48.986300)], [26, ...TYEE(48.985720)],
       ] },
-      // And a car coming up behind it, out of the lane and closing.
+      // And a car on its back bumper, out in the other lane and closing: twelve
+      // metres at the top of the road and five by the bottom of it.
       { mode: "car", on: "ground", keys: [
-        [2, 48.987980, LANE_W], [10, 48.987150, LANE_W],
-        [18, 48.986420, LANE_W], [26, 48.985800, LANE_W],
+        [2, 48.987564, LANE_W], [10, 48.986968, LANE_W],
+        [18, 48.986370, LANE_W], [26, 48.985765, LANE_W],
       ] },
     ],
   },
