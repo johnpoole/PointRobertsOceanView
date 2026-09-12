@@ -51,7 +51,9 @@ export class Touch {
     this._stick = nipplejs.create({
       zone: this.zone,
       mode: "dynamic",            // it appears under the thumb, not in a corner
-      color: "rgba(255,255,255,0.55)",
+      // The view is what the page is for, so the ring is a dark disc you can
+      // see through and the knob a pale one, the way it was drawn by hand.
+      color: { back: "rgba(8, 16, 24, 0.30)", front: "rgba(150, 190, 220, 0.32)" },
       size: STICK_PX,
       restJoystick: true,
       multitouch: false,
