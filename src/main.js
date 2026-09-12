@@ -1828,6 +1828,8 @@ function toggleCampground() {
   controls.update();
 }
 document.getElementById("campground-btn").addEventListener("click", toggleCampground);
+// The novel had a key and nothing else, which on a phone is nothing at all.
+document.getElementById("novel-btn").addEventListener("click", toggleTour);
 
 // The shelter at the foot of the bank stands 8 m west of the cabin and 40 m
 // below the eye, so from the bluff you are looking down on its roof. Turning it
