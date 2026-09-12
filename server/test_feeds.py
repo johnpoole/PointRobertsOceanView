@@ -420,6 +420,112 @@ def test_the_snapshot_carries_the_thresholds_too() -> None:
     assert snap["data"]["weather"]["quality"]["stale"] is True
 
 
+# ---- the queue at the line --------------------------------------------------
+#
+# CBP posts a lane as "Update Pending" with the delay blank when it has nothing
+# to say. That is not a delay of zero, and a quiet crossing must not read as a
+# fast one. These are their records, shortened.
+
+WAIT_PORT = {
+    "port_number": "300403",
+    "border": "Canadian Border",
+    "port_name": "Blaine",
+    "crossing_name": "Point Roberts",
+    "hours": "24 hrs/day",
+    "date": "9/12/2026",
+    "time": "08:07:16",
+    "port_status": "Open",
+    "commercial_vehicle_lanes": {
+        "maximum_lanes": "1",
+        "standard_lanes": {"update_time": "", "operational_status": "Update Pending",
+                           "delay_minutes": "", "lanes_open": ""},
+        "FAST_lanes": {"update_time": "", "operational_status": "Update Pending",
+                       "delay_minutes": "", "lanes_open": ""},
+    },
+    "passenger_vehicle_lanes": {
+        "maximum_lanes": "3",
+        "standard_lanes": {"update_time": "8:00 am", "operational_status": "delay",
+                           "delay_minutes": "15", "lanes_open": "2"},
+        "NEXUS_SENTRI_lanes": {"update_time": "", "operational_status": "Update Pending",
+                               "delay_minutes": "", "lanes_open": ""},
+        "ready_lanes": {"update_time": "", "operational_status": "Update Pending",
+                        "delay_minutes": "", "lanes_open": ""},
+    },
+    "pedestrian_lanes": {
+        "maximum_lanes": "N/A",
+        "standard_lanes": {"update_time": "", "operational_status": "Update Pending",
+                           "delay_minutes": "", "lanes_open": ""},
+        "ready_lanes": {"update_time": "", "operational_status": "Update Pending",
+                        "delay_minutes": "", "lanes_open": ""},
+    },
+    "construction_notice": "",
+}
+
+
+class _Answer:
+    def __init__(self, body):
+        self._body = body
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._body
+
+
+class _Client:
+    def __init__(self, body):
+        self._body = body
+
+    async def get(self, url, **kw):
+        return _Answer(self._body)
+
+
+def _wait(body):
+    return asyncio.new_event_loop().run_until_complete(
+        proxy.fetch_wait(_Client(body)))
+
+
+def test_a_posted_lane_carries_its_delay_and_how_many_are_open() -> None:
+    state = _wait([WAIT_PORT])["state"]
+    cars = state["lanes"]["cars"]["reported"]["standard"]
+    assert cars["delay_minutes"] == 15, cars
+    assert cars["lanes_open"] == 2, cars
+    assert cars["status"] == "delay", cars
+
+
+def test_nothing_posted_is_not_a_delay_of_zero() -> None:
+    state = _wait([WAIT_PORT])["state"]
+    # Their NEXUS lane, the trucks and the footpath are all Update Pending.
+    assert "nexus" not in state["lanes"]["cars"]["reported"]
+    assert state["lanes"]["trucks"]["reported"] == {}
+    assert state["lanes"]["on_foot"]["reported"] == {}
+
+
+def test_the_lane_count_the_crossing_has_is_kept() -> None:
+    state = _wait([WAIT_PORT])["state"]
+    assert state["lanes"]["cars"]["maximum_lanes"] == 3
+    assert state["lanes"]["trucks"]["maximum_lanes"] == 1
+    # N/A is not a number of lanes.
+    assert state["lanes"]["on_foot"]["maximum_lanes"] is None
+
+
+def test_the_stamp_is_read_as_the_peninsula_s_own_clock() -> None:
+    when = _wait([WAIT_PORT])["time"]
+    # 08:07 on the point is 15:07 UTC in September.
+    assert when.hour == 15 and when.minute == 7, when
+
+
+def test_a_feed_without_our_port_is_an_error() -> None:
+    other = dict(WAIT_PORT, port_number="070801", crossing_name="Thousand Islands")
+    try:
+        _wait([other])
+    except RuntimeError as exc:
+        assert "300403" in str(exc), exc
+    else:
+        raise AssertionError("a feed with no Point Roberts in it passed silently")
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
