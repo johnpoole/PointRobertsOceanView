@@ -55,6 +55,10 @@ logging.basicConfig(
 )
 log = logging.getLogger("proxy")
 
+# The Sheriff's daily report reader. Its own module because reading a PDF has
+# nothing to do with the rest of this.
+from server import blotter  # noqa: E402
+
 SCHEMA_VERSION = "1.0"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -185,6 +189,16 @@ ADSB_RADIUS_NM = 10.8      # 20 km. It was 30 nm, which is 56.
 # be dressed as live: the month it belongs to travels with it.
 #
 # Nothing on the page shows it yet.
+# ---- what the deputy was called out to -------------------------------------
+#
+# Whatcom County files a Law Incident Media Summary Report every day and the
+# peninsula's calls are in it. Public record, one PDF a day, read in
+# server/blotter.py. The point has a resident deputy and logs about a call a
+# day against seventy across the county.
+BLOTTER_PATH = REPO_ROOT / "data" / "blotter.json"
+BLOTTER_POLL_SECONDS = 3600
+
+
 # ---- the queue at the line, now ---------------------------------------------
 #
 # US Customs publishes what every land crossing is doing as open JSON. The
@@ -290,6 +304,8 @@ class World:
         self.crossings_time: datetime | None = None
         self.wait: dict | None = None
         self.wait_time: datetime | None = None
+        self.blotter: dict | None = None
+        self.blotter_time: datetime | None = None
         # The last thing the marina camera was read to hold, and when.
         self.marina: dict | None = None
         self.marina_time: datetime | None = None
@@ -313,6 +329,7 @@ class World:
             "aircraft": "offline",
             "crossings": "offline",
             "wait": "offline",
+            "blotter": "offline",
             # Idle until somebody opens the marina, which is the whole point of
             # it: this feed costs the marina's provider a picture every minute.
             "marina": "idle",
@@ -799,6 +816,13 @@ def snapshot() -> dict:
                  world.wait, WAIT_POLL_SECONDS * 3)
         if world.wait else None
     )
+    # No staleness on the log: the newest call is as old as the newest call is,
+    # and on a quiet week that is days. That is the reading, not a fault.
+    calls = (
+        envelope("blotter.calls", "Whatcom County Sheriff activity reports",
+                 world.blotter_time, world.blotter, None)
+        if world.blotter else None
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "message_type": "initial.snapshot",
@@ -811,6 +835,7 @@ def snapshot() -> dict:
             "current": current,
             "crossings": crossings,
             "wait": wait,
+            "calls": calls,
             "vessels": vessels,
             "aircraft": [
                 envelope("aircraft.state", ADSB_SOURCE,
@@ -2043,6 +2068,29 @@ async def wait_task() -> None:
             await asyncio.sleep(WAIT_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
+async def blotter_task() -> None:
+    store = blotter.Blotter(BLOTTER_PATH)
+    store.load()
+    async with httpx.AsyncClient(timeout=120) as client:
+        while True:
+            ok = False
+            try:
+                added = await store.refresh(client)
+                world.blotter = store.as_data()
+                world.blotter_time = blotter.latest_time(store)
+                await set_health("blotter", "live")
+                await clients.broadcast(envelope(
+                    "blotter.calls", "Whatcom County Sheriff activity reports",
+                    world.blotter_time, world.blotter, None))
+                log.info("Blotter: %d calls over %d days, %d new",
+                         len(world.blotter["calls"]), world.blotter["days"], added)
+                ok = True
+            except Exception as exc:
+                await set_health("blotter", "offline")
+                log.error("Sheriff activity report fetch failed: %s", exc)
+            await asyncio.sleep(BLOTTER_POLL_SECONDS if ok else RETRY_SECONDS)
+
+
 async def crossings_task() -> None:
     async with httpx.AsyncClient(timeout=60) as client:
         while True:
@@ -2495,6 +2543,7 @@ async def startup() -> None:
                              (weather_task(), "weather", "weather"),
                              (crossings_task(), "crossings", "crossings"),
                              (wait_task(), "wait", "wait"),
+                             (blotter_task(), "blotter", "blotter"),
                              (ferries_task(), "ferries", None),
                              (heartbeat_task(), "heartbeat", None),
                              (presence_task(), "presence", None),
