@@ -51,8 +51,8 @@ export async function buildCast(scene, sample) {
     const colour = COLOURS[i % COLOURS.length];
     const figure = new THREE.Group();
     figure.name = `cast-${person.role.replace(/\s+/g, "-")}`;
-    figure.add(shape(person.mode, colour));
-    figure.visible = false;
+    const model = shape(person.mode, colour);
+    figure.add(model);
     group.add(figure);
     // Where each leg starts in the day, and how long it takes at their pace.
     const legs = person.legs.map(leg => ({
@@ -72,7 +72,9 @@ export async function buildCast(scene, sample) {
       });
       leg.total = run;
     }
-    return { figure, legs };
+    // How far this one has walked, and where it was last frame, so the walk
+    // cycle runs off ground covered rather than off a clock.
+    return { figure, legs, model, walked: 0, was: null };
   });
 
   scene.add(group);
@@ -96,12 +98,22 @@ export async function buildCast(scene, sample) {
         matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
         frustum.setFromProjectionMatrix(matrix);
       }
-      for (const { figure, legs } of people) {
+      for (const person of people) {
+        const { figure, legs, model } = person;
         const at = placeAt(legs, minutes);
-        if (!at) { figure.visible = false; continue; }
+        if (!at) { figure.visible = false; person.was = null; continue; }
         const y = ground(at.lat, at.lon);
         figure.position.set(at.x, y, at.z);
         if (at.heading !== null) figure.rotation.y = at.heading;
+        if (model.stride) {
+          const step = person.was
+            ? Math.hypot(at.x - person.was.x, at.z - person.was.z) : 0;
+          // A day starting, or the clock being dragged, moves somebody hundreds
+          // of metres between two frames. That is not a step.
+          if (step < 6) person.walked += step;
+          person.was = { x: at.x, z: at.z };
+          model.stride(person.walked);
+        }
         if (camera) {
           sphere.center.set(at.x, y + 1, at.z);
           const range = camera.position.distanceTo(sphere.center);
@@ -184,10 +196,17 @@ export function minutesOf(clock) {
 // Those models face -Z, which is forward everywhere else in this project, and
 // the cast's heading points along travel, so each one is turned half round
 // inside its own group and the heading is left alone.
+// The walker's own group is handed back on the model, because the walk cycle
+// lives on it and whoever is moving the figure is the only one who knows how
+// far it has come.
 function shape(mode, colour) {
   const model = new THREE.Group();
   model.rotation.y = Math.PI;
-  if (mode === "walk") model.add(buildWalker(colour));
+  if (mode === "walk") {
+    const walker = buildWalker(colour);
+    model.stride = walker.stride;
+    model.add(walker);
+  }
   else if (mode === "bike") model.add(buildBicycle(colour));
   else if (mode === "cart") model.add(buildGolfCart(colour));
   else model.add(mode === "van" ? buildVan(colour) : buildCar(colour));

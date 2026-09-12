@@ -39,7 +39,8 @@ export function buildNovel(scene, sample) {
       // Every model in this project faces -Z and every heading points along
       // travel, so each one is turned half round inside its own group.
       model.rotation.y = Math.PI;
-      model.add(shape(actor.mode, COATS[a % COATS.length]));
+      const walk = shape(actor.mode, COATS[a % COATS.length]);
+      model.add(walk);
       figure.add(model);
       if (actor.lamp) figure.add(lamp());
       group.add(figure);
@@ -49,7 +50,8 @@ export function buildNovel(scene, sample) {
         const w = toWorld(lat, lon);
         return { t, lat, lon, x: w.x, z: w.z };
       });
-      return { figure, on: actor.on, keys, heading: 0 };
+      return { figure, on: actor.on, keys, heading: 0,
+               stride: walk.stride || null, walked: 0, was: null };
     });
     return { chapter, actors };
   });
@@ -71,10 +73,17 @@ export function buildNovel(scene, sample) {
       for (let i = 0; i < scenes.length; i++) {
         const live = i === index;
         for (const actor of scenes[i].actors) {
-          if (!live) { actor.figure.visible = false; continue; }
+          if (!live) { actor.figure.visible = false; actor.was = null; continue; }
           const spot = along(actor.keys, at, dwell);
-          if (!spot) { actor.figure.visible = false; continue; }
+          if (!spot) { actor.figure.visible = false; actor.was = null; continue; }
           actor.figure.position.set(spot.x, hold(actor.on, spot, water, sample), spot.z);
+          if (actor.stride) {
+            const step = actor.was
+              ? Math.hypot(spot.x - actor.was.x, spot.z - actor.was.z) : 0;
+            if (step < 6) actor.walked += step;
+            actor.was = { x: spot.x, z: spot.z };
+            actor.stride(actor.walked);
+          }
           // Standing still keeps whichever way they were last facing, or a
           // figure spins to face north the moment it stops walking.
           if (spot.heading !== null) actor.heading = spot.heading;
@@ -142,6 +151,7 @@ function along(keys, at, dwell) {
 // Two people standing together in the same coat are one person drawn twice.
 const COATS = [0x3f5468, 0x6d4a3a, 0x4f6152, 0x5c5570];
 
+// A walker carries its own walk cycle; everything else just sits there.
 function shape(mode, coat) {
   if (mode === "walk") return buildWalker(coat);
   if (mode === "cart") return buildGolfCart(coat);

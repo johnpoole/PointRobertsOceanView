@@ -137,9 +137,67 @@ export function personGeoms(y = 0, seated = false, coat = COAT) {
   return g;
 }
 
+// A pace, and how far a leg and an arm swing at one. Measured off a walk: a
+// 1.75 m person covers about three quarters of a metre a step and the thigh
+// comes forward twenty-five degrees or so.
+const STRIDE_M = 0.76;
+const SWING_LEG = 0.44;
+const SWING_ARM = 0.30;
+const BOB_M = 0.022;       // the body rises on each pace and drops between
+
+// A walking figure. The core is one mesh and each leg and arm is its own, hung
+// at the hip or the shoulder so it swings about that point: five meshes for
+// something that would otherwise slide along the ground with its feet together.
+//
+// Call stride() with how far it has walked in total. The cycle runs off the
+// ground covered and not off a clock, so a figure that stops has its feet still
+// and one that is being watched from a slow machine does not moonwalk.
 export function buildWalker(coat = COAT) {
   const group = new THREE.Group();
-  group.add(painted(personGeoms(0, false, coat)));
+  const hip = 0.92, shoulder = 1.43;
+  group.add(painted([
+    paint(box(0.33, 0.17, 0.22, 0, hip + 0.02, 0), TROUSERS),
+    paint(box(0.31, 0.22, 0.21, 0, hip + 0.20, 0), coat),
+    paint(box(0.40, 0.28, 0.24, 0, hip + 0.42, 0), coat),
+    paint(cyl(0.085, 0.40, 0, shoulder, 0, "x"), coat),
+    paint(cyl(0.052, 0.09, 0, shoulder + 0.10, 0), SKIN),
+    paint(ball(0.105, 0, shoulder + 0.24, 0.005, 9, 7), SKIN),
+    paint(ball(0.108, 0, shoulder + 0.27, -0.015, 8, 5), HAIR),
+  ]));
+
+  // Each limb is built about its own joint, so rotating the mesh swings it.
+  const legs = [], arms = [];
+  for (const side of [-1, 1]) {
+    const leg = painted([
+      paint(limb(0.090, 0.072, 0.44, 0, -0.22, 0), TROUSERS),
+      paint(limb(0.070, 0.055, 0.42, 0, -0.65, 0), TROUSERS),
+      paint(box(0.115, 0.065, 0.27, 0, -0.887, -0.03), BOOTS),
+    ]);
+    leg.position.set(side * 0.10, hip, 0);
+    group.add(leg);
+    legs.push(leg);
+
+    const arm = painted([
+      paint(limb(0.058, 0.050, 0.32, 0, -0.17, 0), coat),
+      paint(limb(0.050, 0.044, 0.30, 0, -0.44, 0), coat),
+      paint(ball(0.052, 0, -0.60, 0, 6, 5), SKIN),
+    ]);
+    arm.position.set(side * 0.235, shoulder, 0);
+    group.add(arm);
+    arms.push(arm);
+  }
+
+  group.stride = (metres) => {
+    // Half a cycle is one pace, so the legs trade places every stride.
+    const swing = Math.sin((metres / STRIDE_M) * Math.PI);
+    legs[0].rotation.x = swing * SWING_LEG;
+    legs[1].rotation.x = -swing * SWING_LEG;
+    // Arms go the other way to the leg on their own side, which is what a body
+    // does and what stops a walk looking like a march.
+    arms[0].rotation.x = -swing * SWING_ARM;
+    arms[1].rotation.x = swing * SWING_ARM;
+    group.position.y = Math.abs(swing) * BOB_M;
+  };
   return group;
 }
 
