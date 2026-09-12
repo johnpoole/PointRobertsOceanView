@@ -7,25 +7,39 @@
 // sticks is the usual answer and it covers the view with thumbs and rings, and
 // the view is the whole of what this page is for.
 //
+// The stick itself is nipplejs, which is the library everybody uses for this
+// and handles the parts that were wrong here: a second finger landing while the
+// first is steering, a thumb sliding off the edge of the screen, a touch that
+// the browser cancels, and the ring following the thumb rather than jumping.
+// What is left here is the half it does not do — reading a drag as a look — and
+// turning its vector into the numbers nav.js already asks for.
+//
 // This only listens while a vehicle or the boat or free flight is being driven.
 // Looking around from the bluff is OrbitControls' own, and it handles a
 // touchscreen already.
 
-const STICK_R = 58;        // px from the middle of the ring to the stops
+import nipplejs from "nipplejs";
+
 const DEAD_ZONE = 0.14;    // how far the thumb moves before anything happens
+const STICK_PX = 116;      // the ring, corner to corner
 
 export class Touch {
-  // ring and knob are the two elements drawn for the stick; look is read off
-  // whatever else is dragged.
-  constructor(dom, ring, knob) {
+  // dom is what a drag is read off. zone is the strip of screen the stick may
+  // be opened in, which is the left half.
+  constructor(dom, zone) {
     this.dom = dom;
-    this.ring = ring;
-    this.knob = knob;
+    this.zone = zone;
     this.active = false;
     this.move = { x: 0, y: 0 };
     this._look = { dx: 0, dy: 0 };
-    this._stick = null;   // { id, x, y } of the thumb that opened it
     this._drag = null;    // { id, x, y } of the pointer looking about
+    this._held = false;   // a thumb is on the stick
+    this._stick = null;
+
+    // A mouse always looks. There is only one of it, and a stick you have to
+    // hold with the same pointer you steer with is no stick at all. So the
+    // stick is built only where there is a finger to work it.
+    if (navigator.maxTouchPoints > 0) this._buildStick();
 
     dom.addEventListener("pointerdown", (e) => this._down(e));
     dom.addEventListener("pointermove", (e) => this._move(e));
@@ -33,16 +47,47 @@ export class Touch {
     dom.addEventListener("pointercancel", (e) => this._up(e));
   }
 
+  _buildStick() {
+    this._stick = nipplejs.create({
+      zone: this.zone,
+      mode: "dynamic",            // it appears under the thumb, not in a corner
+      color: "rgba(255,255,255,0.55)",
+      size: STICK_PX,
+      restJoystick: true,
+      multitouch: false,
+      maxNumberOfNipples: 1,
+      fadeTime: 120,
+    });
+    this._stick.on("start", () => { this._held = true; });
+    this._stick.on("move", (_, data) => {
+      // vector is a unit vector at the edge of the ring and force is how far
+      // out the thumb is, so the two together are how hard you are pushing and
+      // which way. Screen up is away from you, which is forward.
+      const push = Math.min(data.force, 1);
+      const x = data.vector.x * push;
+      const y = data.vector.y * push;
+      this.move.x = Math.hypot(x, y) < DEAD_ZONE ? 0 : x;
+      this.move.y = Math.hypot(x, y) < DEAD_ZONE ? 0 : y;
+    });
+    this._stick.on("end", () => {
+      this._held = false;
+      this.move.x = 0;
+      this.move.y = 0;
+    });
+  }
+
   // Whether a thumb is on the stick. An aircraft reads it as the throttle:
   // a hand on the stick is an engine open.
   get steering() {
-    return this._stick !== null;
+    return this._held;
   }
 
-  // On while driving, off while looking around from the bluff.
+  // On while driving, off while looking around from the bluff. With the zone
+  // gone the left of the screen is a drag like anywhere else.
   setActive(on) {
     if (this.active === on) return;
     this.active = on;
+    this.zone.classList.toggle("hidden", !on);
     if (!on) this._release();
   }
 
@@ -56,65 +101,34 @@ export class Touch {
   }
 
   _release() {
-    this._stick = null;
     this._drag = null;
+    this._held = false;
     this.move.x = 0;
     this.move.y = 0;
     this._look.dx = 0;
     this._look.dy = 0;
-    this.ring.classList.add("hidden");
+    if (this._stick) this._stick.destroy();
+    if (this._stick) this._buildStick();
   }
 
   _down(e) {
-    if (!this.active) return;
-    // A mouse always looks. There is only one of it, and a stick you have to
-    // hold with the same pointer you steer with is no stick at all.
-    const thumb = e.pointerType === "touch";
-    if (thumb && !this._stick && e.clientX < window.innerWidth / 2) {
-      this._stick = { id: e.pointerId, x: e.clientX, y: e.clientY };
-      this.ring.style.left = `${e.clientX}px`;
-      this.ring.style.top = `${e.clientY}px`;
-      this.knob.style.transform = "translate(-50%, -50%)";
-      this.ring.classList.remove("hidden");
-    } else if (!this._drag) {
-      this._drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
-    } else {
-      return;
-    }
-    // Hold the pointer so a thumb that slides over one of the buttons keeps
-    // steering instead of stopping dead. Only a real pointer can be captured —
+    if (!this.active || this._drag) return;
+    this._drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    // Hold the pointer so a finger that slides over one of the buttons keeps
+    // looking instead of stopping dead. Only a real pointer can be captured —
     // a synthesised event has no pointer behind it and the call throws.
     if (e.isTrusted) this.dom.setPointerCapture(e.pointerId);
   }
 
   _move(e) {
-    if (!this.active) return;
-    if (this._stick && e.pointerId === this._stick.id) {
-      let dx = (e.clientX - this._stick.x) / STICK_R;
-      let dy = (e.clientY - this._stick.y) / STICK_R;
-      const r = Math.hypot(dx, dy);
-      if (r > 1) { dx /= r; dy /= r; }
-      // Away from you is forward, so screen-down is negative.
-      this.move.x = Math.abs(dx) < DEAD_ZONE ? 0 : dx;
-      this.move.y = Math.abs(dy) < DEAD_ZONE ? 0 : -dy;
-      this.knob.style.transform =
-        `translate(calc(-50% + ${dx * STICK_R}px), calc(-50% + ${dy * STICK_R}px))`;
-    } else if (this._drag && e.pointerId === this._drag.id) {
-      this._look.dx += e.clientX - this._drag.x;
-      this._look.dy += e.clientY - this._drag.y;
-      this._drag.x = e.clientX;
-      this._drag.y = e.clientY;
-    }
+    if (!this.active || !this._drag || e.pointerId !== this._drag.id) return;
+    this._look.dx += e.clientX - this._drag.x;
+    this._look.dy += e.clientY - this._drag.y;
+    this._drag.x = e.clientX;
+    this._drag.y = e.clientY;
   }
 
   _up(e) {
-    if (this._stick && e.pointerId === this._stick.id) {
-      this._stick = null;
-      this.move.x = 0;
-      this.move.y = 0;
-      this.ring.classList.add("hidden");
-    } else if (this._drag && e.pointerId === this._drag.id) {
-      this._drag = null;
-    }
+    if (this._drag && e.pointerId === this._drag.id) this._drag = null;
   }
 }

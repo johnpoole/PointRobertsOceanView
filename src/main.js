@@ -977,8 +977,7 @@ function resize() {
 // driven; Nav switches it on and off with the mode.
 const touch = new Touch(
   renderer.domElement,
-  document.getElementById("stick"),
-  document.getElementById("stick-knob"));
+  document.getElementById("stick-zone"));
 
 // The phone turning the view. Off until it is asked for, and asked for on a tap
 // because that is the only place iOS hands the sensor out.

@@ -22,7 +22,8 @@
   {
     "imports": {
       "three": "https://unpkg.com/three@0.186.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/"
+      "three/addons/": "https://unpkg.com/three@0.186.0/examples/jsm/",
+      "nipplejs": "https://unpkg.com/nipplejs@1.0.4/dist/index.mjs"
     }
   }
   </script>
@@ -224,8 +225,9 @@
     <div class="helm-note" id="helm-note"></div>
   </div>
 
-  <!-- The stick, drawn where the thumb lands. -->
-  <div id="stick" class="stick hidden"><div id="stick-knob" class="stick-knob"></div></div>
+  <!-- Where the stick may be opened: the left of the screen, while something
+       is being driven. The stick itself is drawn inside this by nipplejs. -->
+  <div id="stick-zone" class="stick-zone hidden"></div>
 
   <!-- Live mode's one control: the hand correction on the bearing. Phone
        compasses are not all referenced to the same north and none of them says
