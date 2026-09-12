@@ -144,6 +144,11 @@ const STRIDE_M = 0.76;
 const SWING_LEG = 0.44;
 const SWING_ARM = 0.30;
 const BOB_M = 0.022;       // the body rises on each pace and drops between
+// The knee folds on the leg that is coming forward, so the foot clears the
+// ground, and is straight again by the time the heel lands. It does nothing on
+// the leg that is behind you, which is carrying your weight.
+const KNEE = 0.95;
+const KNEE_SHAPE = 1.4;    // how sharply the fold builds and lets go
 
 // A walking figure. The core is one mesh and each leg and arm is its own, hung
 // at the hip or the shoulder so it swings about that point: five meshes for
@@ -165,17 +170,24 @@ export function buildWalker(coat = COAT) {
     paint(ball(0.108, 0, shoulder + 0.27, -0.015, 8, 5), HAIR),
   ]));
 
-  // Each limb is built about its own joint, so rotating the mesh swings it.
-  const legs = [], arms = [];
+  // Each limb is built about its own joint, so rotating the mesh swings it, and
+  // the shin hangs off the thigh at the knee so it swings with the thigh and
+  // folds under it as well.
+  const thighs = [], shins = [], arms = [];
   for (const side of [-1, 1]) {
-    const leg = painted([
+    const thigh = painted([
       paint(limb(0.090, 0.072, 0.44, 0, -0.22, 0), TROUSERS),
-      paint(limb(0.070, 0.055, 0.42, 0, -0.65, 0), TROUSERS),
-      paint(box(0.115, 0.065, 0.27, 0, -0.887, -0.03), BOOTS),
     ]);
-    leg.position.set(side * 0.10, hip, 0);
-    group.add(leg);
-    legs.push(leg);
+    thigh.position.set(side * 0.10, hip, 0);
+    const shin = painted([
+      paint(limb(0.070, 0.055, 0.42, 0, -0.21, 0), TROUSERS),
+      paint(box(0.115, 0.065, 0.27, 0, -0.447, -0.03), BOOTS),
+    ]);
+    shin.position.set(0, -0.44, 0);       // the knee
+    thigh.add(shin);
+    group.add(thigh);
+    thighs.push(thigh);
+    shins.push(shin);
 
     const arm = painted([
       paint(limb(0.058, 0.050, 0.32, 0, -0.17, 0), coat),
@@ -189,13 +201,20 @@ export function buildWalker(coat = COAT) {
 
   group.stride = (metres) => {
     // Half a cycle is one pace, so the legs trade places every stride.
-    const swing = Math.sin((metres / STRIDE_M) * Math.PI);
-    legs[0].rotation.x = swing * SWING_LEG;
-    legs[1].rotation.x = -swing * SWING_LEG;
-    // Arms go the other way to the leg on their own side, which is what a body
-    // does and what stops a walk looking like a march.
-    arms[0].rotation.x = -swing * SWING_ARM;
-    arms[1].rotation.x = swing * SWING_ARM;
+    const phase = (metres / STRIDE_M) * Math.PI;
+    const swing = Math.sin(phase);
+    const rate = Math.cos(phase);          // which way the leg is going
+    for (let i = 0; i < 2; i++) {
+      const side = i === 0 ? 1 : -1;
+      // Forward in this frame is -Z, so a leg is coming forward while its own
+      // angle is falling. That is the half of the cycle the knee folds in.
+      thighs[i].rotation.x = side * swing * SWING_LEG;
+      const coming = Math.max(0, -side * rate);
+      shins[i].rotation.x = KNEE * Math.pow(coming, KNEE_SHAPE);
+      // Arms go the other way to the leg on their own side, which is what a
+      // body does and what stops a walk looking like a march.
+      arms[i].rotation.x = -side * swing * SWING_ARM;
+    }
     group.position.y = Math.abs(swing) * BOB_M;
   };
   return group;
