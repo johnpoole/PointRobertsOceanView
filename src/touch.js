@@ -58,16 +58,21 @@ export class Touch {
       maxNumberOfNipples: 1,
       fadeTime: 120,
     });
+    // One argument, carrying the data on it. nipplejs handed the handler two
+    // up to version 1.
     this._stick.on("start", () => { this._held = true; });
-    this._stick.on("move", (_, data) => {
+    this._stick.on("move", (e) => {
+      const d = e && e.data;
+      if (!d || !d.vector) return;
       // vector is a unit vector at the edge of the ring and force is how far
       // out the thumb is, so the two together are how hard you are pushing and
       // which way. Screen up is away from you, which is forward.
-      const push = Math.min(data.force, 1);
-      const x = data.vector.x * push;
-      const y = data.vector.y * push;
-      this.move.x = Math.hypot(x, y) < DEAD_ZONE ? 0 : x;
-      this.move.y = Math.hypot(x, y) < DEAD_ZONE ? 0 : y;
+      const push = Math.min(d.force, 1);
+      const x = d.vector.x * push;
+      const y = d.vector.y * push;
+      const r = Math.hypot(x, y);
+      this.move.x = r < DEAD_ZONE ? 0 : x;
+      this.move.y = r < DEAD_ZONE ? 0 : y;
     });
     this._stick.on("end", () => {
       this._held = false;
