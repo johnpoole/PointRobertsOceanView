@@ -15,8 +15,8 @@
 import * as THREE from "three";
 import { CAST } from "../config.js";
 import { toWorld } from "../geo.js";
-import { buildWalker, buildBicycle, buildGolfCart, mesh, box, cyl, personGeoms }
-  from "./vehicles.js";
+import { buildWalker, buildBicycle, buildGolfCart, painted, paint, box, cyl,
+  personGeoms } from "./vehicles.js";
 
 // Point Roberts keeps its own clock whoever is looking, so a visitor in Berlin
 // sees the post office open at half eight in the morning there, not here.
@@ -187,64 +187,95 @@ export function minutesOf(clock) {
 function shape(mode, colour) {
   const model = new THREE.Group();
   model.rotation.y = Math.PI;
-  if (mode === "walk") model.add(buildWalker());
-  else if (mode === "bike") model.add(buildBicycle());
-  else if (mode === "cart") model.add(buildGolfCart());
+  if (mode === "walk") model.add(buildWalker(colour));
+  else if (mode === "bike") model.add(buildBicycle(colour));
+  else if (mode === "cart") model.add(buildGolfCart(colour));
   else model.add(mode === "van" ? buildVan(colour) : buildCar(colour));
   model.name = `cast-${mode}`;
   return model;
 }
+const RUBBER = 0x1d1f22;
+const RIM = 0x9aa1a6;
+const GLASS = 0x2b3a42;
+const LAMP = 0xe8e4d6;
+const DARK = 0x2a2d30;
 
-// Four and a half metres of estate car: body, a cabin set into it with glass, a
-// bonnet and boot, wheels on their axles, and somebody driving.
+// A wheel in an arch. The arch is most of what stops a car reading as a brick
+// with discs stuck to the side of it.
+function road(colour, r, width, x, y, z) {
+  return [
+    paint(cyl(r, width, x, y, z, "x"), RUBBER),
+    paint(cyl(r * 0.55, width * 1.04, x, y, z, "x"), RIM),
+    paint(box(0.10, r * 1.1, r * 2.3, x + Math.sign(x) * 0.03, y + 0.16, z), colour),
+  ];
+}
+
+// Four and a half metres of estate car, in one mesh: a sill and a body side, a
+// roof set in narrower than the body with glass under it, a bonnet and a boot
+// stepping down off it, wheels in arches, bumpers, lamps, a grille and mirrors.
+// The old one was four boxes and a windscreen and read as a brick.
 export function buildCar(colour) {
   const group = new THREE.Group();
-  const body = [
-    box(1.78, 0.62, 4.42, 0, 0.72, 0),             // sides, sill to waist
-    box(1.66, 0.30, 2.46, 0, 1.16, -0.05),         // roof band over the cabin
-    box(1.72, 0.22, 1.30, 0, 0.92, -1.55),         // bonnet
-    box(1.72, 0.26, 0.90, 0, 0.94, 1.75),          // boot
-  ];
-  const glass = [
-    box(1.60, 0.44, 2.30, 0, 1.14, -0.05),         // the cabin, seen through
-    box(1.52, 0.40, 0.10, 0, 1.10, -1.24),         // windscreen
-    box(1.52, 0.40, 0.10, 0, 1.10, 1.16),          // rear screen
-  ];
-  const wheels = [];
-  for (const x of [-0.80, 0.80]) for (const z of [-1.42, 1.36]) {
-    wheels.push(cyl(0.33, 0.20, x, 0.33, z, "x"));
+  const g = [];
+  for (const b of [
+    box(1.80, 0.34, 4.30, 0, 0.50, 0),             // sill and lower body
+    box(1.76, 0.34, 4.10, 0, 0.82, 0),             // body side, up to the waist
+    box(1.60, 0.30, 2.10, 0, 1.18, 0.10),          // roof, narrower than the body
+    box(1.70, 0.16, 1.34, 0, 0.96, -1.52),         // bonnet
+    box(1.70, 0.18, 0.86, 0, 0.99, 1.74),          // boot lid
+    box(1.66, 0.14, 0.22, 0, 1.06, -1.02),         // scuttle under the screen
+  ]) g.push(paint(b, colour));
+  for (const b of [
+    box(1.62, 0.36, 1.96, 0, 1.16, 0.10),          // side glass
+    box(1.54, 0.40, 0.34, 0, 1.12, -1.02),         // windscreen
+    box(1.52, 0.36, 0.24, 0, 1.14, 1.26),          // rear screen
+  ]) g.push(paint(b, GLASS));
+  for (const b of [
+    box(1.78, 0.16, 0.22, 0, 0.46, -2.16),         // bumpers
+    box(1.78, 0.16, 0.22, 0, 0.48, 2.10),
+    box(1.10, 0.18, 0.10, 0, 0.78, -2.16),         // grille
+  ]) g.push(paint(b, DARK));
+  for (const x of [-0.62, 0.62]) {
+    g.push(paint(box(0.36, 0.14, 0.10, x, 0.92, -2.14), LAMP));
+    g.push(paint(box(0.30, 0.14, 0.10, x, 0.94, 2.08), 0x8c2f2f));
+    g.push(paint(box(0.16, 0.10, 0.06, x * 1.55, 1.04, -0.92), colour));
   }
-  const lamps = [box(0.34, 0.16, 0.08, -0.62, 0.92, -2.18),
-                 box(0.34, 0.16, 0.08, 0.62, 0.92, -2.18)];
-  group.add(mesh(body, colour, { roughness: 0.55, metalness: 0.25 }));
-  group.add(mesh(glass, 0x2b3a42, { roughness: 0.25, metalness: 0.1 }));
-  group.add(mesh(wheels, 0x1d1f22, { roughness: 0.9 }));
-  group.add(mesh(lamps, 0xe8e4d6, { roughness: 0.4 }));
-  group.add(mesh(personGeoms(0.62, true), 0x3f5468));
+  for (const x of [-0.82, 0.82]) for (const z of [-1.40, 1.36]) {
+    g.push(...road(colour, 0.32, 0.20, x, 0.34, z));
+  }
+  g.push(...personGeoms(0.66, true));
+  group.add(painted(g));
   return group;
 }
 
-// A parcel van: a tall box behind a cab, which is what one is.
+// A parcel van: a tall box behind a cab, which is what one is, with the roll-up
+// door at the back and the step under it.
 function buildVan(colour) {
   const group = new THREE.Group();
-  const body = [
-    box(1.94, 1.62, 3.30, 0, 1.28, 0.75),          // the box behind the cab
-    box(1.86, 0.86, 1.70, 0, 0.90, -1.30),         // the cab
-    box(1.90, 0.30, 0.60, 0, 0.62, -2.20),         // the nose
-  ];
-  const glass = [
-    box(1.70, 0.52, 0.10, 0, 1.16, -2.12),         // windscreen
-    box(0.10, 0.46, 0.90, -0.94, 1.14, -1.30),     // cab windows
-    box(0.10, 0.46, 0.90, 0.94, 1.14, -1.30),
-  ];
-  const wheels = [];
-  for (const x of [-0.88, 0.88]) for (const z of [-1.42, 1.62]) {
-    wheels.push(cyl(0.38, 0.22, x, 0.38, z, "x"));
+  const g = [];
+  for (const b of [
+    box(1.96, 1.70, 3.20, 0, 1.32, 0.80),          // the box behind the cab
+    box(1.88, 0.94, 1.74, 0, 0.94, -1.28),         // the cab
+    box(1.90, 0.26, 0.66, 0, 0.66, -2.18),         // the nose
+    box(1.92, 0.06, 3.26, 0, 2.20, 0.80),          // roof cap
+  ]) g.push(paint(b, colour));
+  for (const b of [
+    box(1.72, 0.56, 0.16, 0, 1.24, -2.08),         // windscreen
+    box(0.10, 0.48, 0.92, -0.95, 1.22, -1.28),     // cab windows
+    box(0.10, 0.48, 0.92, 0.95, 1.22, -1.28),
+  ]) g.push(paint(b, GLASS));
+  for (const b of [
+    box(1.84, 1.46, 0.06, 0, 1.28, 2.42),          // the door at the back
+    box(1.60, 0.14, 0.30, 0, 0.44, 2.46),          // the step under it
+    box(1.86, 0.16, 0.20, 0, 0.50, -2.42),         // front bumper
+  ]) g.push(paint(b, DARK));
+  for (const x of [-0.64, 0.64]) {
+    g.push(paint(box(0.30, 0.16, 0.10, x, 0.90, -2.44), LAMP));
   }
-  group.add(mesh(body, colour, { roughness: 0.7, metalness: 0.1 }));
-  group.add(mesh(glass, 0x2b3a42, { roughness: 0.25 }));
-  group.add(mesh(wheels, 0x1d1f22, { roughness: 0.9 }));
-  group.add(mesh(personGeoms(0.86, true), 0x3f5468));
+  for (const x of [-0.90, 0.90]) for (const z of [-1.40, 1.60]) {
+    g.push(...road(colour, 0.37, 0.22, x, 0.38, z));
+  }
+  g.push(...personGeoms(0.90, true));
+  group.add(painted(g));
   return group;
 }
-

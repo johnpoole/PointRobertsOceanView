@@ -10,7 +10,8 @@
 
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
-import { buildWalker, buildGolfCart, mesh, box, cyl } from "./vehicles.js";
+import { buildWalker, buildGolfCart, painted, paint, mesh, box, cyl, personGeoms }
+  from "./vehicles.js";
 import { buildCar } from "./cast.js";
 import { buildBoat } from "./boat.js";
 import { DOCK_PLAN } from "./marina-dock-plan.js";
@@ -38,7 +39,7 @@ export function buildNovel(scene, sample) {
       // Every model in this project faces -Z and every heading points along
       // travel, so each one is turned half round inside its own group.
       model.rotation.y = Math.PI;
-      model.add(shape(actor.mode));
+      model.add(shape(actor.mode, COATS[a % COATS.length]));
       figure.add(model);
       if (actor.lamp) figure.add(lamp());
       group.add(figure);
@@ -138,9 +139,12 @@ function along(keys, at, dwell) {
   return null;
 }
 
-function shape(mode) {
-  if (mode === "walk") return buildWalker();
-  if (mode === "cart") return buildGolfCart();
+// Two people standing together in the same coat are one person drawn twice.
+const COATS = [0x3f5468, 0x6d4a3a, 0x4f6152, 0x5c5570];
+
+function shape(mode, coat) {
+  if (mode === "walk") return buildWalker(coat);
+  if (mode === "cart") return buildGolfCart(coat);
   if (mode === "car") return buildCar(0x6a6f76);
   if (mode === "boat") return working();
   if (mode === "sloop") return sloop();
@@ -155,14 +159,21 @@ function working() {
   const boat = buildBoat();
   boat.visible = true;
   group.add(boat);
-  group.add(mesh([
-    box(0.34, 0.62, 0.30, -0.30, 0.50, 0.55),    // one of them at the helm
-    box(0.34, 0.62, 0.30, 0.28, 0.55, -0.30),    // one of them at the rail
-  ], 0x3f5468, { roughness: 0.8 }));
-  group.add(mesh([
-    cyl(0.05, 0.95, 0, 0.65, 1.55),              // the pole over the transom
-    box(0.22, 0.18, 0.26, 0, 1.16, 1.55),        // the head on the end of it
-  ], 0x40464b, { roughness: 0.6, metalness: 0.3 }));
+  // Two aboard: one at the helm in the stern, one forward at the rail.
+  const crew = [];
+  for (const g of personGeoms(0.36, true, 0x3f5468)) {
+    g.translate(-0.26, 0, 0.62);
+    crew.push(g);
+  }
+  for (const g of personGeoms(0.40, true, 0x6d4a3a)) {
+    g.translate(0.24, 0, -0.38);
+    crew.push(g);
+  }
+  for (const g of [
+    paint(cyl(0.05, 0.95, 0, 0.65, 1.55), 0x40464b),   // the pole over the transom
+    paint(box(0.22, 0.18, 0.26, 0, 1.16, 1.55), 0x40464b),  // the head on it
+  ]) crew.push(g);
+  group.add(painted(crew));
   return group;
 }
 

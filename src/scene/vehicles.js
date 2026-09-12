@@ -21,6 +21,34 @@ export function mesh(geoms, color, opts = {}) {
   }));
 }
 
+// A colour carried in the geometry instead of in a material. Merging painted
+// parts gives one mesh with many colours in it, which is how a figure gets
+// boots, trousers, a coat and a face without four draw calls and four
+// materials — and why every figure on the peninsula can share the one material
+// below. The cost is three floats a vertex, against a figure that is a few
+// hundred of them.
+const PAINT = new THREE.Color();
+export function paint(g, hex) {
+  PAINT.setHex(hex);
+  const n = g.attributes.position.count;
+  const c = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    c[i * 3] = PAINT.r; c[i * 3 + 1] = PAINT.g; c[i * 3 + 2] = PAINT.b;
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(c, 3));
+  return g;
+}
+
+// Cloth, skin and paintwork all sit in about the same place on the dial, and
+// nothing here is a mirror. One material, shared, for every painted thing.
+const PAINTED = new THREE.MeshStandardMaterial({
+  vertexColors: true, roughness: 0.72, metalness: 0.06,
+});
+
+export function painted(geoms) {
+  return new THREE.Mesh(mergeGeometries(geoms, false), PAINTED);
+}
+
 export function box(w, h, d, x, y, z) {
   const g = new THREE.BoxGeometry(w, h, d);
   g.translate(x, y, z);
@@ -35,71 +63,158 @@ export function cyl(r, len, x, y, z, axis = "y") {
   return g;
 }
 
-// A figure, 1.75 m standing. Seated, y is the saddle or seat and the legs go
-// forward out of the way, so the head sits 0.90 m above it rather than a whole
-// standing body's worth.
-export function personGeoms(y = 0, seated = false) {
-  const g = [];
-  let hip = y;
-  if (seated) {
-    g.push(cyl(0.14, 0.52, 0, y + 0.02, -0.28, "z"));          // thighs, forward
-  } else {
-    hip = y + 0.85;
-    g.push(cyl(0.15, 0.85, 0, y + 0.425, 0));                  // legs
-  }
-  g.push(box(0.42, 0.58, 0.24, 0, hip + 0.29, 0));             // torso
-  g.push(cyl(0.11, 0.12, 0, hip + 0.64, 0));                   // neck
-  const head = new THREE.SphereGeometry(0.115, 10, 8);
-  head.translate(0, hip + 0.78, 0);
-  g.push(head);
+// A limb: a cylinder that tapers, with fewer sides than a wheel needs. Six is
+// enough on something eleven centimetres across.
+function limb(top, bottom, len, x, y, z, tilt = 0, roll = 0) {
+  const g = new THREE.CylinderGeometry(top, bottom, len, 6);
+  if (tilt) g.rotateX(tilt);
+  if (roll) g.rotateZ(roll);
+  g.translate(x, y, z);
   return g;
 }
 
-export function buildWalker() {
+function ball(r, x, y, z, wide = 8, tall = 6) {
+  const g = new THREE.SphereGeometry(r, wide, tall);
+  g.translate(x, y, z);
+  return g;
+}
+
+// What a person is made of. Coats vary because people do; the rest does not.
+const SKIN = 0xd9b79a;
+const HAIR = 0x3a2f2a;
+const TROUSERS = 0x2f3742;
+const BOOTS = 0x1d1f22;
+const COAT = 0x3f5468;
+
+// A figure, 1.75 m standing, in one painted mesh: boots, legs, hips, a torso
+// that narrows at the waist, shoulders, arms, hands and a head. The old one was
+// a cylinder, a box and a ball, which read as a bollard from any distance a
+// person is usually seen at.
+//
+// Seated, y is the saddle or the seat: the thighs go forward, the shins drop off
+// the front of them, and the arms come up to whatever is being held.
+export function personGeoms(y = 0, seated = false, coat = COAT) {
+  const g = [];
+  let hip, shoulder;
+  if (seated) {
+    hip = y + 0.10;
+    g.push(paint(limb(0.10, 0.10, 0.46, -0.11, y + 0.10, -0.20, Math.PI / 2), TROUSERS));
+    g.push(paint(limb(0.10, 0.10, 0.46, 0.11, y + 0.10, -0.20, Math.PI / 2), TROUSERS));
+    g.push(paint(limb(0.075, 0.065, 0.40, -0.11, y - 0.12, -0.40), TROUSERS));
+    g.push(paint(limb(0.075, 0.065, 0.40, 0.11, y - 0.12, -0.40), TROUSERS));
+    g.push(paint(box(0.11, 0.07, 0.25, -0.11, y - 0.35, -0.48), BOOTS));
+    g.push(paint(box(0.11, 0.07, 0.25, 0.11, y - 0.35, -0.48), BOOTS));
+    shoulder = hip + 0.52;
+  } else {
+    hip = y + 0.92;
+    g.push(paint(box(0.115, 0.065, 0.27, -0.10, y + 0.033, -0.03), BOOTS));
+    g.push(paint(box(0.115, 0.065, 0.27, 0.10, y + 0.033, -0.03), BOOTS));
+    g.push(paint(limb(0.070, 0.055, 0.42, -0.10, y + 0.27, 0), TROUSERS));
+    g.push(paint(limb(0.070, 0.055, 0.42, 0.10, y + 0.27, 0), TROUSERS));
+    g.push(paint(limb(0.090, 0.072, 0.44, -0.10, y + 0.70, 0), TROUSERS));
+    g.push(paint(limb(0.090, 0.072, 0.44, 0.10, y + 0.70, 0), TROUSERS));
+    shoulder = hip + 0.51;
+  }
+  g.push(paint(box(0.33, 0.17, 0.22, 0, hip + 0.02, 0), TROUSERS));      // hips
+  g.push(paint(box(0.31, 0.22, 0.21, 0, hip + 0.20, 0), coat));          // waist
+  g.push(paint(box(0.40, 0.28, 0.24, 0, hip + 0.42, 0), coat));          // chest
+  g.push(paint(cyl(0.085, 0.40, 0, shoulder, 0, "x"), coat));            // shoulders
+  // Arms, forward a little when seated because there is a wheel or a tiller in
+  // front of them, and down at the side when there is not.
+  const reach = seated ? -0.22 : 0;
+  const drop = seated ? 0.10 : 0;
+  for (const side of [-1, 1]) {
+    g.push(paint(limb(0.058, 0.050, 0.32, side * 0.235, shoulder - 0.17,
+      reach * 0.4), coat));
+    g.push(paint(limb(0.050, 0.044, 0.30, side * 0.245, shoulder - 0.44 + drop,
+      reach), coat));
+    g.push(paint(ball(0.052, side * 0.25, shoulder - 0.60 + drop * 1.6,
+      reach * 1.35, 6, 5), SKIN));
+  }
+  g.push(paint(cyl(0.052, 0.09, 0, shoulder + 0.10, 0), SKIN));          // neck
+  g.push(paint(ball(0.105, 0, shoulder + 0.24, 0.005, 9, 7), SKIN));     // head
+  g.push(paint(ball(0.108, 0, shoulder + 0.27, -0.015, 8, 5), HAIR));    // hair
+  return g;
+}
+
+export function buildWalker(coat = COAT) {
   const group = new THREE.Group();
-  group.add(mesh(personGeoms(0), 0x3f5468));
+  group.add(painted(personGeoms(0, false, coat)));
   return group;
 }
 
-export function buildBicycle() {
+// Tyres, glass and the chrome-ish bits, shared by everything with wheels.
+const RUBBER = 0x1d1f22;
+const RIM = 0x9aa1a6;
+const GLASS = 0x2b3a42;
+const TRIM = 0x40464b;
+
+// A wheel: a tyre with a rim showing in the middle of it, which is most of what
+// tells a wheel from a black cylinder.
+function wheel(r, width, x, y, z) {
+  return [
+    paint(cyl(r, width, x, y, z, "x"), RUBBER),
+    paint(cyl(r * 0.56, width * 1.04, x, y, z, "x"), RIM),
+  ];
+}
+
+export function buildBicycle(coat = COAT) {
   const group = new THREE.Group();
   const R = 0.34;
-  const frame = [
-    cyl(0.035, 0.98, 0, R + 0.28, 0, "z"),         // top tube, along the bike
-    cyl(0.03, 0.42, 0, R + 0.30, -0.42),           // head tube area
-    cyl(0.03, 0.50, 0, R + 0.18, 0.30),            // seat tube
-    cyl(0.025, 0.46, 0, R + 0.52, -0.44, "x"),     // handlebars
-  ];
-  const wheels = [];
+  const g = [];
+  for (const t of [
+    cyl(0.032, 0.62, 0, R + 0.34, -0.12, "z"),     // top tube
+    cyl(0.032, 0.66, 0, R + 0.16, -0.10, "z"),     // down tube, under it
+    cyl(0.028, 0.46, 0, R + 0.30, -0.40),          // head tube
+    cyl(0.028, 0.50, 0, R + 0.20, 0.22),           // seat tube
+    cyl(0.022, 0.52, 0, R + 0.06, 0.38, "z"),      // chain stays
+    cyl(0.022, 0.48, 0, R + 0.26, 0.40),           // seat stays
+  ]) g.push(paint(t, 0x8d3b3b));
+  g.push(paint(cyl(0.022, 0.44, 0, R + 0.54, -0.44, "x"), TRIM));   // bars
+  g.push(paint(box(0.06, 0.05, 0.24, 0, R + 0.46, 0.28), TRIM));    // saddle
+  g.push(paint(cyl(0.09, 0.03, 0, R - 0.02, 0.02, "x"), TRIM));     // chainring
   for (const z of [-0.52, 0.52]) {
-    const t = new THREE.TorusGeometry(R, 0.028, 6, 20);
+    const t = new THREE.TorusGeometry(R, 0.026, 5, 16);
     t.translate(0, R, z);
-    wheels.push(t);
+    g.push(paint(t, RUBBER));
+    // Spokes, as a disc too thin to see edge on and enough to fill a wheel.
+    const d = new THREE.CylinderGeometry(R - 0.04, R - 0.04, 0.006, 12);
+    d.rotateZ(Math.PI / 2);
+    d.translate(0, R, z);
+    g.push(paint(d, 0xb9bfc4));
   }
-  group.add(mesh(frame, 0x8d3b3b, { metalness: 0.4, roughness: 0.5 }));
-  group.add(mesh(wheels, 0x1d1f22, { roughness: 0.9 }));
-  group.add(mesh(personGeoms(R + 0.34, true), 0x3f5468));
+  g.push(...personGeoms(R + 0.34, true, coat));
+  group.add(painted(g));
   return group;
 }
 
-export function buildGolfCart() {
+export function buildGolfCart(coat = COAT, shell = 0xdfe3e0) {
   const group = new THREE.Group();
-  const body = [
-    box(1.20, 0.38, 2.20, 0, 0.42, 0),             // tub
-    box(1.16, 0.46, 0.10, 0, 0.85, 0.42),          // seat back
-    box(1.10, 0.06, 0.60, 0, 0.62, -0.10),         // seat base
-    box(1.16, 0.05, 1.30, 0, 1.86, -0.10),         // roof
-  ];
-  for (const x of [-0.52, 0.52]) for (const z of [-0.72, 0.72]) {
-    body.push(cyl(0.03, 1.30, x, 1.22, z));        // roof posts
+  const g = [];
+  for (const b of [
+    box(1.22, 0.30, 1.05, 0, 0.46, 0.45),          // tub, behind the seat
+    box(1.22, 0.22, 1.10, 0, 0.40, -0.62),         // floor pan and nose
+    box(1.18, 0.10, 0.62, 0, 0.64, -0.08),         // seat base
+    box(1.18, 0.44, 0.12, 0, 0.90, 0.26),          // seat back
+    box(1.16, 0.05, 1.34, 0, 1.82, -0.12),         // roof
+    box(1.10, 0.26, 0.06, 0, 0.86, -1.12),         // dash
+    box(1.14, 0.34, 0.05, 0, 1.45, -0.78),         // windscreen frame, top rail
+  ]) g.push(paint(b, shell));
+  g.push(paint(box(1.06, 0.52, 0.02, 0, 1.16, -0.78), GLASS));      // screen
+  for (const x of [-0.54, 0.54]) for (const z of [-0.76, 0.74]) {
+    g.push(paint(cyl(0.028, 1.26, x, 1.19, z), TRIM));              // roof posts
   }
-  const wheels = [];
-  for (const x of [-0.58, 0.58]) for (const z of [-0.76, 0.78]) {
-    wheels.push(cyl(0.29, 0.16, x, 0.29, z, "x"));
+  // A wheel and a tiller are what say this is driven rather than parked.
+  const w = new THREE.TorusGeometry(0.16, 0.018, 4, 12);
+  w.rotateX(-1.15);
+  w.translate(0, 1.06, -0.92);
+  g.push(paint(w, TRIM));
+  g.push(paint(box(0.86, 0.05, 0.44, 0, 1.18, 0.72), TRIM));        // bag rack
+  for (const x of [-0.58, 0.58]) for (const z of [-0.78, 0.76]) {
+    g.push(...wheel(0.28, 0.16, x, 0.28, z));
   }
-  group.add(mesh(body, 0xdfe3e0, { roughness: 0.6 }));
-  group.add(mesh(wheels, 0x1d1f22, { roughness: 0.9 }));
-  group.add(mesh(personGeoms(0.62, true), 0x3f5468));
+  g.push(...personGeoms(0.68, true, coat));
+  group.add(painted(g));
   return group;
 }
 
@@ -131,7 +246,7 @@ function buildUltralight() {
   group.add(new THREE.Mesh(prop, new THREE.MeshStandardMaterial({
     color: 0x9aa0a6, transparent: true, opacity: 0.25, side: THREE.DoubleSide,
   })));
-  group.add(mesh(personGeoms(0.55, true), 0x3f5468));
+  group.add(painted(personGeoms(0.55, true)));
   return group;
 }
 
