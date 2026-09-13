@@ -83,15 +83,28 @@ function alongRoad(road, fraction) {
   };
 }
 
-// Where two named streets meet: the closest their two lines come to each other.
-function junction(one, two) {
+// Where two named streets meet: the closest their lines come to each other.
+//
+// Every way of each name, not the longest of each. OpenStreetMap splits a road
+// wherever anything about it changes, so APA Road is three ways and Boundary
+// Bay Road is three more, and the longest of one is 1,210 m from the longest of
+// the other while the second and third touch it exactly. Comparing only the
+// longest missed the junction and dropped the call on APA Road's midpoint.
+function junction(ones, twos) {
   let best = null, gap = Infinity;
-  for (const a of one.coords) {
-    const p = toWorld(a[0], a[1]);
-    for (const b of two.coords) {
-      const q = toWorld(b[0], b[1]);
-      const d = Math.hypot(p.x - q.x, p.z - q.z);
-      if (d < gap) { gap = d; best = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2 }; }
+  for (const one of ones) {
+    for (const a of one.coords) {
+      const p = toWorld(a[0], a[1]);
+      for (const two of twos) {
+        for (const b of two.coords) {
+          const q = toWorld(b[0], b[1]);
+          const d = Math.hypot(p.x - q.x, p.z - q.z);
+          if (d < gap) {
+            gap = d;
+            best = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2 };
+          }
+        }
+      }
     }
   }
   // Two streets that never come within a block of each other are not a junction
@@ -208,15 +221,15 @@ function locate(call, streets, used) {
   if (found.some(f => !f || !f.length)) return null;
 
   if (found.length >= 2) {
-    const at = junction(found[0][0], found[1][0]);
-    if (at) return offset(at, 0);
+    const at = junction(found[0], found[1]);
+    if (at) return offset(at);
   }
   const road = found[0][0];
   const n = used.get(parts[0]) || 0;
   used.set(parts[0], n + 1);
   // Spread them down the road rather than all at the middle: 0.5, 0.3, 0.7, …
   const spread = [0.5, 0.3, 0.7, 0.4, 0.6, 0.22, 0.78, 0.35, 0.65];
-  return offset(alongRoad(road, spread[n % spread.length]), 0);
+  return offset(alongRoad(road, spread[n % spread.length]));
 }
 
 // Off the carriageway, on the side the road's own direction says is right.
