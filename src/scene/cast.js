@@ -51,7 +51,7 @@ export async function buildCast(scene, sample) {
     const colour = COLOURS[i % COLOURS.length];
     const figure = new THREE.Group();
     figure.name = `cast-${person.role.replace(/\s+/g, "-")}`;
-    const model = shape(person.mode, colour);
+    const model = shape(person.mode, colour, person.role);
     figure.add(model);
     group.add(figure);
     // Where each leg starts in the day, and how long it takes at their pace.
@@ -199,11 +199,11 @@ export function minutesOf(clock) {
 // The walker's own group is handed back on the model, because the walk cycle
 // lives on it and whoever is moving the figure is the only one who knows how
 // far it has come.
-function shape(mode, colour) {
+function shape(mode, colour, role) {
   const model = new THREE.Group();
   model.rotation.y = Math.PI;
   if (mode === "walk") {
-    const walker = buildWalker(colour);
+    const walker = buildWalker(colour, role);
     model.stride = walker.stride;
     model.add(walker);
   }

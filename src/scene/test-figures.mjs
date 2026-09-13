@@ -142,6 +142,70 @@ await test("different callers get different people", () => {
   assert.ok(skins.size >= 3, `24 people have only ${skins.size} skin tones`);
 });
 
+// ---- dressed by role --------------------------------------------------------
+
+const SHIRT = figures.REGIONS.indexOf("shirt");
+const TROUSERS = figures.REGIONS.indexOf("trousers");
+const SHOES = figures.REGIONS.indexOf("shoes");
+const HEAD = figures.REGIONS.indexOf("hair");
+
+await test("the deputy is in the county's uniform whatever coat was passed", () => {
+  // Black Class B shirt and pants, black boots, black cap, per the Whatcom
+  // County Sheriff's Office uniform directive of 13 March 2024.
+  for (const coat of [0x2b3a52, 0xa0512f]) {
+    const p = figures.paletteFor(coat, "the deputy");
+    for (const part of [SHIRT, TROUSERS, SHOES, HEAD]) {
+      const c = p[part];
+      const lightest = Math.max(c >> 16 & 255, c >> 8 & 255, c & 255);
+      assert.ok(lightest < 0x30, `the deputy's ${figures.REGIONS[part]} is #${c.toString(16)}, not black`);
+    }
+  }
+});
+
+await test("golfers keep the caller's shirt, so a four-ball can be told apart", () => {
+  const shirts = [0x3f5468, 0x8c5a3c, 0x4f7a55, 0x8a4f6d];
+  const drawn = shirts.map(s => figures.paletteFor(s, "the golfer"));
+  drawn.forEach((p, i) => assert.equal(p[SHIRT], shirts[i]));
+  assert.ok(drawn.every(p => p[HEAD] === drawn[0][HEAD]), "the golfers' caps differ");
+  assert.equal(new Set(drawn.map(p => p[SHIRT])).size, 4);
+});
+
+await test("a role sets clothes, never the person under them", () => {
+  // Skin comes from who they are, not from the job.
+  assert.equal(figures.paletteFor(0x4a6fa5, "the cook")[0],
+               figures.paletteFor(0x4a6fa5)[0]);
+});
+
+await test("a role with no outfit dresses like anybody else", () => {
+  assert.deepEqual(figures.paletteFor(0x4a6fa5, "the harbourmaster"),
+                   figures.paletteFor(0x4a6fa5));
+  assert.deepEqual(figures.paletteFor(0x4a6fa5, null), figures.paletteFor(0x4a6fa5));
+});
+
+await test("every outfit is for a role that exists", () => {
+  // The cast's roles come from cast.json and the golfer and the deputy from
+  // golf.js and recreation.js. An outfit for a role renamed anywhere would be
+  // clothes nobody wears.
+  const cast = JSON.parse(fs.readFileSync(
+    path.join(HERE, "..", "..", "assets", "cast.json"), "utf8")).cast;
+  const walkers = new Set(cast.filter(p => p.mode === "walk").map(p => p.role));
+  const golf = fs.readFileSync(path.join(HERE, "golf.js"), "utf8");
+  const recreation = fs.readFileSync(path.join(HERE, "recreation.js"), "utf8");
+  for (const role of Object.keys(figures.OUTFITS)) {
+    const passed = walkers.has(role)
+      || golf.includes(`"${role}"`) || recreation.includes(`"${role}"`);
+    assert.ok(passed, `there is an outfit for ${role} and nobody passes that role`);
+  }
+});
+
+await test("every walker in the cast is dressed for their job", () => {
+  const cast = JSON.parse(fs.readFileSync(
+    path.join(HERE, "..", "..", "assets", "cast.json"), "utf8")).cast;
+  for (const p of cast.filter(p => p.mode === "walk")) {
+    assert.ok(figures.OUTFITS[p.role], `${p.role} walks and has no outfit`);
+  }
+});
+
 // ---- the module -------------------------------------------------------------
 
 await figures.preload();

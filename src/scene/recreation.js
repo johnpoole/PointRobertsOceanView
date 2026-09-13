@@ -56,7 +56,7 @@ export function buildRecreation(scene, sample) {
   carAt.visible = false;
   group.add(carAt);
 
-  const walker = buildWalker(0x2b3a52);
+  const walker = buildWalker(0x2b3a52, "the deputy");
   const figure = new THREE.Group();
   figure.rotation.y = Math.PI;
   figure.add(walker);

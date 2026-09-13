@@ -113,7 +113,7 @@ export async function buildGolf(scene, sample) {
     for (let p = 0; p < 4; p++) {
       // The same figure as the rest of the peninsula, and the same walk. They
       // were three boxes standing still and sliding down the fairway.
-      const walker = buildWalker(SHIRTS[p % SHIRTS.length]);
+      const walker = buildWalker(SHIRTS[p % SHIRTS.length], "the golfer");
       const figure = new THREE.Group();
       figure.rotation.y = Math.PI;       // the models face -Z, headings point along travel
       figure.add(walker);

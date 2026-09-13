@@ -66,14 +66,41 @@ const HAIR = [0x2b1f17, 0x4a3222, 0x8a6a45, 0xb9a27a, 0x9c9c9c, 0x1a1a1a];
 const TROUSERS = [0x2e3440, 0x3b4a5a, 0x5a4a3a, 0x6b6b5e, 0x1f2328];
 const SHOES = [0x2a2522, 0x3d3128, 0x1c1c1c, 0x6e6259];
 
-export function paletteFor(coat) {
+// What a role wears. Anything a role does not set is chosen the way it is for
+// anybody else, so a golfer still has their own hair colour under the cap and
+// the caller's shirt colour still tells four golfers apart. head is a hat or a
+// cap, and it takes the place of the hair.
+//
+// The roles are the ones cast.json gives, and the test holds them to it, so a
+// role renamed there does not quietly lose its clothes here.
+export const OUTFITS = {
+  // Whatcom County Sheriff's Office uniform directive, 13 March 2024: Class B
+  // shirt black, Class B pants black, duty footwear black boots, baseball-style
+  // cap black. https://www.whatcomcounty.us/DocumentCenter/View/72051/Uniforms
+  "the deputy": { shirt: 0x17181b, trousers: 0x17181b, shoes: 0x101112, head: 0x17181b },
+  // A polo in the caller's colour, pale trousers, white shoes and a white cap.
+  "the golfer": { trousers: 0xb8a57e, shoes: 0xe8e6e0, head: 0xe8e6e0 },
+  // Kitchen whites and a skull cap, with dark trousers and non-slip black shoes.
+  "the cook": { shirt: 0xeeeeea, trousers: 0x2c2c2e, shoes: 0x1c1c1c, head: 0xeeeeea },
+  // Walking trousers and brown boots under whatever jacket they came in.
+  "the hiker": { trousers: 0x5a5a4a, shoes: 0x5a3e2a },
+  // Jeans and grey trainers.
+  "the dog walker": { trousers: 0x3b4a5a, shoes: 0x8a8a86 },
+  // Dark work trousers and black shoes, on their feet all day.
+  "the shop hand": { trousers: 0x2e3440, shoes: 0x1f1f1f },
+};
+
+// The five colours one person is drawn in: skin, shirt, trousers, shoes, and
+// hair or hat. role is optional, and a role with no outfit dresses like anyone.
+export function paletteFor(coat, role) {
   const h = Math.imul(Math.round(coat) | 0, 2654435761) >>> 0;
+  const wears = OUTFITS[role] || {};
   return [
     SKIN[h % SKIN.length],
-    Math.round(coat) & 0xffffff,
-    TROUSERS[(h >>> 7) % TROUSERS.length],
-    SHOES[(h >>> 11) % SHOES.length],
-    HAIR[(h >>> 3) % HAIR.length],
+    wears.shirt ?? (Math.round(coat) & 0xffffff),
+    wears.trousers ?? TROUSERS[(h >>> 7) % TROUSERS.length],
+    wears.shoes ?? SHOES[(h >>> 11) % SHOES.length],
+    wears.head ?? HAIR[(h >>> 3) % HAIR.length],
   ];
 }
 
@@ -102,9 +129,9 @@ function dress(scene) {
 // One character's clothes. The shader is the standard one with its diffuse
 // colour taken from the palette by region instead of from a single colour, so
 // the figures light, shade and fog the same as everything else in the scene.
-function clothesFor(coat) {
+function clothesFor(coat, role) {
   const material = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 });
-  const palette = paletteFor(coat).map(c => new THREE.Color(c));
+  const palette = paletteFor(coat, role).map(c => new THREE.Color(c));
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPalette = { value: palette };
     shader.vertexShader = shader.vertexShader
@@ -154,8 +181,9 @@ export function preload() {
   return load().catch(() => null);
 }
 
-// A walking person, dressed from the coat colour the caller gives.
-export function buildWalker(coat = 0x808080) {
+// A walking person, dressed for their role, with the coat colour the caller
+// gives as their shirt where the role does not set one.
+export function buildWalker(coat = 0x808080, role = null) {
   const group = new THREE.Group();
   // Until the model lands there is nobody here. stride still answers, because
   // the callers drive it from the first frame.
@@ -166,7 +194,7 @@ export function buildWalker(coat = 0x808080) {
     const body = cloneSkinned(model.scene);
     // The model faces +Z and everything in this scene faces -Z.
     body.rotation.y = Math.PI;
-    const clothes = clothesFor(coat);
+    const clothes = clothesFor(coat, role);
     body.traverse((o) => {
       if (!o.isMesh) return;
       o.material = clothes;
