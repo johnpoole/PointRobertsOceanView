@@ -6,8 +6,13 @@
 // It loads at runtime off jsDelivr's mirror of the three.js repository, pinned
 // to the same release as the rest of three here.
 //
-// One file, loaded once, and every figure is a clone of it with its own
-// skeleton and its own mixer.
+// Xbot is a mannequin: grey, with no clothes and no face. It is the base, and
+// each character is dressed on top of it. Every vertex follows some bone, and
+// which bone says what part of a person it is: the head and hands are skin, the
+// chest and arms are a shirt, the hips and legs are trousers, the feet are shoes,
+// and the crown of the head is hair. That is worked out once on the loaded model.
+// Each character then gets its own five colours, so the geometry is shared by
+// everyone and a character costs one small material.
 //
 // What the callers see has not changed. buildWalker returns a group at once and
 // group.stride(metres) turns the legs, because feet that keep up with the ground
@@ -29,7 +34,97 @@ const CYCLE_M = STRIDE_M * 2;
 
 const WALK = "walk";
 
-let loaded = null;        // Promise of the model and its walk, started on first use
+// The parts a person is dressed in, in the order the shader indexes them.
+export const REGIONS = ["skin", "shirt", "trousers", "shoes", "hair"];
+
+// The crown of the head, as modelled. Xbot stands 1.81 m and the head bone
+// carries everything from the jaw up; above this is the top and back of the
+// skull, where hair is. 285 of its vertices.
+const HAIR_ABOVE_M = 1.69;
+
+// Which part of a person a vertex is, from the bone that moves it most and how
+// high it sits. Bone names arrive as mixamorigHips or mixamorig:Hips depending
+// on who read the file, so the prefix is taken off either way.
+export function regionOf(boneName, y) {
+  const bone = String(boneName).replace(/^mixamorig:?/, "");
+  if (bone.startsWith("Head") || bone.startsWith("Neck")
+      || bone.endsWith("Eye") || bone.includes("Hand")) {
+    return bone.startsWith("Head") && y > HAIR_ABOVE_M ? 4 : 0;
+  }
+  if (bone.startsWith("Spine") || bone.endsWith("Shoulder")
+      || bone.endsWith("Arm")) return 1;
+  if (bone === "Hips" || bone.endsWith("UpLeg") || bone.endsWith("Leg")) return 2;
+  if (bone.includes("Foot") || bone.includes("Toe")) return 3;
+  throw new Error(`figures.js does not know what part of a person ${bone} is`);
+}
+
+// What people wear and what they look like. The shirt is the colour the caller
+// asked for, which is how golfers and the cast were told apart before. The rest
+// is chosen from the coat so the same caller always gets the same person.
+const SKIN = [0xf1c9a5, 0xe0ac86, 0xc68a62, 0x8d5a3b, 0x5c3a24];
+const HAIR = [0x2b1f17, 0x4a3222, 0x8a6a45, 0xb9a27a, 0x9c9c9c, 0x1a1a1a];
+const TROUSERS = [0x2e3440, 0x3b4a5a, 0x5a4a3a, 0x6b6b5e, 0x1f2328];
+const SHOES = [0x2a2522, 0x3d3128, 0x1c1c1c, 0x6e6259];
+
+export function paletteFor(coat) {
+  const h = Math.imul(Math.round(coat) | 0, 2654435761) >>> 0;
+  return [
+    SKIN[h % SKIN.length],
+    Math.round(coat) & 0xffffff,
+    TROUSERS[(h >>> 7) % TROUSERS.length],
+    SHOES[(h >>> 11) % SHOES.length],
+    HAIR[(h >>> 3) % HAIR.length],
+  ];
+}
+
+// Mark every vertex with its region, once, on the loaded model. Clones share the
+// geometry, so every figure after this carries the marks for nothing.
+function dress(scene) {
+  scene.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    const g = o.geometry;
+    const index = g.attributes.skinIndex;
+    const weight = g.attributes.skinWeight;
+    const pos = g.attributes.position;
+    const region = new Float32Array(pos.count);
+    for (let v = 0; v < pos.count; v++) {
+      let best = 0;
+      for (let k = 1; k < 4; k++) {
+        if (weight.getComponent(v, k) > weight.getComponent(v, best)) best = k;
+      }
+      const bone = o.skeleton.bones[index.getComponent(v, best)];
+      region[v] = regionOf(bone.name, pos.getY(v));
+    }
+    g.setAttribute("region", new THREE.BufferAttribute(region, 1));
+  });
+}
+
+// One character's clothes. The shader is the standard one with its diffuse
+// colour taken from the palette by region instead of from a single colour, so
+// the figures light, shade and fog the same as everything else in the scene.
+function clothesFor(coat) {
+  const material = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 });
+  const palette = paletteFor(coat).map(c => new THREE.Color(c));
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uPalette = { value: palette };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>",
+        "#include <common>\nattribute float region;\nvarying float vRegion;")
+      .replace("#include <begin_vertex>",
+        "#include <begin_vertex>\nvRegion = region;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>",
+        `#include <common>\nuniform vec3 uPalette[${REGIONS.length}];\nvarying float vRegion;`)
+      .replace("vec4 diffuseColor = vec4( diffuse, opacity );",
+        "vec4 diffuseColor = vec4( uPalette[ int( vRegion + 0.5 ) ], opacity );");
+  };
+  // Every character runs the same shader with different colours in it, so they
+  // share one compiled program rather than compiling one each.
+  material.customProgramCacheKey = () => "figure-palette";
+  return material;
+}
+
+let loaded = null;        // Promise of the dressed model and its walk
 
 function load() {
   if (loaded) return loaded;
@@ -41,6 +136,7 @@ function load() {
           `${XBOT_URL} has no clip called ${WALK}. It carries ` +
           `${gltf.animations.map(a => a.name).join(", ")}.`);
       }
+      dress(gltf.scene);
       return { scene: gltf.scene, walk };
     })
     .catch((err) => {
@@ -58,8 +154,8 @@ export function preload() {
   return load().catch(() => null);
 }
 
-// A walking person. coat is kept so every caller's call stands.
-export function buildWalker(coat = 0) {  // eslint-disable-line no-unused-vars
+// A walking person, dressed from the coat colour the caller gives.
+export function buildWalker(coat = 0x808080) {
   const group = new THREE.Group();
   // Until the model lands there is nobody here. stride still answers, because
   // the callers drive it from the first frame.
@@ -70,7 +166,12 @@ export function buildWalker(coat = 0) {  // eslint-disable-line no-unused-vars
     const body = cloneSkinned(model.scene);
     // The model faces +Z and everything in this scene faces -Z.
     body.rotation.y = Math.PI;
-    body.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    const clothes = clothesFor(coat);
+    body.traverse((o) => {
+      if (!o.isMesh) return;
+      o.material = clothes;
+      o.castShadow = true;
+    });
     group.add(body);
     mixer = new THREE.AnimationMixer(body);
     action = mixer.clipAction(model.walk);
