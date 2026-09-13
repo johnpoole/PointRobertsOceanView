@@ -190,7 +190,14 @@ export function buildRecreation(scene, sample) {
 function clearView(spot, sample, scene, own, ray, from, toward) {
   const ground = sample(...at2(spot));
   const target = new THREE.Vector3(spot.x, ground + 1.2, spot.z);
-  const others = scene.children.filter(c => c !== own && c.visible);
+  // Only meshes, and only ones still attached to something. The scene carries
+  // sprites, lines and a sky that raycasting walks straight off the end of.
+  const others = [];
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.visible || !o.geometry || !o.parent) return;
+    for (let up = o; up; up = up.parent) if (up === own) return;
+    others.push(o);
+  });
   for (const perch of PERCHES) {
     let blocked = false;
     // Three looks across the arc: the start, the middle and the end of it.
@@ -203,7 +210,7 @@ function clearView(spot, sample, scene, own, ray, from, toward) {
       const reach = toward.length();
       ray.set(from, toward.normalize());
       ray.far = reach - 2.5;          // do not count the ground under the car
-      if (ray.intersectObjects(others, true).length) { blocked = true; break; }
+      if (ray.intersectObjects(others, false).length) { blocked = true; break; }
     }
     if (!blocked) return perch;
   }
