@@ -35,7 +35,7 @@ import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { Move, arc } from "./scene/shot.js";
 import { buildNovel } from "./scene/novel.js";
 import { buildBlotter } from "./scene/blotter.js";
-import { buildCommunity } from "./scene/community.js";
+import { buildPins } from "./scene/pins.js";
 import { preload as preloadFigures } from "./scene/figures.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
@@ -253,6 +253,7 @@ let pavilion = null;
 let novel = null;
 let blotter = null;
 let neighbours = null;   // what neighbours posted
+let fireCalls = null;    // fire and medical dispatches on the point
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
@@ -446,8 +447,13 @@ stairSpec
       // says GULF RD and nothing else, so it is put on the road of that name.
       blotter = buildBlotter(scene, near.sample, land.features.roads);
       if (feed.calls) showCalls();
-      neighbours = buildCommunity(scene, near.sample);
+      neighbours = buildPins(scene, near.sample,
+        { name: "community", colour: 0xe0a84f, when: "posted" });
       if (feed.community) showPosts();
+      // Red, so a dispatch is never mistaken for a neighbour's post or the Sheriff.
+      fireCalls = buildPins(scene, near.sample,
+        { name: "fire", colour: 0xd8433a, when: "received" });
+      if (feed.fire) showFireCalls();
       landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks, postOffice.landmarks, border.landmarks, clubhouse.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
@@ -589,6 +595,7 @@ function tideShown() {
 feed.onChange((kind) => {
   if (kind === "calls" || kind === "snapshot") showCalls();
   if (kind === "community" || kind === "snapshot") showPosts();
+  if (kind === "fire" || kind === "snapshot") showFireCalls();
   if (kind === "snapshot" || kind === "crossings") setClockLimits();
   if (kind === "close") {
     // Feed down: blank the world rather than show last-known as if it were live.
@@ -935,6 +942,10 @@ function pickTrack(e) {
   if (neighbours) {
     const found = neighbours.pick(raycaster);
     if (found) { showPost(found); return; }
+  }
+  if (fireCalls) {
+    const found = fireCalls.pick(raycaster);
+    if (found) { showFire(found); return; }
   }
   const hits = raycaster.intersectObjects(
     vessels.pickList().concat(aircraft.pickList()), true);
@@ -1873,7 +1884,7 @@ const POSTED = new Intl.DateTimeFormat("en-CA", {
 
 function showPosts() {
   if (!neighbours || !feed.community) return;
-  const placed = neighbours.setPosts(feed.community.data.posts || []);
+  const placed = neighbours.setItems(feed.community.data.posts || []);
   document.getElementById("posts-btn").classList.toggle("off", placed === 0);
 }
 
@@ -1891,7 +1902,7 @@ function closePost() {
 }
 
 function showPost(found) {
-  const p = found.post;
+  const p = found.item;
   postWhere.textContent = p.place || "";
   postWhen.textContent = `posted ${POSTED.format(new Date(p.posted))}`;
   postText.textContent = p.text || "";
@@ -1915,6 +1926,65 @@ document.getElementById("post-go").addEventListener("click", () => {
   if (neighbours && postAt >= 0) lookAtCall(neighbours.at(postAt));
 });
 document.getElementById("post-close").addEventListener("click", closePost);
+
+// Fire and medical calls on the point, the same way again: I or the button puts
+// the newest on the card, the arrows step, and go cuts the camera to one.
+const fireCard = document.getElementById("fire-card");
+const fireType = document.getElementById("fire-type");
+const fireWhere = document.getElementById("fire-where");
+const fireRows = document.getElementById("fire-rows");
+const fireCount = document.getElementById("fire-count");
+let fireAt = -1;
+
+function showFireCalls() {
+  if (!fireCalls || !feed.fire) return;
+  const placed = fireCalls.setItems(feed.fire.data.calls || []);
+  document.getElementById("fire-btn").classList.toggle("off", placed === 0);
+}
+
+function toggleFire() {
+  if (!fireCalls) return;
+  const on = !fireCalls.shown;
+  fireCalls.setVisible(on);
+  if (!on) { closeFire(); return; }
+  if (fireCalls.newest) showFire(fireCalls.newest);
+}
+
+function closeFire() {
+  fireCard.classList.add("hidden");
+  fireAt = -1;
+}
+
+function showFire(found) {
+  const c = found.item;
+  // Their words for the call type. A code their table does not carry is shown
+  // as the code.
+  fireType.textContent = (c.description || c.type || "a call").toLowerCase();
+  fireWhere.textContent = c.address || "";
+  fireRows.innerHTML = [
+    row("called", c.received ? POSTED.format(new Date(c.received)) : ""),
+    c.active ? row("status", "still active") : row("closed", c.closed ? POSTED.format(new Date(c.closed)) : ""),
+    row("units", (c.units || []).join(", ")),
+    row("category", c.category),
+  ].join("");
+  fireAt = fireCalls.indexOf(found);
+  fireCount.textContent = fireAt < 0 ? "" : `${fireAt + 1} of ${fireCalls.count}`;
+  fireCard.classList.remove("hidden");
+}
+
+function stepFire(by) {
+  if (!fireCalls || !fireCalls.count) return;
+  if (!fireCalls.shown) fireCalls.setVisible(true);
+  const found = fireCalls.at(fireAt < 0 ? 0 : fireAt + by);
+  if (found) showFire(found);
+}
+
+document.getElementById("fire-prev").addEventListener("click", () => stepFire(-1));
+document.getElementById("fire-next").addEventListener("click", () => stepFire(1));
+document.getElementById("fire-go").addEventListener("click", () => {
+  if (fireCalls && fireAt >= 0) lookAtCall(fireCalls.at(fireAt));
+});
+document.getElementById("fire-close").addEventListener("click", closeFire);
 
 // The novel's route, on R. Seven scenes in the order Low Water goes through
 // them. Each one winds the sun to its hour, holds the sea at its tide, puts the
@@ -2053,6 +2123,7 @@ document.getElementById("campground-btn").addEventListener("click", toggleCampgr
 document.getElementById("novel-btn").addEventListener("click", toggleTour);
 document.getElementById("calls-btn").addEventListener("click", toggleCalls);
 document.getElementById("posts-btn").addEventListener("click", togglePosts);
+document.getElementById("fire-btn").addEventListener("click", toggleFire);
 
 // The shelter at the foot of the bank stands 8 m west of the cabin and 40 m
 // below the eye, so from the bluff you are looking down on its roof. Turning it
@@ -2136,6 +2207,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyR" && !e.repeat) toggleTour();
   if (e.code === "KeyK" && !e.repeat) toggleCalls();
   if (e.code === "KeyJ" && !e.repeat) togglePosts();
+  if (e.code === "KeyI" && !e.repeat) toggleFire();
   if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
@@ -2157,6 +2229,10 @@ window.addEventListener("keydown", (e) => {
       && (e.code === "ArrowLeft" || e.code === "ArrowRight")) {
     e.preventDefault();
     stepPost(e.code === "ArrowRight" ? 1 : -1);
+  } else if (!fireCard.classList.contains("hidden")
+      && (e.code === "ArrowLeft" || e.code === "ArrowRight")) {
+    e.preventDefault();
+    stepFire(e.code === "ArrowRight" ? 1 : -1);
   }
 });
 

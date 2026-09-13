@@ -86,6 +86,7 @@
     <div class="keys-row"><span class="keys-k">R</span><span class="keys-v">the novel's route</span></div>
     <div class="keys-row"><span class="keys-k">K</span><span class="keys-v">the Sheriff's calls</span></div>
     <div class="keys-row"><span class="keys-k">J</span><span class="keys-v">what neighbours posted</span></div>
+    <div class="keys-row"><span class="keys-k">I</span><span class="keys-v">fire and medical calls</span></div>
     <div class="keys-row"><span class="keys-k">H</span><span class="keys-v">pavilion</span></div>
     <div class="keys-row"><span class="keys-k">L</span><span class="keys-v">vessel tracks</span></div>
     <div class="keys-row"><span class="keys-k">C</span><span class="keys-v">the photograph</span></div>
@@ -212,6 +213,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4Z"/></svg>
         <span class="btn-label">what neighbours posted (J)</span>
       </button>
+      <button class="icon-btn" id="fire-btn" title="fire and medical calls (I)" aria-label="fire and medical calls">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1.5 1 2 2.5 2 4 1-2 1-4 1-7Z"/></svg>
+        <span class="btn-label">fire and medical calls (I)</span>
+      </button>
       <button class="icon-btn" id="novel-btn" title="the novel's route (R)" aria-label="the novel's route">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 4.8 7 4.3 3.5 4.8v13C7 17.3 10 17.8 12 19.5c2-1.7 5-2.2 8.5-1.7v-13C17 4.3 14 4.8 12 6.5Z"/><path d="M12 6.5v13"/></svg>
         <span class="btn-label">the novel's route (R)</span>
@@ -271,6 +276,20 @@
     </div>
     <div class="call-note"><a id="post-source" target="_blank" rel="noopener"></a>.
       Posted publicly by a neighbour. Nobody has checked it.</div>
+  </div>
+
+  <div id="fire-card" class="call-card hidden">
+    <button id="fire-close" class="call-close" aria-label="close">&times;</button>
+    <div id="fire-type" class="call-nature"></div>
+    <div id="fire-where" class="call-where"></div>
+    <dl id="fire-rows" class="call-rows"></dl>
+    <div class="call-step">
+      <button id="fire-prev" class="call-arrow" aria-label="the call before">&lsaquo;</button>
+      <span id="fire-count" class="call-count"></span>
+      <button id="fire-next" class="call-arrow" aria-label="the next call">&rsaquo;</button>
+      <button id="fire-go" class="call-arrow" aria-label="go to this call">go</button>
+    </div>
+    <div class="call-note">PulsePoint, Whatcom Fire/EMS. A dispatch, not a finding.</div>
   </div>
 
   <!-- Where the stick may be opened: the left of the screen, while something

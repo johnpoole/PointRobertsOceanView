@@ -34,6 +34,8 @@ from pathlib import Path
 
 import httpx
 
+from server.peninsula import in_point_roberts
+
 log = logging.getLogger("oceanview.community")
 
 SOURCE = "Nextdoor public pages and r/PointRoberts"
@@ -49,9 +51,6 @@ BROWSER = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 KEEP_DAYS = 365
-# The border runs along 49 degrees. A road north of it is in Tsawwassen, and a
-# post about 56 Street is not about the point.
-BORDER_LAT = 49.0
 
 ATOM = {"a": "http://www.w3.org/2005/Atom"}
 PHONE = re.compile(r"\(?\b\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}\b")
@@ -136,6 +135,9 @@ class PlaceFinder:
                     f"community.py calls {said!r} {pid}, and assets/places.json has "
                     f"no place with that id. Rebuild places or fix the alias.")
             p = by_id[pid]
+            if not in_point_roberts(p["lat"], p["lon"]):
+                raise RuntimeError(
+                    f"community.py calls {said!r} {pid}, which is not on the point.")
             self.patterns.append((re.compile(r"(?<![a-z])" + re.escape(said) + r"(?![a-z])", re.I),
                                   p["name"], p["lat"], p["lon"]))
 
@@ -150,7 +152,9 @@ class PlaceFinder:
                 longest[name] = road["coords"]
         for name, coords in longest.items():
             lat, lon = _midpoint(coords)
-            if lat >= BORDER_LAT:
+            # Tsawwassen's roads are in the bake too, and a post about 56 Street
+            # is not about the point.
+            if not in_point_roberts(lat, lon):
                 continue
             words = name.split()
             suffix = SUFFIXES.get(words[-1])

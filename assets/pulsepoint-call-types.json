@@ -1,0 +1,449 @@
+{
+ "source": "PulsePoint Respond web app, https://web.pulsepoint.org/static/js/main.68c159e1.js, read 2026-09-13",
+ "types": {
+  "UNK": {
+   "description": "Unknown Call Type",
+   "category": "Unknown"
+  },
+  "AA": {
+   "description": "Auto Aid",
+   "category": "Aid"
+  },
+  "MU": {
+   "description": "Mutual Aid",
+   "category": "Aid"
+  },
+  "ST": {
+   "description": "Strike Team/Task Force",
+   "category": "Aid"
+  },
+  "AC": {
+   "description": "Aircraft Crash",
+   "category": "Aircraft"
+  },
+  "AE": {
+   "description": "Aircraft Emergency",
+   "category": "Aircraft"
+  },
+  "AES": {
+   "description": "Aircraft Emergency Standby",
+   "category": "Aircraft"
+  },
+  "LZ": {
+   "description": "Landing Zone",
+   "category": "Aircraft"
+  },
+  "AED": {
+   "description": "AED Alarm",
+   "category": "Alarm"
+  },
+  "OA": {
+   "description": "Alarm",
+   "category": "Alarm"
+  },
+  "CMA": {
+   "description": "Carbon Monoxide",
+   "category": "Alarm"
+  },
+  "FA": {
+   "description": "Fire Alarm",
+   "category": "Alarm"
+  },
+  "MA": {
+   "description": "Manual Alarm",
+   "category": "Alarm"
+  },
+  "SD": {
+   "description": "Smoke Detector",
+   "category": "Alarm"
+  },
+  "TRBL": {
+   "description": "Trouble Alarm",
+   "category": "Alarm"
+  },
+  "WFA": {
+   "description": "Waterflow Alarm",
+   "category": "Alarm"
+  },
+  "FL": {
+   "description": "Flooding",
+   "category": "Assist"
+  },
+  "LR": {
+   "description": "Ladder Request",
+   "category": "Assist"
+  },
+  "LA": {
+   "description": "Lift Assist",
+   "category": "Assist"
+  },
+  "PA": {
+   "description": "Police Assist",
+   "category": "Assist"
+  },
+  "PS": {
+   "description": "Public Service",
+   "category": "Assist"
+  },
+  "SH": {
+   "description": "Sheared Hydrant",
+   "category": "Assist"
+  },
+  "EX": {
+   "description": "Explosion",
+   "category": "Explosion"
+  },
+  "PE": {
+   "description": "Pipeline Emergency",
+   "category": "Explosion"
+  },
+  "TE": {
+   "description": "Transformer Explosion",
+   "category": "Explosion"
+  },
+  "AF": {
+   "description": "Appliance Fire",
+   "category": "Fire"
+  },
+  "CHIM": {
+   "description": "Chimney Fire",
+   "category": "Fire"
+  },
+  "CF": {
+   "description": "Commercial Fire",
+   "category": "Fire"
+  },
+  "WSF": {
+   "description": "Confirmed Structure Fire",
+   "category": "Fire"
+  },
+  "WVEG": {
+   "description": "Confirmed Vegetation Fire",
+   "category": "Fire"
+  },
+  "CB": {
+   "description": "Controlled Burn/Prescribed Fire",
+   "category": "Fire"
+  },
+  "ELF": {
+   "description": "Electrical Fire",
+   "category": "Fire"
+  },
+  "EF": {
+   "description": "Extinguished Fire",
+   "category": "Fire"
+  },
+  "FIRE": {
+   "description": "Fire",
+   "category": "Fire"
+  },
+  "FULL": {
+   "description": "Full Assignment",
+   "category": "Fire"
+  },
+  "IF": {
+   "description": "Illegal Fire",
+   "category": "Fire"
+  },
+  "MF": {
+   "description": "Marine Fire",
+   "category": "Fire"
+  },
+  "OF": {
+   "description": "Outside Fire",
+   "category": "Fire"
+  },
+  "PF": {
+   "description": "Pole Fire",
+   "category": "Fire"
+  },
+  "GF": {
+   "description": "Refuse/Garbage Fire",
+   "category": "Fire"
+  },
+  "RF": {
+   "description": "Residential Fire",
+   "category": "Fire"
+  },
+  "SF": {
+   "description": "Structure Fire",
+   "category": "Fire"
+  },
+  "TF": {
+   "description": "Tank Fire",
+   "category": "Fire"
+  },
+  "VEG": {
+   "description": "Vegetation Fire",
+   "category": "Fire"
+  },
+  "VF": {
+   "description": "Vehicle Fire",
+   "category": "Fire"
+  },
+  "WF": {
+   "description": "Confirmed Fire",
+   "category": "Fire"
+  },
+  "WCF": {
+   "description": "Working Commercial Fire",
+   "category": "Fire"
+  },
+  "WRF": {
+   "description": "Working Residential Fire",
+   "category": "Fire"
+  },
+  "BT": {
+   "description": "Bomb Threat",
+   "category": "Hazard"
+  },
+  "EE": {
+   "description": "Electrical Emergency",
+   "category": "Hazard"
+  },
+  "EM": {
+   "description": "Emergency",
+   "category": "Hazard"
+  },
+  "ER": {
+   "description": "Emergency Response",
+   "category": "Hazard"
+  },
+  "GAS": {
+   "description": "Gas Leak",
+   "category": "Hazard"
+  },
+  "HC": {
+   "description": "Hazardous Condition",
+   "category": "Hazard"
+  },
+  "HMR": {
+   "description": "Hazardous Response",
+   "category": "Hazard"
+  },
+  "TD": {
+   "description": "Tree Down",
+   "category": "Hazard"
+  },
+  "WE": {
+   "description": "Water Emergency",
+   "category": "Hazard"
+  },
+  "AI": {
+   "description": "Arson Investigation",
+   "category": "Investigation"
+  },
+  "FWI": {
+   "description": "Fireworks Investigation",
+   "category": "Investigation"
+  },
+  "HMI": {
+   "description": "Hazmat Investigation",
+   "category": "Investigation"
+  },
+  "INV": {
+   "description": "Investigation",
+   "category": "Investigation"
+  },
+  "OI": {
+   "description": "Odor Investigation",
+   "category": "Investigation"
+  },
+  "SI": {
+   "description": "Smoke Investigation",
+   "category": "Investigation"
+  },
+  "CL": {
+   "description": "Commercial Lockout",
+   "category": "Lockout"
+  },
+  "LO": {
+   "description": "Lockout",
+   "category": "Lockout"
+  },
+  "RL": {
+   "description": "Residential Lockout",
+   "category": "Lockout"
+  },
+  "VL": {
+   "description": "Vehicle Lockout",
+   "category": "Lockout"
+  },
+  "CP": {
+   "description": "Community Paramedicine",
+   "category": "Medical"
+  },
+  "IFT": {
+   "description": "Interfacility Transfer",
+   "category": "Medical"
+  },
+  "ME": {
+   "description": "Medical Emergency",
+   "category": "Medical"
+  },
+  "MCI": {
+   "description": "Multi Casualty",
+   "category": "Medical"
+  },
+  "EQ": {
+   "description": "Earthquake",
+   "category": "Natural Disaster"
+  },
+  "FLW": {
+   "description": "Flood Warning",
+   "category": "Natural Disaster"
+  },
+  "TOW": {
+   "description": "Tornado Warning",
+   "category": "Natural Disaster"
+  },
+  "TSW": {
+   "description": "Tsunami Warning",
+   "category": "Natural Disaster"
+  },
+  "WX": {
+   "description": "Weather Incident",
+   "category": "Natural Disaster"
+  },
+  "AR": {
+   "description": "Animal Rescue",
+   "category": "Rescue"
+  },
+  "CR": {
+   "description": "Cliff Rescue",
+   "category": "Rescue"
+  },
+  "CSR": {
+   "description": "Confined Space Rescue",
+   "category": "Rescue"
+  },
+  "ELR": {
+   "description": "Elevator Rescue",
+   "category": "Rescue"
+  },
+  "EER": {
+   "description": "Elevator/Escalator Rescue",
+   "category": "Rescue"
+  },
+  "IR": {
+   "description": "Ice Rescue",
+   "category": "Rescue"
+  },
+  "IA": {
+   "description": "Industrial Accident",
+   "category": "Rescue"
+  },
+  "RES": {
+   "description": "Rescue",
+   "category": "Rescue"
+  },
+  "RR": {
+   "description": "Rope Rescue",
+   "category": "Rescue"
+  },
+  "SC": {
+   "description": "Structural Collapse",
+   "category": "Rescue"
+  },
+  "TR": {
+   "description": "Technical Rescue",
+   "category": "Rescue"
+  },
+  "TNR": {
+   "description": "Trench Rescue",
+   "category": "Rescue"
+  },
+  "USAR": {
+   "description": "Urban Search and Rescue",
+   "category": "Rescue"
+  },
+  "VS": {
+   "description": "Vessel Sinking",
+   "category": "Rescue"
+  },
+  "WR": {
+   "description": "Water Rescue",
+   "category": "Rescue"
+  },
+  "TCP": {
+   "description": "Collision Involving Pedestrian",
+   "category": "Vehicle"
+  },
+  "TCS": {
+   "description": "Collision Involving Structure",
+   "category": "Vehicle"
+  },
+  "TCT": {
+   "description": "Collision Involving Train",
+   "category": "Vehicle"
+  },
+  "TCE": {
+   "description": "Expanded Traffic Collision",
+   "category": "Vehicle"
+  },
+  "RTE": {
+   "description": "Railroad/Train Emergency",
+   "category": "Vehicle"
+  },
+  "TC": {
+   "description": "Traffic Collision",
+   "category": "Vehicle"
+  },
+  "PLE": {
+   "description": "Powerline Emergency",
+   "category": "Wires"
+  },
+  "WA": {
+   "description": "Wires Arching",
+   "category": "Wires"
+  },
+  "WD": {
+   "description": "Wires Down",
+   "category": "Wires"
+  },
+  "WDA": {
+   "description": "Wires Down/Arcing",
+   "category": "Wires"
+  },
+  "BP": {
+   "description": "Burn Permit",
+   "category": "Other"
+  },
+  "CA": {
+   "description": "Community Activity",
+   "category": "Other"
+  },
+  "FW": {
+   "description": "Fire Watch",
+   "category": "Other"
+  },
+  "MC": {
+   "description": "Move-up/Cover",
+   "category": "Other"
+  },
+  "NO": {
+   "description": "Notification",
+   "category": "Other"
+  },
+  "STBY": {
+   "description": "Standby",
+   "category": "Other"
+  },
+  "TEST": {
+   "description": "Test",
+   "category": "Other"
+  },
+  "TRNG": {
+   "description": "Training",
+   "category": "Other"
+  },
+  "NEWS": {
+   "description": "News",
+   "category": "Alert"
+  },
+  "CERT": {
+   "description": "CERT",
+   "category": "Alert"
+  }
+ }
+}

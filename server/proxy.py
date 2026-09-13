@@ -66,6 +66,7 @@ log = logging.getLogger("proxy")
 # nothing to do with the rest of this.
 from server import blotter  # noqa: E402
 from server import community  # noqa: E402
+from server import pulsepoint  # noqa: E402
 # What nobody else keeps. The reason each feed is in there is written down in
 # the module, because the test of whether something belongs is whether it has a
 # history somewhere already.
@@ -191,6 +192,12 @@ BLOTTER_PATH = REPO_ROOT / "data" / "blotter.json"
 # read is kept, and once an hour is plenty for a town this size.
 COMMUNITY_PATH = REPO_ROOT / "data" / "community.json"
 COMMUNITY_POLL_SECONDS = 3600
+
+# Fire and medical dispatches on the point, off PulsePoint (server/pulsepoint.py).
+# Its feed holds about a day, so calls are kept as they arrive. Five minutes
+# catches a call while it is still active without leaning on their server.
+FIRE_PATH = REPO_ROOT / "data" / "fire.json"
+FIRE_POLL_SECONDS = 300
 BLOTTER_POLL_SECONDS = 3600
 
 
@@ -261,6 +268,8 @@ class World:
         self.blotter_time: datetime | None = None
         self.community: dict | None = None
         self.community_time: datetime | None = None
+        self.fire: dict | None = None
+        self.fire_time: datetime | None = None
         # The last thing the marina camera was read to hold, and when.
         self.marina: dict | None = None
         self.marina_time: datetime | None = None
@@ -286,6 +295,7 @@ class World:
             "wait": "offline",
             "blotter": "offline",
             "community": "offline",
+            "fire": "offline",
             # Idle until somebody opens the marina, which is the whole point of
             # it: this feed costs the marina's provider a picture every minute.
             "marina": "idle",
@@ -785,6 +795,10 @@ def snapshot() -> dict:
                  world.community_time, world.community, None)
         if world.community else None
     )
+    fire = (
+        envelope("fire.calls", pulsepoint.SOURCE, world.fire_time, world.fire, None)
+        if world.fire else None
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "message_type": "initial.snapshot",
@@ -799,6 +813,7 @@ def snapshot() -> dict:
             "wait": wait,
             "calls": calls,
             "community": neighbours,
+            "fire": fire,
             "vessels": vessels,
             "aircraft": [
                 envelope("aircraft.state", ADSB_SOURCE,
@@ -1547,6 +1562,29 @@ async def wait_task() -> None:
             await asyncio.sleep(WAIT_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
+async def fire_task() -> None:
+    store = pulsepoint.FireCalls(FIRE_PATH, pulsepoint.load_call_types(REPO_ROOT))
+    store.load()
+    async with httpx.AsyncClient(timeout=45) as client:
+        while True:
+            ok = False
+            try:
+                added = await store.refresh(client)
+                world.fire = store.as_data()
+                world.fire_time = store.latest_time()
+                await set_health("fire", "live")
+                await clients.broadcast(envelope(
+                    "fire.calls", pulsepoint.SOURCE, world.fire_time, world.fire, None))
+                if added:
+                    log.info("Fire and medical calls: %d on the point kept, %d new",
+                             len(world.fire["calls"]), added)
+                ok = True
+            except Exception as exc:
+                await set_health("fire", "offline")
+                log.error("Fire and medical calls: %s", exc)
+            await asyncio.sleep(FIRE_POLL_SECONDS if ok else RETRY_SECONDS * 3)
+
+
 async def community_task() -> None:
     store = community.Community(COMMUNITY_PATH, community.PlaceFinder(REPO_ROOT))
     store.load()
@@ -2055,6 +2093,7 @@ async def startup() -> None:
                              (wait_task(), "wait", "wait"),
                              (blotter_task(), "blotter", "blotter"),
                              (community_task(), "community", "community"),
+                             (fire_task(), "fire", "fire"),
                              (ferries_task(), "ferries", None),
                              (heartbeat_task(), "heartbeat", None),
                              (presence_task(), "presence", None),

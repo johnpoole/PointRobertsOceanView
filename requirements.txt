@@ -11,3 +11,6 @@ numpy==2.2.6
 # Reads the Sheriff's daily activity report, which is a PDF with a text layer
 # (server/blotter.py). No OCR: the text is in there.
 pypdf==6.10.2
+# Decrypts PulsePoint's incident feed, which is AES the way its own web page
+# receives it (server/pulsepoint.py).
+pycryptodome==3.23.0
