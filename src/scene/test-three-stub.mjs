@@ -188,3 +188,40 @@ export class Group extends Mesh {
 export class Scene extends Group {}
 
 export function mergeGeometries() { return new BufferGeometry(); }
+
+// ---- enough of the glTF path for figures.js to run --------------------------
+//
+// The tests never load the real model. What they check is that a figure is
+// built, placed and walked, so the loader hands back an empty body with a walk
+// clip of Xbot's length and the code takes its ordinary path.
+
+export class AnimationClip {
+  constructor(name, duration) { this.name = name; this.duration = duration; }
+}
+
+export class AnimationMixer {
+  constructor(root) { this.root = root; this.time = 0; }
+  clipAction(clip) {
+    return { _clip: clip, play() { return this; }, getClip() { return this._clip; } };
+  }
+  setTime(t) { this.time = t; return this; }
+}
+
+// Xbot's walk is 0.967 s, which is what figures.js divides by.
+const STUB_WALK = new AnimationClip("walk", 0.9666666666666667);
+
+export class GLTFLoader {
+  loadAsync(url) {
+    const scene = new Group();
+    scene.name = url;
+    return Promise.resolve({ scene, animations: [STUB_WALK] });
+  }
+}
+
+// SkeletonUtils.clone, deep enough that a cloned body is its own object.
+export function clone(source) {
+  const out = new Group();
+  out.name = source.name;
+  for (const c of source.children) out.add(clone(c));
+  return out;
+}
