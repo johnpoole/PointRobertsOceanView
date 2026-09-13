@@ -272,6 +272,14 @@ export class Vessels {
     return Array.from(this.groups.values());
   }
 
+  // Off while the page stands on a past day. These are live positions and
+  // there is no archive of them to rewind to, so leaving today's ship in a
+  // scene from three weeks ago would be a quiet lie.
+  setVisible(on) {
+    this.shown = on;
+    for (const g of this.groups.values()) g.visible = on;
+  }
+
   // Circles a small boat cannot drive through, at the size the ship is drawn
   // rather than its real size, so what blocks you is what you can see. Three
   // down the hull approximates it far better than one circle round the whole
@@ -300,6 +308,7 @@ export class Vessels {
       if (!group) {
         group = buildVessel(state);
         this.scene.add(group);
+        if (this.shown === false) group.visible = false;
         this.groups.set(mmsi, group);
       }
       group.userData.vessel = state;

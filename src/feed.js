@@ -51,6 +51,7 @@ export class Feed {
     // Who the golf club's booking sheet says is out on the course, or null.
     this.tee = null;
     this.calls = null;
+    this.crossings = null;
     this.selfId = null;         // what the server called us, so we can skip it
 
     this._ws = null;
@@ -174,6 +175,11 @@ export class Feed {
         this._applyVessel(msg);
         this._emit("vessel");
         break;
+      case "crossings.state":
+        this.crossings = { data: msg.data, quality: msg.quality };
+        this._providerLive("crossings", msg);
+        this._emit("crossings");
+        break;
       case "blotter.calls":
         // What the Sheriff's daily report says the deputy was called out to.
         this.calls = msg;
@@ -217,6 +223,9 @@ export class Feed {
     this.marina = data.marina || null;
     this.tee = data.tee || null;
     this.calls = data.calls || null;
+    // The monthly counts. The page reads the oldest month off them to know how
+    // far back the date on the clock may go.
+    this.crossings = data.crossings || null;
     this.vesselsNote = data.vessels_note || "";
   }
 

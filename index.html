@@ -264,8 +264,15 @@
          and nothing in between could be reached. Whole minutes divide exactly,
          where a step of a sixtieth of an hour does not. -->
     <input id="clock-range" class="trim-range" type="range" min="-720" max="720" step="1" value="0" />
+    <!-- The slider moves the hour. This moves the day, back as far as the
+         monthly crossing figures reach. Nothing ahead of today: a past day can
+         be looked up and a future one cannot. -->
+    <input id="clock-date" class="clock-date" type="date" aria-label="the day" />
     <button id="clock-now" class="clock-now">now</button>
   </div>
+  <!-- What cannot be rewound, named, while the page is standing on a past day.
+       Said out loud rather than left as an empty strait. -->
+  <div id="past-note" class="past-note hidden"></div>
 
   <div id="fly-hint" class="fly-hint hidden">WASD move · Q/E down-up · Shift fast · mouse or drag to look · Esc exit</div>
   <div id="boat-hint" class="fly-hint hidden">W throttle · A/D tiller · B to step ashore</div>

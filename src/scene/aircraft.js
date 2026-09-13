@@ -69,6 +69,14 @@ export class Aircraft {
     return Array.from(this.groups.values());
   }
 
+  // Off while the page stands on a past day. These are live positions and
+  // there is no archive of them to rewind to, so leaving today's aircraft in a
+  // scene from three weeks ago would be a quiet lie.
+  setVisible(on) {
+    this.shown = on;
+    for (const g of this.groups.values()) g.visible = on;
+  }
+
   update(feed, t, camera) {
     for (const [icao, entry] of feed.aircraft) {
       const state = entry.data;
@@ -87,6 +95,7 @@ export class Aircraft {
         group.add(mesh);
         group.userData = { material, length, target: new THREE.Vector3(), placed: false };
         this.scene.add(group);
+        if (this.shown === false) group.visible = false;
         this.groups.set(icao, group);
       }
       group.userData.aircraft = state;
