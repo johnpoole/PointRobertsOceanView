@@ -27,15 +27,24 @@ const BEATS = {
   done: 38,
 };
 const APPROACH_M = 120;     // how far back down the road it comes from
-// A street has houses and fences down both sides of it, so the swing has to
-// look over them. At seven metres up it spent half the arc inside somebody's
-// wall.
-const ARC_RADIUS = 30;
-const ARC_HEIGHT = 15;
-const ARC_FROM = 215;
+// A street has houses and fences down both sides and firs behind those, so the
+// swing has to clear whatever is actually there. These are the perches tried,
+// nearest and lowest first, and the first one that can see the car is the one
+// used. Guessing a height instead put the camera inside a wall on one street
+// and inside a tree on the next.
+const PERCHES = [
+  { radius: 26, height: 9 },
+  { radius: 30, height: 15 },
+  { radius: 34, height: 24 },
+  { radius: 40, height: 34 },
+  { radius: 52, height: 52 },
+];
+const ARC_FROM_DEFAULT = 215;
 const ARC_SWEEP = 130;
 
 export function buildRecreation(scene, sample) {
+  const ray = new THREE.Raycaster();
+  const from_ = new THREE.Vector3(), toward = new THREE.Vector3();
   const group = new THREE.Group();
   group.name = "recreation";
   group.visible = false;
@@ -85,7 +94,8 @@ export function buildRecreation(scene, sample) {
         x: spot.x - Math.cos(road) * 3.0,
         z: spot.z + Math.sin(road) * 3.0,
       };
-      scene_ = { call, spot, road, from, past, kerb };
+      scene_ = { call, spot, road, from, past, kerb,
+                 perch: clearView(spot, sample, scene, group, ray, from_, toward) };
       walked = 0;
       was = null;
       group.visible = true;
@@ -150,13 +160,14 @@ export function buildRecreation(scene, sample) {
       }
 
       // ---- the camera -------------------------------------------------------
-      const turn = (ARC_FROM + ARC_SWEEP * (at / BEATS.done)) * Math.PI / 180;
+      const turn = (ARC_FROM_DEFAULT + ARC_SWEEP * (at / BEATS.done)) * Math.PI / 180;
       const ground = sample(...at2(spot));
+      const perch = scene_.perch;
       return {
         eye: {
-          x: spot.x + Math.cos(turn) * ARC_RADIUS,
-          y: ground + ARC_HEIGHT,
-          z: spot.z + Math.sin(turn) * ARC_RADIUS,
+          x: spot.x + Math.cos(turn) * perch.radius,
+          y: ground + perch.height,
+          z: spot.z + Math.sin(turn) * perch.radius,
         },
         aim: { x: spot.x, y: ground + 1.2, z: spot.z },
       };
@@ -171,6 +182,33 @@ export function buildRecreation(scene, sample) {
       group.clear();
     },
   };
+}
+
+// The first perch that can actually see the car, tested round the whole swing.
+// Anything drawn in this scene counts as in the way except the recreation's own
+// people, which is why the group is skipped.
+function clearView(spot, sample, scene, own, ray, from, toward) {
+  const ground = sample(...at2(spot));
+  const target = new THREE.Vector3(spot.x, ground + 1.2, spot.z);
+  const others = scene.children.filter(c => c !== own && c.visible);
+  for (const perch of PERCHES) {
+    let blocked = false;
+    // Three looks across the arc: the start, the middle and the end of it.
+    for (const step of [0, 0.5, 1]) {
+      const turn = (ARC_FROM_DEFAULT + ARC_SWEEP * step) * Math.PI / 180;
+      from.set(spot.x + Math.cos(turn) * perch.radius,
+               ground + perch.height,
+               spot.z + Math.sin(turn) * perch.radius);
+      toward.subVectors(target, from);
+      const reach = toward.length();
+      ray.set(from, toward.normalize());
+      ray.far = reach - 2.5;          // do not count the ground under the car
+      if (ray.intersectObjects(others, true).length) { blocked = true; break; }
+    }
+    if (!blocked) return perch;
+  }
+  // Nothing had a clear line, so take the one that looks over the most.
+  return PERCHES[PERCHES.length - 1];
 }
 
 function at2(p) {
