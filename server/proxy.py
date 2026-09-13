@@ -1,13 +1,21 @@
 """Local proxy for the Point Roberts ocean view.
 
-Serves the static site and bridges four upstream feeds into one browser
-WebSocket at /ws/live:
+Serves the static site and bridges the upstream feeds into one browser
+WebSocket at /ws/live. What is here is the socket, the client registry, the
+snapshot, the health table, and a polling loop for each feed. The call to each
+upstream and the arithmetic on what it hands back is its own module beside this
+one:
 
-  - vessels  : AISStream.io  (needs AISSTREAM_API_KEY in .env)
-  - aircraft : adsb.fi, community-fed ADS-B, 20 km around the bluff, no key
-  - tide     : NOAA CO-OPS 9449639 (Point Roberts) with the surge measured at
-               9449424 (Cherry Point) carried onto it, MLLW, metres
-  - weather  : Open-Meteo forecast and marine at the exact coordinates
+  - vessels   : AISStream.io, here (needs AISSTREAM_API_KEY in .env)
+  - aircraft  : adsb.fi, here. Community-fed ADS-B, 20 km around the bluff
+  - tide      : server/noaa.py
+  - currents  : server/noaa.py
+  - weather   : server/weather.py
+  - wait      : server/wait.py, the queue at the line now
+  - crossings : server/crossings.py, the monthly count through the booth
+  - blotter   : server/blotter.py, the Sheriff's daily log
+  - golf      : server/tee.py
+  - marina    : server/marina.py, counted off the camera
 
 The browser talks only to this process, so there is no CORS and the AISStream
 key never leaves the server. Nothing is invented: each feed carries a health
@@ -38,9 +46,8 @@ import os
 import secrets
 import time
 from collections import deque
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import httpx
 import websockets
@@ -62,6 +69,14 @@ from server import blotter  # noqa: E402
 # the module, because the test of whether something belongs is whether it has a
 # history somewhere already.
 from server import archive as archive_store  # noqa: E402
+# The feeds. Each is the call to one upstream and the arithmetic on what it
+# hands back. What stays here is the loop that polls it, what it does to the
+# world, and who is told.
+from server import crossings as crossings_feed  # noqa: E402
+from server import noaa  # noqa: E402
+from server import wait as wait_feed  # noqa: E402
+from server import weather as weather_feed  # noqa: E402
+from server.when import iso, local_now, parse_time, utcnow  # noqa: E402
 
 SCHEMA_VERSION = "1.0"
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -122,47 +137,9 @@ AIS_PROBE_SECONDS = 20.0
 # rather than reworded.
 AIS_STATUS_URL = "https://aisuptime.buttermilkgreen.fyi/api/v1/status?simple=true"
 
-# Point Roberts (9449639) is a reference station with its own harmonics, but it
-# has no gauge — predictions only. Cherry Point (9449424) has the nearest live
-# gauge, 27 km southeast, where the tide runs about 0.1 m lower and arrives at a
-# different time. So take the non-tidal residual measured at Cherry Point, which
-# is weather-driven surge and stays coherent over that distance, and carry it
-# onto Point Roberts' own prediction:
-#
-#   level = predicted_PR(t) + (observed_CP(t) - predicted_CP(t))
-#
-# That keeps the live surge and puts the astronomical tide where the view is.
-TIDE_GAUGE_STATION = "9449424"    # Cherry Point, observed water level
-TIDE_STATION = "9449639"          # Point Roberts, predictions
-TIDE_DATUM = "MLLW"
 TIDE_POLL_SECONDS = 300
 RETRY_SECONDS = 20  # after a failed fetch, retry soon instead of the full poll
-COOPS_BASE = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
-
-# The tidal stream, from the nearest current station: PUG1726, "Strait of
-# Georgia, 4.5 nm SW of Point Roberts", 8.1 km off the bluff. That is the water
-# in the view, which is as close as a published station gets.
-#
-# The station has 36 bins two metres apart and publishes predictions for three of
-# them. Bin 35 sits 9.4 m down and is the shallowest of the three, so it is the
-# one a boat is in. Bin 11 is 57 m down and is what the API hands back when no
-# bin is named, which would be the current well under the keel.
-#
-# Velocity_Major is signed along the channel: positive runs toward meanFloodDir,
-# negative toward meanEbbDir. In metric units it is centimetres a second.
-#
-# This is one point eight kilometres offshore, and the stream along the West
-# Bluff is not the stream out there. See issue #13.
-CURRENT_STATION = "PUG1726"
-CURRENT_BIN = 35
-CURRENT_STATION_KM = 8.1          # from the bluff, for the readout to own up to
 CURRENT_POLL_SECONDS = 300
-# Predictions for a whole day arrive in one call and do not change, so the day is
-# held and interpolated locally. Refetched when the held day runs out.
-CURRENT_FETCH_DAYS = 2
-CURRENT_SLACK_MPS = 0.05          # under this it is slack and has no direction
-CM_PER_S_TO_M_PER_S = 0.01
-KNOT_MPS = 0.514444
 
 # Aircraft from adsb.fi's open data: community-fed, no key, the same readsb JSON
 # every one of these aggregators serves.
@@ -180,6 +157,10 @@ KNOT_MPS = 0.514444
 ADSB_URL = "https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{nm}"
 ADSB_SOURCE = "opendata.adsb.fi"
 ADSB_RADIUS_NM = 10.8      # 20 km. It was 30 nm, which is 56.
+
+# Where the view stands. The aircraft feed asks for a radius round it and the
+# weather feed is asked for the sky over it.
+POINT = (48.989009, -123.085318)
 # ---- border crossings -------------------------------------------------------
 #
 # Point Roberts can only be reached by driving through Canada, so its trade is
@@ -218,23 +199,14 @@ BLOTTER_POLL_SECONDS = 3600
 # "Update Pending" when it has nothing to report, and for a crossing this quiet
 # that is most of the time — which is itself the reading, and is why the empty
 # case is carried through rather than treated as a failure.
-WAIT_URL = "https://bwt.cbp.gov/api/waittimes"
-WAIT_PORT_NUMBER = "300403"
 WAIT_POLL_SECONDS = 600
 
-CROSSINGS_URL = "https://data.bts.gov/resource/keg4-3bc2.json"
-CROSSINGS_PORT_CODE = "3017"          # Point Roberts, Washington
-CROSSINGS_MONTHS = 24
 # A figure that changes four times a year does not want asking for more often.
 CROSSINGS_POLL_SECONDS = 6 * 3600
 
 AIRCRAFT_POLL_SECONDS = 6.0
 FT_TO_M = 0.3048
 
-POINT = (48.989009, -123.085318)
-FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
-AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 WEATHER_POLL_SECONDS = 300
 
 # ---- .env (only the AIS key; keep dependencies minimal) --------------------
@@ -260,39 +232,6 @@ ADMIN_PASSWORD = os.environ.get("OCEANVIEW_ADMIN_PASSWORD", "").strip()
 
 
 # ---- shared world state ----------------------------------------------------
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def iso(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).isoformat()
-
-
-def parse_time(text: str | None) -> datetime | None:
-    """Parse the assorted upstream timestamp forms into aware UTC datetimes."""
-    if not text:
-        return None
-    text = text.strip()
-    # AISStream: "2022-12-29 18:22:32.318353 +0000 UTC"
-    if text.endswith(" UTC"):
-        text = text[:-4].strip()
-        try:
-            return datetime.strptime(text, "%Y-%m-%d %H:%M:%S.%f %z")
-        except ValueError:
-            pass
-    # NOAA CO-OPS: "2026-08-04 14:54" (GMT, no tz marker)
-    try:
-        return datetime.strptime(text, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
-    except ValueError:
-        pass
-    # ISO 8601 (Open-Meteo gives GMT with no offset, e.g. "2026-08-04T16:30")
-    try:
-        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
 
 
 class World:
@@ -1479,133 +1418,12 @@ async def aircraft_task() -> None:
 # ---- NOAA tide feed ---------------------------------------------------------
 
 
-async def coops(client: httpx.AsyncClient, station: str,
-                datum: str | None = TIDE_DATUM, **params) -> dict:
-    """One CO-OPS call. NOAA reports failures in a 200 body, so check for them.
-
-    A current prediction is a speed and has no datum, so it passes datum=None and
-    the parameter is left off the query rather than sent empty."""
-    query = {
-        "application": "PointRobertsOceanView",
-        "station": station,
-        "time_zone": "gmt",
-        "units": "metric",
-        "format": "json",
-        **params,
-    }
-    if datum:
-        query["datum"] = datum
-    response = await client.get(COOPS_BASE, params=query)
-    response.raise_for_status()
-    payload = response.json()
-    if "error" in payload:
-        raise RuntimeError(
-            f"NOAA CO-OPS station {station} product={params.get('product')}: "
-            f"{payload['error'].get('message')}"
-        )
-    return payload
-
-
-def series_block(slots: dict[str, float], step_s: int) -> dict:
-    """A 6-minute prediction dict, as an evenly stepped run the browser can index.
-
-    NOAA hands back {"2026-08-11 13:54": 2.31, ...} in the station's own local
-    time. The gaps have to be even for an index to work, so this checks that they
-    are rather than trusting it: a missing slot would silently shift every value
-    after it by six minutes.
-    """
-    keys = sorted(slots)
-    if len(keys) < 2:
-        raise RuntimeError(
-            f"a prediction series needs at least two slots and this has {len(keys)}")
-    start = datetime.strptime(keys[0], "%Y-%m-%d %H:%M")
-    values = []
-    for i, key in enumerate(keys):
-        when = datetime.strptime(key, "%Y-%m-%d %H:%M")
-        want = start + timedelta(seconds=step_s * i)
-        if when != want:
-            raise RuntimeError(
-                f"prediction series has a gap: slot {i} is {key} and an even "
-                f"{step_s} s step wants {want:%Y-%m-%d %H:%M}. Indexing it would "
-                f"put every value after this one at the wrong time.")
-        values.append(round(slots[key], 3))
-    return {"start": keys[0] + "Z", "step_s": step_s, "values": values}
-
-
-async def fetch_tide(client: httpx.AsyncClient) -> dict:
-    """Point Roberts water level: its own prediction plus the surge measured at
-    Cherry Point. See the TIDE_STATION comment for why."""
-    observed = (await coops(client, TIDE_GAUGE_STATION,
-                            product="water_level", date="latest"))["data"][0]
-    observed_at = parse_time(observed["t"])
-    if observed_at is None:
-        raise RuntimeError(f"NOAA water_level: unparsable timestamp {observed['t']!r}")
-    observed_m = float(observed["v"])
-
-    # 6-minute predictions for both stations over the gauge reading's day, so the
-    # residual and the Point Roberts level are read at the same instant.
-    day = observed_at.strftime("%Y%m%d")
-    series = {}
-    for station in (TIDE_GAUGE_STATION, TIDE_STATION):
-        rows = (await coops(client, station, product="predictions",
-                            begin_date=day, range=48, interval="6"))["predictions"]
-        series[station] = {row["t"]: float(row["v"]) for row in rows}
-
-    # The surge is read at the gauge's timestamp, which runs about ten minutes
-    # behind. The astronomical tide is read at now. Surge is weather and drifts
-    # over hours; the tide moves up to a metre an hour here, so reading it ten
-    # minutes late puts the waterline metres down the beach.
-    now = utcnow()
-    surge_slot = observed["t"]
-    level_slot = now.replace(
-        minute=now.minute - now.minute % 6, second=0, microsecond=0
-    ).strftime("%Y-%m-%d %H:%M")
-    for slot, station in ((surge_slot, TIDE_GAUGE_STATION), (level_slot, TIDE_STATION)):
-        if slot not in series[station]:
-            raise RuntimeError(
-                f"NOAA predictions for station {station} have no 6-minute slot "
-                f"at {slot}; cannot transfer the surge"
-            )
-    surge_m = observed_m - series[TIDE_GAUGE_STATION][surge_slot]
-    level_m = series[TIDE_STATION][level_slot] + surge_m
-    extremes = (await coops(client, TIDE_STATION, product="predictions",
-                            begin_date=now.strftime("%Y%m%d"), range=48,
-                            interval="hilo"))["predictions"]
-    trend = None
-    prediction_m = None
-    for ext in extremes:
-        when = parse_time(ext["t"])
-        if when and when > now:
-            trend = "rising" if ext["type"] == "H" else "falling"
-            prediction_m = float(ext["v"])
-            break
-
-    return {
-        "state": {
-            "station_id": TIDE_STATION,
-            "water_level_m": level_m,
-            "prediction_m": prediction_m,
-            "datum": TIDE_DATUM,
-            "trend": trend,
-            "surge_m": surge_m,
-            "gauge_station_id": TIDE_GAUGE_STATION,
-            # The whole prediction, so a page standing at another hour can read
-            # the water there. Astronomical only: the surge is a measurement made
-            # ten minutes ago and it is weather, so carrying it six hours out
-            # would be inventing. A page off the present hour shows this and says
-            # it is a prediction.
-            "series": series_block(series[TIDE_STATION], 360),
-        },
-        "time": observed_at,
-    }
-
-
 async def tide_task() -> None:
     async with httpx.AsyncClient(timeout=30) as client:
         while True:
             ok = False
             try:
-                result = await fetch_tide(client)
+                result = await noaa.fetch_tide(client)
                 world.tide = result["state"]
                 world.tide_time = result["time"]
                 await set_health("tide", "live")
@@ -1613,9 +1431,9 @@ async def tide_task() -> None:
                     "tide.state", "tidesandcurrents.noaa.gov",
                     world.tide_time, world.tide, STALE_SECONDS["tide"]))
                 log.info("Tide %.3f m %s (%s), surge %+.3f m from %s",
-                         world.tide["water_level_m"], TIDE_DATUM,
+                         world.tide["water_level_m"], noaa.TIDE_DATUM,
                          world.tide["trend"], world.tide["surge_m"],
-                         TIDE_GAUGE_STATION)
+                         noaa.TIDE_GAUGE_STATION)
                 ok = True
             except Exception as exc:
                 await set_health("tide", "offline")
@@ -1624,83 +1442,6 @@ async def tide_task() -> None:
 
 
 # ---- NOAA tidal current feed ------------------------------------------------
-
-
-async def fetch_current_series(client: httpx.AsyncClient, start: datetime) -> list[tuple]:
-    """The station's predicted stream over the next couple of days, as
-    (time, centimetres a second, flood bearing, ebb bearing, bin depth)."""
-    rows = (await coops(
-        client, CURRENT_STATION, datum=None, product="currents_predictions",
-        bin=CURRENT_BIN, begin_date=start.strftime("%Y%m%d"),
-        range=24 * CURRENT_FETCH_DAYS, interval="30",
-    ))["current_predictions"]["cp"]
-    series = []
-    for row in rows:
-        when = parse_time(row["Time"])
-        if when is None:
-            raise RuntimeError(
-                f"NOAA currents_predictions station {CURRENT_STATION} bin "
-                f"{CURRENT_BIN}: unparsable timestamp {row['Time']!r}"
-            )
-        series.append((
-            when,
-            float(row["Velocity_Major"]),
-            float(row["meanFloodDir"]),
-            float(row["meanEbbDir"]),
-            float(row["Depth"]),
-        ))
-    if not series:
-        raise RuntimeError(
-            f"NOAA currents_predictions station {CURRENT_STATION} bin "
-            f"{CURRENT_BIN} returned no rows for {start:%Y-%m-%d}"
-        )
-    series.sort(key=lambda r: r[0])
-    return series
-
-
-def current_at(series: list[tuple], when: datetime) -> dict:
-    """Straight-line interpolation between the half-hourly predictions. Returns
-    the set — the bearing the water is going — and the drift."""
-    if when < series[0][0] or when > series[-1][0]:
-        raise RuntimeError(
-            f"NOAA currents_predictions for {CURRENT_STATION} cover "
-            f"{series[0][0]:%Y-%m-%d %H:%M} to {series[-1][0]:%Y-%m-%d %H:%M} "
-            f"and {when:%Y-%m-%d %H:%M} is outside that. Refetch the series."
-        )
-    later = next(i for i, row in enumerate(series) if row[0] >= when)
-    if later == 0:
-        row, span = series[0], 0.0
-        velocity = row[1]
-    else:
-        before, after = series[later - 1], series[later]
-        span = (after[0] - before[0]).total_seconds()
-        t = 0.0 if span == 0 else (when - before[0]).total_seconds() / span
-        velocity = before[1] + (after[1] - before[1]) * t
-        row = before
-
-    _, _, flood_dir, ebb_dir, depth_m = row
-    speed = abs(velocity) * CM_PER_S_TO_M_PER_S
-    if speed < CURRENT_SLACK_MPS:
-        state, set_deg = "slack", None
-    elif velocity >= 0:
-        state, set_deg = "flooding", flood_dir
-    else:
-        state, set_deg = "ebbing", ebb_dir
-    return {
-        "station_id": CURRENT_STATION,
-        "bin": CURRENT_BIN,
-        "bin_depth_m": depth_m,
-        "station_distance_km": CURRENT_STATION_KM,
-        "set_degrees": set_deg,
-        "drift_mps": round(speed, 3),
-        "drift_kn": round(speed / KNOT_MPS, 2),
-        "state": state,
-        "flood_direction_deg": flood_dir,
-        "ebb_direction_deg": ebb_dir,
-        # This is a prediction for one point offshore, not a measurement of the
-        # water the boat is in. Anything showing it has to say so.
-        "kind": "prediction",
-    }
 
 
 async def current_task() -> None:
@@ -1713,12 +1454,12 @@ async def current_task() -> None:
                 # One call a day rather than one every poll: a prediction for a
                 # given minute is the same answer whenever it is asked for.
                 if not series or now > series[-1][0] - timedelta(hours=2):
-                    series = await fetch_current_series(client, now)
+                    series = await noaa.fetch_current_series(client, now)
                     log.info("Current predictions %s bin %d: %d rows, %s to %s",
-                             CURRENT_STATION, CURRENT_BIN, len(series),
+                             noaa.CURRENT_STATION, noaa.CURRENT_BIN, len(series),
                              series[0][0].strftime("%Y-%m-%d %H:%M"),
                              series[-1][0].strftime("%Y-%m-%d %H:%M"))
-                world.current = current_at(series, now)
+                world.current = noaa.current_at(series, now)
                 # The whole prediction, so a page standing at another hour can
                 # read the stream there. Every slot is worked out with the same
                 # rule as the live one, rather than the rule being written twice.
@@ -1727,7 +1468,7 @@ async def current_task() -> None:
                     "step_s": int((series[1][0] - series[0][0]).total_seconds()),
                     "rows": [
                         [c["drift_mps"], c["set_degrees"], c["state"]]
-                        for c in (current_at(series, row[0]) for row in series)
+                        for c in (noaa.current_at(series, row[0]) for row in series)
                     ],
                 }
                 world.current_time = now
@@ -1748,308 +1489,6 @@ async def current_task() -> None:
 
 # ---- Open-Meteo weather + marine feed ---------------------------------------
 
-# WMO weather-interpretation codes -> short text for the HUD.
-WMO_CODES = {
-    0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-    45: "Fog", 48: "Rime fog",
-    51: "Light drizzle", 53: "Drizzle", 55: "Dense drizzle",
-    56: "Freezing drizzle", 57: "Freezing drizzle",
-    61: "Light rain", 63: "Rain", 65: "Heavy rain",
-    66: "Freezing rain", 67: "Freezing rain",
-    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
-    80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
-    85: "Snow showers", 86: "Snow showers",
-    95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Thunderstorm with hail",
-}
-
-
-def hour_index(times: list[str], now: datetime) -> int | None:
-    """Index of the hourly sample for the current hour (times are GMT, on the hour)."""
-    stamp = now.strftime("%Y-%m-%dT%H")
-    for i, t in enumerate(times):
-        if t.startswith(stamp):
-            return i
-    return 0 if times else None
-
-
-# What the hourly run carries through to the browser, under the names the state
-# already uses, so the client reads one shape whichever hour it is standing at.
-HOURLY_FIELDS = {
-    "cloud_cover": "cloud_cover_percent",
-    "cloud_cover_low": "cloud_cover_low_percent",
-    "cloud_cover_mid": "cloud_cover_mid_percent",
-    "cloud_cover_high": "cloud_cover_high_percent",
-    "wind_speed_10m": "wind_speed_mps",
-    "wind_direction_10m": "wind_direction_degrees",
-    "temperature_2m": "temperature_c",
-    "relative_humidity_2m": "relative_humidity_percent",
-    "visibility": "visibility_m",
-    "precipitation_probability": "precipitation_probability_percent",
-}
-
-
-def hourly_block(hourly: dict) -> dict:
-    """Open-Meteo's hourly run, as an evenly stepped hour the browser can index."""
-    times = hourly.get("time") or []
-    if len(times) < 2:
-        raise RuntimeError(
-            f"Open-Meteo returned {len(times)} hourly samples and a run needs at "
-            f"least two. Check the hourly= parameter on the forecast call.")
-    block = {"start": times[0] + "Z", "step_s": 3600}
-    for src, name in HOURLY_FIELDS.items():
-        run = hourly.get(src)
-        if run is None:
-            raise RuntimeError(
-                f"Open-Meteo hourly has no {src}, which the forecast call asked "
-                f"for. Its parameter list has changed.")
-        if len(run) != len(times):
-            raise RuntimeError(
-                f"Open-Meteo hourly {src} has {len(run)} samples against "
-                f"{len(times)} timestamps.")
-        block[name] = run
-    block["description"] = [WMO_CODES.get(c) for c in hourly.get("weather_code", [])]
-    return block
-
-
-async def fetch_weather(client: httpx.AsyncClient) -> dict:
-    forecast = await client.get(FORECAST_URL, params={
-        "latitude": POINT[0], "longitude": POINT[1],
-        # The cloud is asked for by layer as well as in total. The total cannot
-        # tell a lid from a ceiling of cirrus, and those are the difference
-        # between a grey evening and a lit one.
-        "current": "temperature_2m,relative_humidity_2m,cloud_cover,cloud_cover_low,"
-                   "cloud_cover_mid,cloud_cover_high,wind_speed_10m,"
-                   "wind_direction_10m,precipitation,weather_code",
-        # The hourly run as well as the reading for now, so a page standing at
-        # another hour can shade the sky and set the vane for that hour. Two days
-        # covers the twelve hours the clock moves either way.
-        "hourly": "visibility,precipitation_probability,cloud_cover,cloud_cover_low,"
-                  "cloud_cover_mid,cloud_cover_high,wind_speed_10m,"
-                  "wind_direction_10m,temperature_2m,relative_humidity_2m,weather_code",
-        "wind_speed_unit": "ms", "timezone": "GMT", "forecast_days": 2,
-        "past_days": 1,
-    })
-    forecast.raise_for_status()
-    data = forecast.json()
-    cur = data["current"]
-    hourly = data.get("hourly", {})
-    now = utcnow()
-    idx = hour_index(hourly.get("time", []), now)
-    vis = hourly.get("visibility", [None])[idx] if idx is not None else None
-    pprob = hourly.get("precipitation_probability", [None])[idx] if idx is not None else None
-
-    # How much haze is in the air, which is the whole of what decides whether a
-    # sunset is gold or red or nothing at all. Open-Meteo reports it at 550 nm,
-    # the same wavelength the browser divides it by.
-    #
-    # Its own call, on its own host, so a failure here costs the sky's turbidity
-    # and nothing else. Null goes through as null and the browser holds the last
-    # air it was given rather than inventing clean.
-    aod = None
-    try:
-        air = await client.get(AIR_URL, params={
-            "latitude": POINT[0], "longitude": POINT[1],
-            "current": "aerosol_optical_depth",
-        })
-        air.raise_for_status()
-        aod = air.json().get("current", {}).get("aerosol_optical_depth")
-    except Exception as exc:
-        log.warning("Aerosol optical depth unavailable, sky turbidity held: %s", exc)
-
-    wave_h = wave_dir = wave_period = swell_period = None
-    try:
-        marine = await client.get(MARINE_URL, params={
-            "latitude": POINT[0], "longitude": POINT[1],
-            # The combined period is the whole sea surface. The swell period is
-            # the long part of it underneath the chop, and on the days there is
-            # any it is the part that breaks on the beach.
-            "current": "wave_height,wave_direction,wave_period,swell_wave_period",
-        })
-        marine.raise_for_status()
-        m = marine.json().get("current", {})
-        wave_h, wave_dir, wave_period = m.get("wave_height"), m.get("wave_direction"), m.get("wave_period")
-        swell_period = m.get("swell_wave_period")
-    except Exception as exc:
-        log.warning("Marine waves unavailable: %s", exc)
-
-    return {
-        "state": {
-            "station_id": "open-meteo",
-            "temperature_c": cur.get("temperature_2m"),
-            "wind_speed_mps": cur.get("wind_speed_10m"),
-            "wind_direction_degrees": cur.get("wind_direction_10m"),
-            "relative_humidity_percent": cur.get("relative_humidity_2m"),
-            "visibility_m": vis,
-            "cloud_cover_percent": cur.get("cloud_cover"),
-            "cloud_cover_low_percent": cur.get("cloud_cover_low"),
-            "cloud_cover_mid_percent": cur.get("cloud_cover_mid"),
-            "cloud_cover_high_percent": cur.get("cloud_cover_high"),
-            "aerosol_optical_depth": aod,
-            "precipitation_probability_percent": pprob,
-            # What is falling now, in millimetres for the last hour. The
-            # probability says it might; this says it is. Already asked for in
-            # the current block and thrown away until the sound wanted it.
-            "precipitation_mm": cur.get("precipitation"),
-            "description": WMO_CODES.get(cur.get("weather_code")),
-            "wave_height_m": wave_h,
-            "wave_direction_degrees": wave_dir,
-            "wave_period_s": wave_period,
-            "swell_period_s": swell_period,
-            # The hourly run, for a page standing at another hour. The sea state
-            # is not in it: Open-Meteo's marine call gives the wave now and no
-            # forecast, so a page off the present hour keeps the present sea and
-            # nothing pretends otherwise.
-            "series": hourly_block(hourly),
-        },
-        "time": parse_time(cur.get("time")) or now,
-    }
-
-
-# BTS publishes one row per port, month and measure. Fold them into a month.
-CROSSING_MEASURES = {
-    "Personal Vehicles": "personal_vehicles",
-    "Personal Vehicle Passengers": "personal_vehicle_passengers",
-    "Trucks": "trucks",
-    "Truck Containers Full": "truck_containers_full",
-    "Truck Containers Empty": "truck_containers_empty",
-    "Buses": "buses",
-    "Bus Passengers": "bus_passengers",
-    "Pedestrians": "pedestrians",
-}
-
-
-async def fetch_crossings(client: httpx.AsyncClient) -> dict:
-    rows = await client.get(CROSSINGS_URL, params={
-        "$where": f"port_code='{CROSSINGS_PORT_CODE}'",
-        "$order": "date DESC",
-        # Eight measures a month, so ask for enough rows to fill the months.
-        "$limit": CROSSINGS_MONTHS * len(CROSSING_MEASURES),
-    })
-    rows.raise_for_status()
-    data = rows.json()
-    if not data:
-        raise RuntimeError(
-            f"BTS returned no rows for port_code {CROSSINGS_PORT_CODE}. Either the "
-            f"port code has changed or the dataset behind {CROSSINGS_URL} has "
-            "moved; check https://www.bts.gov/border-crossing-entry-data.")
-
-    months: dict[str, dict] = {}
-    for row in data:
-        month = row["date"][:7]
-        key = CROSSING_MEASURES.get(row.get("measure"))
-        if key is None:
-            continue                        # a measure this port does not carry
-        months.setdefault(month, {"month": month})[key] = int(row["value"])
-    if not months:
-        raise RuntimeError(
-            "BTS rows carried no measure this understands. Their names are in "
-            f"CROSSING_MEASURES; the rows said {sorted({r.get('measure') for r in data})}.")
-
-    # This port does not file every measure every month, so the row budget
-    # stretches further than the months asked for. Cut it back to what was asked.
-    ordered = [months[m] for m in sorted(months, reverse=True)][:CROSSINGS_MONTHS]
-    latest = ordered[0]
-    # The month is the reading's own date. It is a month or two behind today and
-    # saying so is the point of carrying it.
-    when = datetime.strptime(latest["month"], "%Y-%m").replace(tzinfo=timezone.utc)
-    return {
-        "state": {
-            "port_name": data[0].get("port_name"),
-            "port_code": CROSSINGS_PORT_CODE,
-            "border": data[0].get("border"),
-            "month": latest["month"],
-            **{k: latest.get(k) for k in CROSSING_MEASURES.values()},
-            "recent_months": ordered,
-        },
-        "time": when,
-    }
-
-
-# What CBP calls a lane, and what this calls it. Everything else in their
-# record is a lane type this port does not have.
-WAIT_LANES = {
-    "passenger_vehicle_lanes": "cars",
-    "commercial_vehicle_lanes": "trucks",
-    "pedestrian_lanes": "on_foot",
-}
-
-
-def wait_lane(block: dict | None) -> dict | None:
-    """One lane, or None when CBP has nothing posted for it.
-
-    Their empty state is the string "Update Pending" with the delay and the
-    lane count left blank, which is not a delay of zero and must not be read as
-    one. A quiet crossing is quiet, not fast.
-    """
-    if not block:
-        return None
-    status = (block.get("operational_status") or "").strip()
-    if not status or status == "Update Pending":
-        return None
-    delay = (block.get("delay_minutes") or "").strip()
-    lanes = (block.get("lanes_open") or "").strip()
-    return {
-        "status": status,
-        "delay_minutes": int(delay) if delay.isdigit() else None,
-        "lanes_open": int(lanes) if lanes.isdigit() else None,
-        "update_time": (block.get("update_time") or "").strip() or None,
-    }
-
-
-async def fetch_wait(client: httpx.AsyncClient) -> dict:
-    rows = await client.get(WAIT_URL, headers={"Accept": "application/json"})
-    rows.raise_for_status()
-    ports = rows.json()
-    port = next((p for p in ports
-                 if str(p.get("port_number")) == WAIT_PORT_NUMBER), None)
-    if port is None:
-        raise RuntimeError(
-            f"CBP listed {len(ports)} crossings and none of them is port "
-            f"{WAIT_PORT_NUMBER}. Either the port number has changed or the "
-            f"feed behind {WAIT_URL} has. Their crossing is filed under Blaine "
-            "with the crossing name Point Roberts.")
-
-    lanes: dict[str, dict] = {}
-    for key, name in WAIT_LANES.items():
-        block = port.get(key) or {}
-        kinds = {}
-        for sub, label in (("standard_lanes", "standard"),
-                           ("NEXUS_SENTRI_lanes", "nexus"),
-                           ("ready_lanes", "ready"),
-                           ("FAST_lanes", "fast")):
-            got = wait_lane(block.get(sub))
-            if got:
-                kinds[label] = got
-        maximum = (block.get("maximum_lanes") or "").strip()
-        lanes[name] = {
-            "maximum_lanes": int(maximum) if maximum.isdigit() else None,
-            # Empty when CBP is posting nothing for this crossing, which for one
-            # this quiet is most of the day.
-            "reported": kinds,
-        }
-
-    # CBP stamps each port with its own local date and time.
-    when = utcnow()
-    try:
-        stamped = datetime.strptime(f"{port['date']} {port['time']}",
-                                    "%m/%d/%Y %H:%M:%S")
-        when = stamped.replace(tzinfo=PENINSULA).astimezone(timezone.utc)
-    except (KeyError, ValueError):
-        pass
-
-    return {
-        "state": {
-            "port_number": WAIT_PORT_NUMBER,
-            "port_name": port.get("port_name"),
-            "crossing_name": port.get("crossing_name"),
-            "port_status": port.get("port_status"),
-            "hours": port.get("hours"),
-            "construction_notice": (port.get("construction_notice") or "").strip()
-                                   or None,
-            "lanes": lanes,
-        },
-        "time": when,
-    }
 
 
 async def wait_task() -> None:
@@ -2057,7 +1496,7 @@ async def wait_task() -> None:
         while True:
             ok = False
             try:
-                result = await fetch_wait(client)
+                result = await wait_feed.fetch_wait(client)
                 world.wait = result["state"]
                 world.wait_time = result["time"]
                 # Nobody keeps this but us.
@@ -2105,7 +1544,7 @@ async def crossings_task() -> None:
         while True:
             ok = False
             try:
-                result = await fetch_crossings(client)
+                result = await crossings_feed.fetch_crossings(client)
                 world.crossings = result["state"]
                 world.crossings_time = result["time"]
                 # A month at a time, and one line a month: the dedupe drops the
@@ -2135,7 +1574,7 @@ async def weather_task() -> None:
         while True:
             ok = False
             try:
-                result = await fetch_weather(client)
+                result = await weather_feed.fetch_weather(client, POINT)
                 world.weather = result["state"]
                 world.weather_time = result["time"]
                 await set_health("weather", "live")
@@ -2348,14 +1787,6 @@ async def marina_task() -> None:
 
 # The booking sheet's times carry no zone and mean the course's own clock, so
 # this is what they are compared against wherever the server happens to be.
-PENINSULA = ZoneInfo("America/Vancouver")
-
-
-def local_now() -> datetime:
-    return datetime.now(PENINSULA).replace(tzinfo=None)
-
-
-
 # The first read of the day is at six, before the course opens at half past, so
 # the whole day's grid is on the sheet and nothing has slipped into the past yet.
 # After that, once an hour. This one is not gated on anybody looking: the sheet

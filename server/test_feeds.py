@@ -23,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server import proxy  # noqa: E402
+from server import wait as wait_feed  # noqa: E402
 
 logging.disable(logging.CRITICAL)
 
@@ -483,7 +484,7 @@ class _Client:
 
 def _wait(body):
     return asyncio.new_event_loop().run_until_complete(
-        proxy.fetch_wait(_Client(body)))
+        wait_feed.fetch_wait(_Client(body)))
 
 
 def test_a_posted_lane_carries_its_delay_and_how_many_are_open() -> None:

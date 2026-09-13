@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from server import proxy  # noqa: E402
+from server import crossings  # noqa: E402
 
 logging.disable(logging.CRITICAL)
 
@@ -58,7 +58,7 @@ def row(month: str, measure: str, value: int) -> dict:
 
 def fetch(rows: list[dict]) -> dict:
     client = FakeClient(rows)
-    return asyncio.run(proxy.fetch_crossings(client)), client
+    return asyncio.run(crossings.fetch_crossings(client)), client
 
 
 def test_measures_fold_into_the_month_they_belong_to() -> None:
@@ -99,17 +99,17 @@ def test_the_reading_is_dated_to_its_month_and_not_to_now() -> None:
 
 def test_it_asks_for_the_port_it_means() -> None:
     (_r, client) = fetch([row("2026-06", "Personal Vehicles", 1)])
-    assert proxy.CROSSINGS_PORT_CODE in client.params["$where"], client.params
+    assert crossings.CROSSINGS_PORT_CODE in client.params["$where"], client.params
     assert client.params["$order"] == "date DESC", client.params
 
 
 def test_it_keeps_no_more_months_than_it_says() -> None:
     rows = []
-    for i in range(proxy.CROSSINGS_MONTHS + 12):
+    for i in range(crossings.CROSSINGS_MONTHS + 12):
         rows.append(row(f"20{25 - i // 12:02d}-{12 - i % 12:02d}", "Personal Vehicles", i))
     (result, _c) = fetch(rows)
     held = len(result["state"]["recent_months"])
-    assert held == proxy.CROSSINGS_MONTHS, held
+    assert held == crossings.CROSSINGS_MONTHS, held
 
 
 def test_a_measure_this_port_does_not_file_is_ignored_not_fatal() -> None:
@@ -126,7 +126,7 @@ def test_an_empty_answer_is_an_error_and_says_where_to_look() -> None:
     try:
         fetch([])
     except RuntimeError as exc:
-        assert proxy.CROSSINGS_PORT_CODE in str(exc), exc
+        assert crossings.CROSSINGS_PORT_CODE in str(exc), exc
         assert "bts.gov" in str(exc), exc
     else:
         raise AssertionError("no rows should raise, not return an empty reading")
