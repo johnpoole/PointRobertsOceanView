@@ -1031,7 +1031,7 @@ async def ais_task() -> None:
                     try:
                         raw = await asyncio.wait_for(ws.recv(), AIS_SILENCE_SECONDS)
                     except asyncio.TimeoutError:
-                        world.health["vessels"] = "offline"
+                        await set_health("vessels", "offline")
                         # Report on the silence itself, not on a change of health.
                         # Health starts offline, so keying off a transition says
                         # nothing at all when the feed never delivers to begin with.
@@ -1097,8 +1097,8 @@ async def ais_task() -> None:
                     # latitude at all, and can arrive from outside the box. It
                     # used to declare the feed live on its own.
                     if positioned and world.health["vessels"] != "live":
-                        world.health["vessels"] = "live"
                         world.vessels_note = ""
+                        await set_health("vessels", "live")
                         log.info("AISStream delivering positions; vessels live")
                     if mmsi:
                         # And it goes out as what it is. An envelope typed as a
@@ -1111,7 +1111,7 @@ async def ais_task() -> None:
                             STALE_SECONDS["vessels"] if positioned else None,
                         ))
         except Exception as exc:
-            world.health["vessels"] = "offline"
+            await set_health("vessels", "offline")
             log.error("AISStream connection lost: %s. Retrying in %.0fs.", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60.0)
@@ -1399,16 +1399,16 @@ async def aircraft_task() -> None:
                 # Live means aircraft arrived, not that the request returned.
                 if seen_now:
                     if world.health["aircraft"] != "live":
-                        world.health["aircraft"] = "live"
+                        await set_health("aircraft", "live")
                         log.info("%s delivering; aircraft live (%d in range)",
                                  ADSB_SOURCE, len(seen_now))
                 elif world.health["aircraft"] != "offline":
-                    world.health["aircraft"] = "offline"
+                    await set_health("aircraft", "offline")
                     log.warning("%s answered with no aircraft within %d nm.",
                                 ADSB_SOURCE, ADSB_RADIUS_NM)
                 ok = True
             except Exception as exc:
-                world.health["aircraft"] = "offline"
+                await set_health("aircraft", "offline")
                 log.error("Aircraft fetch failed: %s", exc)
 
             # And ask adsbdb about a few of the ones nobody has asked about yet.
@@ -1565,7 +1565,7 @@ async def crossings_task() -> None:
                 # other twenty-seven reads between one month's figures and the
                 # next.
                 archive.keep("crossings", world.crossings, world.crossings_time)
-                world.health["crossings"] = "live"
+                await set_health("crossings", "live")
                 await clients.broadcast(envelope(
                     "crossings.state", "bts.gov (US CBP)",
                     world.crossings_time, world.crossings, None))
@@ -1578,7 +1578,7 @@ async def crossings_task() -> None:
                          world.crossings["pedestrians"])
                 ok = True
             except Exception as exc:
-                world.health["crossings"] = "offline"
+                await set_health("crossings", "offline")
                 log.error("Border crossings fetch failed: %s", exc)
             await asyncio.sleep(CROSSINGS_POLL_SECONDS if ok else RETRY_SECONDS)
 
@@ -1647,8 +1647,8 @@ async def shipfinder_task() -> None:
                 log.info("Shipfinder: learned %d ships, %d known now",
                          len(learned), len(ships))
         except Exception as exc:
-            world.health["vessels"] = "offline"
             world.vessels_note = "shipfinder unreachable"
+            await set_health("vessels", "offline")
             log.error("Shipfinder scrape failed: %s", exc)
             await asyncio.sleep(RETRY_SECONDS)
             continue
@@ -1711,8 +1711,8 @@ async def shipfinder_task() -> None:
             del world.vessels[key]
             world.vessel_seen.pop(key, None)
 
-        world.health["vessels"] = "scraped"
         world.vessels_note = SHIPFINDER_NOTE
+        await set_health("vessels", "scraped")
         log.info("Shipfinder: %d vessels in the box", len(found))
         await clients.broadcast(snapshot())
 
@@ -1759,8 +1759,8 @@ async def marina_task() -> None:
             if not clients.anyone_watching("marina", MARINA_INTEREST_SECONDS):
                 # Idle is not offline. Nothing is wrong; nobody is looking.
                 if world.health["marina"] != "idle":
-                    world.health["marina"] = "idle"
                     world.marina = None
+                    await set_health("marina", "idle")
                     await clients.broadcast(envelope(
                         "marina.presence", marina_reader.SOURCE, None,
                         {"watching": False}, None))
@@ -1778,8 +1778,8 @@ async def marina_task() -> None:
             except Exception as exc:
                 # Zero cars and a broken camera look identical on a screen, so
                 # this says which one it is and stops reporting counts.
-                world.health["marina"] = "offline"
                 world.marina = None
+                await set_health("marina", "offline")
                 log.error("Marina camera read failed: %s", exc)
                 await clients.broadcast(envelope(
                     "marina.presence", marina_reader.SOURCE, None,
@@ -1790,7 +1790,7 @@ async def marina_task() -> None:
             world.marina_time = utcnow()
             # Counted here off the camera and recorded nowhere else.
             archive.keep("marina", world.marina, world.marina_time)
-            world.health["marina"] = "live"
+            await set_health("marina", "live")
             log.info("Marina camera: %d vehicles, %d people, %d boats, %d in the lot",
                      reading.vehicles, reading.people, reading.boats, reading.in_lot)
             await clients.broadcast(envelope(
@@ -1828,7 +1828,7 @@ async def tee_task() -> None:
         log.info("Tee sheet carried over from before the restart: %d booked slots, "
                  "known from %s", world.tee_sheet.as_data(started)["booked_slots"],
                  world.tee_sheet.as_data(started)["known_from"])
-        world.health["golf"] = "live"
+        await set_health("golf", "live")
     async with httpx.AsyncClient(timeout=45) as client:
         while True:
             now = local_now()
@@ -1840,7 +1840,7 @@ async def tee_task() -> None:
                     world.tee_sheet = await tee_reader.sample(
                         client, world.tee_sheet, now)
                     read_hour = (day, now.hour)
-                    world.health["golf"] = "live"
+                    await set_health("golf", "live")
                     try:
                         world.tee_sheet.save(TEE_PATH)
                     except OSError as exc:
@@ -1851,8 +1851,8 @@ async def tee_task() -> None:
                     # if the container goes down before closing time.
                     archive.keep("tee", world.tee_sheet.to_json(), utcnow())
                 except Exception as exc:
-                    world.health["golf"] = "offline"
                     world.tee = None
+                    await set_health("golf", "offline")
                     log.error("Tee sheet read failed: %s", exc)
                     await clients.broadcast(envelope(
                         "golf.tee", tee_reader.SOURCE, None,
@@ -1985,9 +1985,12 @@ def _spawn(coro, name: str, feed: str | None = None) -> asyncio.Task:
         else:
             log.error("Feed task %s returned and its feed has stopped.", name)
         if feed:
-            world.health[feed] = "offline"
             if feed == "vessels":
                 world.vessels_note = f"{name} task died"
+            # Sync callback, so the telling has to be handed to the loop. A feed
+            # whose task has died is the one that most needs saying out loud, and
+            # writing the word offline into a dict nobody re-reads does not.
+            asyncio.get_running_loop().create_task(set_health(feed, "offline"))
 
     task.add_done_callback(done)
     return task

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -432,6 +433,43 @@ def test_a_provider_coming_back_is_broadcast() -> None:
         proxy.world.health["tide"] = "offline"
         asyncio.run(proxy.set_health("tide", "live"))
         assert sent and sent[0]["data"]["provider_health"]["tide"] == "live"
+    finally:
+        restore()
+
+
+def test_no_feed_writes_its_own_health_behind_the_broadcast() -> None:
+    """Health that is not sent is not health.
+
+    Every poll loop knows when its feed fails. Writing that into a dict is not
+    telling anybody: provider_health rides in the snapshot and the snapshot only
+    goes out when something sends it. A page already open went on reading live
+    over numbers hours old, and that cannot be seen by looking at the screen —
+    the screen is exactly what looks right.
+
+    So this reads the file. set_health is the one way through, and the only bare
+    assignment left is inside set_health itself and the startup default for a
+    missing API key, which is the value health already holds.
+    """
+    src = (Path(__file__).resolve().parents[1] / "server" / "proxy.py").read_text(
+        encoding="utf-8")
+    bare = [ln.strip() for ln in src.splitlines()
+            if re.search(r"world\.health\[[^\]]+\]\s*=(?!=)", ln)]
+    allowed = {'world.health[feed] = status',
+               'world.health["vessels"] = "offline"'}
+    stray = [ln for ln in bare if ln not in allowed]
+    assert not stray, ("these write a feed's health without telling any browser: "
+                       + "; ".join(stray))
+
+
+def test_every_feed_in_the_health_table_can_be_told_about() -> None:
+    sent, restore = _collect_broadcasts()
+    try:
+        for feed in list(proxy.world.health):
+            sent.clear()
+            proxy.world.health[feed] = "live"
+            asyncio.run(proxy.set_health(feed, "offline"))
+            assert sent, f"{feed} going offline told nobody"
+            assert sent[0]["data"]["provider_health"][feed] == "offline"
     finally:
         restore()
 

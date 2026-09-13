@@ -571,11 +571,20 @@ feed.onChange((kind) => {
   if (kind === "snapshot" || kind === "crossings") setClockLimits();
   if (kind === "close") {
     // Feed down: blank the world rather than show last-known as if it were live.
+    //
+    // All of it. Four of these were blanked and three were left standing, so
+    // with the socket down the helm went on reporting drift and set, the
+    // golfers went on walking the course off a booking sheet nobody could
+    // refresh, and the marina cars stood where they were an hour ago.
     feed.vessels.clear();
     feed.aircraft.clear();
     feed.weather = null;
     feed.tide = null;
-    feed.providerHealth = { weather: "offline", tide: "offline", vessels: "offline", aircraft: "offline" };
+    feed.current = null;
+    feed.tee = null;
+    feed.marina = null;
+    feed.providerHealth = { weather: "offline", tide: "offline", currents: "offline",
+                            vessels: "offline", aircraft: "offline" };
   }
   hud.setConnection(feed.connected, feed.connected ? null : "reconnecting…");
   hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
