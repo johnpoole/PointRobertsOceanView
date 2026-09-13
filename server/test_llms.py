@@ -104,6 +104,12 @@ def test_everything_it_links_is_in_the_container() -> None:
     document it points at.
     """
     docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    # Some things are kept out of the image on purpose. Working notes are not
+    # the product and must not be served as if they were, so the guide must not
+    # link one either.
+    held_back = {ln.strip() for ln in
+                 (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+                 if ln.strip() and not ln.startswith("#")}
     copied = set()
     for line in docker.splitlines():
         if line.startswith("COPY "):
@@ -111,6 +117,11 @@ def test_everything_it_links_is_in_the_container() -> None:
     wanted = {"llms.txt"} | set(re.findall(r"\]\(/([\w.\-]+\.md)\)", GUIDE))
     for rel in re.findall(r"\]\((/assets/[\w.\-/]+)\)", GUIDE):
         wanted.add(rel.lstrip("/").split("/")[0])
+    linked_but_held = wanted & held_back
+    assert not linked_but_held, (
+        f"llms.txt links {sorted(linked_but_held)}, which .dockerignore keeps "
+        f"out of the image on purpose. Either it belongs in the product or the "
+        f"link does not belong in the guide.")
     missing = {w for w in wanted
                if w not in copied and w.split("/")[0] not in copied}
     assert not missing, (

@@ -133,5 +133,8 @@ and exits non-zero on a failure.
 ## Optional
 
 - [README.md](/README.md) — running it locally
-- [CONTINUE.md](/CONTINUE.md) — how the model was built and why it is the way it is
 - [REQUIREMENTS.md](/REQUIREMENTS.md) — what it is meant to do
+
+The repository is at https://github.com/johnpoole/PointRobertsOceanView. Its
+`CONTINUE.md` carries how each piece of the model was measured and why it is the
+way it is. That is a working note and is deliberately not served here.
