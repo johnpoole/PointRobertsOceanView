@@ -152,6 +152,10 @@ export function buildBlotter(scene, sample, roads) {
       return placed.length;
     },
 
+    // The newest call that could be put on the ground, for a camera that has to
+    // go and find one. They arrive newest first.
+    get newest() { return placed.length ? placed[0] : null; },
+
     // The call standing under this ray, or null.
     pick(raycaster) {
       if (!group.visible) return null;

@@ -1715,7 +1715,28 @@ function toggleCalls() {
   if (!blotter) return;
   const on = !blotter.shown;
   blotter.setVisible(on);
-  if (!on) { closeCall(); stopRecreation(); }
+  if (!on) { closeCall(); stopRecreation(); return; }
+  // A marker is a post two and a half metres high and they are scattered over
+  // five square miles of road, so switching them on and leaving the camera
+  // where it was shows nothing at all. Go to the newest one, the same as the
+  // courts and the campground do.
+  lookAtCall(blotter.newest);
+}
+
+// Far enough off to see the post and the road it stands on, and high enough to
+// be over the fences.
+function lookAtCall(found) {
+  if (!found) return;
+  nav.toOrbit();
+  controls.maxPolarAngle = Math.PI;
+  const back = 52, up = 30;
+  const away = found.spot.heading + Math.PI / 2;
+  camera.position.set(
+    found.spot.x + Math.cos(away) * back,
+    found.spot.y + up,
+    found.spot.z - Math.sin(away) * back);
+  controls.target.set(found.spot.x, found.spot.y + 1.5, found.spot.z);
+  controls.update();
 }
 
 function closeCall() {
