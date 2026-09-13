@@ -1705,7 +1705,10 @@ const callRows = document.getElementById("call-rows");
 
 function showCalls() {
   if (!blotter || !feed.calls) return;
-  blotter.setCalls(feed.calls.data.calls || []);
+  const placed = blotter.setCalls(feed.calls.data.calls || []);
+  // The shield dims when there is nothing on the ground to press, the same as
+  // the whales do when there are none.
+  document.getElementById("calls-btn").classList.toggle("off", placed === 0);
 }
 
 function toggleCalls() {
