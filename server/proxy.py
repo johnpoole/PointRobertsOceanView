@@ -51,9 +51,9 @@ from pathlib import Path
 
 import httpx
 import websockets
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from starlette.middleware.gzip import GZipMiddleware
-from starlette.responses import HTMLResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(
@@ -2074,6 +2074,46 @@ def since(dt: datetime) -> str:
     if seconds < 86400:
         return f"{seconds // 3600}h ago"
     return f"{seconds // 86400}d ago"
+
+
+# ---- reading the world without a socket -------------------------------------
+#
+# Everything the page knows arrives over the websocket, which is right for a
+# browser drawing at sixty frames a second and wrong for anything that wants to
+# ask one question. A person with curl, a script, or a model reading the page
+# should not have to open a socket to find out what the tide is doing.
+#
+# So the same snapshot, as one GET. Not a second source of truth: it is the
+# identical structure the socket sends on connect, built by the same function.
+
+
+@app.get("/api/state")
+async def api_state() -> JSONResponse:
+    """What every feed is saying right now, and how healthy each one is.
+
+    The shape is documented in /llms.txt. Each reading is wrapped in an envelope
+    carrying where it came from, when it was taken and how stale it is, because
+    a number with none of that attached is not a reading.
+    """
+    return JSONResponse(snapshot(), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/places")
+async def api_places() -> JSONResponse:
+    """Every named thing on the peninsula, and a URL that looks at it.
+
+    Built by scripts/build_places.py off the same survey and the same OSM bake
+    the scene is drawn from, so a building that moves in the model moves here.
+    Each place carries a hash: open the site with it and the camera is there.
+    """
+    try:
+        body = (REPO_ROOT / "assets" / "places.json").read_text(encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"assets/places.json could not be read ({exc}). Build it with "
+                   f"python scripts/build_places.py.") from exc
+    return JSONResponse(json.loads(body), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/admin/visitors", response_class=HTMLResponse)

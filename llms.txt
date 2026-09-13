@@ -1,0 +1,137 @@
+# Point Roberts ocean view
+
+> A three.js model of Point Roberts, Washington, standing on live data. The
+> terrain is a NOAA survey, the buildings are OpenStreetMap and hand surveys off
+> aerial photographs, and the water, the sky, the ships, the aircraft, the queue
+> at the border and the Sheriff's calls are all read from public feeds as they
+> happen. Everything you can see the page do can be done by URL, and everything
+> the page knows can be read over HTTP.
+
+Point Roberts is a five square mile piece of the United States hanging below the
+49th parallel, reachable by road only through Canada. The model covers the whole
+peninsula and ten kilometres of the water round it.
+
+## Driving the view
+
+The page is its URL. Where the camera stands and what it points at live in the
+hash, and the hash is rewritten as the camera moves, so the address bar is
+always the view on the screen. Open a URL with a hash and the camera goes there.
+
+```
+https://<host>/#eye=48.999711,-123.068253,158.9&aim=49.001271,-123.068253,53.2&fov=25
+```
+
+- `eye=lat,lon,height` — where the camera is. Height is metres above MLLW, the
+  same datum as the tide, not above the ground.
+- `aim=lat,lon,height` — the point it looks at. A viewpoint, not a vehicle: the
+  two together reconstruct as a look-around view however they were captured.
+- `fov=degrees` — the vertical field of view. The page's own lens is 25. Values
+  outside 5 to 120 are ignored rather than applied.
+- `hour=0` to `hour=23.99` — open at that hour of the day, as a decimal. The sun,
+  the sky, the tide and the wind all move to it. Left off, the page stands on the
+  real clock. Zero means midnight, not "no hour given".
+- `map=1` `golf=1` `cast=1` `novel=1` `campground=1` `brademy=1` `pavilion=1` —
+  switches, on only. Anything absent is off.
+
+`eye` and `aim` are both required. A hash with one of them and not the other is
+ignored entirely, because half a viewpoint is worse than none.
+
+## Named places
+
+You cannot ask for the marina by name in a URL, only by its coordinates. This is
+the list of what those coordinates are.
+
+- [/api/places](/api/places): every named thing on the peninsula — the surveyed
+  buildings, the OpenStreetMap landmarks, the airstrip, the old cannery wharf —
+  each with its position, how wide it is, the ground height under it, and a
+  ready-made `hash` that frames it. Append that hash to the site URL and the
+  camera is looking at it. `also_called` carries the other names for the same
+  ground.
+
+## Reading what it knows
+
+- [/api/state](/api/state): what every feed is saying right now, as one GET. The
+  same structure the page receives when it connects.
+- [/openapi.json](/openapi.json) and [/docs](/docs): the HTTP surface.
+- `ws://<host>/ws/live`: the live feed. A snapshot on connect, then one message
+  per reading as it arrives. A browser drawing at sixty frames a second wants
+  this; anything asking one question wants `/api/state`.
+
+Every reading is wrapped in an envelope rather than handed over bare:
+
+```json
+{ "message_type": "tide.state",
+  "source": "tidesandcurrents.noaa.gov",
+  "source_time": "2026-09-13T03:06:48+00:00",
+  "quality": { "age_seconds": 41.2, "stale": false },
+  "data": { "water_level_m": 2.914, "datum": "MLLW", "trend": "falling" } }
+```
+
+`source` is who said it, `source_time` is when they took the reading, and
+`quality.stale` is whether it is too old to be called the present one. A number
+without those attached is not a reading, so nothing here is sent without them.
+
+`provider_health` in the snapshot carries one word per feed: `live`, `offline`,
+`scraped` for ships found by scraping rather than by AIS, or `idle` for a feed
+nobody is looking at and the server is therefore not polling. A feed that fails
+says so; it never shows its last good numbers as current.
+
+## Where the data comes from
+
+| feed | source | what it is |
+| --- | --- | --- |
+| tide | NOAA CO-OPS 9449639 and 9449424 | Point Roberts' own prediction with the surge measured at Cherry Point carried onto it, metres above MLLW |
+| currents | NOAA CO-OPS PUG1726 bin 35 | predicted stream 8.1 km offshore, which is the nearest published station |
+| weather | Open-Meteo | wind, cloud by layer, haze, and the sea state |
+| vessels | AISStream.io | live AIS, with a scraped fallback when it is down |
+| aircraft | adsb.fi | community-fed ADS-B, 20 km around the bluff |
+| wait | bwt.cbp.gov | the queue at the border now, by lane |
+| crossings | data.bts.gov | how many came through the booth, by month, back to 1994 |
+| blotter | Whatcom County Sheriff | the daily activity report, one PDF a day |
+| golf | pointrobertsgc.com | the club's booking sheet for today |
+| marina | pointrobertsmarina.com webcam | vehicles and people counted off the picture |
+
+Tide and weather carry a baked forecast run beside the present reading, so
+moving the clock reads the water and the sky at that hour rather than showing
+the present one under a different sun. Past the end of the run it says it does
+not know. Ships and aircraft are live positions with no archive anywhere, so
+they are not shown on a past day at all.
+
+## At the keyboard
+
+`M` mode · `V` fly · `B` boat, again to step ashore · `O` overview · `T` tennis
+courts · `G` campground · `F` golf holes · `P` the cast · `R` the novel's route ·
+`K` the Sheriff's calls · `H` pavilion · `L` vessel tracks · `C` the photograph ·
+`N` next camera · `E` edit camera placement · `S` save camera placement ·
+`Esc` drop the selection.
+
+The clock is a slider and a date box at the foot of the page. The slider moves
+the hour twelve either way; the date reaches back as far as the oldest month the
+crossing figures cover. Both end up in the hash as `hour=`.
+
+## The code
+
+No bundler and no npm install. The browser loads ES modules straight from `src/`
+and three.js from a CDN. The server is FastAPI.
+
+- `src/main.js` — the scene, the modes, and what to re-read when something moves
+- `src/config.js` — the origin, the opening view, the datums
+- `src/geo.js` — the local east-north-up projection everything is drawn in
+- `src/share.js` — reading and writing the hash above
+- `src/clock-control.js`, `src/clock.js` — the hour and the day the scene stands at
+- `src/feed.js` — the websocket client
+- `src/scene/` — one module per thing drawn, and the hand surveys in `*-plan.js`
+- `server/proxy.py` — the socket, the clients, the snapshot and one loop per feed
+- `server/noaa.py`, `weather.py`, `crossings.py`, `wait.py`, `tee.py`,
+  `blotter.py`, `marina.py`, `shipfinder.py` — one module per upstream
+- `scripts/build_*.py` — everything under `assets/` is generated by one of these
+
+Tests run without a browser and without a test runner: `node src/test-*.mjs` and
+`node src/scene/test-*.mjs`, `python server/test_*.py`. Each prints its own lines
+and exits non-zero on a failure.
+
+## Optional
+
+- [README.md](/README.md) — running it locally
+- [CONTINUE.md](/CONTINUE.md) — how the model was built and why it is the way it is
+- [REQUIREMENTS.md](/REQUIREMENTS.md) — what it is meant to do

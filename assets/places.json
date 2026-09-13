@@ -1,0 +1,541 @@
+{
+ "origin": {
+  "lat": 48.989009,
+  "lon": -123.085318
+ },
+ "fov_degrees": 25.0,
+ "datum": "heights are metres above MLLW, the same datum as the tide",
+ "places": [
+  {
+   "id": "border-station",
+   "name": "Boundary Bay border station",
+   "what": "building",
+   "note": "the US port of entry, the only way on or off the peninsula by road",
+   "lat": 49.001271,
+   "lon": -123.068253,
+   "ground_m_mllw": 51.2,
+   "across_m": 61.6,
+   "view": {
+    "eye": {
+     "lat": 48.999711,
+     "lon": -123.068253,
+     "y": 158.9
+    },
+    "aim": {
+     "lat": 49.001271,
+     "lon": -123.068253,
+     "y": 53.2
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.999711,-123.068253,158.9&aim=49.001271,-123.068253,53.2&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "clubhouse",
+   "name": "Point Roberts golf clubhouse",
+   "what": "building",
+   "note": "the clubhouse at 1350 Pelican Place",
+   "lat": 48.996056,
+   "lon": -123.082393,
+   "ground_m_mllw": 35.4,
+   "across_m": 18.2,
+   "view": {
+    "eye": {
+     "lat": 48.995517,
+     "lon": -123.082393,
+     "y": 72.6
+    },
+    "aim": {
+     "lat": 48.996056,
+     "lon": -123.082393,
+     "y": 37.4
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.995517,-123.082393,72.6&aim=48.996056,-123.082393,37.4&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "community-centre",
+   "name": "Point Roberts Community Center",
+   "what": "building",
+   "note": "the community centre and its annex",
+   "lat": 48.984409,
+   "lon": -123.076727,
+   "ground_m_mllw": 8.2,
+   "across_m": 30.7,
+   "view": {
+    "eye": {
+     "lat": 48.983632,
+     "lon": -123.076727,
+     "y": 61.8
+    },
+    "aim": {
+     "lat": 48.984409,
+     "lon": -123.076727,
+     "y": 10.2
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.983632,-123.076727,61.8&aim=48.984409,-123.076727,10.2&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "fire-station",
+   "name": "Whatcom County Fire District 5",
+   "what": "building",
+   "note": "the fire station, four bays facing south",
+   "lat": 48.988851,
+   "lon": -123.043974,
+   "ground_m_mllw": 65.3,
+   "across_m": 46.9,
+   "view": {
+    "eye": {
+     "lat": 48.987663,
+     "lon": -123.043974,
+     "y": 147.2
+    },
+    "aim": {
+     "lat": 48.988851,
+     "lon": -123.043974,
+     "y": 67.3
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.987663,-123.043974,147.2&aim=48.988851,-123.043974,67.3&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "gulf-road",
+   "name": "Gulf Road",
+   "what": "place",
+   "note": "the road down to the water, the tavern and the cafe on it",
+   "lat": 48.9844,
+   "lon": -123.0845,
+   "ground_m_mllw": 0.8,
+   "across_m": 350,
+   "view": {
+    "eye": {
+     "lat": 48.980627,
+     "lon": -123.0845,
+     "y": 261.1
+    },
+    "aim": {
+     "lat": 48.9844,
+     "lon": -123.0845,
+     "y": 2.8
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.980627,-123.084500,261.1&aim=48.984400,-123.084500,2.8&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "lighthouse-marine-park",
+   "name": "Lighthouse Marine Park",
+   "what": "park",
+   "note": "park, off the OpenStreetMap bake",
+   "lat": 48.972766,
+   "lon": -123.082118,
+   "ground_m_mllw": 3.2,
+   "across_m": 200.0,
+   "view": {
+    "eye": {
+     "lat": 48.968993,
+     "lon": -123.082118,
+     "y": 263.6
+    },
+    "aim": {
+     "lat": 48.972766,
+     "lon": -123.082118,
+     "y": 5.2
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.968993,-123.082118,263.6&aim=48.972766,-123.082118,5.2&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "lily-point-marine-reserve",
+   "name": "Lily Point Marine Reserve",
+   "what": "park",
+   "note": "park, off the OpenStreetMap bake",
+   "lat": 48.981614,
+   "lon": -123.025868,
+   "ground_m_mllw": 61.9,
+   "across_m": 200.0,
+   "view": {
+    "eye": {
+     "lat": 48.977841,
+     "lon": -123.025868,
+     "y": 326.2
+    },
+    "aim": {
+     "lat": 48.981614,
+     "lon": -123.025868,
+     "y": 63.9
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.977841,-123.025868,326.2&aim=48.981614,-123.025868,63.9&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "maple-beach-tidelands-park",
+   "name": "Maple Beach Tidelands Park",
+   "what": "park",
+   "note": "park, off the OpenStreetMap bake",
+   "lat": 48.999521,
+   "lon": -123.033277,
+   "ground_m_mllw": 1.2,
+   "across_m": 200.0,
+   "view": {
+    "eye": {
+     "lat": 48.995748,
+     "lon": -123.033277,
+     "y": 265.1
+    },
+    "aim": {
+     "lat": 48.999521,
+     "lon": -123.033277,
+     "y": 3.2
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.995748,-123.033277,265.1&aim=48.999521,-123.033277,3.2&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "marina-building",
+   "name": "The marina building",
+   "what": "building",
+   "note": "the long building on the marina basin",
+   "lat": 48.977212,
+   "lon": -123.063173,
+   "ground_m_mllw": 4.9,
+   "across_m": 62.3,
+   "view": {
+    "eye": {
+     "lat": 48.975635,
+     "lon": -123.063173,
+     "y": 113.7
+    },
+    "aim": {
+     "lat": 48.977212,
+     "lon": -123.063173,
+     "y": 6.9
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.975635,-123.063173,113.7&aim=48.977212,-123.063173,6.9&fov=25.000",
+   "also_called": [
+    "Point Roberts Marina",
+    "Pier Restaurant"
+   ]
+  },
+  {
+   "id": "marketplace",
+   "name": "Point Roberts International Marketplace",
+   "what": "building",
+   "note": "the grocery, the one supermarket on the point",
+   "lat": 48.985536,
+   "lon": -123.065942,
+   "ground_m_mllw": 17.9,
+   "across_m": 87.0,
+   "view": {
+    "eye": {
+     "lat": 48.983332,
+     "lon": -123.065942,
+     "y": 170.1
+    },
+    "aim": {
+     "lat": 48.985536,
+     "lon": -123.065942,
+     "y": 19.9
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.983332,-123.065942,170.1&aim=48.985536,-123.065942,19.9&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "monument-park",
+   "name": "Monument Park",
+   "what": "park",
+   "note": "park, off the OpenStreetMap bake",
+   "lat": 49.001504,
+   "lon": -123.089451,
+   "ground_m_mllw": 6.1,
+   "across_m": 200.0,
+   "view": {
+    "eye": {
+     "lat": 48.997731,
+     "lon": -123.089451,
+     "y": 266.5
+    },
+    "aim": {
+     "lat": 49.001504,
+     "lon": -123.089451,
+     "y": 8.1
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.997731,-123.089451,266.5&aim=49.001504,-123.089451,8.1&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "old-wharf",
+   "name": "Old wharf",
+   "what": "ruin",
+   "note": "the pilings of the old cannery wharf, standing on the flat",
+   "lat": 48.984174,
+   "lon": -123.085869,
+   "ground_m_mllw": -1.0,
+   "across_m": 159.8,
+   "view": {
+    "eye": {
+     "lat": 48.980401,
+     "lon": -123.085869,
+     "y": 259.4
+    },
+    "aim": {
+     "lat": 48.984174,
+     "lon": -123.085869,
+     "y": 1.0
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.980401,-123.085869,259.4&aim=48.984174,-123.085869,1.0&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "point-roberts-airpark",
+   "name": "Point Roberts Airpark",
+   "what": "runway",
+   "note": "grass strip 16/34",
+   "lat": 48.97838,
+   "lon": -123.079261,
+   "ground_m_mllw": 2.8,
+   "across_m": 737.2,
+   "view": {
+    "eye": {
+     "lat": 48.974607,
+     "lon": -123.079261,
+     "y": 263.1
+    },
+    "aim": {
+     "lat": 48.97838,
+     "lon": -123.079261,
+     "y": 4.8
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.974607,-123.079261,263.1&aim=48.978380,-123.079261,4.8&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "post-office",
+   "name": "Point Roberts post office",
+   "what": "building",
+   "note": "the post office, and the parcel trade that comes with the border",
+   "lat": 48.984997,
+   "lon": -123.068612,
+   "ground_m_mllw": 15.2,
+   "across_m": 26.2,
+   "view": {
+    "eye": {
+     "lat": 48.984334,
+     "lon": -123.068612,
+     "y": 61.0
+    },
+    "aim": {
+     "lat": 48.984997,
+     "lon": -123.068612,
+     "y": 17.2
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.984334,-123.068612,61.0&aim=48.984997,-123.068612,17.2&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "reef",
+   "name": "The Reef",
+   "what": "building",
+   "note": "the tavern above the beach on Gulf Road",
+   "lat": 48.984537,
+   "lon": -123.083544,
+   "ground_m_mllw": 5.6,
+   "across_m": 46.0,
+   "view": {
+    "eye": {
+     "lat": 48.983372,
+     "lon": -123.083544,
+     "y": 86.0
+    },
+    "aim": {
+     "lat": 48.984537,
+     "lon": -123.083544,
+     "y": 7.6
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.983372,-123.083544,86.0&aim=48.984537,-123.083544,7.6&fov=25.000",
+   "also_called": [
+    "Kiniski's Reef"
+   ]
+  },
+  {
+   "id": "saltwater",
+   "name": "Saltwater Cafe",
+   "what": "building",
+   "note": "the cafe on Gulf Road",
+   "lat": 48.984039,
+   "lon": -123.081858,
+   "ground_m_mllw": 6.8,
+   "across_m": 18.6,
+   "view": {
+    "eye": {
+     "lat": 48.9835,
+     "lon": -123.081858,
+     "y": 44.0
+    },
+    "aim": {
+     "lat": 48.984039,
+     "lon": -123.081858,
+     "y": 8.8
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.983500,-123.081858,44.0&aim=48.984039,-123.081858,8.8&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "the-bluff",
+   "name": "The bluff at 389 West Bluff Road",
+   "what": "place",
+   "note": "the cabin the whole model is measured from, above the beach on the west side",
+   "lat": 48.989009,
+   "lon": -123.085318,
+   "ground_m_mllw": 18.5,
+   "across_m": 120,
+   "view": {
+    "eye": {
+     "lat": 48.98597,
+     "lon": -123.085318,
+     "y": 228.2
+    },
+    "aim": {
+     "lat": 48.989009,
+     "lon": -123.085318,
+     "y": 20.5
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.985970,-123.085318,228.2&aim=48.989009,-123.085318,20.5&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "the-crossing",
+   "name": "The border on the ground",
+   "what": "place",
+   "note": "the 49th parallel, cut through the trees the whole width of the peninsula",
+   "lat": 49.0,
+   "lon": -123.065,
+   "ground_m_mllw": 49.0,
+   "across_m": 800,
+   "view": {
+    "eye": {
+     "lat": 48.996227,
+     "lon": -123.065,
+     "y": 309.4
+    },
+    "aim": {
+     "lat": 49.0,
+     "lon": -123.065,
+     "y": 51.0
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.996227,-123.065000,309.4&aim=49.000000,-123.065000,51.0&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "the-flats",
+   "name": "The flats off the west bluff",
+   "what": "place",
+   "note": "the tide flat below the bluff, where the water goes out",
+   "lat": 48.986,
+   "lon": -123.092,
+   "ground_m_mllw": -5.9,
+   "across_m": 900,
+   "view": {
+    "eye": {
+     "lat": 48.982227,
+     "lon": -123.092,
+     "y": 254.5
+    },
+    "aim": {
+     "lat": 48.986,
+     "lon": -123.092,
+     "y": -3.9
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=48.982227,-123.092000,254.5&aim=48.986000,-123.092000,-3.9&fov=25.000",
+   "also_called": []
+  },
+  {
+   "id": "the-view",
+   "name": "Where the page opens",
+   "what": "place",
+   "note": "on Tyee Drive north of the US canopy, at a driver's eye height, looking south at the booths",
+   "lat": 49.0013,
+   "lon": -123.0684,
+   "ground_m_mllw": 51.1,
+   "across_m": null,
+   "view": {
+    "eye": {
+     "lat": 49.00193,
+     "lon": -123.06846,
+     "y": 53.4
+    },
+    "aim": {
+     "lat": 49.0013,
+     "lon": -123.0684,
+     "y": 54.0
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=49.001930,-123.068460,53.4&aim=49.001300,-123.068400,54.0&fov=25.000",
+   "also_called": [],
+   "starting_position": true
+  },
+  {
+   "id": "tsawwassen-ferry-terminal",
+   "name": "Tsawwassen Ferry Terminal",
+   "what": "ferry",
+   "note": "ferry, off the OpenStreetMap bake",
+   "lat": 49.006435,
+   "lon": -123.131738,
+   "ground_m_mllw": -31.8,
+   "across_m": 200.0,
+   "view": {
+    "eye": {
+     "lat": 49.002662,
+     "lon": -123.131738,
+     "y": 228.6
+    },
+    "aim": {
+     "lat": 49.006435,
+     "lon": -123.131738,
+     "y": -29.8
+    },
+    "fov": 25.0
+   },
+   "hash": "#eye=49.002662,-123.131738,228.6&aim=49.006435,-123.131738,-29.8&fov=25.000",
+   "also_called": []
+  }
+ ]
+}
