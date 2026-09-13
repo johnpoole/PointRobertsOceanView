@@ -55,8 +55,10 @@ const audio = new Audio();
 audio._build();
 assert.ok(audio.ready, "the graph built");
 
-const base = { waveHeightM: 0.3, wavePeriodS: 4, waterDistanceM: 50,
-  listenerHeightM: 20, boat: null };
+// Standing on the beach with the water in front of you, which is the only place
+// the surf is audible from at all now.
+const base = { waveHeightM: 0.3, wavePeriodS: 4, waterDistanceM: 2,
+  listenerHeightM: 1.6, boat: null };
 const run = (over) => { audio.update(0.5, { ...base, ...over }); };
 
 // ---- wind -------------------------------------------------------------------
@@ -100,6 +102,25 @@ for (let i = 0; i < 20; i++) run({ windSpeedMps: 12, marinaDistanceM: 5000 });
 assert.equal(seen.struck, 0, "masts knocking five kilometres away");
 
 // ---- the surf ---------------------------------------------------------------
+// It carries fifty feet and no further. The peninsula is narrow enough that
+// there is water within a mile of everywhere on it, so a curve that trailed off
+// slowly had the sea audible on the golf course in the middle of the point.
+run({ waterDistanceM: 1, listenerHeightM: 1.6 });
+const atTheEdge = audio.surfGain.gain.value;
+assert.ok(atTheEdge > 0.05, `with your boots in it the surf is only ${atTheEdge}`);
+run({ waterDistanceM: 15.5, listenerHeightM: 1.6 });
+assert.equal(audio.surfGain.gain.value, 0,
+  "the surf carries past fifty feet");
+run({ waterDistanceM: 400, listenerHeightM: 20 });
+assert.equal(audio.surfGain.gain.value, 0, "the sea is audible inland");
+// Height counts as range: the water below a bluff is further off than the water
+// in front of you, and climbing away from it quietens it the same way walking
+// inland does.
+run({ waterDistanceM: 1, listenerHeightM: 30 });
+assert.equal(audio.surfGain.gain.value, 0,
+  "thirty metres up a bluff is still at the water's edge");
+run({ waterDistanceM: 2, listenerHeightM: 1.6 });
+
 // The beat runs at the period the station is reporting and is not slowed down
 // to sound better. What a short sea loses is the beat itself, not the rate.
 run({ wavePeriodS: 2.45, windSpeedMps: 4 });

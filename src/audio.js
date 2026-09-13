@@ -151,14 +151,14 @@ const HUNT = [
 const LOAD_SAG_RPM = 700;
 const REV_TAU = 0.35;      // s — revs answer the throttle far quicker than the hull
 
-// How the water fades with range. Falls off as 1/(1 + d/REF), which keeps the
-// beach loud and the strait audible from the bluff.
-const WATER_REF_M = 70;
-// And then stops. That curve never reaches zero, and the peninsula is narrow
-// enough that there is water within a mile of everywhere on it, so the sea was
-// audible standing on the golf course in the middle of the point. Past this it
-// is gone, which is what happens when you walk inland through a wood.
-const WATER_GONE_M = 850;
+// How the water fades with range. Falls off as 1/(1 + d/REF), so it is loudest
+// with your boots in it and half gone a few paces up the beach.
+const WATER_REF_M = 6;
+// And then stops. Fifty feet off the water and there is nothing. The curve never
+// reaches zero on its own, and the peninsula is narrow enough that there is
+// water within a mile of everywhere on it, so the sea was audible standing on
+// the golf course in the middle of the point.
+const WATER_GONE_M = 15.24;   // 50 ft
 
 function clamp(x, a, b) { return Math.min(b, Math.max(a, x)); }
 
