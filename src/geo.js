@@ -9,7 +9,7 @@ const DEG = Math.PI / 180;
 const COS_LAT = Math.cos(ORIGIN.lat * DEG); // ~0.6565 at 48.989
 
 // Metres east and north of ORIGIN for a lat/lon.
-export function toENU(lat, lon) {
+function toENU(lat, lon) {
   const east = (lon - ORIGIN.lon) * M_PER_DEG_LAT * COS_LAT;
   const north = (lat - ORIGIN.lat) * M_PER_DEG_LAT;
   return { east, north };

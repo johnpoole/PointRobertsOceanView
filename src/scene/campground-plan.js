@@ -52,9 +52,9 @@ export const BUFFER_M = 30 * FT;           // landscaped perimeter buffer, WCC 2
 export const DEVELOPED_ACRES = 16.5;       // the developed area within the lot, p.1
 export const HEIGHT_CAP_M = 25 * FT;       // Point Roberts Special District, condition 46
 export const ROAD_ONE_WAY_M = 20 * FT;     // fire access, SR p.30
-export const ROAD_TWO_WAY_M = 26 * FT;     // and the width at each hydrant
+const ROAD_TWO_WAY_M = 26 * FT;     // and the width at each hydrant
 export const HYDRANTS = 5;                 // p.7
-export const HYDRANT_SPACING_M = 600 * FT; // what the decision asks for, SR p.27
+const HYDRANT_SPACING_M = 600 * FT; // what the decision asks for, SR p.27
 
 // How far a camp site stands off the lot boundary. The code minimum is the 30 ft
 // buffer, but the tightest distance the applicant states is 40 ft, tent sites to
@@ -89,12 +89,11 @@ export const PLINTH_M = 0.25;
 // The park models are the exception: one is twelve feet wide and its length
 // falls out of the area.
 const BUILDING_RATIO = 1.55;
-export const CABIN_WIDTH_M = 12 * FT;
 
 // 184 stalls at 9 by 18 feet, condition 48(i). 166 of them are one per campsite
 // and stand on the site; an RV site parks on its own pad and takes no separate
 // stall. The other 18 cluster behind the store.
-export const STALL = [9 * FT, 18 * FT];
+const STALL = [9 * FT, 18 * FT];
 export const CLUSTER_STALLS = 18;
 
 // ---- what this file decides, and calls decided ------------------------------
@@ -111,7 +110,7 @@ const HYDRANT_WIDE_M = 16.0;  // how much road is widened to 26 ft at a hydrant
 
 // ---- the lot ---------------------------------------------------------------
 
-export function worldRing(coords) {
+function worldRing(coords) {
   return coords.map(([lat, lon]) => {
     const w = toWorld(lat, lon, 0);
     return { x: w.x, z: w.z };

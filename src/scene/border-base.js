@@ -16,7 +16,7 @@ function prism(ring,bottom,height,color){const shape=new THREE.Shape(ring.map(p=
 // A roof over four corners given in order, sloping from the ridge that runs
 // between the middles of the two end walls. Built from the corners themselves
 // because the wing sits a few degrees off the frame and a turned box would miss.
-export function slopedRoof(a,b,c,d,wallTop,rise,color){
+function slopedRoof(a,b,c,d,wallTop,rise,color){
   const mid=(p,q)=>({x:(p.x+q.x)/2,z:(p.z+q.z)/2}),r1=mid(a,d),r2=mid(b,c),pos=[],
     tri=(p,q,s)=>pos.push(...p,...q,...s),
     at=(p,y)=>[p.x,y,p.z],top=wallTop+rise;
@@ -34,7 +34,7 @@ export function drape(ring,sample,color,offset){
 // The lanes run north from the canopy toward the line, and the walk stands in
 // front of the office glazing.
 export const APRON=[{x:-3,z:-15},{x:21,z:-15},{x:21,z:13},{x:-3,z:13}];
-export const WALK=[{x:19.6,z:-14},{x:22.4,z:-14},{x:22.4,z:10},{x:19.6,z:10}];
+const WALK=[{x:19.6,z:-14},{x:22.4,z:-14},{x:22.4,z:10},{x:19.6,z:10}];
 export function buildBorderBase(scene,sample){
   const group=new THREE.Group();group.name="border-base";
   const ground=borderRing.map(p=>borderHeight(sample,p.x,p.z)),
