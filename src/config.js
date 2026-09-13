@@ -70,6 +70,11 @@ export const SITE_TERRACES = "assets/site/389-terraces.json";
 // Point Roberts land reference (roads, buildings, coastline, landmarks) from OSM.
 export const OSM = "assets/osm/features.json";
 
+// The thirty-seven harmonics that make the tide at station 9449639, baked off
+// NOAA's own publication of them by scripts/build_tides.py. They let the page
+// work out the water on a day the proxy's two-day run does not reach.
+export const TIDE_HARMONICS = "assets/tide/harmonics.json";
+
 // The golf course, baked on its own by scripts/build_golf.py so that refreshing
 // it never renumbers the buildings in features.json.
 export const GOLF = "assets/osm/golf.json";

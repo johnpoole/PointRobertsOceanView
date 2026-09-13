@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, OPENING_VIEW, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN } from "./config.js";
+import { EYE_HEIGHT_M, LANDCOVER, OPENING_VIEW, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN, TIDE_HARMONICS } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";
@@ -63,6 +63,7 @@ import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { ClockControl, hourFromHash } from "./clock-control.js";
 import { getPosition } from "suncalc";
+import * as tide from "./tide.js";
 import { Nav } from "./nav.js";
 import { Live } from "./live.js";
 import { Touch } from "./touch.js";
@@ -316,6 +317,24 @@ function fineCovers(fine) {
 // The stair is read before the ground is built, because it cuts the ground.
 // A stair that will not load says so and the bank is left whole, rather than
 // taking the whole terrain down with it.
+// The harmonics, for any day the proxy's own run does not reach. Nothing waits
+// on this: without it the page still has NOAA's run for today and says it does
+// not know for anything else, which is what it did before.
+fetch(TIDE_HARMONICS)
+  .then((r) => r.json())
+  .then((baked) => {
+    if (!tide.loadHarmonics(baked)) {
+      console.error(`${TIDE_HARMONICS} carried no constituents, so a past day `
+        + `has no tide. Rebuild it with python scripts/build_tides.py.`);
+      return;
+    }
+    // A day already chosen was told there was no water. Ask again.
+    hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
+  })
+  .catch((err) => {
+    console.error(`${TIDE_HARMONICS} did not load, so a past day has no tide:`, err);
+  });
+
 const stairSpec = fetch(SITE_STAIR)
   .then((r) => r.json())
   .catch((err) => { failed("the stair east of the house", err); return null; });
@@ -663,10 +682,18 @@ function tideAt() {
   const s = t.series;
   const m = numberAt(s, s && s.values, sceneNow());
   // The run is two days long and the date box reaches months back, so falling
-  // off the end of it is ordinary. What it must not do is hand back the present
-  // hour's gauge under a different hour's sun. It says it does not know.
-  if (m == null) return { ...t, water_level_m: null, surge_m: null, trend: null,
-                          predicted: true, beyond: true };
+  // off the end of it is ordinary. Past it the tide is worked out here from the
+  // station's own harmonics, which is the same arithmetic NOAA did to make the
+  // run — within seven centimetres of their published numbers four years out.
+  //
+  // What it must not do is hand back the present hour's gauge under a different
+  // hour's sun. If the harmonics never loaded it says it does not know.
+  if (m == null) {
+    const worked = tide.stateAt(sceneNow());
+    if (worked) return { ...t, ...worked };
+    return { ...t, water_level_m: null, surge_m: null, trend: null,
+             predicted: true, beyond: true };
+  }
   // Astronomical only. The surge was measured minutes ago and it is weather.
   return { ...t, water_level_m: m, surge_m: null, trend: null, predicted: true };
 }
