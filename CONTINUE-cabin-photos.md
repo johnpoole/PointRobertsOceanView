@@ -159,3 +159,46 @@ The north timber stair gaps, exact south stair measurements/orientation, and
 stepped roof dimensions remain open in #42. This section supersedes the earlier
 south timber-flight material and missing-landing findings; it does not claim
 that every stair on the property is now surveyed or corrected.
+
+## Paired entrance view — issue #88
+
+On 13 September the owner identified this saved viewpoint as close to
+`PXL_20211108_175012789.jpg`:
+
+http://192.168.1.90:8091/#eye=48.989003,-123.085690,13.3&aim=48.991448,-123.087118,-57.9&fov=25.000
+
+The photo is in `images/Photos-1-001` (also present in the engineering photo
+collection). This is an approximate owner-supplied pairing, not a solved camera
+calibration. Diagnostics use the URL eye/aim/25-degree vertical FOV and the
+photo's 4:3 aspect. Cabin-local eye is approximately (4.238, 13.3, 9.499).
+
+The comparison shows a narrow boarded passage along the east wall, a block
+retaining bank, and no rail crossing the approach from the landing. Added those
+features and removed the top-landing north cross-rail. The passage and confirmed
+entrance recess now have local terrain clearance. The old shingle roof, meter,
+loose furniture and stored items in the reference do not change the current roof
+or become permanent model features.
+
+Estimated passage: 1.165 m clear width, 6.39 m long, at the 10.45 m upper-floor
+level, with narrow crosswise boards. Its far termination and wall alignment are
+not surveyed. The retaining blocks use 200 mm courses, approximately 400 mm
+lengths, staggered joints and a 40 mm setback per course. Bank height is guided
+by the **uncut** fine terrain two metres behind the wall foot (that horizontal
+sampling offset is itself an estimate), limited to 1.4–3.8 m above the passage.
+This avoids using the lowered approach/stair cut as the retained bank top. It
+is still a rendering approximation of a wall smoothed out by the elevation grid.
+The modeled source-bank samples are about 12.5–12.9 m MLLW along this wall.
+
+`buildTerrain` optionally preserves its pre-carve height array and exposes a
+survey sampler for this purpose; walking and all usual ground-dependent objects
+continue using the carved sampler. Only the small fine tile opts into that
+additional copy (~0.74 MB). Near/far terrain paths keep their existing sampling.
+
+Validation: 61,767 modeled-surface samples clear both mesh and terrain sampler;
+actual geometry rays find passage boards and a retaining wall face, with no
+cross-rail along the passage. The bank sampler matches the uncut refined survey.
+Existing stair, roof-notch and local ground-clearance checks pass. Compared the
+actual generated cabin/terrain at the paired eye/aim/FOV, using diagnostic light;
+this is not a capture of the application's complete live scene. Cabin is one
+mesh, no textures, 10,552 triangles; terrain mesh cost is unchanged. Source photos
+remain local and are not deployed.

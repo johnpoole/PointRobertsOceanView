@@ -348,7 +348,7 @@ const stairSpec = fetch(SITE_STAIR)
 
 stairSpec
   .then((stair) => buildTerrain(scene, TERRAIN.fine,
-      { haze: 0, fog: true, landcover: LANDCOVER, projector: true, refine: 4,
+      { haze: 0, fog: true, landcover: LANDCOVER, projector: true, refine: 4, preserveSurvey: true,
         carveForGrid: (diagonal) => {
           const cabinCut = cabinCarve(diagonal);
           const uphillCut = stair ? stairCarve(stair, diagonal) : (lat, lon, y) => y;
@@ -406,7 +406,7 @@ stairSpec
     // while the courts are up.
     // The cabin is modelled off photographs rather than extruded from its OSM
     // trace, so land.js leaves the home alone and cabin.js puts it there.
-    buildCabin(scene, near.sample);
+    buildCabin(scene, near.sample, fine.surveySample);
     // Drawn as steps because the terrain cannot hold them, and standing in the
     // channel stairCarve cut for it above: see stair.js.
     if (stair) buildStair(scene, stair, near.projector);

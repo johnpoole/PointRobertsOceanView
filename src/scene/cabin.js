@@ -125,6 +125,13 @@ const SOUTH_END = 2.1;              // where the ground reaches the deck top
 const GROUND_AT_SOUTH_WEST = 4.62;  // the terrain under the two ends of that edge
 const GROUND_AT_SOUTH_END = 8.41;
 
+// PXL_20211108_175012789, paired by the owner with the 13 September saved
+// entrance view: a boarded passage between the east wall and a block bank.
+// Width and far termination are visual estimates, not calibrated dimensions.
+const PASSAGE_INNER = W / 2 + 0.035;
+const PASSAGE_OUTER = W / 2 + 1.20;
+const PASSAGE_NORTH = -L / 2 + 0.4;
+
 // Both south flights are concrete. The August 2026 photographs show a level
 // lower-deck entrance beside the retaining wall and timber handrails above it.
 const SOUTH_STAIR = southStairPlan({ halfW: W / 2, halfL: L / 2,
@@ -234,6 +241,9 @@ export function cabinGroundSurfaces() {
       LOWER_FLOOR - 0.14);
   add(SOUTH_STAIR.landing, LANDING_Y - 0.2);
   add(SOUTH_STAIR.topLanding, UPPER_FLOOR - 0.2);
+  rectangle(PASSAGE_INNER, PASSAGE_OUTER, PASSAGE_NORTH, hl, UPPER_FLOOR - 0.07);
+  // The confirmed entrance recess is at upper-floor grade, not an uncut bank.
+  rectangle(NOTCH_X, hw, NOTCH_Z, hl, UPPER_FLOOR - 0.02);
   for (let k = 0; k < STEPS; k++) {
     const x = STAIR_U0 + k * GOING, top = STAIR_BASE + (k + 1) * RISER;
     rectangle(x - GOING / 2, x + GOING / 2, STAIR_V - STAIR_W / 2,
@@ -263,10 +273,10 @@ export function cabinCarve(gridDiagonal) {
   };
 }
 
-export function buildCabin(scene, sample) {
-  const groundAt = (x, z) => {
+export function buildCabin(scene, sample, bankSample = sample) {
+  const groundAt = (x, z, sampler = sample) => {
     const { lat, lon } = fromWorld(x, z);
-    return sample(lat, lon);
+    return sampler(lat, lon);
   };
   const parts = [];
   const hw = W / 2, hl = L / 2;
@@ -299,9 +309,9 @@ export function buildCabin(scene, sample) {
   // May 2025 west elevation and June 2022 southwest view: tall posts carry
   // beams and knee braces under the upper deck, rather than ending at the
   // lower floor. Sizes/spacing are photo estimates; feet use the baked ground.
-  const groundLocal = (x, z) => groundAt(
+  const groundLocal = (x, z, sampler = sample) => groundAt(
     AT.x + x * Math.cos(YAW) + z * Math.sin(YAW),
-    AT.z - x * Math.sin(YAW) + z * Math.cos(YAW));
+    AT.z - x * Math.sin(YAW) + z * Math.cos(YAW), sampler);
   const member = (a, b, w, d, color) => {
     const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b);
     const direction = end.clone().sub(start);
@@ -311,6 +321,38 @@ export function buildCabin(scene, sample) {
     g.translate(...start.add(end).multiplyScalar(0.5).toArray());
     return tint(g, color);
   };
+
+  // Boards span the narrow east passage. Small real joints keep it distinct
+  // from the concrete stair landing without requiring a photographic texture.
+  const boardCount = Math.ceil((hl - PASSAGE_NORTH) / 0.145);
+  const boardPitch = (hl - PASSAGE_NORTH) / boardCount;
+  for (let k = 0; k < boardCount; k++) {
+    place(parts, box(PASSAGE_OUTER - PASSAGE_INNER, boardPitch - 0.004, 0.07,
+      (PASSAGE_INNER + PASSAGE_OUTER) / 2, UPPER_FLOOR - 0.07,
+      PASSAGE_NORTH + (k + 0.5) * boardPitch, DECK_TIMBER));
+  }
+  // Retaining blocks on the uphill edge. The original uncut survey supplies
+  // an approximate bank top behind the wall; course sizes are photo
+  // estimates. The original elevation asset is not changed to fit the photo.
+  const wallBase = UPPER_FLOOR - 0.20;
+  const wallRun = hl - PASSAGE_NORTH, blockLength = 0.40, course = 0.20;
+  for (let row = 0; row < 20; row++) {
+    for (let z0 = PASSAGE_NORTH - (row % 2) * blockLength / 2; z0 < hl; z0 += blockLength) {
+      const a = Math.max(z0, PASSAGE_NORTH), b = Math.min(z0 + blockLength, hl);
+      if (b - a < 0.025) continue;
+      const z = (a + b) / 2;
+      // The grid smooths the wall into a bank. Read the retained ground two
+      // metres behind its foot, rather than treating the low interpolated
+      // value beside the passage as the wall top. This offset is an estimate.
+      const bank = groundLocal(PASSAGE_OUTER + 2.0, z, bankSample);
+      const top = Math.max(UPPER_FLOOR + 1.4, Math.min(UPPER_FLOOR + 3.8, bank));
+      if (wallBase + row * course >= top) continue;
+      const colors = [0x85877e, 0x92938a, 0x7c8078];
+      place(parts, box(0.38, b - a - 0.012, course - 0.012,
+        PASSAGE_OUTER + 0.20 + row * 0.04, wallBase + row * course, z,
+        colors[(row + Math.round((z - PASSAGE_NORTH) / blockLength)) % colors.length]));
+    }
+  }
   const beamTop = UPPER_FLOOR - 0.14, beamBottom = beamTop - 0.22;
   const postX = -hw - DECK_OUT + 0.4;
   place(parts, box(0.20, L, 0.22, postX, beamBottom, 0, DECK_TIMBER));
@@ -677,8 +719,7 @@ export function buildCabin(scene, sample) {
   for (const h of [RAIL_H, RAIL_H * 0.55]) {
     place(parts, member([right, UPPER_FLOOR + h, upper.head],
       [right, UPPER_FLOOR + h, hl], 0.09, 0.12, DECK_TIMBER));
-    place(parts, member([right, UPPER_FLOOR + h, hl],
-      [hw, UPPER_FLOOR + h, hl], 0.09, 0.12, DECK_TIMBER));
+    // No cross-rail here: the landing continues into the photographed passage.
     place(parts, member([right, LOWER_FLOOR + h, upper.foot],
       [right, LOWER_FLOOR + h, 9], 0.09, 0.12, DECK_TIMBER));
     place(parts, member([right, LOWER_FLOOR + h, 9],

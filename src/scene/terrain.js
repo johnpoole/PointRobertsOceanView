@@ -619,6 +619,9 @@ export async function buildTerrain(scene, asset, opts = {}) {
     meta.grid = { ...meta.grid, nrows, ncols, cellsize_deg, dtype: "float32", scale_m: 1 };
   }
 
+  // Retaining walls need the bank before excavation, not the lowered passage.
+  const surveyZ = opts.preserveSurvey ? Z.slice() : null;
+
   // Something the bake could not hold, cut into the ground before anything reads
   // it. carve(lat, lon, height) hands back the height it wants there. The stair
   // is the case it exists for: see stairCarve in stair.js.
@@ -780,16 +783,18 @@ export async function buildTerrain(scene, asset, opts = {}) {
 
   // Bilinear height lookup (metres MLLW) for draping map features on the ground.
   // Out-of-tile lat/lon clamp to the nearest edge.
-  const sample = (lat, lon) => {
+  const sampleFrom = (heights, lat, lon) => {
     let fi = Math.min(Math.max((north_lat - lat) / cellsize_deg, 0), nrows - 1);
     let fj = Math.min(Math.max((lon - west_lon) / cellsize_deg, 0), ncols - 1);
     const i0 = Math.floor(fi), j0 = Math.floor(fj);
     const i1 = Math.min(i0 + 1, nrows - 1), j1 = Math.min(j0 + 1, ncols - 1);
     const ti = fi - i0, tj = fj - j0;
-    const top = Z[i0 * ncols + j0] * (1 - tj) + Z[i0 * ncols + j1] * tj;
-    const bot = Z[i1 * ncols + j0] * (1 - tj) + Z[i1 * ncols + j1] * tj;
+    const top = heights[i0 * ncols + j0] * (1 - tj) + heights[i0 * ncols + j1] * tj;
+    const bot = heights[i1 * ncols + j0] * (1 - tj) + heights[i1 * ncols + j1] * tj;
     return top * (1 - ti) + bot * ti;
   };
+  const sample = (lat, lon) => sampleFrom(Z, lat, lon);
+  const surveySample = surveyZ ? (lat, lon) => sampleFrom(surveyZ, lat, lon) : sample;
   // Throw a photograph on the ground, or take it off with mix 0. camera stands
   // where the photograph was taken and points where it pointed; only where it
   // is and how it is turned are used, because the lens is not a straight one and
@@ -825,6 +830,6 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const setHaze = (color) => {
     if (hazeColor) hazeColor.value.copy(color);
   };
-  return { mesh, meta, sample, heights: Z, cover, project, bands, setHaze,
+  return { mesh, meta, sample, surveySample, heights: Z, cover, project, bands, setHaze,
            projector: projector ? { dress: (m) => dressAnything(m, projector) } : null };
 }
