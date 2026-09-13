@@ -1808,7 +1808,11 @@ function showCall(found) {
   callRows.innerHTML = [
     row("when", c.when),
     row("deputy", c.deputy),
-    row("closed", c.disposition),
+    // Their three letters, and what their own table says the three letters
+    // mean. This is the whole of what came of a call: the report carries no
+    // narrative and two rows in three are filed with nothing at all.
+    row("disposition", c.outcome
+      ? `${c.outcome} (${c.disposition})` : c.disposition),
     row("incident", c.number),
     c.arrest ? row("arrested", `${c.arrest.name}, ${c.arrest.age}`) : "",
     c.arrest ? row("offences", c.arrest.offences) : "",

@@ -54,6 +54,45 @@ def tidy(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+# What the three letters at the end of a row mean. Their own table, off the same
+# page the reports are on:
+#
+#     https://www.whatcomcounty.us/DocumentCenter/View/12645
+#
+# This is the only account of what came of a call that exists anywhere public.
+# The report carries no narrative and there is no second document: what the
+# deputy wrote up is the incident report and that is not published. So a row is
+# what was called in, and this is how it was filed. Nothing in between.
+#
+# The codes are structured for NIBRS reporting, which is why an adult arrest has
+# three codes that mean the same thing to a reader.
+OUTCOMES = {
+    "ACT": "active",
+    "CAA": "cleared, adult arrested",
+    "CAC": "cleared, adult arrested",
+    "CAM": "cleared, adult arrested",
+    "CJA": "cleared, juvenile arrested",
+    "CJC": "cleared, juvenile arrested",
+    "CJM": "cleared, juvenile arrested",
+    "CLO": "closed",
+    "ECD": "cleared, the offender died",
+    "ECE": "cleared, extradition denied",
+    "ECP": "cleared, prosecution declined",
+    "ECV": "cleared, the victim would not go on",
+    "EJD": "cleared, the offender died",
+    "EJE": "cleared, extradition denied",
+    "EJN": "cleared, juvenile not taken into custody",
+    "EJP": "cleared, prosecution declined",
+    "EJV": "cleared, the victim would not go on",
+    "INA": "inactive",
+    "INF": "for information only",
+    "PEN": "pending",
+    "SGJ": "sent to a grand jury",
+    "TRA": "transferred",
+    "UNF": "unfounded",
+}
+
+
 def read_report(body: bytes) -> list[dict]:
     """Every call in one day's report, whichever town it was in.
 
@@ -61,7 +100,15 @@ def read_report(body: bytes) -> list[dict]:
     from the labels rather than from the line breaks, which do not survive.
     """
     pages = PdfReader(io.BytesIO(body)).pages
-    text = "\n".join(p.extract_text() or "" for p in pages)
+    return calls_in("\n".join(p.extract_text() or "" for p in pages))
+
+
+def calls_in(text: str) -> list[dict]:
+    """The rows out of one report's text.
+
+    Apart from the PDF, so their layout can be read against a page of it without
+    a document. Their layout is the part that changes.
+    """
     calls: list[dict] = []
     for chunk in text.split("Number: ")[1:]:
         def field(pattern: str) -> str:
@@ -72,10 +119,16 @@ def read_report(body: bytes) -> list[dict]:
         if not when:
             continue
         call = {
-            "number": tidy(chunk.split("\n")[0]),
+            # The first line with anything on it. pypdf puts the label and the
+            # value on separate lines, so the chunk begins with the newline that
+            # followed "Number: " and taking line zero threw the number away on
+            # every row that was laid out that way, which is nearly all of them.
+            "number": next((tidy(ln) for ln in chunk.split("\n") if ln.strip()), ""),
             "nature": field(r"Nature\s*:\s*(.*?)\s*Date\s*:"),
             "when": when,
             "disposition": field(r"Disp\s*:\s*(.*?)\s*Location\s*:") or None,
+            "outcome": OUTCOMES.get(
+                field(r"Disp\s*:\s*(.*?)\s*Location\s*:").upper()) or None,
             # Their page footer runs into the last row on a page.
             "location": re.sub(r"\s*Page \d+$", "",
                                field(r"Location\s*:\s*(.*?)\s*Deputy\s*:")),
