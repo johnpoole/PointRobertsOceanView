@@ -295,3 +295,39 @@ owner to obtain an exact photo origin through incorrect geometry. Exact landing
 extents and the stair's complete route remain unresolved. No model geometry was
 changed in this inspection. The diagnostic excludes surrounding buildings,
 vegetation and distant scenery; it is not a live application screenshot.
+
+## Road-to-cabin walkthrough extracted — issue #42
+
+Owner supplied `images/VID_20170718_072727~2.mp4` after the Google Photos link
+required sign-in. The local copy has been viewed through extracted frames:
+34.097911 seconds, 1920 x 1080, 1023 video frames, creation metadata dated
+18 July 2017. SHA-256:
+`93db776f7630102bc32a4822ba09d199d468e3c4a09bb5f8ebc8c68daf3ed827`.
+
+`images/cabin-walkthrough-20170718/` contains 69 full-resolution JPEGs at roughly
+half-second intervals, four timestamped contact sheets, a six-frame `keyframes.jpg`,
+and a README explaining the route evidence. `manifest.json` preserves exact
+source presentation timestamps/frame indices and metadata; `extract-frames.py`
+reproduces the extraction from the project root. The video's 180-degree display
+rotation is applied, with no enhancement or geometry warping. All 69 dimensions,
+frame count and increasing timestamps were checked; sheets and key frames were
+visually inspected. Video and derived images remain untracked local references.
+
+The demonstrated sequence is: upper approach (owner identifies the start as the
+road), paved route beside the shed (5–16 s), wider paved junction/turn against a
+retaining wall (21.5–25 s), then the concrete descent toward the recessed entrance
+and upper deck (25–34 s). A pan at 16–18 s reveals a separate stepped area beside
+the shed; the camera does not traverse that branch. At 32.5–33.5 s, the stair foot,
+entrance/upper deck and separate lower stair are visible together. The final
+concrete descent has an outer timber rail on the left when descending.
+
+This improves evidence for the order and relative connection of the access
+structures. Reconcile that main final flight with `assets/site/389-stair.json`
+and the additional provisional upper south flight in `cabin-stairs-plan.js`,
+rather than assuming each independently modeled flight has a separate photo
+counterpart. It does not by itself prove a replacement plan or exact turn angle.
+The upper paved junction is not the lower-deck landing. The video ends above
+the entrance, without traversing all landing transitions or the lower route.
+It does not resolve the north stair connections or establish surveyed lengths,
+heights, bearings or tread counts. No model geometry changes in this extraction
+step. Historical roof covering and vegetation do not override current photos.
