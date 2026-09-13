@@ -48,6 +48,28 @@ export function numberAt(series, run, when) {
   return lo + (hi - lo) * (i - a);
 }
 
+// One bearing out of a run. A compass bearing wraps and a straight line between
+// two of them does not: 350 to 10 is twenty degrees round the short way, and
+// blended as numbers it reads 180, which points due south when the wind is very
+// nearly due north. The vane, the cloud drift and the swell all take this.
+//
+// So the two are blended as points on the circle and the angle taken back off.
+export function bearingAt(series, run, when) {
+  const i = indexIn(series, when);
+  if (i == null || !Array.isArray(run) || i > run.length - 1) return null;
+  const a = Math.floor(i);
+  const b = Math.min(a + 1, run.length - 1);
+  const lo = run[a];
+  const hi = run[b];
+  if (lo == null || hi == null) return lo == null ? hi : lo;
+  // The signed difference the short way round, which is -180 to +180. Walking
+  // that fraction of it from the first bearing crosses north without noticing.
+  // Two bearings dead opposite are half a circle apart either way and this turns
+  // one of them, always the same one.
+  const round = ((hi - lo + 540) % 360) - 180;
+  return (lo + round * (i - a) + 360) % 360;
+}
+
 // One slot out of a run, not interpolated. For anything that is a word rather
 // than a number — a sky description, whether the stream is flooding or slack.
 export function slotAt(series, run, when) {

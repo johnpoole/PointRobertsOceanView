@@ -13,6 +13,8 @@ export class Vector3 {
   set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; }
   copy(v) { return this.set(v.x, v.y, v.z); }
   clone() { return new Vector3(this.x, this.y, this.z); }
+  add(v) { this.x += v.x; this.y += v.y; this.z += v.z; return this; }
+  multiplyScalar(k) { this.x *= k; this.y *= k; this.z *= k; return this; }
   distanceToSquared(v) {
     const dx = this.x - v.x, dy = this.y - v.y, dz = this.z - v.z;
     return dx * dx + dy * dy + dz * dz;

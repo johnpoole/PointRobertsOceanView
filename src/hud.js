@@ -111,9 +111,14 @@ export class Hud {
     // here has to be that one and say so — otherwise the panel reads the live
     // tide while the water is a metre somewhere else, and the slider appears
     // broken because nothing it does can move a held sea.
-    el("tide-trend").textContent = tide && tide.held
-      ? "held to the frame" : (tide && tide.predicted
-        ? "predicted" : (tide && tide.trend ? tide.trend : "—"));
+    // Beyond the forecast beats held beats predicted beats measured. The run
+    // the proxy bakes is two days long and the date box reaches months back, so
+    // running off the end of it is ordinary and the panel has to say so rather
+    // than showing the present hour's gauge under another hour's sun.
+    el("tide-trend").textContent = tide && tide.beyond
+      ? "beyond the forecast" : (tide && tide.held
+        ? "held to the frame" : (tide && tide.predicted
+          ? "predicted" : (tide && tide.trend ? tide.trend : "—")));
     // A forecast is not a reading and the panel titles say which is on screen.
     el("wx-station").textContent = wx && wx.predicted
       ? "forecast" : (wx && wx.station_id ? wx.station_id : "");
@@ -129,7 +134,7 @@ export class Hud {
     el("helm").classList.toggle("hidden", !show);
     if (!show) return;
     const c = current && current.data;
-    el("helm-current").textContent = !c ? "—"
+    el("helm-current").textContent = !c || c.beyond || c.set_degrees == null ? "—"
       : c.state === "slack" ? "slack"
       : `${num(c.drift_kn, 1, " kn")} ${Math.round(c.set_degrees)}° ${cardinal(c.set_degrees)}`;
     // Nav's yaw grows counter-clockwise from north; a compass bearing does not.
@@ -139,6 +144,7 @@ export class Hud {
     el("helm-course").textContent = boat.course == null ? "—"
       : `${Math.round(bearing(boat.course))}° at ${(boat.madeGood / KNOT).toFixed(1)} kn`;
     el("helm-note").textContent = !c ? "no current reading"
+      : c.beyond ? "beyond the forecast"
       : `predicted, ${c.station_id} ${c.station_distance_km} km offshore`;
   }
 }

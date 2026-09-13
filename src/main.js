@@ -71,7 +71,7 @@ import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
-import { numberAt, offsetHours, sceneNow, shifted, slotAt } from "./clock.js";
+import { bearingAt, numberAt, offsetHours, sceneNow, shifted, slotAt } from "./clock.js";
 
 const canvas = document.getElementById("scene");
 // The depth buffer is logarithmic. With the near plane at 1 m and the far at
@@ -544,11 +544,17 @@ function applyHeldTide() {
   heldTide = wyzeView && wyzePhoto ? WYZE_CAMS[wyzeCam].tide : null;
 }
 
+// The last level the water was actually given, so that when the clock runs past
+// the end of the forecast the sea stays where it was instead of dropping to
+// datum. Nothing is claimed by holding: the panel says it does not know.
+let lastLevel = 0;   // MLLW datum baseline until the first reading arrives
+
 function tideLevel() {
   if (novelTide !== null) return novelTide;
   if (heldTide !== null) return heldTide;
   const t = tideAt();
-  return t && t.water_level_m != null ? t.water_level_m : 0; // MLLW datum baseline
+  if (t && t.water_level_m != null) lastLevel = t.water_level_m;
+  return lastLevel;
 }
 
 // What the panel shows. Held, it has to be the number the water is actually at,
@@ -653,7 +659,11 @@ function tideAt() {
   if (!t || !shifted()) return t;
   const s = t.series;
   const m = numberAt(s, s && s.values, sceneNow());
-  if (m == null) return t;
+  // The run is two days long and the date box reaches months back, so falling
+  // off the end of it is ordinary. What it must not do is hand back the present
+  // hour's gauge under a different hour's sun. It says it does not know.
+  if (m == null) return { ...t, water_level_m: null, surge_m: null, trend: null,
+                          predicted: true, beyond: true };
   // Astronomical only. The surge was measured minutes ago and it is weather.
   return { ...t, water_level_m: m, surge_m: null, trend: null, predicted: true };
 }
@@ -663,7 +673,8 @@ function currentAt() {
   if (!c || !shifted()) return c;
   const s = c.series;
   const row = slotAt(s, s && s.rows, sceneNow());
-  if (!row) return c;
+  if (!row) return { ...c, drift_mps: null, drift_kn: null, set_degrees: null,
+                     state: null, predicted: true, beyond: true };
   const [drift, set, state] = row;
   return { ...c, drift_mps: drift, drift_kn: drift / 0.514444,
            set_degrees: set, state, predicted: true };
@@ -678,12 +689,16 @@ function weatherAt() {
   const out = { ...w, predicted: true };
   for (const k of ["cloud_cover_percent", "cloud_cover_low_percent",
                    "cloud_cover_mid_percent", "cloud_cover_high_percent",
-                   "wind_speed_mps", "wind_direction_degrees",
+                   "wind_speed_mps",
                    "temperature_c", "relative_humidity_percent", "visibility_m",
                    "precipitation_probability_percent"]) {
     const v = numberAt(s, s[k], when);
     if (v != null) out[k] = v;
   }
+  // Not with the numbers above it. A bearing wraps and blending it as a number
+  // reads 180 halfway between 350 and 10.
+  const bearing = bearingAt(s, s.wind_direction_degrees, when);
+  if (bearing != null) out.wind_direction_degrees = bearing;
   const d = slotAt(s, s.description, when);
   if (d) out.description = d;
   return out;
@@ -2008,9 +2023,12 @@ const share = new Share(camera, () => ({
   // The hour the scene is standing at, so a link opens on the same light. Left
   // off when the clock is the real one. Quartered, or the address bar would be
   // rewritten every minute as the offset clock ran on.
+  // null, not 0. Zero is midnight, which is a view somebody may well want to
+  // send, and a falsy sentinel drops the key and opens the link on the real
+  // clock instead.
   hour: offsetHours()
     ? Math.round((sceneNow().getHours() + sceneNow().getMinutes() / 60) * 4) / 4
-    : 0,
+    : null,
 }));
 
 window.addEventListener("keydown", (e) => {

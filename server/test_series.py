@@ -18,12 +18,13 @@ from __future__ import annotations
 
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server.noaa import series_block  # noqa: E402
-from server.weather import hourly_block  # noqa: E402
+from server.weather import hour_index, hourly_block  # noqa: E402
 
 logging.disable(logging.CRITICAL)
 
@@ -153,6 +154,28 @@ def test_an_hourly_run_too_short_to_index_raises():
             assert "at least two" in str(exc), exc
         else:
             raise AssertionError(f"{count} hourly samples were called a run")
+
+
+# ---- which hour of the run is now -------------------------------------------
+
+def test_the_current_hour_is_found_in_the_run():
+    times = [f"2026-08-04T{i:02d}:00" for i in range(24)]
+    assert hour_index(times, datetime(2026, 8, 4, 14, 54)) == 14
+    assert hour_index(times, datetime(2026, 8, 4, 0, 1)) == 0
+    assert hour_index(times, datetime(2026, 8, 4, 23, 59)) == 23
+
+
+def test_an_hour_the_run_does_not_carry_is_refused():
+    # It used to fall back to index 0. The forecast is asked for with past_days=1
+    # so index 0 is midnight yesterday, which came through as the present hour's
+    # visibility and rain probability.
+    times = [f"2026-08-04T{i:02d}:00" for i in range(24)]
+    assert hour_index(times, datetime(2026, 8, 6, 14, 0)) is None
+    assert hour_index(times, datetime(2026, 8, 3, 14, 0)) is None
+
+
+def test_an_empty_run_is_nothing_rather_than_index_zero():
+    assert hour_index([], datetime(2026, 8, 4, 14, 0)) is None
 
 
 def main() -> int:

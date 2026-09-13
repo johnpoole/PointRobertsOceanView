@@ -53,9 +53,14 @@ export function viewHash(camera, extras = {}) {
                  `fov=${camera.fov.toFixed(3)}`];
   // A switch carries as k=1. Anything else carries its own value, which is how
   // the clock rides along: it is an hour, not an on.
+  //
+  // Absent is null or false, not falsy. Midnight is hour=0 and a view somebody
+  // may well want to send, and it used to be dropped here along with the
+  // switches that were off.
   for (const [k, v] of Object.entries(extras)) {
     if (v === true) parts.push(`${k}=1`);
-    else if (v) parts.push(`${k}=${v}`);
+    else if (v === false || v == null || v === "") continue;
+    else parts.push(`${k}=${v}`);
   }
   return `#${parts.join("&")}`;
 }

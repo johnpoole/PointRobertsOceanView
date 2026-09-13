@@ -42,12 +42,24 @@ WMO_CODES = {
 
 
 def hour_index(times: list[str], now: datetime) -> int | None:
-    """Index of the hourly sample for the current hour (times are GMT, on the hour)."""
+    """Index of the hourly sample for the current hour, or None when the run does
+    not carry it (times are GMT, on the hour).
+
+    This used to fall back to index 0 on a miss. The forecast is asked for with
+    past_days=1, so index 0 is midnight yesterday: up to forty-eight hours off,
+    handed back as the present hour's visibility and rain. A run that does not
+    reach is refused here the same way it is everywhere else.
+    """
     stamp = now.strftime("%Y-%m-%dT%H")
     for i, t in enumerate(times):
         if t.startswith(stamp):
             return i
-    return 0 if times else None
+    if times:
+        log.error("Open-Meteo hourly runs %s to %s and has no sample for %s. "
+                  "Visibility and rain probability go through as nothing rather "
+                  "than being read off the wrong hour.",
+                  times[0], times[-1], stamp)
+    return None
 
 
 # What the hourly run carries through to the browser, under the names the state
