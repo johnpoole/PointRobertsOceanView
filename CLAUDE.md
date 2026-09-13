@@ -39,6 +39,17 @@ so that does not cost a minute, it stops the work until he next looks. Ask only
 when a wrong guess would waste real work or cannot be undone. Otherwise state
 the assumption in one line and keep going.
 
+## Never drive the Browser pane at 192.168.1.90
+
+Every browser action on that address asks John to click Allow once. Site-level
+permissions are disabled for private LAN addresses, so there is no always-allow
+and no settings file can grant it. Reading the console, running JavaScript,
+taking a screenshot: each one is a click.
+
+Verify from the server instead: `ssh basement` with curl for what is served, the
+container logs for what ran, and the node and python tests for the logic. If a
+change can only be judged by looking at it, say so and ask John to look.
+
 ## Say what a slow step costs before starting it
 
 The headless Chromium here has no GPU and rasterises this scene at about three
