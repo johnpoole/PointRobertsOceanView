@@ -24,7 +24,7 @@ import { buildCampground } from "./scene/campground.js";
 import { buildPeople } from "./scene/people.js";
 import { VisitorList, visitorView } from "./visitors.js";
 import { travelPresence } from "./presence.js";
-import { buildCabin, cabinCarve } from "./scene/cabin.js";
+import { buildCabin, cabinCarve, cabinApproachEdge } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
@@ -351,7 +351,7 @@ stairSpec
       { haze: 0, fog: true, landcover: LANDCOVER, projector: true, refine: 4, preserveSurvey: true,
         carveForGrid: (diagonal) => {
           const cabinCut = cabinCarve(diagonal);
-          const uphillCut = stair ? stairCarve(stair, diagonal) : (lat, lon, y) => y;
+          const uphillCut = stair ? stairCarve(stair, diagonal, cabinApproachEdge()) : (lat, lon, y) => y;
           return (lat, lon, y) => cabinCut(lat, lon, uphillCut(lat, lon, y));
         } })
     .then((fine) => ({ stair, fine })))
@@ -409,7 +409,7 @@ stairSpec
     buildCabin(scene, near.sample, fine.surveySample);
     // Drawn as steps because the terrain cannot hold them, and standing in the
     // channel stairCarve cut for it above: see stair.js.
-    if (stair) buildStair(scene, stair, near.projector);
+    if (stair) buildStair(scene, stair, near.projector, cabinApproachEdge());
     lighthouse = buildLighthouse(scene, near.sample);
     marina = buildMarinaArea(scene, near.sample);
     marinaLot = buildMarinaLot(scene, near.sample);

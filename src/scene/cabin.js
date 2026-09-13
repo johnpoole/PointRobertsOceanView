@@ -273,6 +273,16 @@ export function cabinCarve(gridDiagonal) {
   };
 }
 
+// Open east side of the existing upper entrance landing. The uphill flight
+// connects here, rather than stopping on bare terrain two metres away.
+export function cabinApproachEdge() {
+  const x = SOUTH_STAIR.topLanding[1][0];
+  return [L / 2, SOUTH_STAIR.upper.head].map(z => [
+    AT.x + x * Math.cos(YAW) + z * Math.sin(YAW), UPPER_FLOOR,
+    AT.z - x * Math.sin(YAW) + z * Math.cos(YAW),
+  ]);
+}
+
 export function buildCabin(scene, sample, bankSample = sample) {
   const groundAt = (x, z, sampler = sample) => {
     const { lat, lon } = fromWorld(x, z);
@@ -717,9 +727,8 @@ export function buildCabin(scene, sample, bankSample = sample) {
   }
   // The top landing joins the existing deck through its open east rail end.
   for (const h of [RAIL_H, RAIL_H * 0.55]) {
-    place(parts, member([right, UPPER_FLOOR + h, upper.head],
-      [right, UPPER_FLOOR + h, hl], 0.09, 0.12, DECK_TIMBER));
-    // No cross-rail here: the landing continues into the photographed passage.
+    // The east edge opens into the road stair's level approach landing.
+    // Its outer rail is supplied by buildStair, along the new landing boundary.
     place(parts, member([right, LOWER_FLOOR + h, upper.foot],
       [right, LOWER_FLOOR + h, 9], 0.09, 0.12, DECK_TIMBER));
     place(parts, member([right, LOWER_FLOOR + h, 9],
@@ -727,7 +736,7 @@ export function buildCabin(scene, sample, bankSample = sample) {
     place(parts, member([SOUTH_END, LOWER_FLOOR + h, 9],
       [SOUTH_END, LOWER_FLOOR + h, southRailV], 0.09, 0.12, DECK_TIMBER));
   }
-  for (const [x, z, floor] of [[right, hl, UPPER_FLOOR], [right, 9, LOWER_FLOOR], [SOUTH_END, 9, LOWER_FLOOR]]) {
+  for (const [x, z, floor] of [[right, 9, LOWER_FLOOR], [SOUTH_END, 9, LOWER_FLOOR]]) {
     place(parts, box(0.1, 0.1, RAIL_H, x, floor, z, DECK_TIMBER));
   }
 

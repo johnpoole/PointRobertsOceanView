@@ -331,3 +331,47 @@ the entrance, without traversing all landing transitions or the lower route.
 It does not resolve the north stair connections or establish surveyed lengths,
 heights, bearings or tread counts. No model geometry changes in this extraction
 step. Historical roof covering and vegetation do not override current photos.
+
+## Walkthrough-based entrance connection implemented — issue #42
+
+The 25–34 second sequence establishes the final concrete flight reaching a level
+entrance/deck junction with an outer timber handrail. At the existing owner controls,
+the flight foot is cabin-local (6.311, 4.838), while the entrance landing's open east
+edge is at X 4.385. The missing approximately 1.9 m connection is now a 2.054 m²
+concrete plate at 10.45 m MLLW, meeting the full 1.20 m stair width and the 0.91 m
+entrance edge. The rail and post formerly across that entrance edge are removed.
+The outer landing boundary carries a timber rail that continues up the flight,
+on the left when descending, as photographed.
+
+A 1.30 m deep by 1.20 m wide paved head landing meets the far edge of the last
+tread at 13.4632 m MLLW. Its shallow joints and the weathered timber rail are
+geometry, with no new textures. Landing depth, plate thickness (200 mm), taper
+and timber dimensions are estimates anchored to the current stair/deck controls.
+The owner-positioned foot, bearing, 19 treads, going and rise are unchanged.
+The 2026 south photographs corroborate the separate between-deck flight, which
+remains rather than being incorrectly removed as a duplicate of the road stair.
+
+`cabinApproachEdge()` supplies the shared entrance boundary. `stairAccessPlan`
+derives both landing polygons from that boundary and the owner stair data.
+`buildStair` and `stairCarve` receive the same boundary from main, so drawn
+landing plates and terrain clearance agree. The landing cuts lower terrain
+only, with 80 mm beneath the plate underside and the existing grid-diagonal
+margin/fade. Relative to the preceding terrain, 210 refined nodes are lowered,
+at most 1.769 m; the fine grid density and all source elevation data are unchanged.
+
+Validation: stair-access plan, south-stair plan, ground-clearance and roof-notch
+checks pass, plus JS syntax. Real Three.js checks 5,786 points beneath the new
+landing meshes against both actual terrain triangles and the walking sampler;
+upward-facing plates are present at the intended heights. A 0.50 m wide body
+corridor across the old gap and former blocking rail is unobstructed and supported.
+All 19 owner treads remain present. Existing 61,767 cabin-surface clearance samples,
+lower/upper deck access rays, passage checks and 34,416 survey-plane comparisons
+still pass. Inspected actual cabin/stair/terrain geometry from the supplied uphill
+view and two diagnostic angles. These use diagnostic lighting, not live browser
+captures. Stair geometry is 3 meshes / 696 triangles (previously 2 / 456), cabin
+remains 1 mesh / 10,516 triangles; no new textures or terrain triangles.
+
+This completes the supported final-flight connection, handrail and head-landing
+correction. The full road/shed path and retaining junction need geographic/level
+anchors before extending the model uphill. The north-side landing/stair defects
+are not shown by this video and remain open in #42, as do exact dimensions.

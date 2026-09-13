@@ -19,6 +19,14 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld } from "../geo.js";
+import { groundClearance } from "./ground-clearance.js";
+import { stairAccessPlan } from "./stair-access-plan.js";
+
+export function stairAccess(spec, entryEdge) {
+  const foot = toWorld(spec.bottom.lat, spec.bottom.lon, spec.bottom.ground_m);
+  return stairAccessPlan({ foot: [foot.x, foot.y, foot.z], bearing: spec.bearing_deg,
+    steps: spec.steps, going: spec.going_m, rise: spec.rise_m, width: spec.width_m }, entryEdge);
+}
 
 const CONCRETE = 0xa8a49b;
 // Weathered, and the treads are paler than the risers because rain washes them.
@@ -66,7 +74,7 @@ const FOOT_M = 3.6;
 // the drawn ground, the floor the camera is held over, the trees, the beach and
 // the camera projector all see the same cut. Cutting the mesh alone would leave
 // the sampler answering with a bank that is no longer there.
-export function stairCarve(spec, gridDiagonal = 0) {
+export function stairCarve(spec, gridDiagonal = 0, entryEdge) {
   const foot = toWorld(spec.bottom.lat, spec.bottom.lon, spec.bottom.ground_m);
   const b = (spec.bearing_deg * Math.PI) / 180;
   const fx = Math.sin(b), fz = -Math.cos(b);
@@ -74,8 +82,13 @@ export function stairCarve(spec, gridDiagonal = 0) {
   const run = spec.going_m * (spec.steps - 1);
   const halfW = spec.width_m / 2 + CUT_M + gridDiagonal;
   const pitch = spec.rise_m / spec.going_m;
+  const access = entryEdge ? stairAccess(spec, entryEdge) : null;
+  const landingCut = groundClearance(access ? [access.bottom, access.head].map(polygon => ({
+    polygon: polygon.map(p => [p[0], p[2]]), ceiling: polygon[0][1] - 0.28,
+  })) : [], gridDiagonal);
   return (lat, lon, y) => {
     const p = toWorld(lat, lon, 0);
+    y = landingCut(p.x, p.z, y);
     const dx = p.x - foot.x, dz = p.z - foot.z;
     const across = Math.abs(dx * rx + dz * rz);
     if (across > halfW + FADE_M) return y;
@@ -102,7 +115,7 @@ function slab(w, h, d, x, y, z, yaw) {
 }
 
 // spec is assets/site/389-stair.json.
-export function buildStair(scene, spec, projector) {
+export function buildStair(scene, spec, projector, entryEdge) {
   if (!spec || !spec.bottom || !spec.steps) {
     throw new Error(
       "buildStair: the stair asset has no bottom or no step count. It is " +
@@ -131,6 +144,63 @@ export function buildStair(scene, spec, projector) {
                      z, -b));
   }
 
+  const wood = [];
+  if (entryEdge) {
+    const access = stairAccess(spec, entryEdge);
+    // Convex landing plates share their exact boundaries with the terrain cut.
+    const plate = (corners) => {
+      const vertices = [], tri = (a, b, c) => vertices.push(...a, ...b, ...c);
+      const lower = corners.map(([x, y, z]) => [x, y - 0.20, z]);
+      for (let k = 1; k < corners.length - 1; k++) {
+        tri(corners[0], corners[k + 1], corners[k]);
+        tri(lower[0], lower[k], lower[k + 1]);
+      }
+      for (let k = 0; k < corners.length; k++) {
+        const j = (k + 1) % corners.length;
+        tri(corners[k], lower[k], lower[j]); tri(corners[k], lower[j], corners[j]);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(vertices.length / 3 * 2), 2));
+      g.setIndex(Array.from({ length: vertices.length / 3 }, (_, i) => i));
+      g.computeVertexNormals(); return g;
+    };
+    treads.push(plate(access.bottom), plate(access.head));
+    const member = (a, b, w, d) => {
+      const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b);
+      const delta = end.clone().sub(start);
+      const g = new THREE.BoxGeometry(w, delta.length(), d);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize()));
+      g.translate(...start.add(end).multiplyScalar(0.5).toArray()); return g;
+    };
+    // Left when descending: the photographed south/outer timber handrail.
+    const outer = spec.width_m / 2, lift = (p, h) => [p[0], p[1] + h, p[2]];
+    for (const h of [0.58, 1.05]) {
+      wood.push(member(lift(access.bottom[3], h), lift(access.bottom[2], h), 0.09, 0.14));
+      wood.push(member(access.point(0, outer, foot.y + h),
+        access.point(access.run, outer, access.top + h), 0.09, 0.14));
+      wood.push(member(access.point(access.run, outer, access.top + h),
+        access.point(access.run + access.headDepth, outer, access.top + h), 0.09, 0.14));
+    }
+    for (const k of [0, 5, 10, 15, spec.steps - 1]) {
+      const at = access.point(k * spec.going_m, outer, foot.y + k * spec.rise_m);
+      wood.push(member(lift(at, -0.12), lift(at, 1.10), 0.11, 0.11));
+    }
+    for (const along of [access.run, access.run + access.headDepth]) {
+      const at = access.point(along, outer, access.top);
+      wood.push(member(lift(at, -0.20), lift(at, 1.10), 0.11, 0.11));
+    }
+    // Shallow dark joints make the upper plate read as the photographed paving.
+    for (let along = access.run + 0.43; along < access.run + access.headDepth; along += 0.43) {
+      risers.push(member(access.point(along, -outer, access.top + 0.001),
+        access.point(along, outer, access.top + 0.001), 0.008, 0.002));
+    }
+    for (let across = -outer + 0.40; across < outer; across += 0.40) {
+      risers.push(member(access.point(access.run, across, access.top + 0.001),
+        access.point(access.run + access.headDepth, across, access.top + 0.001), 0.008, 0.002));
+    }
+  }
+
   const mat = new THREE.MeshStandardMaterial({
     color: CONCRETE, roughness: 1, metalness: 0 });
   const riserMat = new THREE.MeshStandardMaterial({
@@ -145,6 +215,8 @@ export function buildStair(scene, spec, projector) {
     new THREE.Mesh(mergeGeometries(treads, false), mat),
     new THREE.Mesh(mergeGeometries(risers, false), riserMat),
   ];
+  if (wood.length) parts.push(new THREE.Mesh(mergeGeometries(wood, false),
+    new THREE.MeshStandardMaterial({ color: 0x8e816d, roughness: 1, metalness: 0 })));
   for (const m of parts) {
     m.castShadow = false;
     scene.add(m);
