@@ -1,0 +1,9 @@
+{
+  "name": "pointroberts-oceanview",
+  "private": true,
+  "type": "module",
+  "description": "Declares the .js here as ES modules so node reads them the way the browser does. There is nothing to install: three comes from an importmap in index.html and this project has no npm dependencies. The Dockerfile does not copy this file and the browser never reads it.",
+  "scripts": {
+    "test": "node --test-reporter=spec --test src/**/test-*.mjs"
+  }
+}

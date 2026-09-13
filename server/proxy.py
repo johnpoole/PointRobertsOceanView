@@ -2607,7 +2607,11 @@ async def ws_live(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     except Exception:
-        pass
+        # A browser going away is WebSocketDisconnect above. Anything else here
+        # is a fault in reading what it sent, and it used to disappear: the
+        # socket closed and nothing was written down. Log it and let it go, so
+        # one bad socket does not take the endpoint down but never goes unseen.
+        log.exception("Socket handler failed; closing that client")
     finally:
         await clients.disconnect(ws)
 
