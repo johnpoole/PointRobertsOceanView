@@ -236,11 +236,12 @@ foot, bearing, count and tread dimensions remain the controlling constraints
 in `assets/site/389-stair.json`. This image does not settle the separate lower
 south landing turn or the north timber stair connections.
 
-Next work in #42: fit camera framing against shared stable landmarks, checking
-this reference together with the paired entrance view and current stair photos;
-then resolve the uphill handrail extent/posts and any supported access-layout
-correction. Keep the original saved URL as evidence. Avoid changing surveyed roof
-planes or moving the owner-positioned flight to compensate for framing error.
+Next work in #42 (superseded by the owner clarification below): resolve known
+missing or disconnected access geometry first, using all paired photographs.
+The saved views are approximate comparison positions constrained by model errors,
+not measured photo origins. Camera fitting may help assess the corrected model,
+but is not a prerequisite for fixing independently established defects. Keep the
+original saved URLs as evidence and retain the owner-positioned uphill flight.
 The 2021 roof covering is historical; current metal roof remains the target.
 
 Inspected the source photo and actual cabin/local terrain geometry using the
@@ -250,3 +251,47 @@ neighbours and vegetation; their absence in that diagnostic is not a finding
 about the application. The missing uphill handrail was confirmed in source.
 No geometry or application camera defaults changed in this evidence-recording
 step. Source photographs remain local and are not deployed.
+
+
+## North-side photo and inaccessible photo origins — issue #42
+
+Owner clarification, 13 September: errors in the model prevent placing the camera
+at the photographs' actual origins. This saved view is **higher than** the origin
+of `PXL_20250517_150947629.MP.jpg`:
+
+http://192.168.1.90:8091/#eye=48.989143,-123.085693,15.7&aim=48.988391,-123.088990,-142.3&fov=25.000
+
+Treat the link as a comparison view, not a surveyed photo station or a camera pose
+to which the model must be fitted. The 15.7 m eye elevation is not the photograph's
+height, and the difference in height is unknown. The earlier recommendation to
+solve camera framing before access geometry was too restrictive: model defects
+can prevent that fit in the first place. Lens metadata remains useful, but does
+not explain away missing structures or erroneous ground.
+
+The source photo directly shows a boarded landing against the north wall, an
+outer timber handrail, a small window, deep exposed timber eaves, and a stair
+continuing downhill. The frame does not reveal the entire landing length or the
+stair's ultimate lower connection. A diagnostic of the actual current cabin and
+local terrain at the saved 25-degree view confirms that the model has no such
+landing along the north wall. In code, the north flight is entirely west of the
+wall: tread centres run from local X -4.195 to -6.435, while the wall starts at
+X -3.235. Its wallward edge is Z -3.840, leaving 0.445 m to the deck's north edge
+at Z -3.395. Those independently established layout defects do not require a
+solved photo camera. The missing landing also has no clearance footprint in
+`cabinGroundSurfaces()`.
+
+Checked current terrain mesh and sampler at local Z -3.85, X 3 through -3 in
+one-metre increments. Terrain drops from roughly 10.48 to 7.94 m MLLW along
+that route. At its uphill end it is slightly above the modeled upper floor
+(10.45 m); at its downhill end a landing would require supports. This is a
+sampled model profile, not a surveyed landing elevation or proof that the saved
+camera eye is inside terrain. Adding a floating board or lowering the whole bank
+would not establish the correct access arrangement.
+
+Work priority in #42 is now the missing north landing, its supported relationship
+to the wall/stair/decks, and local terrain clearance. Preserve the stated higher
+comparison view and use the photo as structural evidence; do not require the
+owner to obtain an exact photo origin through incorrect geometry. Exact landing
+extents and the stair's complete route remain unresolved. No model geometry was
+changed in this inspection. The diagnostic excludes surrounding buildings,
+vegetation and distant scenery; it is not a live application screenshot.
