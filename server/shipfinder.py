@@ -198,12 +198,13 @@ def parse_detail(text: str) -> dict:
             out[key] = float(n.group(1)) if n else None
             if out[key] is None:
                 del out[key]
-    for key, target in (("course", "course_over_ground_degrees"),
-                        ("speed", "speed_over_ground_knots")):
-        if key in out:
-            n = re.match(r"([\d.]+)", out.pop(key))
-            if n:
-                out[target] = float(n.group(1))
+    # Course and speed are read off the panel and then dropped. They belong to
+    # the fix, not to the ship, and everything else here is cached to disk under
+    # the MMSI and kept: a moored hull was showing the knots it made days ago,
+    # across restarts. The course a scraped hull is drawn on comes from the
+    # bearing between its last two fixes instead.
+    for key in ("course", "speed"):
+        out.pop(key, None)
     lat = dm_to_degrees(out.pop("lat_text", ""))
     lon = dm_to_degrees(out.pop("lon_text", ""))
     if lat is not None and lon is not None:

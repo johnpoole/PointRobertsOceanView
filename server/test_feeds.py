@@ -56,6 +56,70 @@ def test_the_whole_of_message_five_is_kept() -> None:
     assert state["dimensions_m"]["beam"] == 27
 
 
+# ---- which message is a position and which is a ship talking about itself ----
+
+POSITION = {
+    "MessageType": "PositionReport",
+    "MetaData": {"MMSI": 316001234, "time_utc": "2026-08-04 14:54:00.0 +0000 UTC"},
+    "Message": {"PositionReport": {
+        "Latitude": 49.01, "Longitude": -123.2, "Sog": 17.2, "Cog": 271.4,
+        "TrueHeading": 270, "NavigationalStatus": 0}},
+}
+STATIC_MESSAGE = {
+    "MessageType": "ShipStaticData",
+    "MetaData": {"MMSI": 316009999},
+    "Message": {"ShipStaticData": STATIC},
+}
+
+
+def test_a_ship_naming_itself_carries_no_position() -> None:
+    """Message 5 is a ship's account of itself and can arrive from outside the
+    box. It used to go out in an envelope typed as a position with no latitude in
+    it, which left the ship in the HUD count and out of the track list."""
+    proxy.world.vessels.clear()
+    proxy.world.vessel_seen.clear()
+    mmsi = proxy.apply_static_data(STATIC_MESSAGE)
+    assert mmsi == "316009999"
+    state = proxy.world.vessels[mmsi]
+    assert "latitude" not in state, state
+    assert "longitude" not in state, state
+    # and nothing stamped it as seen, because nothing saw it anywhere
+    assert mmsi not in proxy.world.vessel_seen
+
+
+def test_a_position_says_it_came_off_ais() -> None:
+    """The shipfinder pass labels a hull scraped for as long as it is on the
+    water. When AIS takes it back the label has to go with it, or the snapshot
+    says scraped while the streamed position for the same ship says AIS."""
+    proxy.world.vessels.clear()
+    proxy.world.vessels["316001234"] = {"mmsi": "316001234", "source": "shipfinder"}
+    mmsi = proxy.apply_position_report(POSITION)
+    assert mmsi == "316001234"
+    assert proxy.world.vessels[mmsi]["source"] == "ais"
+    assert proxy.world.vessels[mmsi]["latitude"] == 49.01
+
+
+def test_a_position_with_no_position_is_not_one() -> None:
+    proxy.world.vessels.clear()
+    empty = {"MessageType": "PositionReport",
+             "MetaData": {"MMSI": 316001234},
+             "Message": {"PositionReport": {"Sog": 2.0}}}
+    assert proxy.apply_position_report(empty) is None
+
+
+def test_the_snapshot_calls_a_scraped_hull_scraped_and_an_ais_one_ais() -> None:
+    proxy.world.vessels.clear()
+    proxy.world.vessel_seen.clear()
+    proxy.world.vessels["1"] = {"mmsi": "1", "latitude": 49.0, "longitude": -123.1,
+                                "source": "shipfinder"}
+    proxy.world.vessels["2"] = {"mmsi": "2", "latitude": 49.0, "longitude": -123.1,
+                                "source": "ais"}
+    by_mmsi = {e["data"]["mmsi"]: e["source"]
+               for e in proxy.snapshot()["data"]["vessels"]}
+    assert "scraped" in by_mmsi["1"], by_mmsi
+    assert by_mmsi["2"] == "aisstream.io", by_mmsi
+
+
 def test_the_not_given_values_are_left_off() -> None:
     """Zero is the standard's way of saying a field was not filled in. A ship
     with no IMO number must not be given the number nought."""

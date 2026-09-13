@@ -403,7 +403,7 @@ export class Vessels {
 
     seen.add("dimensions_m");
     const dim = state.dimensions_m || {};
-    const beam = dim.beam ?? dim.width;
+    const beam = dim.beam;
     if (dim.length != null) rows.push(["length", `${Math.round(dim.length)} m`]);
     if (beam != null) rows.push(["beam", `${Math.round(beam)} m`]);
     if (dim.to_bow != null) rows.push(["to bow", `${Math.round(dim.to_bow)} m`]);

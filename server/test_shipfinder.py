@@ -134,8 +134,15 @@ def test_the_panel_gives_up_what_the_ship_is() -> None:
     assert d["name"] == "MISTY BLUE", d
     assert d["vessel_type_name"] == "Pleasure craft", d
     assert d["length_m"] == 8.0 and d["width_m"] == 2.0, d
-    assert d["speed_over_ground_knots"] == 0.3, d
-    assert d["course_over_ground_degrees"] == 305.0, d
+
+
+def test_the_speed_on_the_panel_is_not_kept() -> None:
+    # Everything parse_detail returns is cached to disk under the MMSI and kept
+    # for as long as the ship exists. Speed and course belong to the fix, not to
+    # the ship, and a moored hull was showing the knots it made days ago.
+    d = parse_detail(PANEL)
+    assert "speed_over_ground_knots" not in d, d
+    assert "course_over_ground_degrees" not in d, d
 
 
 def test_blanks_are_left_out_rather_than_stored_as_dashes() -> None:
@@ -147,8 +154,9 @@ def test_blanks_are_left_out_rather_than_stored_as_dashes() -> None:
 def test_an_empty_field_does_not_swallow_the_next_label() -> None:
     d = parse_detail(PANEL_BLANK_CALLSIGN)
     assert "call_sign" not in d, d
-    assert d["course_over_ground_degrees"] == 322.1, d
+    # The field after the blank one is still read, which is what this is for.
     assert d["mmsi"] == "316022604", d
+    assert d["name"] == "MISTY BLUE", d
 
 
 def test_the_name_is_found_though_it_carries_no_label() -> None:

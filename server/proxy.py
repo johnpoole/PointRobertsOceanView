@@ -915,6 +915,10 @@ def apply_position_report(msg: dict, kind: str = "PositionReport") -> str | None
         return None
     state["latitude"] = float(lat)
     state["longitude"] = float(lon)
+    # A hull the shipfinder pass found keeps its label for as long as it is on
+    # the water, and this is where AIS takes it back. Without this the snapshot
+    # says scraped while the streamed position for the same ship says AIS.
+    state["source"] = "ais"
     state["speed_over_ground_knots"] = _clean_speed(report.get("Sog"))
     state["course_over_ground_degrees"] = _clean_course(report.get("Cog"))
     state["true_heading_degrees"] = _clean_heading(report.get("TrueHeading"))
@@ -1073,8 +1077,10 @@ async def ais_task() -> None:
                         continue
                     msg = json.loads(raw)
                     kind = msg.get("MessageType")
-                    if kind in ("PositionReport", "StandardClassBPositionReport",
-                                "ExtendedClassBPositionReport"):
+                    positioned = kind in ("PositionReport",
+                                          "StandardClassBPositionReport",
+                                          "ExtendedClassBPositionReport")
+                    if positioned:
                         mmsi = apply_position_report(msg, kind)
                     elif kind == "ShipStaticData":
                         mmsi = apply_static_data(msg)
@@ -1086,15 +1092,23 @@ async def ais_task() -> None:
                             log.warning("AISStream sent an unhandled message: %s", raw[:300])
                         continue
                     silence_reported = False
-                    if world.health["vessels"] != "live":
+                    # Only a position says the feed is delivering positions. A
+                    # message 5 is a ship's account of itself, carries no
+                    # latitude at all, and can arrive from outside the box. It
+                    # used to declare the feed live on its own.
+                    if positioned and world.health["vessels"] != "live":
                         world.health["vessels"] = "live"
                         world.vessels_note = ""
                         log.info("AISStream delivering positions; vessels live")
                     if mmsi:
+                        # And it goes out as what it is. An envelope typed as a
+                        # position with no position in it left the ship in the
+                        # count and out of the track list.
                         await clients.broadcast(envelope(
-                            "vessel.position", "aisstream.io",
+                            "vessel.position" if positioned else "vessel.static",
+                            "aisstream.io",
                             world.vessel_seen.get(mmsi), world.vessels[mmsi],
-                            STALE_SECONDS["vessels"],
+                            STALE_SECONDS["vessels"] if positioned else None,
                         ))
         except Exception as exc:
             world.health["vessels"] = "offline"
@@ -1681,10 +1695,11 @@ async def shipfinder_task() -> None:
                 if code is not None:
                     state["vessel_type"] = code
                 if known.get("length_m") and known.get("width_m"):
+                    # beam, the spelling AIS writes and the hull builder reads.
+                    # Written as width, every scraped hull fell through to the
+                    # default eight metres and so did its collision radius.
                     state["dimensions_m"] = {"length": known["length_m"],
-                                             "width": known["width_m"]}
-                if known.get("speed_over_ground_knots") is not None:
-                    state["speed_over_ground_knots"] = known["speed_over_ground_knots"]
+                                             "beam": known["width_m"]}
             apply_ferry(state, world.ferry_sailings)
             world.vessel_seen[key] = seen_at
 

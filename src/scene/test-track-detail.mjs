@@ -129,14 +129,17 @@ rowsAre(Vessels.detail({
 }, "the voyage");
 
 // ---- a scraped one ---------------------------------------------------------
-// Their panel gives a width where AIS gives a beam, and the source has to be on
-// the card: a scraped position is labelled scraped everywhere it is shown.
+// Their panel gives a width and the proxy writes it down as a beam, which is
+// the spelling AIS uses and the only one the hull builder reads. Written as
+// width every scraped hull came out eight metres across, and so did the circle
+// you have to click to select it. The source has to be on the card too: a
+// scraped position is labelled scraped everywhere it is shown.
 rowsAre(Vessels.detail({
   mmsi: "367123456",
   name: "SEA WOLF",
   vessel_type_name: "Tug",
   vessel_type: 52,
-  dimensions_m: { length: 23, width: 8 },
+  dimensions_m: { length: 23, beam: 8 },
   latitude: 48.9,
   longitude: -123.1,
   source: "shipfinder",

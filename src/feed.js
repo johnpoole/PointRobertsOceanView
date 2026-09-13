@@ -175,6 +175,13 @@ export class Feed {
         this._applyVessel(msg);
         this._emit("vessel");
         break;
+      case "vessel.static":
+        // A ship's account of itself: name, call sign, dimensions, where it is
+        // bound. No position in it, and it can come from outside the box, so it
+        // is merged onto whatever is known and nothing is drawn off it alone.
+        this._applyVessel(msg);
+        this._emit("vessel");
+        break;
       case "crossings.state":
         this.crossings = { data: msg.data, quality: msg.quality };
         this._providerLive("crossings", msg);
