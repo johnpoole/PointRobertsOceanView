@@ -27,6 +27,13 @@ export function mesh(geoms, color, opts = {}) {
 // materials — and why every figure on the peninsula can share the one material
 // below. The cost is three floats a vertex, against a figure that is a few
 // hundred of them.
+//
+// parts.js has tint(), which is the same idea for buildings. It de-indexes and
+// drops the uv because it has to merge with a hand-built roof that carries
+// neither. Everything merged here is a three primitive and they all carry both,
+// so this keeps them: de-indexing a figure would double its vertices for
+// nothing. Two normalisations because there are two merge sets, not because one
+// of them was missed.
 const PAINT = new THREE.Color();
 export function paint(g, hex) {
   PAINT.setHex(hex);

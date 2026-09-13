@@ -20,6 +20,14 @@ export function pick(list, rand) {
   return list[Math.floor(rand() * list.length)];
 }
 
+// A colour carried in the geometry, so a building of many colours merges into
+// one mesh. The uv goes and the index goes with it, because this has to merge
+// with the hand-built roof below, which has neither.
+//
+// vehicles.js has paint(), which is the same idea and does NOT de-index or drop
+// the uv: everything it merges is a three primitive, they all carry both, and
+// de-indexing a figure would double its vertices for nothing. Two
+// normalisations because there are two merge sets, not because one was missed.
 export function tint(geom, color) {
   geom.deleteAttribute("uv");
   const g = geom.index ? geom.toNonIndexed() : geom;
@@ -33,7 +41,13 @@ export function tint(geom, color) {
   return g;
 }
 
-// A box standing on y, centred on x and z.
+// A box standing on y, centred on x and z, and carrying its colour.
+//
+// vehicles.js also has a box(). It is a different function: its arguments are
+// width, height, depth rather than width, depth, height, it centres on y rather
+// than standing on it, and it takes no colour. Buildings are measured from the
+// ground up and vehicles from their own middle, which is why. Do not merge
+// them; check which one you have imported.
 export function box(w, d, h, x, y, z, color) {
   const g = new THREE.BoxGeometry(w, h, d);
   g.translate(x, y + h / 2, z);
