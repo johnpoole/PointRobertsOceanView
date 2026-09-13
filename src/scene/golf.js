@@ -12,9 +12,10 @@
 import * as THREE from "three";
 import { GOLF } from "../config.js";
 import { fromWorld, toWorld } from "../geo.js";
-import { box, tint } from "./parts.js";
+import { tint } from "./parts.js";
 import { areaView } from "./area-view.js";
 import { minutesInZone, minutesOf } from "./cast.js";
+import { buildWalker } from "./vehicles.js";
 
 // What each kind is drawn in, how far it stands off the ground, and how finely
 // it is broken up to follow the ground under it. A green is small and read
@@ -109,12 +110,18 @@ export async function buildGolf(scene, sample) {
     const flight = new THREE.Group();
     flight.name = `golf-flight-${i}`;
     for (let p = 0; p < 4; p++) {
-      const figure = new THREE.Mesh(figureGeometry(p),
-        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));
+      // The same figure as the rest of the peninsula, and the same walk. They
+      // were three boxes standing still and sliding down the fairway.
+      const walker = buildWalker(SHIRTS[p % SHIRTS.length]);
+      const figure = new THREE.Group();
+      figure.rotation.y = Math.PI;       // the models face -Z, headings point along travel
+      figure.add(walker);
+      const stand = new THREE.Group();
+      stand.add(figure);
+      stand.name = `golfer-${p}`;
+      stand.userData.stride = walker.stride;
       // Placed every frame in draw(), each on their own ball.
-      figure.position.set(0, 0, 0);
-      figure.name = `golfer-${p}`;
-      flight.add(figure);
+      flight.add(stand);
     }
     flight.visible = false;
     players.add(flight);
@@ -153,13 +160,21 @@ export async function buildGolf(scene, sample) {
       flight.rotation.y = 0;
       flight.children.forEach((figure, p) => {
         figure.visible = p < group.players;
-        if (!figure.visible) return;
+        if (!figure.visible) { figure.userData.was = null; return; }
         const spot = playing(through, p);
         const at = along(line, Math.min(Math.max(spot.along, 0), 1));
         // Off the centre line, square to the way the hole runs.
         const ox = Math.cos(at.heading) * spot.off, oz = -Math.sin(at.heading) * spot.off;
-        figure.position.set(at.x + ox, ground(at.x + ox, at.z + oz), at.z + oz);
+        const x = at.x + ox, z = at.z + oz;
+        figure.position.set(x, ground(x, z), z);
         figure.rotation.y = at.heading;
+        // The walk runs off ground covered, the same as the cast's. Standing
+        // over a ball is standing still and looks like it.
+        const was = figure.userData.was;
+        const step = was ? Math.hypot(x - was.x, z - was.z) : 0;
+        if (step < 8) figure.userData.walked = (figure.userData.walked || 0) + step;
+        figure.userData.was = { x, z };
+        if (figure.userData.stride) figure.userData.stride(figure.userData.walked || 0);
       });
     });
   }
@@ -200,27 +215,9 @@ export async function buildGolf(scene, sample) {
   };
 }
 
-// Four figures to a flight, standing where their hole and their pace put them.
-function figureGeometry(which) {
-  const shirt = [0xb8c4cf, 0xc2b48a, 0x9fb0a2, 0xc0a0a8][which % 4];
-  const parts = [box(0.40, 0.26, 0.90, 0, 0.76, 0, shirt),
-                 box(0.34, 0.24, 0.72, 0, 0.04, 0, 0x3a3f47),
-                 box(0.24, 0.22, 0.24, 0, 1.68, 0, 0xb08c72)];
-  const total = parts.reduce((n, g) => n + g.attributes.position.count, 0);
-  const position = new Float32Array(total * 3), color = new Float32Array(total * 3);
-  let at = 0;
-  for (const g of parts) {
-    position.set(g.attributes.position.array, at * 3);
-    color.set(g.attributes.color.array, at * 3);
-    at += g.attributes.position.count;
-    g.dispose();
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(color, 3));
-  geometry.computeVertexNormals();
-  return geometry;
-}
+// A shirt each, so a flight is four people rather than one drawn four times.
+const SHIRTS = [0x3f5468, 0x8c5a3c, 0x4f7a55, 0x8a4f6d];
+
 
 // How a hole is played, as a place to be at each moment of it.
 //

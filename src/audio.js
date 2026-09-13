@@ -92,9 +92,16 @@ const RAIN_DROP_HZ = [1400, 4200];
 // The one voice with nothing behind it. There is no gull feed. They are here
 // because a shore without them is wrong, and the model is only this: near the
 // water, sparsely, and quiet in the dark.
-const GULL_EVERY_S = [16, 90];         // seconds between calls, near and far
+// A cry is a harsh descending note, three or four of them in a row. Harsh is
+// the whole of it: a clean tone sliding down the scale is a squeak, and that is
+// what the first attempt sounded like. What makes a gull is the rasp — the note
+// is beaten at about fifty times a second — and a second voice slightly off the
+// first, which is what stops it being an oscillator.
+const GULL_EVERY_S = [24, 120];        // seconds between calls, near and far
 const GULL_REF_M = 400;
-const GULL_NOTE_HZ = [1250, 620];      // each cry falls through this
+const GULL_NOTE_HZ = [880, 430];       // each cry falls through this
+const GULL_DETUNE = 1.031;             // the second voice, a shade off
+const GULL_RASP_HZ = 52;               // the beat in the throat
 const GULL_NOTES = [2, 5];
 
 const IDLE_RPM = 1100;
@@ -145,8 +152,13 @@ const LOAD_SAG_RPM = 700;
 const REV_TAU = 0.35;      // s — revs answer the throttle far quicker than the hull
 
 // How the water fades with range. Falls off as 1/(1 + d/REF), which keeps the
-// beach loud and the strait audible from the bluff without going silent.
+// beach loud and the strait audible from the bluff.
 const WATER_REF_M = 70;
+// And then stops. That curve never reaches zero, and the peninsula is narrow
+// enough that there is water within a mile of everywhere on it, so the sea was
+// audible standing on the golf course in the middle of the point. Past this it
+// is gone, which is what happens when you walk inland through a wood.
+const WATER_GONE_M = 850;
 
 function clamp(x, a, b) { return Math.min(b, Math.max(a, x)); }
 
@@ -426,23 +438,37 @@ export class Audio {
     for (let n = 0; n < notes; n++) {
       const fade = Math.pow(0.82, n);
       const length = (0.20 + Math.random() * 0.10) * fade;
-      const osc = ctx.createOscillator();
-      // A saw through a narrow band is the harshness. A sine is a whistle.
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(top * fade, at);
-      osc.frequency.exponentialRampToValueAtTime(GULL_NOTE_HZ[1] * fade, at + length);
-      const throat = ctx.createBiquadFilter();
-      throat.type = "bandpass";
-      throat.frequency.value = 1100;
-      throat.Q.value = 1.4;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, at);
-      g.gain.linearRampToValueAtTime(level * 0.5 * fade, at + 0.02);
-      g.gain.setValueAtTime(level * 0.5 * fade, at + length * 0.6);
+      g.gain.linearRampToValueAtTime(level * 0.42 * fade, at + 0.015);
+      g.gain.setValueAtTime(level * 0.42 * fade, at + length * 0.55);
       g.gain.exponentialRampToValueAtTime(0.0006, at + length);
-      osc.connect(throat).connect(g).connect(this.gullGain);
-      osc.start(at);
-      osc.stop(at + length + 0.02);
+      const throat = ctx.createBiquadFilter();
+      throat.type = "bandpass";
+      throat.frequency.value = 900;
+      throat.Q.value = 1.1;
+      throat.connect(g).connect(this.gullGain);
+      // The rasp: the note beaten at fifty a second, which is the difference
+      // between a bird and a whistle.
+      const rasp = ctx.createOscillator();
+      rasp.type = "sine";
+      rasp.frequency.value = GULL_RASP_HZ * (0.85 + Math.random() * 0.3);
+      const raspDepth = ctx.createGain();
+      raspDepth.gain.value = 0.55;
+      rasp.connect(raspDepth).connect(g.gain);
+      rasp.start(at);
+      rasp.stop(at + length + 0.02);
+      // Two voices a shade apart, both falling.
+      for (const detune of [1, GULL_DETUNE]) {
+        const osc = ctx.createOscillator();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(top * fade * detune, at);
+        osc.frequency.exponentialRampToValueAtTime(
+          GULL_NOTE_HZ[1] * fade * detune, at + length);
+        osc.connect(throat);
+        osc.start(at);
+        osc.stop(at + length + 0.02);
+      }
       at += length + 0.06 + Math.random() * 0.05;
     }
   }
@@ -460,7 +486,10 @@ export class Audio {
     // Slant range: climbing the bluff or flying off should quieten the sea the
     // same way walking inland does.
     const range = Math.hypot(s.waterDistanceM, Math.max(0, s.listenerHeightM));
-    const near = 1 / (1 + range / WATER_REF_M);
+    // The near field, taken to nothing over the last of the range rather than
+    // trailing on for ever.
+    const fade = clamp(1 - range / WATER_GONE_M, 0, 1);
+    const near = (1 / (1 + range / WATER_REF_M)) * fade * fade;
     const level = clamp(0.16 * Math.pow(h / 0.5, 0.7) * near, 0, 0.5);
     at(this.surfGain.gain, level, 0.4);
     at(this.surfFilter.frequency, 260 + 420 * clamp(h / 2, 0, 1), 0.4);
