@@ -73,6 +73,7 @@ import { fromWorld, toWorld } from "../geo.js";
 import { box, gableRoof, tint } from "./parts.js";
 import { cutRoofNotch, notchedStorey } from "./roof-notch.js";
 import { groundClearance } from "./ground-clearance.js";
+import { southStairPlan } from "./cabin-stairs-plan.js";
 
 // World metres. The centre of the roof the lidar measured, and how far the
 // building is turned, which the lidar could not measure and the footprint did.
@@ -124,32 +125,16 @@ const SOUTH_END = 2.1;              // where the ground reaches the deck top
 const GROUND_AT_SOUTH_WEST = 4.62;  // the terrain under the two ends of that edge
 const GROUND_AT_SOUTH_END = 8.41;
 
-// The way up from the beach, in three pieces: a concrete flight west to east
-// along the south edge, a concrete landing at the level of the lower deck, and
-// timber stairs off it running south to north against the east wall to the top
-// deck. The concrete flight is pitched at the pitch of the ground it runs on,
-// 5.58 m at the foot and 8.47 m at the head off the terrain bake. Anything
-// steeper leaves the head of it standing in the air.
-const STAIR_V = 8.15;        // clear of the deck's back corner, which reaches 7.36
-const STAIR_W = 1.15;
-const RISER = 0.16;
-const GOING = 0.30;
-const STEPS = 18;
-const STAIR_BASE = 5.58;
-const STAIR_U0 = -3.0;
-
-const LANDING_Y = LOWER_FLOOR - 0.14;
-const LANDING = { u0: 2.0, u1: 4.1, v0: 7.3, v1: 9.0 };
-
-const WOOD_U = 3.5;          // the timber flight, hard against the east wall
-const WOOD_W = 1.1;
-const WOOD_RISER = 0.204;
-const WOOD_GOING = 0.3325;
-// It climbs from the landing to the upper floor, so it has as many risers as
-// that takes and not a fixed count. The floor came down 0.75 m and the flight
-// would otherwise have run three steps through it.
-const WOOD_STEPS = Math.round((UPPER_FLOOR - LANDING_Y) / WOOD_RISER);
-const WOOD_V0 = 8.6;         // its foot, on the landing, and it climbs north
+// Both south flights are concrete. The August 2026 photographs show a level
+// lower-deck entrance beside the retaining wall and timber handrails above it.
+const SOUTH_STAIR = southStairPlan({ halfW: W / 2, halfL: L / 2,
+  lowerFloor: LOWER_FLOOR, upperFloor: UPPER_FLOOR, southEnd: SOUTH_END,
+  southOutEast: SOUTH_OUT_EAST });
+const { z: STAIR_V, width: STAIR_W, rise: RISER, going: GOING,
+  steps: STEPS, bottom: STAIR_BASE, x: STAIR_U0 } = SOUTH_STAIR.lower;
+const LANDING_Y = LOWER_FLOOR;
+const { x: SOUTH_UPPER_U, width: SOUTH_UPPER_W, rise: SOUTH_UPPER_RISER,
+  going: SOUTH_UPPER_GOING, steps: SOUTH_UPPER_STEPS, foot: SOUTH_UPPER_FOOT } = SOUTH_STAIR.upper;
 
 // The stair down the north side runs between the two decks: off the top one and
 // down to the lower one. It does not go on to the ground. Like the timber flight
@@ -247,16 +232,18 @@ export function cabinGroundSurfaces() {
   add([[-hw - LOWER_DECK_OUT, hl], [SOUTH_END, hl],
        [SOUTH_END, hl + SOUTH_OUT_EAST], [-hw - LOWER_DECK_OUT, hl + SOUTH_OUT_WEST]],
       LOWER_FLOOR - 0.14);
-  rectangle(LANDING.u0, LANDING.u1, LANDING.v0, LANDING.v1, LANDING_Y - 0.2);
+  add(SOUTH_STAIR.landing, LANDING_Y - 0.2);
+  add(SOUTH_STAIR.topLanding, UPPER_FLOOR - 0.2);
   for (let k = 0; k < STEPS; k++) {
     const x = STAIR_U0 + k * GOING, top = STAIR_BASE + (k + 1) * RISER;
     rectangle(x - GOING / 2, x + GOING / 2, STAIR_V - STAIR_W / 2,
       STAIR_V + STAIR_W / 2, top - RISER - 0.35);
   }
-  for (let k = 0; k < WOOD_STEPS; k++) {
-    const z = WOOD_V0 - k * WOOD_GOING, top = LANDING_Y + (k + 1) * WOOD_RISER;
-    rectangle(WOOD_U - WOOD_W / 2, WOOD_U + WOOD_W / 2,
-      z - WOOD_GOING / 2, z + WOOD_GOING / 2, top - 0.1);
+  for (let k = 0; k < SOUTH_UPPER_STEPS; k++) {
+    const z = SOUTH_UPPER_FOOT - (k + 0.5) * SOUTH_UPPER_GOING;
+    const top = LANDING_Y + (k + 1) * SOUTH_UPPER_RISER;
+    rectangle(SOUTH_UPPER_U - SOUTH_UPPER_W / 2, SOUTH_UPPER_U + SOUTH_UPPER_W / 2,
+      z - SOUTH_UPPER_GOING / 2, z + SOUTH_UPPER_GOING / 2, top - SOUTH_UPPER_RISER - 0.20);
   }
   const northRise = (UPPER_FLOOR - LOWER_FLOOR) / NORTH_STEPS;
   for (let k = 0; k < NORTH_STEPS; k++) {
@@ -530,7 +517,8 @@ export function buildCabin(scene, sample) {
                    hl + UPPER_SOUTH_OUT / 2, DECK_TIMBER));
   railRun(uscx, usv, usw, 0.1);
   railRun(usx0, hl + UPPER_SOUTH_OUT / 2, 0.1, UPPER_SOUTH_OUT);
-  railRun(hw, hl + UPPER_SOUTH_OUT / 2, 0.1, UPPER_SOUTH_OUT);
+  // Open the east end into the concrete top landing; a mesh panel here used
+  // to block the stair connection. Timber rails finish its outside edges below.
 
   // The lower deck, its horizontal timber rails on posts, and the lattice screen
   // closing the space under it.
@@ -644,58 +632,62 @@ export function buildCabin(scene, sample) {
     place(parts, box(GOING, STAIR_W, RISER + 0.35, STAIR_U0 + k * GOING,
                      y - RISER - 0.35, stv, CONCRETE));
   }
-  // Handrail both sides. The bar is laid flat and raked to the pitch before
-  // place() turns it into the world with everything else.
-  const rake = Math.atan2(RISER, GOING);
-  const raked = (v, y0, dy) => {
-    const g = new THREE.BoxGeometry(Math.hypot(STEPS * GOING, STEPS * RISER),
-                                    0.09, 0.09);
-    g.rotateZ(rake);
-    g.translate(STAIR_U0 + (STEPS * GOING) / 2,
-                y0 + dy + (STEPS * RISER) / 2, v);
-    place(parts, tint(g, DECK_TIMBER));
-  };
-  for (const s of [-1, 1]) {
-    const v = stv + s * (STAIR_W / 2);
-    const y0 = STAIR_BASE + RISER + RAIL_H;
-    raked(v, y0, 0);
-    raked(v, y0, -RAIL_H * 0.45);
-    for (let k = 1; k < STEPS; k += 5) {
-      place(parts, box(0.1, 0.1, RAIL_H, STAIR_U0 + k * GOING,
-                       STAIR_BASE + (k + 1) * RISER, v, DECK_TIMBER));
-    }
+  // Outer timber handrail; the photographed inner edge follows the retaining
+  // wall. Its head meets the landing at the same level as the last tread.
+  const southRailV = STAIR_V + STAIR_W / 2;
+  for (const h of [RAIL_H, RAIL_H * 0.55]) {
+    place(parts, member([STAIR_U0 - GOING / 2, STAIR_BASE + RISER + h, southRailV],
+      [SOUTH_END, LOWER_FLOOR + h, southRailV], 0.09, 0.12, DECK_TIMBER));
+  }
+  for (const k of [0, 5, 10, 15, STEPS - 1]) {
+    place(parts, box(0.1, 0.1, RAIL_H, STAIR_U0 + k * GOING,
+      STAIR_BASE + (k + 1) * RISER, southRailV, DECK_TIMBER));
   }
 
-  // The landing it arrives on, cut into the bank at the level of the lower
-  // deck boards, and the timber flight off it climbing north to the top deck.
-  place(parts, box(LANDING.u1 - LANDING.u0, LANDING.v1 - LANDING.v0, 0.2,
-                   (LANDING.u0 + LANDING.u1) / 2, LANDING_Y - 0.2,
-                   (LANDING.v0 + LANDING.v1) / 2, CONCRETE));
-  for (let k = 0; k < WOOD_STEPS; k++) {
-    const v = WOOD_V0 - k * WOOD_GOING;
-    const y = LANDING_Y + (k + 1) * WOOD_RISER;
-    place(parts, box(WOOD_W, WOOD_GOING, 0.1, WOOD_U, y - 0.1, v, DECK_TIMBER));
-    place(parts, box(WOOD_W, 0.08, WOOD_RISER, WOOD_U, y - WOOD_RISER,
-                     v + WOOD_GOING / 2, DECK_TIMBER));
+  // Level concrete access into the lower deck, then concrete steps to the
+  // upper landing. The landing is an L: the small north tongue reaches the
+  // lower deck's open east end without putting a slab through the upper flight.
+  const upper = SOUTH_STAIR.upper, left = upper.x - upper.width / 2;
+  const right = upper.x + upper.width / 2;
+  place(parts, box(right - SOUTH_END, 9 - upper.foot, 0.2,
+    (SOUTH_END + right) / 2, LANDING_Y - 0.2, (9 + upper.foot) / 2, CONCRETE));
+  place(parts, box(left - SOUTH_END, 1.1, 0.2,
+    (SOUTH_END + left) / 2, LANDING_Y - 0.2, upper.foot - 0.55, CONCRETE));
+  place(parts, slab(SOUTH_STAIR.topLanding, UPPER_FLOOR - 0.2, 0.2, CONCRETE));
+  for (let k = 0; k < SOUTH_UPPER_STEPS; k++) {
+    const v = SOUTH_UPPER_FOOT - (k + 0.5) * SOUTH_UPPER_GOING;
+    const y = LANDING_Y + (k + 1) * SOUTH_UPPER_RISER;
+    place(parts, box(SOUTH_UPPER_W, SOUTH_UPPER_GOING, SOUTH_UPPER_RISER + 0.20,
+      SOUTH_UPPER_U, y - SOUTH_UPPER_RISER - 0.20, v, CONCRETE));
   }
-  // Its rail runs the other way, so the bar is laid along z and raked about x.
-  const wRun = (WOOD_STEPS - 1) * WOOD_GOING;
-  const wRise = (WOOD_STEPS - 1) * WOOD_RISER;
-  const wRake = Math.atan2(WOOD_RISER, WOOD_GOING);
-  for (const s of [-1, 1]) {
-    const u = WOOD_U + s * (WOOD_W / 2);
-    const yFoot = LANDING_Y + WOOD_RISER + RAIL_H;
-    for (const drop of [0, -RAIL_H * 0.45]) {
-      const g = new THREE.BoxGeometry(0.09, 0.09, Math.hypot(wRun, wRise));
-      g.rotateX(wRake);
-      g.translate(u, yFoot + drop + wRise / 2, WOOD_V0 - wRun / 2);
-      place(parts, tint(g, DECK_TIMBER));
+  // Weathered timber rails follow the complete flight and meet the landing
+  // rails. Their ends are computed from tread edges, not an unrelated run.
+  for (const u of [left, right]) {
+    for (const h of [RAIL_H, RAIL_H * 0.55]) {
+      place(parts, member([u, LANDING_Y + h, upper.foot],
+        [u, UPPER_FLOOR + h, upper.head], 0.09, 0.12, DECK_TIMBER));
     }
-    for (let k = 0; k < WOOD_STEPS; k += 4) {
-      place(parts, box(0.1, 0.1, RAIL_H, u,
-                       LANDING_Y + (k + 1) * WOOD_RISER,
-                       WOOD_V0 - k * WOOD_GOING, DECK_TIMBER));
+    for (const k of [0, 3, 6, SOUTH_UPPER_STEPS]) {
+      const top = k === SOUTH_UPPER_STEPS ? UPPER_FLOOR : LANDING_Y + k * SOUTH_UPPER_RISER;
+      const z = upper.foot - k * SOUTH_UPPER_GOING;
+      place(parts, box(0.1, 0.1, RAIL_H, u, top, z, DECK_TIMBER));
     }
+  }
+  // The top landing joins the existing deck through its open east rail end.
+  for (const h of [RAIL_H, RAIL_H * 0.55]) {
+    place(parts, member([right, UPPER_FLOOR + h, upper.head],
+      [right, UPPER_FLOOR + h, hl], 0.09, 0.12, DECK_TIMBER));
+    place(parts, member([right, UPPER_FLOOR + h, hl],
+      [hw, UPPER_FLOOR + h, hl], 0.09, 0.12, DECK_TIMBER));
+    place(parts, member([right, LOWER_FLOOR + h, upper.foot],
+      [right, LOWER_FLOOR + h, 9], 0.09, 0.12, DECK_TIMBER));
+    place(parts, member([right, LOWER_FLOOR + h, 9],
+      [SOUTH_END, LOWER_FLOOR + h, 9], 0.09, 0.12, DECK_TIMBER));
+    place(parts, member([SOUTH_END, LOWER_FLOOR + h, 9],
+      [SOUTH_END, LOWER_FLOOR + h, southRailV], 0.09, 0.12, DECK_TIMBER));
+  }
+  for (const [x, z, floor] of [[right, hl, UPPER_FLOOR], [right, 9, LOWER_FLOOR], [SOUTH_END, 9, LOWER_FLOOR]]) {
+    place(parts, box(0.1, 0.1, RAIL_H, x, floor, z, DECK_TIMBER));
   }
 
   // The stair down the north side, off the top deck to the lower one. Open

@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {southStairPlan} from './cabin-stairs-plan.js';
+const p=southStairPlan({halfW:3.235,halfL:3.395,lowerFloor:8.55,upperFloor:10.45,southEnd:2.1,southOutEast:3.66});
+const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-10,`${a} != ${b}`);
+close(p.lower.bottom+p.lower.steps*p.lower.rise,p.lowerFloor);
+close(p.lower.x+(p.lower.steps-.5)*p.lower.going,p.landing[0][0]);
+close(p.lowerFloor+p.upper.steps*p.upper.rise,p.upperFloor);
+close(p.upper.foot-p.upper.steps*p.upper.going,p.upper.head);
+close(p.upper.head,p.topLanding[2][1]);
+close(p.upper.x-p.upper.width/2,p.topLanding[0][0]);
+close(p.upper.x+p.upper.width/2,p.topLanding[1][0]);
+close(p.landing[2][1],p.upper.foot);
+assert.ok(p.landing[1][0]-p.landing[0][0]>=1.1,'lower-deck entrance at least 1.1 m wide');
+assert.ok(p.lower.z-p.lower.width/2>p.upper.foot,'lower flight reaches the main landing below the upper flight');
+assert.ok(p.lower.z+p.lower.width/2<9,'landing includes the whole lower flight width');
+assert.ok(p.upper.steps===10&&p.lower.steps===18,'retain explicit estimated step counts');
+console.log('South stair plan passed: exact landing levels, full-width tread joins, deck access and no coplanar lower-tread overlap.');

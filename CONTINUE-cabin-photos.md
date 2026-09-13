@@ -113,3 +113,49 @@ samples on narrow rotated surfaces. A temporary real-Three integration test
 Depth-buffered before/after views include the actual cabin and nearby terrain,
 inspected from west, southwest and uphill. Exact excavation profiles and stair
 connections remain estimates until additional photographs resolve #42.
+
+## New stair photographs — 13 September 2026, issue #42
+
+Owner supplied `images/Photos-1-001`, containing 12 photos. These remain local
+source files, outside the deployed application assets. The August 2026 images
+are the current stair references:
+
+- `PXL_20260808_202820423.jpg`: upper south flight is concrete with timber rails.
+- `PXL_20260808_202833076.jpg`: concrete entrance beside the retaining wall meets
+  the lower deck at its walking level, rather than 140 mm below it.
+- `PXL_20260808_202908454.jpg` and `PXL_20260808_202910826.jpg`: concrete lower
+  flight, an outer timber handrail, and the deck/bank relationship.
+- `PXL_20260808_202937782.MP.jpg`: overall southwest arrangement.
+- The 2021 approach images and May 2025 north-side image provide context, but do
+  not settle the north timber stair's two end connections.
+
+`southStairPlan` shares flight/landing constraints between the rendered cabin
+and terrain-clearance footprints. Both south flights are concrete. The lower
+landing now meets the lower deck at 8.55 m MLLW, with an L-shaped connection into
+its open east end. The upper flight reaches a full-width landing at 10.45 m and
+enters the upper deck through its east end; the blocking wire rail is removed.
+Weathered timber rails meet the landing rails, and the lower flight has the
+photographed outer rail rather than an extra rail against the retaining bank.
+
+The existing turned arrangement is retained **provisionally**, not presented as
+a measured orientation: the owner was asked whether the stair continues straight
+or turns at the lower landing. The photos appear consistent with a turn, but
+that question was unanswered when this refinement was made. The new plan has
+estimated 18 lower rises of 165 mm and 10 upper rises of 190 mm, with 300 mm and
+275 mm treads respectively. The lower foot shifts about 150 mm west so its final
+tread meets the landing without coplanar overlap. These are constraints fitted
+to existing model levels, not measurements extracted from uncalibrated images.
+
+Validation: `test-cabin-stairs-plan.mjs`, `test-ground-clearance.mjs` and the
+roof-notch regression pass. Real Three.js checks the actual merged lower access
+path, every upper tread and upper deck transition with vertical rays; a
+horizontal ray confirms the upper entrance has no blocking rail. 55,806 points
+across modeled surfaces remain clear of both the terrain mesh and its sampler.
+The separate owner-positioned uphill stair remains unchanged and clear.
+Diagnostic geometry views with the nearby terrain were inspected from west,
+southwest and uphill. Cabin remains one mesh, no textures, 7,600 triangles.
+
+The north timber stair gaps, exact south stair measurements/orientation, and
+stepped roof dimensions remain open in #42. This section supersedes the earlier
+south timber-flight material and missing-landing findings; it does not claim
+that every stair on the property is now surveyed or corrected.
