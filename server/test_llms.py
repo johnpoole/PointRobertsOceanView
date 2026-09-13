@@ -96,6 +96,28 @@ def test_the_documents_it_offers_at_the_end_exist() -> None:
         assert (ROOT / rel).exists(), f"llms.txt offers /{rel} and it is not there"
 
 
+def test_everything_it_links_is_in_the_container() -> None:
+    """Being in the repository is not being on the server.
+
+    The Dockerfile copies files by name. llms.txt itself was in the tree and 404
+    on the server, because nothing copied it, and the same goes for every
+    document it points at.
+    """
+    docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    copied = set()
+    for line in docker.splitlines():
+        if line.startswith("COPY "):
+            copied.update(line.split()[1:-1])
+    wanted = {"llms.txt"} | set(re.findall(r"\]\(/([\w.\-]+\.md)\)", GUIDE))
+    for rel in re.findall(r"\]\((/assets/[\w.\-/]+)\)", GUIDE):
+        wanted.add(rel.lstrip("/").split("/")[0])
+    missing = {w for w in wanted
+               if w not in copied and w.split("/")[0] not in copied}
+    assert not missing, (
+        f"the Dockerfile does not copy {sorted(missing)}, so llms.txt links to "
+        f"something the server will answer 404 for")
+
+
 def test_the_keys_it_lists_are_the_keys_the_page_shows() -> None:
     """Against the panel the ? button opens, which is what a person is told."""
     panel = INDEX[INDEX.index('id="keys"'):]

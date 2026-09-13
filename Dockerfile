@@ -20,7 +20,9 @@ RUN python scripts/fetch_model.py
 COPY server ./server
 COPY src ./src
 COPY assets ./assets
-COPY index.html styles.css favicon.svg ./
+COPY index.html styles.css favicon.svg llms.txt ./
+# The guide points at these, so a container without them serves a broken link.
+COPY README.md CONTINUE.md REQUIREMENTS.md ./
 COPY renders/marina-comparison.html ./renders/marina-comparison.html
 
 EXPOSE 8080
