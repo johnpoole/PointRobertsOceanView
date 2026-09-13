@@ -24,7 +24,7 @@ import { buildCampground } from "./scene/campground.js";
 import { buildPeople } from "./scene/people.js";
 import { VisitorList, visitorView } from "./visitors.js";
 import { travelPresence } from "./presence.js";
-import { buildCabin } from "./scene/cabin.js";
+import { buildCabin, cabinCarve } from "./scene/cabin.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
@@ -297,7 +297,7 @@ let fireStation = null;
 function fineCovers(fine) {
   const g = fine.meta.grid;
   const nodata = fine.meta.nodata;
-  const out = g.cellsize_deg * 4; // about one coarse cell
+  const out = (fine.meta.sourceGrid || g).cellsize_deg * 4; // about one coarse cell
   const has = (lat, lon) => {
     const i = Math.round((g.north_lat - lat) / g.cellsize_deg);
     const j = Math.round((lon - g.west_lon) / g.cellsize_deg);
@@ -348,8 +348,12 @@ const stairSpec = fetch(SITE_STAIR)
 
 stairSpec
   .then((stair) => buildTerrain(scene, TERRAIN.fine,
-      { haze: 0, fog: true, landcover: LANDCOVER, projector: true,
-        carve: stair ? stairCarve(stair) : null })
+      { haze: 0, fog: true, landcover: LANDCOVER, projector: true, refine: 4,
+        carveForGrid: (diagonal) => {
+          const cabinCut = cabinCarve(diagonal);
+          const uphillCut = stair ? stairCarve(stair, diagonal) : (lat, lon, y) => y;
+          return (lat, lon, y) => cabinCut(lat, lon, uphillCut(lat, lon, y));
+        } })
     .then((fine) => ({ stair, fine })))
   .then(({ stair, fine }) => {
     const covers = fineCovers(fine);

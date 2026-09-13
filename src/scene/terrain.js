@@ -561,7 +561,7 @@ export async function buildTerrain(scene, asset, opts = {}) {
     const i = Math.min(Math.max(Math.floor(fy), 0), nrows - 1);
     return cover.codes[i * ncols + j];
   };
-  const { nrows, ncols, cellsize_deg, north_lat, west_lon, dtype, scale_m } = meta.grid;
+  let { nrows, ncols, cellsize_deg, north_lat, west_lon, dtype, scale_m } = meta.grid;
   // The heightmap has to be the size the metadata says it is. A short file does
   // not fail, it reads as undefined past its end, and undefined heights become
   // NaN positions that three will happily draw.
@@ -589,6 +589,36 @@ export async function buildTerrain(scene, asset, opts = {}) {
   const nodata = meta.nodata != null ? meta.nodata : null;
   const isValueHole = (v) => nodata != null && v <= nodata / 2;
 
+  // Refine only the small cabin tile before applying structural cuts. This
+  // interpolates the existing survey; it adds no measured elevation detail.
+  // Submetre triangles can follow deck/stair cut edges without excavating a
+  // whole native lidar cell beyond them. Other terrain tiles keep their grids.
+  const refinement = opts.refine || 1;
+  if (refinement > 1) {
+    const rows = (nrows - 1) * refinement + 1;
+    const cols = (ncols - 1) * refinement + 1;
+    const refined = new Float32Array(rows * cols);
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const fi = i / refinement, fj = j / refinement;
+      const i0 = Math.floor(fi), j0 = Math.floor(fj);
+      const i1 = Math.min(i0 + 1, nrows - 1), j1 = Math.min(j0 + 1, ncols - 1);
+      const a = Z[i0 * ncols + j0], b = Z[i0 * ncols + j1];
+      const c = Z[i1 * ncols + j0], d = Z[i1 * ncols + j1];
+      const u = fj - j0, v = fi - i0;
+      refined[i * cols + j] = u === 0 && v === 0 ? a
+        : u === 0 ? (isValueHole(a) || isValueHole(c) ? nodata : a * (1 - v) + c * v)
+        : v === 0 ? (isValueHole(a) || isValueHole(b) ? nodata : a * (1 - u) + b * u)
+        : [a, b, c, d].some(isValueHole) ? nodata
+        // Preserve the original triangle planes, including along their shared
+        // diagonal. Refinement alone must not change the rendered survey.
+        : u + v <= 1 ? a * (1 - u - v) + b * u + c * v
+        : b * (1 - v) + c * (1 - u) + d * (u + v - 1);
+    }
+    meta.sourceGrid = { ...meta.grid };
+    nrows = rows; ncols = cols; cellsize_deg /= refinement; Z = refined;
+    meta.grid = { ...meta.grid, nrows, ncols, cellsize_deg, dtype: "float32", scale_m: 1 };
+  }
+
   // Something the bake could not hold, cut into the ground before anything reads
   // it. carve(lat, lon, height) hands back the height it wants there. The stair
   // is the case it exists for: see stairCarve in stair.js.
@@ -597,13 +627,20 @@ export async function buildTerrain(scene, asset, opts = {}) {
   // asks. sample() is built off this same array below, and that is what the
   // floor, the trees, the beach and the boat all read. A cut in the mesh alone
   // would draw a channel and leave the sampler swearing the bank was still there.
-  if (opts.carve) {
+  // Some structural clearances need the grid diagonal to keep interpolated
+  // triangles below their surfaces, including at the polygon edges.
+  const nwCell = toWorld(north_lat, west_lon);
+  const seCell = toWorld(north_lat - cellsize_deg, west_lon + cellsize_deg);
+  const carve = opts.carveForGrid
+    ? opts.carveForGrid(Math.hypot(seCell.x - nwCell.x, seCell.z - nwCell.z))
+    : opts.carve;
+  if (carve) {
     for (let i = 0; i < nrows; i++) {
       const lat = north_lat - i * cellsize_deg;
       for (let j = 0; j < ncols; j++) {
         const n = i * ncols + j;
         if (isValueHole(Z[n])) continue;
-        Z[n] = opts.carve(lat, west_lon + j * cellsize_deg, Z[n]);
+        Z[n] = carve(lat, west_lon + j * cellsize_deg, Z[n]);
       }
     }
   }

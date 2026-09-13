@@ -72,6 +72,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fromWorld, toWorld } from "../geo.js";
 import { box, gableRoof, tint } from "./parts.js";
 import { cutRoofNotch, notchedStorey } from "./roof-notch.js";
+import { groundClearance } from "./ground-clearance.js";
 
 // World metres. The centre of the roof the lidar measured, and how far the
 // building is turned, which the lidar could not measure and the footprint did.
@@ -231,6 +232,48 @@ function slab(corners, y, t, color) {
   g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
   g.computeVertexNormals();
   return tint(g, color);
+}
+
+// The same footprints and tread levels used below, with clearance under their
+// undersides. These are model constraints, not newly measured ground heights.
+export function cabinGroundSurfaces() {
+  const surfaces = [], hw = W / 2, hl = L / 2;
+  const add = (polygon, underside) => surfaces.push({ polygon, ceiling: underside - 0.08 });
+  const rectangle = (x0, x1, z0, z1, underside) =>
+    add([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], underside);
+  rectangle(-hw - DECK_OUT, -hw, -hl, hl, UPPER_FLOOR - 0.14);
+  rectangle(-hw - DECK_OUT, hw, hl, hl + UPPER_SOUTH_OUT, UPPER_FLOOR - 0.14);
+  rectangle(-hw - LOWER_DECK_OUT, -hw, -hl, hl, LOWER_FLOOR - 0.14);
+  add([[-hw - LOWER_DECK_OUT, hl], [SOUTH_END, hl],
+       [SOUTH_END, hl + SOUTH_OUT_EAST], [-hw - LOWER_DECK_OUT, hl + SOUTH_OUT_WEST]],
+      LOWER_FLOOR - 0.14);
+  rectangle(LANDING.u0, LANDING.u1, LANDING.v0, LANDING.v1, LANDING_Y - 0.2);
+  for (let k = 0; k < STEPS; k++) {
+    const x = STAIR_U0 + k * GOING, top = STAIR_BASE + (k + 1) * RISER;
+    rectangle(x - GOING / 2, x + GOING / 2, STAIR_V - STAIR_W / 2,
+      STAIR_V + STAIR_W / 2, top - RISER - 0.35);
+  }
+  for (let k = 0; k < WOOD_STEPS; k++) {
+    const z = WOOD_V0 - k * WOOD_GOING, top = LANDING_Y + (k + 1) * WOOD_RISER;
+    rectangle(WOOD_U - WOOD_W / 2, WOOD_U + WOOD_W / 2,
+      z - WOOD_GOING / 2, z + WOOD_GOING / 2, top - 0.1);
+  }
+  const northRise = (UPPER_FLOOR - LOWER_FLOOR) / NORTH_STEPS;
+  for (let k = 0; k < NORTH_STEPS; k++) {
+    const x = NORTH_HEAD_U - k * NORTH_GOING, top = UPPER_FLOOR - (k + 1) * northRise;
+    rectangle(x - (NORTH_GOING + 0.03) / 2, x + (NORTH_GOING + 0.03) / 2,
+      NORTH_V - NORTH_W / 2, NORTH_V + NORTH_W / 2, top - NORTH_TREAD);
+  }
+  return surfaces;
+}
+
+export function cabinCarve(gridDiagonal) {
+  const carve = groundClearance(cabinGroundSurfaces(), gridDiagonal);
+  const c = Math.cos(YAW), s = Math.sin(YAW);
+  return (lat, lon, height) => {
+    const p = toWorld(lat, lon), dx = p.x - AT.x, dz = p.z - AT.z;
+    return carve(dx * c - dz * s, dx * s + dz * c, height);
+  };
 }
 
 export function buildCabin(scene, sample) {

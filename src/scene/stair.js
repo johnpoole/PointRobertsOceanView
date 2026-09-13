@@ -66,13 +66,13 @@ const FOOT_M = 3.6;
 // the drawn ground, the floor the camera is held over, the trees, the beach and
 // the camera projector all see the same cut. Cutting the mesh alone would leave
 // the sampler answering with a bank that is no longer there.
-export function stairCarve(spec) {
+export function stairCarve(spec, gridDiagonal = 0) {
   const foot = toWorld(spec.bottom.lat, spec.bottom.lon, spec.bottom.ground_m);
   const b = (spec.bearing_deg * Math.PI) / 180;
   const fx = Math.sin(b), fz = -Math.cos(b);
   const rx = Math.cos(b), rz = Math.sin(b);
   const run = spec.going_m * (spec.steps - 1);
-  const halfW = spec.width_m / 2 + CUT_M;
+  const halfW = spec.width_m / 2 + CUT_M + gridDiagonal;
   const pitch = spec.rise_m / spec.going_m;
   return (lat, lon, y) => {
     const p = toWorld(lat, lon, 0);
@@ -80,7 +80,9 @@ export function stairCarve(spec) {
     const across = Math.abs(dx * rx + dz * rz);
     if (across > halfW + FADE_M) return y;
     const along = dx * fx + dz * fz;
-    if (along < -FOOT_M || along > run + ENDS_M) return y;
+    // The mesh interpolates neighbouring vertices. Carry the same cut one
+    // triangle further so the bank beyond a landing cannot bleed into it.
+    if (along < -FOOT_M - gridDiagonal || along > run + ENDS_M + gridDiagonal) return y;
     // The flight's own line, held level past each end so the cut does not run
     // away up the bank or down it.
     const t = Math.min(Math.max(along, 0), run);

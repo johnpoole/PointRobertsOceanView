@@ -65,3 +65,51 @@ photo alone. Stair layout also needs reconciliation: the existing speculative
 south timber turn does not match the concrete continuation visible in the south
 photo, and both old timber flights retain connection gaps. These were left
 unchanged rather than claimed as fixed by the current facade/detail refinement.
+
+## Terrain clearance — 13 September 2026, issue #87
+
+The owner's report of ground penetrating the deck/stairs reproduces on the
+**active fine lidar tile**, not the 3 m CUDEM tile: the source grid is about
+0.752 x 1.145 m (DNR 2023, ground returns). The earlier photo-detail diagnostic
+used the coarse heightmap for terrain arithmetic; this check supersedes that
+with the actual fine tile and the existing uphill-stair cut.
+
+Before this correction, sampled ground was above the lower south deck by up to
+1.85 m, the cabin concrete stairs by 0.44 m, the south timber flight by 1.51 m,
+and the lower landing by 1.91 m. Those are model discrepancies, not measured
+excavation depths. The model's estimated stair layout still needs photographs.
+
+The cabin now supplies clearance polygons from its existing deck, tread and
+landing constants. `ground-clearance.js` cuts only downward, below the modeled
+undersides with an 80 mm gap. A full triangle diagonal of clearance plus a
+600 mm outer transition keeps terrain interpolation out of those surfaces.
+The existing uphill-stair carve also extends one refined triangle past its ends
+and sides; its owner-specified location, count, rise and going are unchanged.
+
+The small fine tile is subdivided four times per cell edge before cutting:
+317 x 585 nodes, roughly 0.188 x 0.286 m spacing. This preserves the existing
+survey triangle planes and adds **no measured elevation information**. It makes
+the local cut margins about 342 mm instead of 1.37 m. The coarse near/far tiles,
+source elevation files and the coarse-overlap margin remain unchanged. Fine
+terrain now draws 275,328 triangles instead of 17,208, still in its existing
+single mesh. This is a mesh cost measurement, not a device frame-rate claim.
+
+`node src/scene/test-ground-clearance.mjs` checks cut-only/local bounds and 930
+samples on narrow rotated surfaces. A temporary real-Three integration test
+(`test-cabin-terrain.mjs` in Windows TEMP) builds the actual terrain and cabin:
+
+- 54,130 deck/tread/landing samples are below their clearance ceilings in both
+  the bilinear sampler and actual mesh triangle interpolation.
+- The mesh and sampler use the same carved height array.
+- Native survey values/nodata and 34,416 triangle-plane samples are unchanged by
+  subdivision alone; the valid survey face count increases exactly sixteenfold.
+- Cabin cuts change 952 refined nodes, all within 10.77 m of the cabin centre;
+  they never fill terrain. Maximum cut below the existing uphill-carved surface
+  is 2.76 m. Ground outside the local clearance region is unchanged.
+- All sampled owner-positioned uphill treads are clear too, with at least about
+  104 mm between the sampled terrain and tread top.
+- Cabin geometry remains finite when built on the corrected fine sampler.
+
+Depth-buffered before/after views include the actual cabin and nearby terrain,
+inspected from west, southwest and uphill. Exact excavation profiles and stair
+connections remain estimates until additional photographs resolve #42.

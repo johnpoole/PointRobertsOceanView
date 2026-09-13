@@ -702,6 +702,13 @@ and improves lower glazing. See [CONTINUE-cabin-photos.md](CONTINUE-cabin-photos
 photo provenance, estimates, checks and geometry cost. Source clouds and photographs
 are in `../PointRobertsEngineering`.
 
+The cabin terrain uses the DNR 2023 ground-lidar tile at about 0.75 by 1.15 m,
+with the coarse CUDEM mesh holed underneath it. Issue #87 adds local clearance
+below the modeled decks, stairs and landing, shared by rendering and sampling.
+The small fine tile is subdivided before those cuts so triangles follow their
+edges; this adds mesh resolution, not new survey measurements. The same cabin
+photo note records the checks and remaining stair-layout uncertainty.
+
 ## Ground colour
 
 Elevation and slope decide the beach, because a 30 m land cover cell cannot see a twenty metre
@@ -803,13 +810,6 @@ visitor ever sees another visitor's address. Held in memory, capped at 500, forg
   the past moves the light and nothing else: the ships and the planes stay where they are now,
   which is wrong for any hour but this one. Both feeds arrive as positions at a time, so what is
   missing is keeping them and reading them back at the hour the slider is standing at.
-- the lidar as the ground near 389. The terrain here is 3 m CUDEM everywhere including under the
-  house, and against 28,308 lidar ground returns it is good on the flats and out by 0.61 m on the
-  bluff face, 4.52 m at worst, over a metre on 3 percent of the area. Two jobs, agreed and not
-  started: overwrite the ~1,200 cells of `assets/terrain/heightmap.bin` the clip covers with
-  lidar medians, which needs no app code and adds no detail; then a finer half-metre tile over
-  the 106 by 87 m patch sampled ahead of the coarse one, which does. The lidar and the working
-  live in `../PointRobertsEngineering`.
 
 ## Things that have bitten, so they do not again
 
