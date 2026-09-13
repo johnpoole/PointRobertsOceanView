@@ -202,3 +202,51 @@ actual generated cabin/terrain at the paired eye/aim/FOV, using diagnostic light
 this is not a capture of the application's complete live scene. Cabin is one
 mesh, no textures, 10,552 triangles; terrain mesh cost is unchanged. Source photos
 remain local and are not deployed.
+
+## Paired uphill overview — issue #42
+
+On 13 September the owner paired `PXL_20211108_174949325.MP.jpg` in
+`images/Photos-1-001` with this similar view:
+
+http://192.168.1.90:8091/#eye=48.989090,-123.085536,19.0&aim=48.988271,-123.089047,-107.1&fov=25.000
+
+The source is 4080 x 3072, orientation 1, captured 8 November 2021 at 09:49:49
+according to its EXIF (no timezone established). EXIF identifies a Google Pixel 6
+back camera, 6.81 mm f/1.85, with a 24 mm full-frame-equivalent focal length.
+Assuming that equivalence describes the image diagonal, a nominal 4:3 frame gives
+about 56.8 degrees vertical FOV: `2 atan(hypot(36,24) * 3/5 / (2*24))`.
+This is a starting lens estimate, not an intrinsic calibration; processing,
+cropping and distortion have not been fitted.
+
+The URL gives a cabin-local eye of approximately (17.952, 19.0, 3.817), looking
+24.857 degrees down. At 25 degrees vertical FOV the geometric horizon lies
+outside the frame; at approximately 57 degrees it enters near the top, consistent
+with the photo's broad ocean context. Changing FOV alone does not align the
+roof corners, entrance, chimney or deck. Neither the eye nor the camera roll
+has been solved from this photo. A starting comparison with the same eye/aim is:
+
+http://192.168.1.90:8091/#eye=48.989090,-123.085536,19.0&aim=48.988271,-123.089047,-107.1&fov=57.000
+
+Photo evidence: concrete uphill treads descend toward the upper entrance,
+with a weathered timber handrail on the left when descending; the roof notch,
+entry, upper deck and chimney provide possible alignment landmarks. The near
+stair flight is partly hidden by the dog and vegetation. `buildStair` currently
+renders concrete treads/risers without that handrail. Its owner-positioned
+foot, bearing, count and tread dimensions remain the controlling constraints
+in `assets/site/389-stair.json`. This image does not settle the separate lower
+south landing turn or the north timber stair connections.
+
+Next work in #42: fit camera framing against shared stable landmarks, checking
+this reference together with the paired entrance view and current stair photos;
+then resolve the uphill handrail extent/posts and any supported access-layout
+correction. Keep the original saved URL as evidence. Avoid changing surveyed roof
+planes or moving the owner-positioned flight to compensate for framing error.
+The 2021 roof covering is historical; current metal roof remains the target.
+
+Inspected the source photo and actual cabin/local terrain geometry using the
+saved eye/aim at both 25 and approximately 57 degrees, in a nominal 4:3 diagnostic
+render. The diagnostic omits the separate uphill stair mesh, distant scenery,
+neighbours and vegetation; their absence in that diagnostic is not a finding
+about the application. The missing uphill handrail was confirmed in source.
+No geometry or application camera defaults changed in this evidence-recording
+step. Source photographs remain local and are not deployed.
