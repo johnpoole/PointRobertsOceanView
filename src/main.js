@@ -30,13 +30,12 @@ import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
 import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
-import { buildCast, minutesInZone } from "./scene/cast.js";
+import { buildCast } from "./scene/cast.js";
 import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { Move, arc } from "./scene/shot.js";
 import { buildNovel } from "./scene/novel.js";
-import { buildBlotter, filed } from "./scene/blotter.js";
+import { buildBlotter } from "./scene/blotter.js";
 import { preload as preloadFigures } from "./scene/figures.js";
-import { buildRecreation } from "./scene/recreation.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -252,7 +251,6 @@ let landmarkPicks = [];
 let pavilion = null;
 let novel = null;
 let blotter = null;
-let recreation = null;
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
@@ -445,7 +443,6 @@ stairSpec
       // Where the deputy was called out. The roads have to exist first: a call
       // says GULF RD and nothing else, so it is put on the road of that name.
       blotter = buildBlotter(scene, near.sample, land.features.roads);
-      recreation = buildRecreation(scene, near.sample);
       if (feed.calls) showCalls();
       landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks, postOffice.landmarks, border.landmarks, clubhouse.landmarks);
       pilingPosts = land.pilings;
@@ -632,7 +629,7 @@ const sceneClock = new ClockControl({
   },
 });
 
-// Kept as a function because the novel's route, a recreation and #hour= all
+// Kept as a function because the novel's route and #hour= both
 // move the hour and none of them should have to know about the control.
 function setClockOffset(hours) {
   sceneClock.setHour(hours);
@@ -928,7 +925,7 @@ function pickTrack(e) {
   // A call marker first: it is a post at arm's length and a ship is a mile out.
   if (blotter) {
     const found = blotter.pick(raycaster);
-    if (found) { openCall(found); return; }
+    if (found) { showCall(found); return; }
   }
   const hits = raycaster.intersectObjects(
     vessels.pickList().concat(aircraft.pickList()), true);
@@ -1770,13 +1767,9 @@ function toggleCalls() {
   if (!blotter) return;
   const on = !blotter.shown;
   blotter.setVisible(on);
-  if (!on) { closeCall(); stopRecreation(); return; }
-  // A marker is a post two and a half metres high and they are scattered over
-  // five square miles of road, so switching them on and leaving the camera
-  // where it was shows nothing at all. Go to the newest one, the same as the
-  // courts and the campground do, and put it on the card — otherwise the only
-  // way to any of the others is to find one and click it.
-  lookAtCall(blotter.newest);
+  if (!on) { closeCall(); return; }
+  // The newest call on the card. The camera stays where it is until go is
+  // pressed, so reading down the list is not a flight across the peninsula.
   if (blotter.newest) showCall(blotter.newest);
 }
 
@@ -1801,27 +1794,26 @@ function closeCall() {
   callAt = -1;
 }
 
-// The call before or after the one on the card, and go to it. The blotter wraps
-// at both ends, so stepping never runs out and never needs a disabled arrow.
-// With nothing on the card yet, the first step lands on the newest.
+// The call before or after the one on the card. It changes the card and nothing
+// else: the camera goes to a call only when go is pressed. The blotter wraps at
+// both ends, so stepping never runs out. With nothing on the card yet, the first
+// step lands on the newest.
 function stepCall(by) {
   if (!blotter || !blotter.count) return;
   if (!blotter.shown) {
     blotter.setVisible(true);
     document.getElementById("calls-btn").classList.add("on");
   }
-  stopRecreation();
   const found = blotter.at(callAt < 0 ? 0 : callAt + by);
-  if (!found) return;
-  // Stand over it before the re-enactment starts. Two calls can be three miles
-  // apart and the recreation's camera eases in from wherever it finds itself,
-  // so without this the step is a half-minute flight across the peninsula.
-  lookAtCall(found);
-  openCall(found);
+  if (found) showCall(found);
 }
 
 document.getElementById("call-prev").addEventListener("click", () => stepCall(-1));
 document.getElementById("call-next").addEventListener("click", () => stepCall(1));
+// Straight to the call on the card. A cut, not a pan.
+document.getElementById("call-go").addEventListener("click", () => {
+  if (blotter && callAt >= 0) lookAtCall(blotter.at(callAt));
+});
 
 function row(name, value) {
   if (!value) return "";
@@ -1850,61 +1842,7 @@ function showCall(found) {
   callCard.classList.remove("hidden");
 }
 
-// The card and the re-enactment. Clicking a marker and stepping to the next one
-// both do this. Switching the shield on only shows the card, because arriving is
-// not the same as asking to watch.
-function openCall(found) {
-  showCall(found);
-  // Only a call with an outcome filed is acted out. The rest are a car arriving
-  // at a street with nothing known about why or what came of it.
-  if (filed(found.call)) playRecreation(found);
-  else stopRecreation();
-}
-
-// The recreation runs on its own clock, the way the novel's route does, and it
-// takes the camera for as long as it lasts.
-let acting = null;
-// Ease in over a couple of seconds so it does not cut.
-const RECREATION_IN_S = 2.5;
-
-function playRecreation(found) {
-  if (!recreation) return;
-  const c = found.call;
-  recreation.play(c, found.spot);
-  acting = { since: clock.elapsedTime, move: new Move(RECREATION_IN_S) };
-  // The hour it came in. A music complaint at twenty to one in the morning is
-  // a scene in the dark and should look like one.
-  const at = /(\d+):(\d+):\d+ ([AP])M/.exec(c.when || "");
-  if (at) {
-    let hour = Number(at[1]) % 12 + Number(at[2]) / 60;
-    if (at[3] === "P") hour += 12;
-    setClockOffset(hour - minutesInZone(new Date()) / 60);
-  }
-  controls.maxPolarAngle = Math.PI;
-  nav.toOrbit();
-}
-
-function stopRecreation() {
-  if (!recreation || !acting) return;
-  recreation.stop();
-  acting = null;
-  controls.maxPolarAngle = MAP_MAX_POLAR;
-  setClockOffset(0);
-}
-
-function updateRecreation(now) {
-  if (!acting || !recreation) return;
-  const at = now - acting.since;
-  if (at >= recreation.length) { stopRecreation(); return; }
-  const shot = recreation.update(at);
-  if (!shot) return;
-  acting.move.to(camera, controls, shot, at);
-}
-
-document.getElementById("call-close").addEventListener("click", () => {
-  closeCall();
-  stopRecreation();
-});
+document.getElementById("call-close").addEventListener("click", closeCall);
 
 // The novel's route, on R. Seven scenes in the order Low Water goes through
 // them. Each one winds the sun to its hour, holds the sea at its tide, puts the
@@ -2236,7 +2174,6 @@ function frame() {
   if (cast) cast.update(new Date(Date.now() + offsetHours() * 3600 * 1000), camera);
   updateTour(t);
   if (blotter) blotter.update(camera, t);
-  updateRecreation(t);
   if (marina && marina.wanted && t > marinaPingDue) {
     marinaPingDue = t + 30;
     feed.watching("marina");

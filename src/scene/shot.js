@@ -1,17 +1,11 @@
 // A camera on a script. Where it stands this second, and how it gets there.
 //
-// Two things here drive the camera without a hand on it: the novel's route and
-// a recreation off the Sheriff's log. They want the same four things. A clock in
-// seconds. An ease from wherever the camera was into the shot, because a cut
-// loses where one place is from another. An arc round a subject, because a car
-// arriving somewhere is a thing you watch from the side. And a way to find a
-// perch that is not inside a wall or a fir.
+// The novel's route drives the camera without a hand on it. It wants an ease
+// from wherever the camera was into the shot, because a cut loses where one
+// place is from another, and an arc round a subject for the one chapter that
+// follows a chase.
 //
-// They were written twice and they grew the same bugs twice. Now they are one.
-//
-// Nothing here imports three. The caller passes in a raycaster and two vectors
-// for the line of sight, which is the only part that needs it, and everything
-// else is arithmetic on plain x/y/z.
+// Nothing here imports three. It is arithmetic on plain x/y/z.
 
 // Smoothstep, clamped at both ends, because a beat can overrun by a frame.
 export function ease(k) {
@@ -49,45 +43,6 @@ export function arc(centre, spec, k) {
     },
     aim: { x: centre.x, y: centre.y + (spec.aim == null ? 1.2 : spec.aim), z: centre.z },
   };
-}
-
-// The first perch that can see the subject the whole way round the swing.
-//
-// A street has houses and fences down both sides and firs behind those. Guessing
-// a height instead put the camera inside a wall on one street and inside a tree
-// on the next, and put the novel's first chapter behind an office block. The
-// perches are tried nearest and lowest first.
-//
-// Anything drawn in the scene counts as in the way except the caller's own
-// group, which is why skip is passed. Only meshes: the scene carries sprites,
-// lines and a sky that raycasting walks straight off the end of.
-//
-// ray, from and toward are a Raycaster and two Vector3 owned by the caller, so
-// this file needs no three of its own and nothing is allocated per call.
-export function clearView(centre, perches, spec, { scene, skip, ray, from, toward, clear = 2.5 }) {
-  const aim = centre.y + (spec.aim == null ? 1.2 : spec.aim);
-  const others = [];
-  scene.traverse((o) => {
-    if (!o.isMesh || !o.visible || !o.geometry || !o.parent) return;
-    for (let up = o; up; up = up.parent) if (up === skip) return;
-    others.push(o);
-  });
-  for (const perch of perches) {
-    let blocked = false;
-    // Three looks across the arc: the start, the middle and the end of it.
-    for (const step of [0, 0.5, 1]) {
-      const at = arc(centre, { ...spec, ...perch }, step);
-      from.set(at.eye.x, at.eye.y, at.eye.z);
-      toward.set(centre.x - at.eye.x, aim - at.eye.y, centre.z - at.eye.z);
-      const reach = toward.length();
-      ray.set(from, toward.normalize());
-      ray.far = reach - clear;          // do not count the ground under the car
-      if (ray.intersectObjects(others, false).length) { blocked = true; break; }
-    }
-    if (!blocked) return perch;
-  }
-  // Nothing had a clear line, so take the one that looks over the most.
-  return perches[perches.length - 1];
 }
 
 // The move into a shot. Holds where the camera was when the shot started and

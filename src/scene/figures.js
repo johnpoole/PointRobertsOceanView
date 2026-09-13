@@ -74,10 +74,6 @@ const SHOES = [0x2a2522, 0x3d3128, 0x1c1c1c, 0x6e6259];
 // The roles are the ones cast.json gives, and the test holds them to it, so a
 // role renamed there does not quietly lose its clothes here.
 export const OUTFITS = {
-  // Whatcom County Sheriff's Office uniform directive, 13 March 2024: Class B
-  // shirt black, Class B pants black, duty footwear black boots, baseball-style
-  // cap black. https://www.whatcomcounty.us/DocumentCenter/View/72051/Uniforms
-  "the deputy": { shirt: 0x17181b, trousers: 0x17181b, shoes: 0x101112, head: 0x17181b },
   // A polo in the caller's colour, pale trousers, white shoes and a white cap.
   "the golfer": { trousers: 0xb8a57e, shoes: 0xe8e6e0, head: 0xe8e6e0 },
   // Kitchen whites and a skull cap, with dark trousers and non-slip black shoes.

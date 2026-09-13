@@ -93,7 +93,7 @@ export class ClockControl {
   }
 
   // The hour within the day. Everything that moves the sun comes through here:
-  // the slider, the novel's route, a recreation, and #hour= in a link.
+  // the slider, the novel's route, and #hour= in a link.
   setHour(hours) {
     this.hourShift = hours;
     this.apply();

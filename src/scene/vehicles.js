@@ -147,7 +147,7 @@ export function personGeoms(y = 0, seated = false, coat = COAT) {
 
 // The walking figure is Xbot, from three.js's own examples, and lives in
 // figures.js. It is re-exported here so every caller's import stands: golf.js,
-// cast.js, novel.js and recreation.js all ask vehicles.js for it.
+// cast.js and novel.js all ask vehicles.js for it.
 export { buildWalker };
 
 // Tyres, glass and the chrome-ish bits, shared by everything with wheels.

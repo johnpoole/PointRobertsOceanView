@@ -107,8 +107,8 @@ courts · `G` campground · `F` golf holes · `P` the cast · `R` the novel's ro
 
 With the Sheriff's calls up, the left and right arrows step to the call before
 and the call after, wrapping at both ends, and the card says which one of how
-many is on screen. Each step goes to the location, and plays the re-enactment
-only when the call has an outcome filed.
+many is on screen. Stepping changes the card only; the card's go button moves
+the camera to the call.
 
 The clock is a slider and a date box at the foot of the page. The slider moves
 the hour twelve either way; the date reaches back as far as the oldest month the

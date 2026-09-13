@@ -3,12 +3,11 @@
 // Run:
 //     node src/scene/test-shot.mjs
 //
-// This is the arithmetic the novel's route and a recreation both run on, and it
-// was written twice before it was written once. Both copies put the camera
-// through the subject at least once, and both eased from the wrong place.
+// This is the arithmetic the novel's route runs on. It has put the camera
+// through the subject before, and eased from the wrong place.
 
 import assert from "node:assert/strict";
-import { arc, clearView, ease, lerp, Move } from "./shot.js";
+import { arc, ease, lerp, Move } from "./shot.js";
 
 function test(name, fn) {
   try { fn(); console.log(`ok   ${name}`); }
@@ -44,7 +43,7 @@ test("a lerp is clamped at both ends", () => {
 });
 
 test("a lerp with no height is a lerp on the flat", () => {
-  // The recreation's marks carry x and z and take their height off the ground.
+  // Marks on the ground carry x and z and take their height off the terrain.
   const at = lerp({ x: 0, z: 0 }, { x: 10, z: 20 }, 0.5);
   assert.equal(at.x, 5);
   assert.equal(at.z, 10);
@@ -150,8 +149,8 @@ test("past the move the shot does the moving", () => {
 });
 
 test("a move that was never marked marks itself on the first frame", () => {
-  // The recreation does not know where the camera is when it starts, because
-  // the shot is chosen before the first frame is drawn.
+  // A caller may not know where the camera is when the shot is chosen, only
+  // when the first frame is drawn.
   const { camera, controls } = rig(3, 4, 5, 0, 0, 0);
   const move = new Move(5);
   move.to(camera, controls, { eye: { x: 3, y: 4, z: 5 }, aim: { x: 0, y: 0, z: 0 } }, 0);
@@ -165,66 +164,7 @@ test("a move drives the controls, or the camera snaps back next frame", () => {
   assert.equal(controls.updates, 1);
 });
 
-// ---- the line of sight ------------------------------------------------------
-
-// The least of a Raycaster and a scene that clearView touches.
-function sightRig(hits) {
-  const vec = () => ({
-    x: 0, y: 0, z: 0,
-    set(a, b, c) { this.x = a; this.y = b; this.z = c; return this; },
-    length() { return Math.hypot(this.x, this.y, this.z); },
-    normalize() { const l = this.length() || 1; this.x /= l; this.y /= l; this.z /= l; return this; },
-  });
-  const mesh = { isMesh: true, visible: true, geometry: {}, parent: {} };
-  return {
-    scene: { traverse(fn) { fn(mesh); } },
-    skip: {},
-    ray: { far: 0, set() {}, intersectObjects: () => (hits() ? [{}] : []) },
-    from: vec(), toward: vec(),
-  };
-}
-
-test("the first perch that can see is the one used", () => {
-  const perches = [{ radius: 26, height: 9 }, { radius: 30, height: 15 },
-                   { radius: 52, height: 52 }];
-  // Everything less than 12 m above the ground here is behind a fence. The
-  // perch heights are off that ground, not off sea level.
-  let asked = 0;
-  const r = sightRig(() => { asked++; return r.from.y < SUBJECT.y + 12; });
-  const picked = clearView(SUBJECT, perches, SWING, r);
-  assert.deepEqual(picked, perches[1]);
-  assert.ok(asked >= 4, "it did not look across the swing, only at one bearing");
-});
-
-test("nothing in the way and it stands at the nearest perch", () => {
-  const perches = [{ radius: 26, height: 9 }, { radius: 52, height: 52 }];
-  assert.deepEqual(clearView(SUBJECT, perches, SWING, sightRig(() => false)),
-    perches[0]);
-});
-
-test("nothing can see and it takes the one that looks over the most", () => {
-  const perches = [{ radius: 26, height: 9 }, { radius: 52, height: 52 }];
-  assert.deepEqual(clearView(SUBJECT, perches, SWING, sightRig(() => true)),
-    perches[1]);
-});
-
-test("the caller's own people are never what is in the way", () => {
-  // Without this the deputy standing at the door blocks the view of the deputy
-  // standing at the door.
-  const own = {};
-  const mesh = { isMesh: true, visible: true, geometry: {}, parent: own };
-  const r = sightRig(() => true);
-  r.scene = { traverse(fn) { fn(mesh); } };
-  r.skip = own;
-  r.ray.intersectObjects = (list) => {
-    assert.equal(list.length, 0, "the recreation's own group was counted");
-    return [];
-  };
-  assert.deepEqual(clearView(SUBJECT, [{ radius: 26, height: 9 }], SWING, r),
-    { radius: 26, height: 9 });
-});
-
 if (!process.exitCode) {
   console.log("\nPASS: the arc holds its radius, the move starts where the camera "
-    + "was, and the line of sight climbs until it is clear.");
+    + "was.");
 }
