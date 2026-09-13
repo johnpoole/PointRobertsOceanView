@@ -148,6 +148,18 @@ test("a marker stands off the carriageway", () => {
     `the marker stands ${off.toFixed(1)} m off the middle of the road`);
 });
 
+test("only a call with an outcome filed is acted out", () => {
+  assert.equal(blotter.filed({ nature: "WELFARE CHECK IN PROGRESS", disposition: "CLO" }), true);
+  assert.equal(blotter.filed({ nature: "ASSAULT SIMPLE IN PROGRESS", disposition: "CAA" }), true);
+  // Two calls in three: a description and a time and nothing about what came of it.
+  assert.equal(blotter.filed({ nature: "ASSIST CITIZEN IN PROGRESS", disposition: null }), false);
+  assert.equal(blotter.filed({ nature: "ASSIST CITIZEN IN PROGRESS" }), false);
+  assert.equal(blotter.filed({ nature: "NOISE", disposition: "" }), false);
+  assert.equal(blotter.filed(null), false);
+  // A code their table does not carry is still an outcome somebody filed.
+  assert.equal(blotter.filed({ nature: "X", disposition: "ZZQ" }), true);
+});
+
 if (!process.exitCode) {
   console.log(`\nPASS: ${SEEN.length} streets off thirty days of reports, all of `
     + `them found among ${named.length} named roads, junctions included.`);

@@ -112,6 +112,14 @@ function junction(ones, twos) {
   return gap <= 120 ? { ...best, heading: 0 } : null;
 }
 
+// Whether the Sheriff's log says what came of a call. The disposition is the
+// only outcome the record carries, and two calls in three are filed without
+// one. Those are shown on the card and not re-enacted: with no outcome there is
+// nothing to act out beyond a car arriving, which says nothing.
+export function filed(call) {
+  return Boolean(call && call.disposition);
+}
+
 export function buildBlotter(scene, sample, roads) {
   const group = new THREE.Group();
   group.name = "blotter";

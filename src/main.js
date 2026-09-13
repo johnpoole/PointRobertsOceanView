@@ -34,7 +34,7 @@ import { buildCast, minutesInZone } from "./scene/cast.js";
 import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { Move, arc } from "./scene/shot.js";
 import { buildNovel } from "./scene/novel.js";
-import { buildBlotter } from "./scene/blotter.js";
+import { buildBlotter, filed } from "./scene/blotter.js";
 import { preload as preloadFigures } from "./scene/figures.js";
 import { buildRecreation } from "./scene/recreation.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
@@ -1855,7 +1855,10 @@ function showCall(found) {
 // not the same as asking to watch.
 function openCall(found) {
   showCall(found);
-  playRecreation(found);
+  // Only a call with an outcome filed is acted out. The rest are a car arriving
+  // at a street with nothing known about why or what came of it.
+  if (filed(found.call)) playRecreation(found);
+  else stopRecreation();
 }
 
 // The recreation runs on its own clock, the way the novel's route does, and it
