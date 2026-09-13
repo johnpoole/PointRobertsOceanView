@@ -105,6 +105,10 @@ courts · `G` campground · `F` golf holes · `P` the cast · `R` the novel's ro
 `N` next camera · `E` edit camera placement · `S` save camera placement ·
 `Esc` drop the selection.
 
+With the Sheriff's calls up, the left and right arrows step to the call before
+and the call after, wrapping at both ends, and the card says which one of how
+many is on screen. Each step goes to the location and plays the re-enactment.
+
 The clock is a slider and a date box at the foot of the page. The slider moves
 the hour twelve either way; the date reaches back as far as the oldest month the
 crossing figures cover. Both end up in the hash as `hour=`.

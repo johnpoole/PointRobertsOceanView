@@ -169,6 +169,20 @@ export function buildBlotter(scene, sample, roads) {
     // go and find one. They arrive newest first.
     get newest() { return placed.length ? placed[0] : null; },
 
+    // One call by its position in the list, newest first, wrapping at both ends
+    // so stepping never runs out. Null when there is nothing on the ground.
+    at(index) {
+      if (!placed.length) return null;
+      const n = placed.length;
+      return placed[((index % n) + n) % n];
+    },
+
+    // Where a call sits in that list, for a card that has to say three of
+    // eighteen. -1 when it is not one of the placed ones.
+    indexOf(found) {
+      return placed.indexOf(found);
+    },
+
     // The call standing under this ray, or null.
     pick(raycaster) {
       if (!group.visible) return null;

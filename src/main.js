@@ -1724,6 +1724,12 @@ const callCard = document.getElementById("call-card");
 const callNature = document.getElementById("call-nature");
 const callWhere = document.getElementById("call-where");
 const callRows = document.getElementById("call-rows");
+const callCount = document.getElementById("call-count");
+
+// Which call is on the card, as a position in the blotter's own list. The
+// markers are two and a half metre posts scattered over five square miles of
+// road, so finding the next one by looking for it is not on. This walks them.
+let callAt = -1;
 
 function showCalls() {
   if (!blotter || !feed.calls) return;
@@ -1741,8 +1747,10 @@ function toggleCalls() {
   // A marker is a post two and a half metres high and they are scattered over
   // five square miles of road, so switching them on and leaving the camera
   // where it was shows nothing at all. Go to the newest one, the same as the
-  // courts and the campground do.
+  // courts and the campground do, and put it on the card — otherwise the only
+  // way to any of the others is to find one and click it.
   lookAtCall(blotter.newest);
+  if (blotter.newest) showCall(blotter.newest);
 }
 
 // Far enough off to see the post and the road it stands on, and high enough to
@@ -1763,14 +1771,37 @@ function lookAtCall(found) {
 
 function closeCall() {
   callCard.classList.add("hidden");
+  callAt = -1;
 }
+
+// The call before or after the one on the card, and go to it. The blotter wraps
+// at both ends, so stepping never runs out and never needs a disabled arrow.
+// With nothing on the card yet, the first step lands on the newest.
+function stepCall(by) {
+  if (!blotter || !blotter.count) return;
+  if (!blotter.shown) {
+    blotter.setVisible(true);
+    document.getElementById("calls-btn").classList.add("on");
+  }
+  stopRecreation();
+  const found = blotter.at(callAt < 0 ? 0 : callAt + by);
+  if (!found) return;
+  // Stand over it before the re-enactment starts. Two calls can be three miles
+  // apart and the recreation's camera eases in from wherever it finds itself,
+  // so without this the step is a half-minute flight across the peninsula.
+  lookAtCall(found);
+  openCall(found);
+}
+
+document.getElementById("call-prev").addEventListener("click", () => stepCall(-1));
+document.getElementById("call-next").addEventListener("click", () => stepCall(1));
 
 function row(name, value) {
   if (!value) return "";
   return `<dt>${name}</dt><dd>${String(value).toLowerCase()}</dd>`;
 }
 
-function openCall(found) {
+function showCall(found) {
   const c = found.call;
   callNature.textContent = (c.nature || "a call").toLowerCase();
   callWhere.textContent = c.location || "";
@@ -1782,7 +1813,17 @@ function openCall(found) {
     c.arrest ? row("arrested", `${c.arrest.name}, ${c.arrest.age}`) : "",
     c.arrest ? row("offences", c.arrest.offences) : "",
   ].join("");
+  callAt = blotter ? blotter.indexOf(found) : -1;
+  callCount.textContent = callAt < 0 ? ""
+    : `${callAt + 1} of ${blotter.count}`;
   callCard.classList.remove("hidden");
+}
+
+// The card and the re-enactment. Clicking a marker and stepping to the next one
+// both do this. Switching the shield on only shows the card, because arriving is
+// not the same as asking to watch.
+function openCall(found) {
+  showCall(found);
   playRecreation(found);
 }
 
@@ -2059,6 +2100,14 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyS" && !e.repeat) saveWyze();
   if (e.code === "KeyL") tracks.toggle();
   if (e.code === "Escape") selection.clear();
+  // Walking the Sheriff's calls. Only while the card is up, because the arrows
+  // belong to whoever is driving the rest of the time, and OrbitControls reads
+  // them to pan.
+  if (!callCard.classList.contains("hidden")
+      && (e.code === "ArrowLeft" || e.code === "ArrowRight")) {
+    e.preventDefault();
+    stepCall(e.code === "ArrowRight" ? 1 : -1);
+  }
 });
 
 // How far the nearest water is from the camera, which the surf volume rides on.

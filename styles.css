@@ -399,6 +399,26 @@ body.hud-visible .clock:not(.hidden) { display: flex; }
 .call-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
 .call-rows dt { color: var(--dim); }
 .call-rows dd { margin: 0; }
+.call-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--edge);
+}
+.call-arrow {
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1;
+  padding: 1px 9px 3px;
+  cursor: pointer;
+}
+.call-arrow:hover { border-color: var(--ink); }
+.call-count { color: var(--dim); font-size: 11px; }
 .call-note { color: var(--dim); font-size: 11px; margin-top: 9px; }
 
 /* The half of the screen a thumb may open the stick in. It is invisible and it
