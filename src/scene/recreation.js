@@ -27,8 +27,11 @@ const BEATS = {
   done: 38,
 };
 const APPROACH_M = 120;     // how far back down the road it comes from
-const ARC_RADIUS = 24;
-const ARC_HEIGHT = 7.5;
+// A street has houses and fences down both sides of it, so the swing has to
+// look over them. At seven metres up it spent half the arc inside somebody's
+// wall.
+const ARC_RADIUS = 30;
+const ARC_HEIGHT = 15;
 const ARC_FROM = 215;
 const ARC_SWEEP = 130;
 
