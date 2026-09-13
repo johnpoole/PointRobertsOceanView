@@ -35,6 +35,7 @@ import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { Move, arc } from "./scene/shot.js";
 import { buildNovel } from "./scene/novel.js";
 import { buildBlotter } from "./scene/blotter.js";
+import { buildCommunity } from "./scene/community.js";
 import { preload as preloadFigures } from "./scene/figures.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
@@ -251,6 +252,7 @@ let landmarkPicks = [];
 let pavilion = null;
 let novel = null;
 let blotter = null;
+let neighbours = null;   // what neighbours posted
 let groundSample = null; // (lat,lon) -> terrain height, for preset viewpoints
 let pilingPosts = [];    // the wharf's posts, as things the boat cannot pass through
 let trees = null;        // swaps each tree between near and far detail as you move
@@ -444,6 +446,8 @@ stairSpec
       // says GULF RD and nothing else, so it is put on the road of that name.
       blotter = buildBlotter(scene, near.sample, land.features.roads);
       if (feed.calls) showCalls();
+      neighbours = buildCommunity(scene, near.sample);
+      if (feed.community) showPosts();
       landmarkPicks = land.landmarks.concat(reef.landmarks, marketplace.landmarks, community.landmarks, marinaBuilding.landmarks, saltwater.landmarks, fireStation.landmarks, postOffice.landmarks, border.landmarks, clubhouse.landmarks);
       pilingPosts = land.pilings;
       breakers = land.isolated;
@@ -584,6 +588,7 @@ function tideShown() {
 
 feed.onChange((kind) => {
   if (kind === "calls" || kind === "snapshot") showCalls();
+  if (kind === "community" || kind === "snapshot") showPosts();
   if (kind === "snapshot" || kind === "crossings") setClockLimits();
   if (kind === "close") {
     // Feed down: blank the world rather than show last-known as if it were live.
@@ -926,6 +931,10 @@ function pickTrack(e) {
   if (blotter) {
     const found = blotter.pick(raycaster);
     if (found) { showCall(found); return; }
+  }
+  if (neighbours) {
+    const found = neighbours.pick(raycaster);
+    if (found) { showPost(found); return; }
   }
   const hits = raycaster.intersectObjects(
     vessels.pickList().concat(aircraft.pickList()), true);
@@ -1844,6 +1853,69 @@ function showCall(found) {
 
 document.getElementById("call-close").addEventListener("click", closeCall);
 
+// What neighbours posted, the same way: J or the button puts the newest on the
+// card, the arrows step through them, and go cuts the camera to one. Nothing
+// moves until go is pressed.
+const postCard = document.getElementById("post-card");
+const postWhere = document.getElementById("post-where");
+const postWhen = document.getElementById("post-when");
+const postText = document.getElementById("post-text");
+const postCount = document.getElementById("post-count");
+const postSource = document.getElementById("post-source");
+let postAt = -1;
+
+// When it was posted, on the peninsula's clock, which is the only clock anyone
+// who wrote it was reading.
+const POSTED = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Vancouver", weekday: "short", month: "short", day: "numeric",
+  hour: "numeric", minute: "2-digit",
+});
+
+function showPosts() {
+  if (!neighbours || !feed.community) return;
+  const placed = neighbours.setPosts(feed.community.data.posts || []);
+  document.getElementById("posts-btn").classList.toggle("off", placed === 0);
+}
+
+function togglePosts() {
+  if (!neighbours) return;
+  const on = !neighbours.shown;
+  neighbours.setVisible(on);
+  if (!on) { closePost(); return; }
+  if (neighbours.newest) showPost(neighbours.newest);
+}
+
+function closePost() {
+  postCard.classList.add("hidden");
+  postAt = -1;
+}
+
+function showPost(found) {
+  const p = found.post;
+  postWhere.textContent = p.place || "";
+  postWhen.textContent = `posted ${POSTED.format(new Date(p.posted))}`;
+  postText.textContent = p.text || "";
+  postSource.textContent = p.source === "reddit" ? "r/PointRoberts" : "Nextdoor";
+  postSource.href = p.url || "#";
+  postAt = neighbours.indexOf(found);
+  postCount.textContent = postAt < 0 ? "" : `${postAt + 1} of ${neighbours.count}`;
+  postCard.classList.remove("hidden");
+}
+
+function stepPost(by) {
+  if (!neighbours || !neighbours.count) return;
+  if (!neighbours.shown) neighbours.setVisible(true);
+  const found = neighbours.at(postAt < 0 ? 0 : postAt + by);
+  if (found) showPost(found);
+}
+
+document.getElementById("post-prev").addEventListener("click", () => stepPost(-1));
+document.getElementById("post-next").addEventListener("click", () => stepPost(1));
+document.getElementById("post-go").addEventListener("click", () => {
+  if (neighbours && postAt >= 0) lookAtCall(neighbours.at(postAt));
+});
+document.getElementById("post-close").addEventListener("click", closePost);
+
 // The novel's route, on R. Seven scenes in the order Low Water goes through
 // them. Each one winds the sun to its hour, holds the sea at its tide, puts the
 // camera where it can see, and then lets the people in it get on with it.
@@ -1980,6 +2052,7 @@ document.getElementById("campground-btn").addEventListener("click", toggleCampgr
 // The novel had a key and nothing else, which on a phone is nothing at all.
 document.getElementById("novel-btn").addEventListener("click", toggleTour);
 document.getElementById("calls-btn").addEventListener("click", toggleCalls);
+document.getElementById("posts-btn").addEventListener("click", togglePosts);
 
 // The shelter at the foot of the bank stands 8 m west of the cabin and 40 m
 // below the eye, so from the bluff you are looking down on its roof. Turning it
@@ -2062,6 +2135,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyP" && cast) cast.toggle();
   if (e.code === "KeyR" && !e.repeat) toggleTour();
   if (e.code === "KeyK" && !e.repeat) toggleCalls();
+  if (e.code === "KeyJ" && !e.repeat) togglePosts();
   if (e.code === "KeyH") togglePavilion();
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
@@ -2079,6 +2153,10 @@ window.addEventListener("keydown", (e) => {
       && (e.code === "ArrowLeft" || e.code === "ArrowRight")) {
     e.preventDefault();
     stepCall(e.code === "ArrowRight" ? 1 : -1);
+  } else if (!postCard.classList.contains("hidden")
+      && (e.code === "ArrowLeft" || e.code === "ArrowRight")) {
+    e.preventDefault();
+    stepPost(e.code === "ArrowRight" ? 1 : -1);
   }
 });
 

@@ -65,6 +65,7 @@ log = logging.getLogger("proxy")
 # The Sheriff's daily report reader. Its own module because reading a PDF has
 # nothing to do with the rest of this.
 from server import blotter  # noqa: E402
+from server import community  # noqa: E402
 # What nobody else keeps. The reason each feed is in there is written down in
 # the module, because the test of whether something belongs is whether it has a
 # history somewhere already.
@@ -184,6 +185,12 @@ ARCHIVE_PATH = REPO_ROOT / "data" / "archive"
 archive = archive_store.Archive(ARCHIVE_PATH)
 
 BLOTTER_PATH = REPO_ROOT / "data" / "blotter.json"
+
+# What neighbours post publicly that names a place on the point, read in
+# server/community.py. Nextdoor shows only the newest two dozen, so what is
+# read is kept, and once an hour is plenty for a town this size.
+COMMUNITY_PATH = REPO_ROOT / "data" / "community.json"
+COMMUNITY_POLL_SECONDS = 3600
 BLOTTER_POLL_SECONDS = 3600
 
 
@@ -252,6 +259,8 @@ class World:
         self.wait_time: datetime | None = None
         self.blotter: dict | None = None
         self.blotter_time: datetime | None = None
+        self.community: dict | None = None
+        self.community_time: datetime | None = None
         # The last thing the marina camera was read to hold, and when.
         self.marina: dict | None = None
         self.marina_time: datetime | None = None
@@ -276,6 +285,7 @@ class World:
             "crossings": "offline",
             "wait": "offline",
             "blotter": "offline",
+            "community": "offline",
             # Idle until somebody opens the marina, which is the whole point of
             # it: this feed costs the marina's provider a picture every minute.
             "marina": "idle",
@@ -769,6 +779,12 @@ def snapshot() -> dict:
                  world.blotter_time, world.blotter, None)
         if world.blotter else None
     )
+    # No staleness either: a quiet week on Nextdoor is a quiet week.
+    neighbours = (
+        envelope("community.posts", community.SOURCE,
+                 world.community_time, world.community, None)
+        if world.community else None
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "message_type": "initial.snapshot",
@@ -782,6 +798,7 @@ def snapshot() -> dict:
             "crossings": crossings,
             "wait": wait,
             "calls": calls,
+            "community": neighbours,
             "vessels": vessels,
             "aircraft": [
                 envelope("aircraft.state", ADSB_SOURCE,
@@ -1530,6 +1547,31 @@ async def wait_task() -> None:
             await asyncio.sleep(WAIT_POLL_SECONDS if ok else RETRY_SECONDS)
 
 
+async def community_task() -> None:
+    store = community.Community(COMMUNITY_PATH, community.PlaceFinder(REPO_ROOT))
+    store.load()
+    async with httpx.AsyncClient(timeout=60) as client:
+        while True:
+            ok = False
+            try:
+                added = await store.refresh(client)
+                ok = True
+            except Exception as exc:
+                await set_health("community", "offline")
+                log.error("Neighbours' posts: %s", exc)
+            # Whatever did come in goes out, even when one source failed.
+            world.community = store.as_data()
+            world.community_time = store.latest_time()
+            if ok:
+                await set_health("community", "live")
+                log.info("Neighbours' posts: %d on the map, %d new",
+                         len(world.community["posts"]), added)
+            await clients.broadcast(envelope(
+                "community.posts", community.SOURCE,
+                world.community_time, world.community, None))
+            await asyncio.sleep(COMMUNITY_POLL_SECONDS if ok else RETRY_SECONDS * 30)
+
+
 async def blotter_task() -> None:
     store = blotter.Blotter(BLOTTER_PATH)
     store.load()
@@ -2012,6 +2054,7 @@ async def startup() -> None:
                              (crossings_task(), "crossings", "crossings"),
                              (wait_task(), "wait", "wait"),
                              (blotter_task(), "blotter", "blotter"),
+                             (community_task(), "community", "community"),
                              (ferries_task(), "ferries", None),
                              (heartbeat_task(), "heartbeat", None),
                              (presence_task(), "presence", None),

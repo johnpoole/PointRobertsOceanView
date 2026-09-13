@@ -51,6 +51,7 @@ export class Feed {
     // Who the golf club's booking sheet says is out on the course, or null.
     this.tee = null;
     this.calls = null;
+    this.community = null;      // what neighbours posted, pinned to a place
     this.crossings = null;
     this.selfId = null;         // what the server called us, so we can skip it
 
@@ -192,6 +193,11 @@ export class Feed {
         this.calls = msg;
         this._emit("calls");
         break;
+      case "community.posts":
+        // What neighbours posted publicly that names a place on the point.
+        this.community = msg;
+        this._emit("community");
+        break;
       case "golf.tee":
         // Who the club's booking sheet says is out on the course.
         this.tee = msg;
@@ -230,6 +236,7 @@ export class Feed {
     this.marina = data.marina || null;
     this.tee = data.tee || null;
     this.calls = data.calls || null;
+    this.community = data.community || null;
     // The monthly counts. The page reads the oldest month off them to know how
     // far back the date on the clock may go.
     this.crossings = data.crossings || null;

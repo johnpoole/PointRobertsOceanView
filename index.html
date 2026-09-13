@@ -85,6 +85,7 @@
     <div class="keys-row"><span class="keys-k">P</span><span class="keys-v">the cast</span></div>
     <div class="keys-row"><span class="keys-k">R</span><span class="keys-v">the novel's route</span></div>
     <div class="keys-row"><span class="keys-k">K</span><span class="keys-v">the Sheriff's calls</span></div>
+    <div class="keys-row"><span class="keys-k">J</span><span class="keys-v">what neighbours posted</span></div>
     <div class="keys-row"><span class="keys-k">H</span><span class="keys-v">pavilion</span></div>
     <div class="keys-row"><span class="keys-k">L</span><span class="keys-v">vessel tracks</span></div>
     <div class="keys-row"><span class="keys-k">C</span><span class="keys-v">the photograph</span></div>
@@ -207,6 +208,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 5.5v6c0 4.4 3.3 8.4 8 10 4.7-1.6 8-5.6 8-10v-6Z"/><path d="M12 8v5M12 15.5v.5"/></svg>
         <span class="btn-label">the Sheriff's calls (K)</span>
       </button>
+      <button class="icon-btn" id="posts-btn" title="what neighbours posted (J)" aria-label="what neighbours posted">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4Z"/></svg>
+        <span class="btn-label">what neighbours posted (J)</span>
+      </button>
       <button class="icon-btn" id="novel-btn" title="the novel's route (R)" aria-label="the novel's route">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 4.8 7 4.3 3.5 4.8v13C7 17.3 10 17.8 12 19.5c2-1.7 5-2.2 8.5-1.7v-13C17 4.3 14 4.8 12 6.5Z"/><path d="M12 6.5v13"/></svg>
         <span class="btn-label">the novel's route (R)</span>
@@ -251,6 +256,21 @@
     </div>
     <div class="call-note">Whatcom County Sheriff, Law Incident Media Summary
       Report. A call for service, not a finding.</div>
+  </div>
+
+  <div id="post-card" class="call-card hidden">
+    <button id="post-close" class="call-close" aria-label="close">&times;</button>
+    <div id="post-where" class="call-nature"></div>
+    <div id="post-when" class="call-where"></div>
+    <p id="post-text" class="post-text"></p>
+    <div class="call-step">
+      <button id="post-prev" class="call-arrow" aria-label="the post before">&lsaquo;</button>
+      <span id="post-count" class="call-count"></span>
+      <button id="post-next" class="call-arrow" aria-label="the next post">&rsaquo;</button>
+      <button id="post-go" class="call-arrow" aria-label="go to this post">go</button>
+    </div>
+    <div class="call-note"><a id="post-source" target="_blank" rel="noopener"></a>.
+      Posted publicly by a neighbour. Nobody has checked it.</div>
   </div>
 
   <!-- Where the stick may be opened: the left of the screen, while something

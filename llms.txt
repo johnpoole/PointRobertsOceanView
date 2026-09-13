@@ -88,6 +88,7 @@ says so; it never shows its last good numbers as current.
 | wait | bwt.cbp.gov | the queue at the border now, by lane |
 | crossings | data.bts.gov | how many came through the booth, by month, back to 1994 |
 | blotter | Whatcom County Sheriff | the daily activity report, one PDF a day |
+| community | Nextdoor's public Point Roberts pages, r/PointRoberts | what neighbours posted, pinned to the road or place it names |
 | golf | pointrobertsgc.com | the club's booking sheet for today |
 | marina | pointrobertsmarina.com webcam | vehicles and people counted off the picture |
 
@@ -101,7 +102,7 @@ they are not shown on a past day at all.
 
 `M` mode · `V` fly · `B` boat, again to step ashore · `O` overview · `T` tennis
 courts · `G` campground · `F` golf holes · `P` the cast · `R` the novel's route ·
-`K` the Sheriff's calls · `H` pavilion · `L` vessel tracks · `C` the photograph ·
+`K` the Sheriff's calls · `J` what neighbours posted · `H` pavilion · `L` vessel tracks · `C` the photograph ·
 `N` next camera · `E` edit camera placement · `S` save camera placement ·
 `Esc` drop the selection.
 

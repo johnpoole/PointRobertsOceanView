@@ -420,6 +420,8 @@ body.hud-visible .clock:not(.hidden) { display: flex; }
 .call-arrow:hover { border-color: var(--ink); }
 .call-count { color: var(--dim); font-size: 11px; }
 .call-note { color: var(--dim); font-size: 11px; margin-top: 9px; }
+.call-note a { color: var(--dim); }
+.post-text { margin: 4px 0 0; white-space: pre-wrap; max-height: 9.5em; overflow-y: auto; }
 
 /* The half of the screen a thumb may open the stick in. It is invisible and it
    is only there while something is being driven; with it gone the left of the
