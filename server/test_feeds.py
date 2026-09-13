@@ -526,6 +526,45 @@ def test_a_feed_without_our_port_is_an_error() -> None:
         raise AssertionError("a feed with no Point Roberts in it passed silently")
 
 
+# ---- what nobody else keeps -------------------------------------------------
+
+def _archive():
+    import tempfile
+    from pathlib import Path
+    from server.archive import Archive
+    return Archive(Path(tempfile.mkdtemp()) / "archive")
+
+
+def test_a_reading_is_written_once_and_not_again() -> None:
+    a = _archive()
+    assert a.keep("wait", {"port_status": "Open"}) is True
+    assert a.keep("wait", {"port_status": "Open"}) is False,         "the same reading was written twice"
+    assert a.keep("wait", {"port_status": "Closed"}) is True
+
+
+def test_a_feed_with_a_history_elsewhere_is_refused() -> None:
+    a = _archive()
+    for feed in ("weather", "tide", "crossings"):
+        try:
+            a.keep(feed, {})
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"{feed} was archived and it has a history already")
+
+
+def test_every_reading_carries_the_second_it_was_taken() -> None:
+    import json
+    from datetime import datetime, timezone
+    a = _archive()
+    when = datetime(2026, 2, 12, 16, 12, 0, tzinfo=timezone.utc)
+    a.keep("marina", {"boats": 3}, when)
+    day = next((a.root / "marina").glob("*.jsonl"))
+    line = json.loads(day.read_text(encoding="utf-8").splitlines()[0])
+    assert line["t"] == "2026-02-12T16:12:00Z", line
+    assert line["d"] == {"boats": 3}, line
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

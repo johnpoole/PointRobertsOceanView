@@ -58,6 +58,10 @@ log = logging.getLogger("proxy")
 # The Sheriff's daily report reader. Its own module because reading a PDF has
 # nothing to do with the rest of this.
 from server import blotter  # noqa: E402
+# What nobody else keeps. The reason each feed is in there is written down in
+# the module, because the test of whether something belongs is whether it has a
+# history somewhere already.
+from server import archive as archive_store  # noqa: E402
 
 SCHEMA_VERSION = "1.0"
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -195,6 +199,9 @@ ADSB_RADIUS_NM = 10.8      # 20 km. It was 30 nm, which is 56.
 # peninsula's calls are in it. Public record, one PDF a day, read in
 # server/blotter.py. The point has a resident deputy and logs about a call a
 # day against seventy across the county.
+ARCHIVE_PATH = REPO_ROOT / "data" / "archive"
+archive = archive_store.Archive(ARCHIVE_PATH)
+
 BLOTTER_PATH = REPO_ROOT / "data" / "blotter.json"
 BLOTTER_POLL_SECONDS = 3600
 
@@ -2053,6 +2060,8 @@ async def wait_task() -> None:
                 result = await fetch_wait(client)
                 world.wait = result["state"]
                 world.wait_time = result["time"]
+                # Nobody keeps this but us.
+                archive.keep("wait", world.wait, world.wait_time)
                 await set_health("wait", "live")
                 await clients.broadcast(envelope(
                     "wait.state", "bwt.cbp.gov (US CBP)",
@@ -2321,6 +2330,8 @@ async def marina_task() -> None:
                 continue
             world.marina = dict(reading.as_data(), watching=True)
             world.marina_time = utcnow()
+            # Counted here off the camera and recorded nowhere else.
+            archive.keep("marina", world.marina, world.marina_time)
             world.health["marina"] = "live"
             log.info("Marina camera: %d vehicles, %d people, %d boats, %d in the lot",
                      reading.vehicles, reading.people, reading.boats, reading.in_lot)
@@ -2385,6 +2396,10 @@ async def tee_task() -> None:
                     except OSError as exc:
                         log.error("Tee sheet could not be written to %s: %r",
                                   TEE_PATH, exc)
+                    # The club's page shows today. Kept after every read, so
+                    # the day builds up as it is played rather than being lost
+                    # if the container goes down before closing time.
+                    archive.keep("tee", world.tee_sheet.to_json(), utcnow())
                 except Exception as exc:
                     world.health["golf"] = "offline"
                     world.tee = None
