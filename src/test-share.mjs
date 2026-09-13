@@ -145,7 +145,55 @@ test("the link a shared midnight makes is one the reader accepts", () => {
   assert.equal(Number(m[1]), 0);
 });
 
+// ---- the named places ------------------------------------------------------
+
+const places = JSON.parse(
+  fs.readFileSync(path.join(HERE, "..", "assets", "places.json"), "utf8")).places;
+
+test("every named place has a hash this page will open", () => {
+  // assets/places.json exists so a name can be turned into a view. A hash in it
+  // the reader refuses is a place nobody can be sent to, and the file is built
+  // by a script that does not import this reader.
+  assert.ok(places.length > 10, `only ${places.length} places in the file`);
+  for (const p of places) {
+    const got = share.readViewHash(p.hash);
+    assert.ok(got, `${p.id}: the page refuses its own hash, ${p.hash}`);
+    assert.equal(got.fov, p.view.fov, `${p.id}: the lens did not survive`);
+  }
+});
+
+test("every place is looked at from outside itself", () => {
+  for (const p of places) {
+    const eye = toWorld(p.view.eye.lat, p.view.eye.lon, p.view.eye.y);
+    const aim = toWorld(p.view.aim.lat, p.view.aim.lon, p.view.aim.y);
+    const back = Math.hypot(eye.x - aim.x, eye.z - aim.z);
+    assert.ok(back > 25, `${p.id}: the camera stands ${back.toFixed(0)} m off it`);
+    // A framed place is looked down on. Where the page opens is not framed: it
+    // is a driver's eye on Tyee looking slightly up at the booths, which is the
+    // whole point of it, so it is left alone.
+    if (!p.starting_position) {
+      assert.ok(eye.y > aim.y, `${p.id}: the camera is below what it looks at`);
+    }
+  }
+});
+
+test("no place is framed from orbit", () => {
+  // Past a few hundred metres up it stops being a view of a place and becomes a
+  // map, and the page already has a map on the O key.
+  for (const p of places) {
+    assert.ok(p.view.eye.y < 400,
+      `${p.id}: the camera is ${p.view.eye.y} m up, which is a map`);
+  }
+});
+
+test("every place has an id a URL can carry and words a reader can use", () => {
+  for (const p of places) {
+    assert.match(p.id, /^[a-z0-9][a-z0-9-]*$/, `${p.id} is not a usable id`);
+    assert.ok(p.name && p.note, `${p.id} has no name or no note`);
+  }
+});
+
 if (!process.exitCode) {
-  console.log("\nPASS: the view survives the round trip and midnight survives "
-    + "with it.");
+  console.log(`\nPASS: the view survives the round trip, midnight survives with `
+    + `it, and all ${places.length} named places open.`);
 }
