@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { fromWorld } from "../geo.js";
 import { painted, paint, buildWalker, box } from "./vehicles.js";
 import { buildCar } from "./cast.js";
+import { arc, clearView, ease, lerp } from "./shot.js";
 
 // The beats, in seconds from the start. The whole thing is BEATS.done long.
 const BEATS = {
@@ -27,11 +28,8 @@ const BEATS = {
   done: 38,
 };
 const APPROACH_M = 120;     // how far back down the road it comes from
-// A street has houses and fences down both sides and firs behind those, so the
-// swing has to clear whatever is actually there. These are the perches tried,
-// nearest and lowest first, and the first one that can see the car is the one
-// used. Guessing a height instead put the camera inside a wall on one street
-// and inside a tree on the next.
+// The perches tried, nearest and lowest first. shot.js takes the first one that
+// can see the car the whole way round the swing.
 const PERCHES = [
   { radius: 26, height: 9 },
   { radius: 30, height: 15 },
@@ -39,8 +37,8 @@ const PERCHES = [
   { radius: 40, height: 34 },
   { radius: 52, height: 52 },
 ];
-const ARC_FROM_DEFAULT = 215;
-const ARC_SWEEP = 130;
+// The swing itself. It comes round from behind the car and past it.
+const SWING = { from: 215, sweep: 130, aim: 1.2 };
 
 export function buildRecreation(scene, sample) {
   const ray = new THREE.Raycaster();
@@ -94,8 +92,10 @@ export function buildRecreation(scene, sample) {
         x: spot.x - Math.cos(road) * 3.0,
         z: spot.z + Math.sin(road) * 3.0,
       };
-      scene_ = { call, spot, road, from, past, kerb,
-                 perch: clearView(spot, sample, scene, group, ray, from_, toward) };
+      const centre = { x: spot.x, y: sample(...at2(spot)), z: spot.z };
+      scene_ = { call, spot, centre, road, from, past, kerb,
+                 perch: clearView(centre, PERCHES, SWING,
+                   { scene, skip: group, ray, from: from_, toward }) };
       walked = 0;
       was = null;
       group.visible = true;
@@ -160,17 +160,7 @@ export function buildRecreation(scene, sample) {
       }
 
       // ---- the camera -------------------------------------------------------
-      const turn = (ARC_FROM_DEFAULT + ARC_SWEEP * (at / BEATS.done)) * Math.PI / 180;
-      const ground = sample(...at2(spot));
-      const perch = scene_.perch;
-      return {
-        eye: {
-          x: spot.x + Math.cos(turn) * perch.radius,
-          y: ground + perch.height,
-          z: spot.z + Math.sin(turn) * perch.radius,
-        },
-        aim: { x: spot.x, y: ground + 1.2, z: spot.z },
-      };
+      return arc(scene_.centre, { ...SWING, ...scene_.perch }, at / BEATS.done);
     },
 
     dispose() {
@@ -184,54 +174,11 @@ export function buildRecreation(scene, sample) {
   };
 }
 
-// The first perch that can actually see the car, tested round the whole swing.
-// Anything drawn in this scene counts as in the way except the recreation's own
-// people, which is why the group is skipped.
-function clearView(spot, sample, scene, own, ray, from, toward) {
-  const ground = sample(...at2(spot));
-  const target = new THREE.Vector3(spot.x, ground + 1.2, spot.z);
-  // Only meshes, and only ones still attached to something. The scene carries
-  // sprites, lines and a sky that raycasting walks straight off the end of.
-  const others = [];
-  scene.traverse((o) => {
-    if (!o.isMesh || !o.visible || !o.geometry || !o.parent) return;
-    for (let up = o; up; up = up.parent) if (up === own) return;
-    others.push(o);
-  });
-  for (const perch of PERCHES) {
-    let blocked = false;
-    // Three looks across the arc: the start, the middle and the end of it.
-    for (const step of [0, 0.5, 1]) {
-      const turn = (ARC_FROM_DEFAULT + ARC_SWEEP * step) * Math.PI / 180;
-      from.set(spot.x + Math.cos(turn) * perch.radius,
-               ground + perch.height,
-               spot.z + Math.sin(turn) * perch.radius);
-      toward.subVectors(target, from);
-      const reach = toward.length();
-      ray.set(from, toward.normalize());
-      ray.far = reach - 2.5;          // do not count the ground under the car
-      if (ray.intersectObjects(others, false).length) { blocked = true; break; }
-    }
-    if (!blocked) return perch;
-  }
-  // Nothing had a clear line, so take the one that looks over the most.
-  return PERCHES[PERCHES.length - 1];
-}
-
 function at2(p) {
   const g = fromWorld(p.x, p.z);
   return [g.lat, g.lon];
 }
 
-function lerp(a, b, k) {
-  const t = Math.min(Math.max(k, 0), 1);
-  return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
-}
-
-function ease(k) {
-  const t = Math.min(Math.max(k, 0), 1);
-  return t * t * (3 - 2 * t);
-}
 
 // The county's cars are white with a green stripe and a bar on the roof.
 function patrolCar() {

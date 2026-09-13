@@ -9,6 +9,7 @@
 // camera stands. All of it was wrong at least once while it was being written.
 
 import fs from "node:fs";
+import { ease, lerp } from "./shot.js";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
@@ -23,7 +24,7 @@ const src = fs.readFileSync(path.join(here, "recreation.js"), "utf8")
   .replace(/export function buildRecreation[\s\S]*?\n}\n/, "")
   .replace(/^\/\/ The county's cars[\s\S]*$/m, "")
   .replace(/function patrolCar[\s\S]*$/m, "")
-  + "\nexport { BEATS, PERCHES, ARC_SWEEP, ARC_FROM_DEFAULT, APPROACH_M, lerp, ease };\n";
+  + "\nexport { BEATS, PERCHES, SWING, APPROACH_M };\n";
 const r = await import(
   "data:text/javascript;base64," + Buffer.from(src, "utf8").toString("base64"));
 
@@ -32,7 +33,7 @@ function test(name, fn) {
   catch (e) { console.log(`FAIL ${name}: ${e.message}`); process.exitCode = 1; }
 }
 
-const { BEATS, PERCHES, lerp, ease, APPROACH_M } = r;
+const { BEATS, PERCHES, SWING, APPROACH_M } = r;
 
 // ---- the order of it --------------------------------------------------------
 
@@ -63,22 +64,19 @@ test("there is time to attend something", () => {
 });
 
 // ---- the shape of the moves -------------------------------------------------
+//
+// ease and lerp themselves are shot.js and are tested there. What is checked
+// here is that the car uses them to leave and arrive at a stop, because a
+// patrol car that appears at speed and stops dead is not a car.
 
-test("an ease starts and ends still", () => {
-  assert.equal(ease(0), 0);
-  assert.equal(ease(1), 1);
-  assert.ok(ease(0.5) > 0.49 && ease(0.5) < 0.51, "the middle is not the middle");
-  // and it is clamped, because a beat can overrun by a frame
-  assert.equal(ease(-1), 0);
-  assert.equal(ease(2), 1);
-});
-
-test("a lerp is clamped at both ends", () => {
-  const a = { x: 0, z: 0 }, b = { x: 10, z: 20 };
-  assert.deepEqual(lerp(a, b, 0), { x: 0, z: 0 });
-  assert.deepEqual(lerp(a, b, 1), { x: 10, z: 20 });
-  assert.deepEqual(lerp(a, b, -3), { x: 0, z: 0 });
-  assert.deepEqual(lerp(a, b, 3), { x: 10, z: 20 });
+test("the car starts still and stops still", () => {
+  const from = { x: 0, z: 0 }, kerb = { x: 100, z: 0 };
+  const at = (t) => lerp(from, kerb, ease(t / BEATS.arrive)).x;
+  const leaving = at(0.5) - at(0);
+  const middle = at(BEATS.arrive / 2 + 0.25) - at(BEATS.arrive / 2 - 0.25);
+  const stopping = at(BEATS.arrive) - at(BEATS.arrive - 0.5);
+  assert.ok(leaving < middle, "it pulls away at full speed");
+  assert.ok(stopping < middle, "it arrives at full speed");
 });
 
 // ---- where the camera stands ------------------------------------------------
@@ -108,10 +106,10 @@ test("the last perch looks down rather than along", () => {
 });
 
 test("the swing goes far enough round to be a swing", () => {
-  assert.ok(Math.abs(r.ARC_SWEEP) >= 60,
-    `${r.ARC_SWEEP}° is a camera that shifts, not one that goes round`);
-  assert.ok(Math.abs(r.ARC_SWEEP) <= 300,
-    `${r.ARC_SWEEP}° puts the camera through the subject`);
+  assert.ok(Math.abs(SWING.sweep) >= 60,
+    `${SWING.sweep}° is a camera that shifts, not one that goes round`);
+  assert.ok(Math.abs(SWING.sweep) <= 300,
+    `${SWING.sweep}° puts the camera through the subject`);
 });
 
 // ---- against the ground it is played on -------------------------------------

@@ -32,6 +32,7 @@ import { buildMarinaLot } from "./scene/marina-lot.js";
 import { buildGolf } from "./scene/golf.js";
 import { buildCast, minutesInZone } from "./scene/cast.js";
 import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
+import { Move, arc } from "./scene/shot.js";
 import { buildNovel } from "./scene/novel.js";
 import { buildBlotter } from "./scene/blotter.js";
 import { buildRecreation } from "./scene/recreation.js";
@@ -1764,12 +1765,14 @@ function openCall(found) {
 // The recreation runs on its own clock, the way the novel's route does, and it
 // takes the camera for as long as it lasts.
 let acting = null;
+// Ease in over a couple of seconds so it does not cut.
+const RECREATION_IN_S = 2.5;
 
 function playRecreation(found) {
   if (!recreation) return;
   const c = found.call;
   recreation.play(c, found.spot);
-  acting = { since: clock.elapsedTime, from: null };
+  acting = { since: clock.elapsedTime, move: new Move(RECREATION_IN_S) };
   // The hour it came in. A music complaint at twenty to one in the morning is
   // a scene in the dark and should look like one.
   const at = /(\d+):(\d+):\d+ ([AP])M/.exec(c.when || "");
@@ -1796,21 +1799,7 @@ function updateRecreation(now) {
   if (at >= recreation.length) { stopRecreation(); return; }
   const shot = recreation.update(at);
   if (!shot) return;
-  if (!acting.from) {
-    acting.from = { eye: camera.position.clone(), aim: controls.target.clone() };
-  }
-  // Ease in over the first couple of seconds so it does not cut.
-  const k = Math.min(at / 2.5, 1);
-  const ease = k * k * (3 - 2 * k);
-  camera.position.set(
-    acting.from.eye.x + (shot.eye.x - acting.from.eye.x) * ease,
-    acting.from.eye.y + (shot.eye.y - acting.from.eye.y) * ease,
-    acting.from.eye.z + (shot.eye.z - acting.from.eye.z) * ease);
-  controls.target.set(
-    acting.from.aim.x + (shot.aim.x - acting.from.aim.x) * ease,
-    acting.from.aim.y + (shot.aim.y - acting.from.aim.y) * ease,
-    acting.from.aim.z + (shot.aim.z - acting.from.aim.z) * ease);
-  controls.update();
+  acting.move.to(camera, controls, shot, at);
 }
 
 document.getElementById("call-close").addEventListener("click", () => {
@@ -1844,7 +1833,7 @@ function toggleTour() {
   // up and back until it is legal, which is why the crossing kept coming out as
   // an empty beach. toWyzeCam lifts it for the same reason.
   controls.maxPolarAngle = Math.PI;
-  tour = { at: -1, since: 0, from: null };
+  tour = { at: -1, since: 0, move: null };
   stepTour(clock.elapsedTime);
 }
 
@@ -1869,10 +1858,10 @@ function offsetForSun(wanted, west) {
 function stepTour(now) {
   tour.at = (tour.at + 1) % CHAPTERS.length;
   tour.since = now;
-  tour.from = {
-    eye: camera.position.clone(),
-    aim: controls.target.clone(),
-  };
+  // Ease across from wherever the last chapter left it, then hold. A cut would
+  // lose where one place is from another, which is most of what the route is for.
+  tour.move = new Move(TRAVEL_S);
+  tour.move.mark(camera, controls);
   const chapter = CHAPTERS[tour.at];
   // The light the scene was written under, found in today's sky rather than
   // taken off a clock. The book is February and the page is whatever month it
@@ -1902,16 +1891,11 @@ function tourCamera(chapter, acted, at) {
     ? { x: (lead.x + chaser.x) / 2, y: (lead.y + chaser.y) / 2,
         z: (lead.z + chaser.z) / 2 }
     : lead;
-  const turn = (shot.from + shot.sweep * (acted / chapter.dwell)) * Math.PI / 180;
-  const eye = {
-    x: s.x + Math.cos(turn) * shot.radius,
-    y: s.y + shot.height,
-    z: s.z + Math.sin(turn) * shot.radius,
-  };
+  const pose = arc(s, { ...shot, aim: 1.1 }, acted / chapter.dwell);
   // The ground under a swinging camera is not the ground under the cart, and
   // Tyee runs downhill the whole way. Keep the lens out of the verge.
-  eye.y = Math.max(eye.y, floorAt(eye.x, eye.z) + 3);
-  return { eye, aim: { x: s.x, y: s.y + 1.1, z: s.z } };
+  pose.eye.y = Math.max(pose.eye.y, floorAt(pose.eye.x, pose.eye.z) + 3);
+  return pose;
 }
 
 function updateTour(now) {
@@ -1921,20 +1905,7 @@ function updateTour(now) {
   // Nothing happens until the camera gets there. The scene is set on its marks
   // while it flies in, and the chapter's own clock starts when it arrives.
   const acted = Math.max(gone - TRAVEL_S, 0);
-  const { eye, aim } = tourCamera(chapter, acted, tour.at);
-  // Ease across, then hold. A cut would lose where one place is from another,
-  // which is most of what the route is for.
-  const k = Math.min(gone / TRAVEL_S, 1);
-  const ease = k * k * (3 - 2 * k);
-  camera.position.set(
-    tour.from.eye.x + (eye.x - tour.from.eye.x) * ease,
-    tour.from.eye.y + (eye.y - tour.from.eye.y) * ease,
-    tour.from.eye.z + (eye.z - tour.from.eye.z) * ease);
-  controls.target.set(
-    tour.from.aim.x + (aim.x - tour.from.aim.x) * ease,
-    tour.from.aim.y + (aim.y - tour.from.aim.y) * ease,
-    tour.from.aim.z + (aim.z - tour.from.aim.z) * ease);
-  controls.update();
+  tour.move.to(camera, controls, tourCamera(chapter, acted, tour.at), gone);
   novel.place(tour.at, acted, tideLevel(), chapter.dwell);
   if (gone >= TRAVEL_S + chapter.dwell) stepTour(now);
 }
