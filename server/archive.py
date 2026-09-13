@@ -2,10 +2,10 @@
 
 Some of what this proxy reads has an archive somewhere and needs none here. The
 weather has Open-Meteo going back to 1940, the tide and the currents have NOAA,
-the monthly crossing counts are historical by nature, and the Sheriff's reports
-sit on the county's own site.
+and the Sheriff's reports sit on the county's own site.
 
-Three things have no archive anywhere:
+These are kept: three because they exist nowhere else, one because somebody
+else's server is not our copy.
 
   wait    US Customs publish the queue at the line live and keep nothing. Their
           own historical endpoint returns null for every crossing, the one
@@ -16,6 +16,13 @@ Three things have no archive anywhere:
   marina  Counts read off the camera by this proxy. It is our own measurement
           and it exists nowhere else.
   tee     The club's booking sheet shows today. Yesterday's is gone.
+  crossings
+          BTS do keep these — every month back to 1996 — so this one is not
+          kept because it is nowhere else. It is kept because a dataset on
+          somebody else's server is not a copy, and this is the one number
+          that says what the peninsula is: 35,796 vehicles through the booth
+          in February against 59,425 in July. It changes once a month, so it
+          is one line a month.
 
 One file a day per feed, one line per reading, appended. JSON lines because a
 line can be read without the file being whole, which matters for something a
@@ -36,6 +43,7 @@ KEPT = {
     "wait": "US CBP publish it live and keep nothing",
     "marina": "counted off the camera here; it exists nowhere else",
     "tee": "the club's sheet shows today only",
+    "crossings": "BTS keep it, but their server is not our copy",
 }
 
 

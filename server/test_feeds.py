@@ -544,7 +544,9 @@ def test_a_reading_is_written_once_and_not_again() -> None:
 
 def test_a_feed_with_a_history_elsewhere_is_refused() -> None:
     a = _archive()
-    for feed in ("weather", "tide", "crossings"):
+    # The crossings are kept on purpose — their server is not our copy — so
+    # these are the ones that genuinely have a history elsewhere.
+    for feed in ("weather", "tide", "currents", "vessels", "blotter"):
         try:
             a.keep(feed, {})
         except ValueError:

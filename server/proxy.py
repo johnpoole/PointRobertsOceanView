@@ -2108,6 +2108,10 @@ async def crossings_task() -> None:
                 result = await fetch_crossings(client)
                 world.crossings = result["state"]
                 world.crossings_time = result["time"]
+                # A month at a time, and one line a month: the dedupe drops the
+                # other twenty-seven reads between one month's figures and the
+                # next.
+                archive.keep("crossings", world.crossings, world.crossings_time)
                 world.health["crossings"] = "live"
                 await clients.broadcast(envelope(
                     "crossings.state", "bts.gov (US CBP)",
