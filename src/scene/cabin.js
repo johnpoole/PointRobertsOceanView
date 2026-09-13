@@ -13,7 +13,8 @@
 //   one wide picture window on the upper south gable, west of centre and up
 //     under the eave, with plain siding east of it
 //   an upper deck on posts with a dark wire-mesh rail in a timber frame
-//   a lower deck under it with horizontal timber rails, and lattice below that
+//   a lower deck under it with horizontal timber rails, open square lattice on
+//     the west, and a recessed diagonal screen behind the open south return
 //   both decks turning the south-west corner and running back along the south
 //     face, the top one 3 ft out and the lower one 12 ft at the sea end and
 //     closing to 3 ft where the bank comes up level with it
@@ -173,7 +174,8 @@ const CHIMNEY_ABOVE_RIDGE = 2.4;
 const CHIMNEY_TOP = RIDGE_Y + CHIMNEY_ABOVE_RIDGE;
 
 const SIDING = 0.16;         // board exposure, wide, as in the north-face photo
-// The north gable's small window. It is the only opening still unphotographed.
+// The north gable's small window. The May 2025 oblique view confirms an opening
+// but does not settle its dimensions; retain the earlier size estimate.
 const WIN_SILL = 1.0;
 // The sill the upper south window stands on, above the upper floor. The window
 // at the south end of the west wall stands on the same one — John, reading the
@@ -186,7 +188,7 @@ const CLAD_SHADOW = 0x232a2f; // every other board, so the lap reads
 const TRIM = 0xe8e6df;       // white window frames
 const GLASS = 0x59707e;      // pale: these windows reflect sky, not a dark room
 const ROOF = 0x6a7076;
-const SEAM = 0x7d848a;
+const SEAM = 0x555d65;
 const FASCIA = 0x22282c;
 const BRICK = 0x7d5544;
 const DECK_TIMBER = 0x9c8a72;   // weathered cedar, greyed off
@@ -198,7 +200,7 @@ const RAIL_FRAME = 0xa8b1b5;
 const MESH_M = 0.11;         // the grid, off the photographs
 const WIRE_M = 0.012;
 const POST_COLOR = 0x2f4a44;  // the green-teal posts under the deck
-const LATTICE = 0x353c41;   // dark, but off black: it is a screen, not a hole
+const LATTICE = 0x8a8780;   // weathered open timber grid, May 2025 beach photograph
 const CONCRETE = 0x8d8b84;  // the stair treads and the wall they run against
 
 // Turn a part from the cabin's own frame into the world.
@@ -264,12 +266,35 @@ export function buildCabin(scene, sample) {
     }
   }
 
-  // The posts the west side stands on, down to the bank.
-  for (const s of [-1, 1]) {
-    for (const t of [-0.62, 0.0, 0.62]) {
-      place(parts, box(POST, POST, LOWER_FLOOR - GROUND_UNDER_DECK + 0.4,
-                       s > 0 ? hw - 0.3 : -hw - DECK_OUT + 0.4, GROUND_UNDER_DECK - 0.4,
-                       t * L, POST_COLOR));
+  // May 2025 west elevation and June 2022 southwest view: tall posts carry
+  // beams and knee braces under the upper deck, rather than ending at the
+  // lower floor. Sizes/spacing are photo estimates; feet use the baked ground.
+  const groundLocal = (x, z) => groundAt(
+    AT.x + x * Math.cos(YAW) + z * Math.sin(YAW),
+    AT.z - x * Math.sin(YAW) + z * Math.cos(YAW));
+  const member = (a, b, w, d, color) => {
+    const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b);
+    const direction = end.clone().sub(start);
+    const g = new THREE.BoxGeometry(w, direction.length(), d);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0), direction.normalize()));
+    g.translate(...start.add(end).multiplyScalar(0.5).toArray());
+    return tint(g, color);
+  };
+  const beamTop = UPPER_FLOOR - 0.14, beamBottom = beamTop - 0.22;
+  const postX = -hw - DECK_OUT + 0.4;
+  place(parts, box(0.20, L, 0.22, postX, beamBottom, 0, DECK_TIMBER));
+  for (const z of [-hl + 0.3, -L / 6, L / 6, hl - 0.3]) {
+    const foot = groundLocal(postX, z) - 0.18;
+    place(parts, box(POST, POST, beamBottom - foot, postX, foot, z, POST_COLOR));
+    place(parts, box(DECK_OUT, 0.18, 0.22, -hw - DECK_OUT / 2,
+                     beamBottom, z, DECK_TIMBER));
+    place(parts, member([postX, beamBottom - 0.72, z],
+      [postX + 0.72, beamBottom, z], 0.10, 0.13, DECK_TIMBER));
+    for (const side of [-1, 1]) {
+      if (Math.abs(z + side * 0.65) > hl) continue;
+      place(parts, member([postX, beamBottom - 0.65, z],
+        [postX, beamBottom, z + side * 0.65], 0.10, 0.13, DECK_TIMBER));
     }
   }
 
@@ -288,8 +313,6 @@ export function buildCabin(scene, sample) {
   const WEST_DOOR_SILL = 0.10;            // just off the deck boards
   const WEST_UPPER = [WEST_DOOR_SILL, WEST_DOOR_SILL, WEST_DOOR_SILL,
                       WEST_DOOR_SILL, SOUTH_WIN_SILL];
-  const WEST_LOWER_HEAD = 1.70;
-  const WEST_LOWER = [0.55, 0.55, 0.55];
 
   // One frame per bay, because the sills differ and a single pane cannot hold
   // two of them. Frames stand proud of the wall so they catch a shadow, and the
@@ -308,7 +331,18 @@ export function buildCabin(scene, sample) {
       place(parts, box(0.14, w - 0.22, h, -hw, floor + sill, t, GLASS));
     }
   };
-  westRun(LOWER_FLOOR, WEST_LOWER_HEAD, WEST_LOWER);
+  // PXL_20250514_163557098: two separated white-framed pairs, with a low
+  // horizontal division and glass near deck level. Not three equal windows.
+  for (const z of [-1.7, 1.7]) {
+    const w = 1.9, h = 1.64, sill = LOWER_FLOOR + 0.09;
+    place(parts, box(0.12, w, h, -hw, sill, z, TRIM));
+    for (const side of [-1, 1]) {
+      const paneZ = z + side * (w - 0.12) / 4;
+      place(parts, box(0.14, (w - 0.12) / 2 - 0.08, h - 0.16,
+        -hw, sill + 0.08, paneZ, GLASS));
+    }
+    place(parts, box(0.16, w - 0.16, 0.045, -hw, sill + 0.48, z, TRIM));
+  }
   westRun(UPPER_FLOOR, WEST_HEAD, WEST_UPPER);
 
   // The entrance is on the east-facing inset wall, facing into the notch.
@@ -328,7 +362,7 @@ export function buildCabin(scene, sample) {
   place(parts, box(0.05, 0.04, 0.12, NOTCH_X + 0.12,
                    UPPER_FLOOR + 0.90, entryZ + 0.08, FASCIA));
 
-  // The north gable end: one small window, still unphotographed.
+  // The north gable end: one small window (size remains an estimate).
   place(parts, box(1.0, 0.12, 1.0, 1.2, UPPER_FLOOR + WIN_SILL, -hl, TRIM));
   place(parts, box(0.8, 0.14, 0.8, 1.2, UPPER_FLOOR + WIN_SILL + 0.1, -hl, GLASS));
 
@@ -349,6 +383,11 @@ export function buildCabin(scene, sample) {
   place(parts, box(SOUTH_WIN_W - 0.2, 0.14, SOUTH_WIN_H - 0.2,
                    SOUTH_WIN_X, UPPER_FLOOR + SOUTH_WIN_SILL + 0.1, hl, GLASS));
 
+  // The narrow lower south window in 20190731_103926, behind the return deck.
+  place(parts, box(0.64, 0.12, 1.02, -0.45, LOWER_FLOOR + 0.55, hl, TRIM));
+  place(parts, box(0.48, 0.14, 0.86, -0.45, LOWER_FLOOR + 0.63, hl, GLASS));
+  place(parts, box(0.48, 0.16, 0.045, -0.45, LOWER_FLOOR + 1.0, hl, TRIM));
+
   // Cut every roof component, including the gable infill, so neither trim nor
   // standing seams bridge the confirmed notch above the recessed upper walls.
   const roofPart = (geometry, color) => {
@@ -362,15 +401,30 @@ export function buildCabin(scene, sample) {
   roofPart(gableRoof(hw, hl, EAVE, 0, OVERHANG, ROOF, RIDGE), ROOF);
   // The surface, so the seams and the fascia sit on the roof rather than beside it.
   const roofY = (x) => RIDGE_Y - (x > RIDGE_X ? SLOPE_E : SLOPE_W) * Math.abs(x - RIDGE_X);
-  for (let x = -hw - OVERHANG + SEAM_SPACING; x < hw + OVERHANG; x += SEAM_SPACING) {
-    roofPart(box(0.05, L + OVERHANG * 2, 0.05, x, roofY(x) + 0.03, 0, SEAM), SEAM);
+  // May 2025 roof close-ups: ribs follow the fall, perpendicular to the ridge.
+  // A vertical-height profile keeps every rib base on its measured plane.
+  const slopeBar = (x0, x1, z, width, height, offset, color) => {
+    const g = box(x1 - x0, width, height, (x0 + x1) / 2, 0, z, color);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + roofY(p.getX(i)) + offset);
+    g.computeVertexNormals();
+    return g;
+  };
+  for (let z = -hl - OVERHANG + SEAM_SPACING / 2; z < hl + OVERHANG; z += SEAM_SPACING) {
+    for (const [a, b] of [[-hw - OVERHANG, RIDGE_X], [RIDGE_X, hw + OVERHANG]]) {
+      roofPart(slopeBar(a, b, z, 0.025, 0.04, 0.002, SEAM), SEAM);
+    }
   }
   // Fascia round the eave, dark, which is what makes the overhang read.
   for (const s of [-1, 1]) {
     roofPart(box(0.1, L + OVERHANG * 2, 0.22,
                  s * (hw + OVERHANG), roofY(s * (hw + OVERHANG)) - 0.22, 0, FASCIA), FASCIA);
-    roofPart(box((hw + OVERHANG) * 2, 0.1, 0.2,
-                 0, EAVE - 0.2, s * (hl + OVERHANG), FASCIA), FASCIA);
+    for (const [a, b] of [[-hw - OVERHANG, RIDGE_X], [RIDGE_X, hw + OVERHANG]]) {
+      roofPart(slopeBar(a, b, s * (hl + OVERHANG), 0.10, 0.20, -0.20, FASCIA), FASCIA);
+      // Exposed timber under the north/south overhang, visible in May 2025.
+      roofPart(slopeBar(a, b, s * (hl + OVERHANG / 2), OVERHANG,
+        0.035, -0.045, DECK_TIMBER), DECK_TIMBER);
+    }
   }
   // Fascia on the two new edges. Keep its thickness on the retained side.
   const notchRun = hl + OVERHANG - NOTCH_Z;
@@ -448,10 +502,19 @@ export function buildCabin(scene, sample) {
     place(parts, box(0.11, 0.11, RAIL_H,
                      -hw - LOWER_DECK_OUT, LOWER_FLOOR, z, DECK_TIMBER));
   }
-  // The screen is dark but it is not a hole. Framed in timber and lifted off
-  // black, or it reads as a missing wall rather than lattice in shadow.
+  // Open square slats, not an opaque panel: PXL_20250514_163557098 and the
+  // October 2022 close-up. Slat width and pitch are visual estimates. Geometry
+  // leaves real holes and stays in the cabin's single merged draw call.
   const skirtH = LOWER_FLOOR - 0.14 - GROUND_UNDER_DECK;
-  place(parts, box(0.1, L, skirtH, -hw - LOWER_DECK_OUT, GROUND_UNDER_DECK, 0, LATTICE));
+  const latticeX = -hw - LOWER_DECK_OUT;
+  const latticePitch = 0.13, latticeSlat = 0.026;
+  for (let z = -hl + latticeSlat / 2; z <= hl - latticeSlat / 2; z += latticePitch) {
+    place(parts, box(0.026, latticeSlat, skirtH, latticeX,
+      GROUND_UNDER_DECK, z, LATTICE));
+  }
+  for (let y = GROUND_UNDER_DECK; y + latticeSlat <= LOWER_FLOOR - 0.14; y += latticePitch) {
+    place(parts, box(0.026, L, latticeSlat, latticeX + 0.026, y, 0, LATTICE));
+  }
   for (let k = 0; k < 5; k++) {
     const z = -hl + (k * L) / 4;
     place(parts, box(0.14, 0.14, skirtH,
@@ -490,18 +553,43 @@ export function buildCabin(scene, sample) {
     place(parts, box(0.11, 0.11, RAIL_H, sx0 + f * du, LOWER_FLOOR,
                      sv0 + f * dv, DECK_TIMBER));
   }
-  // Under it the same lattice screen, in panels that shorten as the ground
-  // climbs. Each panel starts a little under grade, because a panel that stops
-  // short of the ground is a hole and a panel buried in it is nothing at all.
+  // The south return stands on open posts (June 2022 southwest photograph).
+  // Its screen is recessed behind the deck, not across this entire outer edge.
   const grade = (f) => GROUND_AT_SOUTH_WEST - 0.3 +
                        f * (GROUND_AT_SOUTH_END - GROUND_AT_SOUTH_WEST);
   const PANELS = 6;
   for (let k = 0; k < PANELS; k++) {
-    const f = (k + 0.5) / PANELS, gm = grade(f);
-    onEdge(edge / PANELS, LOWER_FLOOR - 0.14 - gm, 0.1, f, gm, LATTICE);
     const fp = k / PANELS, gp = grade(fp);
     place(parts, box(0.16, 0.16, LOWER_FLOOR - 0.14 - gp,
                      sx0 + fp * du, gp, sv0 + fp * dv, DECK_TIMBER));
+  }
+
+  // Diagonal screen under the south side of the house, behind the open return
+  // deck. The October 2022 close-up shows diamonds here and squares to the
+  // west. Clip each slat against the sampled ground and lower deck underside.
+  const screenZ = hl - 0.10, screenTop = LOWER_FLOOR - 0.14;
+  const screenLeft = -hw, screenRight = SOUTH_END;
+  const bottomLeft = groundLocal(screenLeft, screenZ) - 0.1;
+  const bottomRight = groundLocal(screenRight, screenZ) - 0.1;
+  const floorSlope = (bottomRight - bottomLeft) / (screenRight - screenLeft);
+  const bottom = (x) => bottomLeft + (x - screenLeft) * floorSlope;
+  for (const slope of [-1, 1]) {
+    for (let intercept = Math.min(bottomLeft, bottomRight) - 6;
+         intercept < screenTop + 6; intercept += 0.22) {
+      // y = slope * (x - screenLeft) + intercept, clipped to the trapezoid.
+      let lo = screenLeft, hi = screenRight;
+      const clip = (a, b) => { // a*x+b >= 0
+        if (Math.abs(a) < 1e-9) { if (b < 0) hi = lo - 1; }
+        else if (a > 0) lo = Math.max(lo, -b / a);
+        else hi = Math.min(hi, -b / a);
+      };
+      clip(-slope, screenTop + slope * screenLeft - intercept);
+      clip(slope - floorSlope, intercept - slope * screenLeft - bottomLeft + floorSlope * screenLeft);
+      if (hi - lo < 0.03) continue;
+      const y = (x) => slope * (x - screenLeft) + intercept;
+      place(parts, member([lo, Math.max(bottom(lo), y(lo)), screenZ],
+        [hi, y(hi), screenZ], 0.03, 0.025, LATTICE));
+    }
   }
 
   // The concrete flight, clear of the deck to the south, climbing west to east

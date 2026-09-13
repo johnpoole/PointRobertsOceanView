@@ -695,8 +695,11 @@ close to the model's 13.390 and 0.900. The two pitches remain 3.15 in 12 west an
 The mapped notch contains sparse 2023 returns at roof-like heights, but these do not override
 John's confirmation of its current shape. County imagery is partly obscured by trees. The
 2009 cloud is historical and was not registered to stable control; do not treat its difference
-as a measured building movement. Other stepped/lower roof details and the separate stair,
-support, seam-direction, and lattice findings remain in issue #42. Source clouds and photographs
+as a measured building movement. Stepped/lower roof details and the stair layout remain
+in issue #42. The 13 September photo refinement corrects seam direction and gable trim,
+connects upper-deck posts to beams and braces, opens the lattice and south deck underside,
+and improves lower glazing. See [CONTINUE-cabin-photos.md](CONTINUE-cabin-photos.md) for
+photo provenance, estimates, checks and geometry cost. Source clouds and photographs
 are in `../PointRobertsEngineering`.
 
 ## Ground colour
