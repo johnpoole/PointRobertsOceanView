@@ -16,6 +16,7 @@ import { tint } from "./parts.js";
 import { areaView } from "./area-view.js";
 import { minutesInZone, minutesOf } from "./cast.js";
 import { buildWalker } from "./vehicles.js";
+import { buildCar } from "./cast.js";
 
 // What each kind is drawn in, how far it stands off the ground, and how finely
 // it is broken up to follow the ground under it. A green is small and read
@@ -128,6 +129,32 @@ export async function buildGolf(scene, sample) {
     flights.push(flight);
   }
   group.add(players);
+
+  // The cars coming down for a tee time, on the road baked with the course.
+  const arriving = new THREE.Group();
+  arriving.name = "golf-arrivals";
+  const road = (course.arrival && course.arrival.path) || [];
+  const roadPts = road.map(([lat, lon]) => {
+    const w = toWorld(lat, lon);
+    return { x: w.x, z: w.z };
+  });
+  const roadRun = [0];
+  for (let i = 1; i < roadPts.length; i++) {
+    roadRun.push(roadRun[i - 1] + Math.hypot(roadPts[i].x - roadPts[i - 1].x,
+                                             roadPts[i].z - roadPts[i - 1].z));
+  }
+  const cars = [];
+  for (let i = 0; i < MAX_ARRIVING; i++) {
+    const car = new THREE.Group();
+    car.rotation.y = Math.PI;          // the models face -Z, headings point along travel
+    car.add(buildCar(CAR_COLOURS[i % CAR_COLOURS.length]));
+    const stand = new THREE.Group();
+    stand.add(car);
+    stand.visible = false;
+    arriving.add(stand);
+    cars.push(stand);
+  }
+  group.add(arriving);
   scene.add(group);
 
   // Where a group stands: along the centre line of the hole they are on, as far
@@ -179,6 +206,54 @@ export async function buildGolf(scene, sample) {
     });
   }
 
+  // Where a car is on the baked road, by how far along it has got.
+  function onRoad(metres) {
+    if (roadPts.length < 2) return null;
+    const want = Math.min(Math.max(metres, 0), roadRun[roadRun.length - 1]);
+    let i = 1;
+    while (i < roadRun.length - 1 && roadRun[i] < want) i++;
+    const a = roadPts[i - 1], b = roadPts[i];
+    const step = Math.max(roadRun[i] - roadRun[i - 1], 1e-6);
+    const k = Math.min(Math.max((want - roadRun[i - 1]) / step, 0), 1);
+    return {
+      x: a.x + (b.x - a.x) * k,
+      z: a.z + (b.z - a.z) * k,
+      heading: Math.atan2(b.x - a.x, b.z - a.z),
+    };
+  }
+
+  // The cars on their way down. One is on the road from the minute it crosses
+  // until it reaches the clubhouse, and nowhere before or after.
+  function drive(tee, watched) {
+    const data = tee && tee.data;
+    const coming = watched && data && !data.error ? (data.coming || []) : [];
+    const clock = minutesInZone(new Date());
+    const run = roadRun[roadRun.length - 1] || 1;
+    let at = 0;
+    for (const group of coming) {
+      const teeAt = minutesOf(group.tee);
+      const many = Math.max(1, Math.ceil((group.players || 1) / PER_CAR));
+      for (let n = 0; n < many && at < cars.length; n++) {
+        // The same booking always puts the same car at the same minute: the
+        // spread is taken off the tee time, not off a dice, so nothing jumps
+        // about between frames or between page loads.
+        const spread = (teeAt * 7 + n * 13) % 11 / 10;
+        const before = CROSS_BEFORE_MIN[0]
+          + (CROSS_BEFORE_MIN[1] - CROSS_BEFORE_MIN[0]) * spread;
+        const crossed = (clock - (teeAt - before)) * 60;    // seconds since the booth
+        const along = crossed * DRIVE_MS;
+        const car = cars[at++];
+        if (crossed < 0 || along > run) { car.visible = false; continue; }
+        const spot = onRoad(along);
+        if (!spot) { car.visible = false; continue; }
+        car.visible = true;
+        car.position.set(spot.x, ground(spot.x, spot.z), spot.z);
+        car.rotation.y = spot.heading;
+      }
+    }
+    for (; at < cars.length; at++) cars[at].visible = false;
+  }
+
   const bounds = new THREE.Box3();
   for (const line of lines.values()) for (const p of line) {
     bounds.expandByPoint(new THREE.Vector3(p.x, ground(p.x, p.z), p.z));
@@ -200,6 +275,7 @@ export async function buildGolf(scene, sample) {
       const view = inView(camera, height || 800);
       this.watched = view.enter || (this.watched && view.retain);
       draw(tee, this.watched);
+      drive(tee, this.watched);
       if (!overlay.visible) return;
       for (const card of overlay.children) card.quaternion.copy(camera.quaternion);
     },
@@ -217,6 +293,21 @@ export async function buildGolf(scene, sample) {
 
 // A shirt each, so a flight is four people rather than one drawn four times.
 const SHIRTS = [0x3f5468, 0x8c5a3c, 0x4f7a55, 0x8a4f6d];
+
+// Getting here. Almost everybody who plays this course drives down from Canada
+// for it, so a tee time is also a car at the line about half an hour before.
+// The road is baked in golf.json; the times come off the live sheet.
+//
+// A car crosses somewhere in this window ahead of its tee time, and the exact
+// minute is settled by the tee time itself rather than by a dice, so the same
+// booking puts the same car at the same place every time the page is opened.
+const CROSS_BEFORE_MIN = [20, 30];
+// Two to a car, so a foursome is two cars and a pair is one.
+const PER_CAR = 2;
+const MAX_ARRIVING = 8;
+const CAR_COLOURS = [0x6a6f76, 0x8c5a3c, 0x46655c, 0x5c6b8a, 0x7d6a3f, 0x8a5a4a];
+// What a car does on these roads: fifty down Tyee, slower at the ends.
+const DRIVE_MS = 12.5;
 
 
 // How a hole is played, as a place to be at each moment of it.

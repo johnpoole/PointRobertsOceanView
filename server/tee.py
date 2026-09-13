@@ -40,6 +40,9 @@ URL = ("https://foreupsoftware.com/index.php/api/booking/times"
 
 # John's figure, and the whole of the pace model.
 MINUTES_PER_HOLE = 15.0
+# How far ahead the sheet is read for bookings that have not gone out yet. Long
+# enough to get a car over the line and down the road before its tee time.
+COMING_MINUTES = 45.0
 HOLES = 18
 ROUND_MINUTES = MINUTES_PER_HOLE * HOLES
 
@@ -124,6 +127,27 @@ class Sheet:
             })
         return groups
 
+    def coming(self, now: datetime) -> list[dict]:
+        """The groups yet to tee off, out to COMING_MINUTES.
+
+        Most people who play here drive down from Canada for it, so a tee time
+        is also a car at the border about half an hour earlier. The page needs
+        the bookings that have not gone out yet to put those cars on the road.
+        """
+        groups = []
+        for at, players in sorted(self.booked.items()):
+            if players <= 0 or at <= now:
+                continue
+            until = (at - now).total_seconds() / 60
+            if until > COMING_MINUTES:
+                continue
+            groups.append({
+                "tee": at.strftime("%H:%M"),
+                "players": players,
+                "minutes_until": round(until, 1),
+            })
+        return groups
+
     def to_json(self) -> dict:
         return {
             "day": self.day,
@@ -155,6 +179,7 @@ class Sheet:
         return {
             "course": COURSE,
             "groups": groups,
+            "coming": self.coming(now),
             "players": sum(g["players"] for g in groups),
             "minutes_per_hole": MINUTES_PER_HOLE,
             # Everything before this was never looked at, so an empty morning
