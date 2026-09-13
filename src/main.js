@@ -62,6 +62,7 @@ import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { ClockControl, hourFromHash } from "./clock-control.js";
+import { getPosition } from "suncalc";
 import { Nav } from "./nav.js";
 import { Live } from "./live.js";
 import { Touch } from "./touch.js";
@@ -200,28 +201,21 @@ function sunDirection(azDeg, elevDeg) {
   return new THREE.Vector3(east, Math.sin(el), -north).normalize();
 }
 
-// Solar azimuth and elevation for a time and place (NOAA low-precision method,
-// good to ~0.1°). Longitude east-positive. Returns degrees.
+// Where the sun is, out of suncalc. It was twenty-six lines of the NOAA
+// low-precision formulas here, which agree with suncalc on the bearing to nine
+// thousandths of a degree and disagree on the height by up to half a degree.
+//
+// All of that half degree is atmospheric refraction, which suncalc applies and
+// those lines did not, and it is largest exactly at the horizon: the sun was
+// sitting a sun's width low and setting about two minutes early. This page is
+// a window looking west over the water, so that is the wrong half degree to be
+// out by.
+//
+// suncalc's azimuth is degrees clockwise from north and its altitude is degrees
+// above the horizon, which is what the rest of this already expects.
 function solarPosition(date, latDeg, lonDeg) {
-  const rad = Math.PI / 180;
-  const n = date.getTime() / 86400000 + 2440587.5 - 2451545.0; // days since J2000
-  const L = (280.460 + 0.9856474 * n) % 360;
-  const g = (357.528 + 0.9856003 * n) % 360;
-  const lambda = (L + 1.915 * Math.sin(g * rad) + 0.020 * Math.sin(2 * g * rad)) % 360;
-  const eps = 23.439 - 0.0000004 * n;
-  const alpha = Math.atan2(Math.cos(eps * rad) * Math.sin(lambda * rad), Math.cos(lambda * rad)) / rad;
-  const delta = Math.asin(Math.sin(eps * rad) * Math.sin(lambda * rad)) / rad;
-  const gmst = (280.46061837 + 360.98564736629 * n) % 360;
-  let H = (gmst + lonDeg - alpha) % 360;
-  if (H < -180) H += 360;
-  if (H > 180) H -= 360;
-  const latR = latDeg * rad, dR = delta * rad, HR = H * rad;
-  const elev = Math.asin(Math.sin(latR) * Math.sin(dR) +
-    Math.cos(latR) * Math.cos(dR) * Math.cos(HR)) / rad;
-  let az = Math.atan2(-Math.sin(HR),
-    Math.tan(dR) * Math.cos(latR) - Math.sin(latR) * Math.cos(HR)) / rad;
-  az = (az + 360) % 360;
-  return { azimuth: az, elevation: elev };
+  const { azimuth, altitude } = getPosition(date, latDeg, lonDeg);
+  return { azimuth, elevation: altitude };
 }
 
 const sky = new Sky(scene);

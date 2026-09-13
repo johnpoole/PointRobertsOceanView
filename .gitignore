@@ -23,3 +23,6 @@ docker-compose.override.yml
 # The marina detector's weights. The Dockerfile fetches them into the image and
 # checks their hashes; 23 MB of model does not belong in the history.
 models/
+
+# Fetched by src/test-sun.mjs off the URL the importmap pins.
+assets/vendor/
