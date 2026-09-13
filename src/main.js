@@ -60,6 +60,7 @@ import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
+import { ClockControl, hourFromHash } from "./clock-control.js";
 import { Nav } from "./nav.js";
 import { Live } from "./live.js";
 import { Touch } from "./touch.js";
@@ -69,7 +70,7 @@ import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
-import { numberAt, offsetHours, sceneNow, setOffsetHours, shifted, slotAt } from "./clock.js";
+import { numberAt, offsetHours, sceneNow, shifted, slotAt } from "./clock.js";
 
 const canvas = document.getElementById("scene");
 // The depth buffer is logarithmic. With the near plane at 1 m and the far at
@@ -579,128 +580,41 @@ feed.onChange((kind) => {
   document.getElementById("whales-btn").classList.toggle("off", !orcas);
 });
 
-// The controls that drive the scene clock. What reads that clock is in clock.js.
-//
-// Two of them, and they add up: the slider moves the hour within a day and the
-// date moves the day. They are kept apart because the slider is ±12 hours and a
-// date three months back is two thousand, which would peg the thumb at one end
-// and never come off it.
-const clockRange = document.getElementById("clock-range");
-const clockValue = document.getElementById("clock-value");
-const clockDate = document.getElementById("clock-date");
-const pastNote = document.getElementById("past-note");
+// The controls that drive the scene clock live in clock-control.js, which owns
+// the hour, the day, the labels and the rule about what a past day costs. This
+// is only the wiring: what to re-read when it moves, and what to hide.
+const sceneClock = new ClockControl({
+  onChange: () => {
+    // Everything that reads the clock, re-read. The sun and the sky, the water
+    // the shoreline runs at, the stream the drift rides, and the panels.
+    updateSun();
+    weather.apply(weatherAt() || {});
+    hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
+  },
+  onPast: (past) => {
+    vessels.setVisible(!past);
+    aircraft.setVisible(!past);
+  },
+});
 
-let hourShift = 0;      // what the slider holds, in hours
-let dayShift = 0;       // whole days back, from the date. Never above zero.
-
-// What cannot be rewound. Ships and aircraft are live positions off a live
-// feed and there is no archive to run them back to: the free AIS and ADS-B
-// feeds carry now and nothing else. The golf sheet shows today. Rather than
-// leave today's traffic standing in a scene from last month, they go, and the
-// page says so.
-const GONE_ON_A_PAST_DAY =
-  "ships, aircraft and the golf sheet are live and have no archive, so they are "
-  + "not shown on a past day";
+// Kept as a function because the novel's route, a recreation and #hour= all
+// move the hour and none of them should have to know about the control.
+function setClockOffset(hours) {
+  sceneClock.setHour(hours);
+}
 
 function onPastDay() {
-  return dayShift < 0;
+  return sceneClock.past;
 }
 
-function applyClock() {
-  setOffsetHours(hourShift + dayShift * 24);
-  // The slider counts minutes. #hour= lands on any offset at all, so the thumb
-  // snaps to the nearest minute and the clock does not.
-  const mins = Math.round(hourShift * 60);
-  clockRange.value = String(mins);
-  const t = sceneNow();
-  const away = Math.abs(mins);
-  const hhmm = `${String(t.getHours()).padStart(2, "0")}:`
-    + `${String(t.getMinutes()).padStart(2, "0")}`;
-  clockValue.textContent = (hourShift === 0 && dayShift === 0)
-    ? "now"
-    : dayShift !== 0
-      ? hhmm
-      : `${hhmm} (${mins > 0 ? "+" : "-"}${Math.floor(away / 60)}h`
-        + `${String(away % 60).padStart(2, "0")})`;
-  clockDate.value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`
-    + `-${String(t.getDate()).padStart(2, "0")}`;
-
-  const past = onPastDay();
-  vessels.setVisible(!past);
-  aircraft.setVisible(!past);
-  pastNote.textContent = past ? GONE_ON_A_PAST_DAY : "";
-  pastNote.classList.toggle("hidden", !past);
-
-  // Everything that reads the clock, re-read. The sun and the sky, the water the
-  // shoreline runs at, the stream the drift rides, and the panels.
-  updateSun();
-  weather.apply(weatherAt() || {});
-  hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
-}
-
-// The hour within the day. Everything that moves the sun calls this: the
-// slider, the novel's route, a recreation, and #hour= in a link.
-function setClockOffset(hours) {
-  hourShift = hours;
-  applyClock();
-}
-
-// Whole days back from today. Nothing forward: a past day can be looked up and
-// a future one cannot.
-function setClockDay(days) {
-  dayShift = Math.min(0, Math.round(days));
-  applyClock();
-}
-
-// Midnight to midnight on the peninsula's own calendar, so dragging the sun
-// across midnight does not quietly change the day under the date box.
-function daysBetween(then, now) {
-  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
-  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((a - b) / 86400000);
-}
-
-// How far back the date may go: the earliest month the crossing figures reach,
-// because that is the oldest day anything on this page can say anything true
-// about. Set when those figures arrive.
+// The oldest month the crossing figures reach is the oldest day anything here
+// can say a true thing about.
 function setClockLimits() {
-  const now = new Date();
-  const last = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-    + `-${String(now.getDate()).padStart(2, "0")}`;
-  clockDate.max = last;
   const months = feed.crossings && feed.crossings.data
     && feed.crossings.data.recent_months;
-  if (months && months.length) {
-    const first = months[months.length - 1].month;      // oldest, "YYYY-MM"
-    clockDate.min = `${first}-01`;
-  }
+  sceneClock.setOldest(months && months.length
+    ? months[months.length - 1].month : null);
 }
-
-clockDate.addEventListener("change", () => {
-  if (!clockDate.value) { setClockDay(0); return; }
-  const [y, m, d] = clockDate.value.split("-").map(Number);
-  setClockDay(daysBetween(new Date(y, m - 1, d), new Date()));
-});
-
-// #hour=14 opens at two in the afternoon. It is turned into an offset from now,
-// so the slider and the link say the same thing and a share carries it.
-function hourFromHash(hash) {
-  const m = /(?:^#|&)hour=(-?\d+(?:\.\d+)?)/.exec(String(hash || ""));
-  if (!m) return null;
-  const want = Number(m[1]);
-  if (!Number.isFinite(want) || want < 0 || want >= 24) return null;
-  const now = new Date();
-  // Not rounded to the slider's quarter hour: hour=14 should put the sun at two
-  // o'clock, not six minutes short of it. The thumb snaps, the clock does not.
-  return want - (now.getHours() + now.getMinutes() / 60);
-}
-
-clockRange.addEventListener("input",
-  () => setClockOffset(Number(clockRange.value) / 60));
-document.getElementById("clock-now").addEventListener("click", () => {
-  dayShift = 0;
-  setClockOffset(0);
-});
 
 // Place the sun where it really is for the scene's time, and re-place it each
 // minute so the light and sky track the day. Looking west, the morning sun sits
