@@ -10,6 +10,7 @@
 // up. Walking and cycling are what they are.
 
 import * as THREE from "three";
+import { buildWalker } from "./figures.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const KMH = 1 / 3.6;
@@ -144,90 +145,10 @@ export function personGeoms(y = 0, seated = false, coat = COAT) {
   return g;
 }
 
-// A pace, and how far a leg and an arm swing at one. Measured off a walk: a
-// 1.75 m person covers about three quarters of a metre a step and the thigh
-// comes forward twenty-five degrees or so.
-const STRIDE_M = 0.76;
-const SWING_LEG = 0.44;
-const SWING_ARM = 0.30;
-const BOB_M = 0.022;       // the body rises on each pace and drops between
-// The knee folds on the leg that is coming forward, so the foot clears the
-// ground, and is straight again by the time the heel lands. It does nothing on
-// the leg that is behind you, which is carrying your weight.
-const KNEE = 0.95;
-const KNEE_SHAPE = 1.4;    // how sharply the fold builds and lets go
-
-// A walking figure. The core is one mesh and each leg and arm is its own, hung
-// at the hip or the shoulder so it swings about that point: five meshes for
-// something that would otherwise slide along the ground with its feet together.
-//
-// Call stride() with how far it has walked in total. The cycle runs off the
-// ground covered and not off a clock, so a figure that stops has its feet still
-// and one that is being watched from a slow machine does not moonwalk.
-export function buildWalker(coat = COAT) {
-  const group = new THREE.Group();
-  const hip = 0.92, shoulder = 1.43;
-  group.add(painted([
-    paint(box(0.33, 0.17, 0.22, 0, hip + 0.02, 0), TROUSERS),
-    paint(box(0.31, 0.22, 0.21, 0, hip + 0.20, 0), coat),
-    paint(box(0.40, 0.28, 0.24, 0, hip + 0.42, 0), coat),
-    paint(cyl(0.085, 0.40, 0, shoulder, 0, "x"), coat),
-    paint(cyl(0.052, 0.09, 0, shoulder + 0.10, 0), SKIN),
-    paint(ball(0.105, 0, shoulder + 0.24, 0.005, 9, 7), SKIN),
-    paint(ball(0.108, 0, shoulder + 0.27, -0.015, 8, 5), HAIR),
-  ]));
-
-  // Each limb is built about its own joint, so rotating the mesh swings it, and
-  // the shin hangs off the thigh at the knee so it swings with the thigh and
-  // folds under it as well.
-  const thighs = [], shins = [], arms = [];
-  for (const side of [-1, 1]) {
-    const thigh = painted([
-      paint(limb(0.090, 0.072, 0.44, 0, -0.22, 0), TROUSERS),
-    ]);
-    thigh.position.set(side * 0.10, hip, 0);
-    const shin = painted([
-      paint(limb(0.070, 0.055, 0.42, 0, -0.21, 0), TROUSERS),
-      paint(box(0.115, 0.065, 0.27, 0, -0.447, -0.03), BOOTS),
-    ]);
-    shin.position.set(0, -0.44, 0);       // the knee
-    thigh.add(shin);
-    group.add(thigh);
-    thighs.push(thigh);
-    shins.push(shin);
-
-    const arm = painted([
-      paint(limb(0.058, 0.050, 0.32, 0, -0.17, 0), coat),
-      paint(limb(0.050, 0.044, 0.30, 0, -0.44, 0), coat),
-      paint(ball(0.052, 0, -0.60, 0, 6, 5), SKIN),
-    ]);
-    arm.position.set(side * 0.235, shoulder, 0);
-    group.add(arm);
-    arms.push(arm);
-  }
-
-  group.stride = (metres) => {
-    // Half a cycle is one pace, so the legs trade places every stride.
-    const phase = (metres / STRIDE_M) * Math.PI;
-    const swing = Math.sin(phase);
-    const rate = Math.cos(phase);          // which way the leg is going
-    for (let i = 0; i < 2; i++) {
-      const side = i === 0 ? 1 : -1;
-      // Turning about +X by a positive angle carries a hanging limb toward -Z,
-      // and -Z is forward here. So the thigh is forward when its own angle is
-      // positive, it is coming forward while that angle is rising, and the knee
-      // folds the other way: a heel goes up behind you, never out in front.
-      thighs[i].rotation.x = side * swing * SWING_LEG;
-      const coming = Math.max(0, side * rate);
-      shins[i].rotation.x = -KNEE * Math.pow(coming, KNEE_SHAPE);
-      // Arms go the other way to the leg on their own side, which is what a
-      // body does and what stops a walk looking like a march.
-      arms[i].rotation.x = -side * swing * SWING_ARM;
-    }
-    group.position.y = Math.abs(swing) * BOB_M;
-  };
-  return group;
-}
+// The walking figure is Kenney's, under assets/figures, and lives in
+// figures.js. It is re-exported here so every caller's import stands: golf.js,
+// cast.js, novel.js and recreation.js all ask vehicles.js for it.
+export { buildWalker };
 
 // Tyres, glass and the chrome-ish bits, shared by everything with wheels.
 const RUBBER = 0x1d1f22;

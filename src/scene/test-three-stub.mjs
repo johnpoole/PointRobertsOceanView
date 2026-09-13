@@ -13,6 +13,7 @@ export class Vector3 {
   set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; }
   copy(v) { return this.set(v.x, v.y, v.z); }
   clone() { return new Vector3(this.x, this.y, this.z); }
+  setScalar(k) { this.x = k; this.y = k; this.z = k; return this; }
   add(v) { this.x += v.x; this.y += v.y; this.z += v.z; return this; }
   multiplyScalar(k) { this.x *= k; this.y *= k; this.z *= k; return this; }
   distanceToSquared(v) {
@@ -169,6 +170,7 @@ export class Mesh {
   constructor(geometry, material) {
     this.geometry = geometry; this.material = material;
     this.position = new Vector3();
+    this.scale = new Vector3(1, 1, 1);
     this.rotation = { x: 0, y: 0, z: 0 };
     this.visible = true;
     this.name = "";
@@ -188,3 +190,61 @@ export class Group extends Mesh {
 export class Scene extends Group {}
 
 export function mergeGeometries() { return new BufferGeometry(); }
+
+// ---- enough of the glTF path for figures.js to run --------------------------
+//
+// The tests never load a real model. What they check is that the cast is built,
+// placed and walked, so the loader hands back an empty body with a walk clip of
+// the right length and the code takes its ordinary path rather than its failure
+// one.
+
+export const Cache = { enabled: false, files: {} };
+
+export class AnimationClip {
+  constructor(name, duration) { this.name = name; this.duration = duration; }
+}
+
+export class AnimationMixer {
+  constructor(root) { this.root = root; this.time = 0; this._actions = []; }
+  clipAction(clip) {
+    const action = { _clip: clip, playing: false,
+                     play() { this.playing = true; return this; },
+                     getClip() { return this._clip; } };
+    this._actions.push(action);
+    return action;
+  }
+  setTime(t) { this.time = t; return this; }
+  update(dt) { this.time += dt; return this; }
+}
+
+// Kenney's bodies stand about this high before they are scaled up, and
+// figures.js measures each one to work out what to scale it by.
+const STUB_BODY_HEIGHT = 0.671;
+
+export class Box3 {
+  constructor() { this.min = new Vector3(); this.max = new Vector3(); }
+  setFromObject() {
+    this.max.set(0.384, STUB_BODY_HEIGHT, 0.172);
+    this.min.set(-0.384, 0, -0.172);
+    return this;
+  }
+}
+
+// Kenney's walk: 0.667 s, which is the number figures.js divides by.
+const STUB_WALK = new AnimationClip("walk", 0.6666666865348816);
+
+export class GLTFLoader {
+  loadAsync(url) {
+    const scene = new Group();
+    scene.name = url;
+    return Promise.resolve({ scene, animations: [STUB_WALK] });
+  }
+}
+
+// SkeletonUtils.clone. Deep enough that a cloned body is its own object.
+export function clone(source) {
+  const out = new Group();
+  out.name = source.name;
+  for (const c of source.children) out.add(clone(c));
+  return out;
+}

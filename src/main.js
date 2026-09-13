@@ -35,6 +35,7 @@ import { CHAPTERS, TRAVEL_S, chapterPoints } from "./scene/low-water.js";
 import { Move, arc } from "./scene/shot.js";
 import { buildNovel } from "./scene/novel.js";
 import { buildBlotter } from "./scene/blotter.js";
+import { preload as preloadFigures } from "./scene/figures.js";
 import { buildRecreation } from "./scene/recreation.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
@@ -317,6 +318,11 @@ function fineCovers(fine) {
 // The stair is read before the ground is built, because it cuts the ground.
 // A stair that will not load says so and the bank is left whole, rather than
 // taking the whole terrain down with it.
+// The twelve bodies the cast, the golfers and the deputy are all made of. Asked
+// for here rather than on the first golfer, so nobody arrives as an empty space
+// and fills in a second later.
+preloadFigures();
+
 // The harmonics, for any day the proxy's own run does not reach. Nothing waits
 // on this: without it the page still has NOAA's run for today and says it does
 // not know for anything else, which is what it did before.
