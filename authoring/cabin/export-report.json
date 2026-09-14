@@ -1,8 +1,8 @@
 {
   "file": "assets/site/389-cabin.glb",
-  "bytes": 2717180,
-  "sha256": "ab265da25a43c5f978adca7397098530f4dfd39ae59f2dd2f5ace7cb87b86564",
-  "sourceSha256": "89faa577d266928dab293956cb96298593b89ec6323597ef89b3746f41f054fe",
+  "bytes": 5558292,
+  "sha256": "cc8f52fc2a52f037c551390c8323a3d00daf31f8e5dbf9c25fcee5f644abd081",
+  "sourceSha256": "f226896bd6b4acf2fd849eb2f5d150d7b6a30b82dad25ad301643b2e29d0f770",
   "sourceObjects": [
     "Walls and siding",
     "East passage boards",
@@ -53,10 +53,20 @@
     "Video - garden planting",
     "Video - garden flowers",
     "Video - deck table",
-    "Video - deck chairs"
+    "Video - deck chairs",
+    "Photo - shed wall backing",
+    "Photo - shed hardware",
+    "Photo - shed name plaque",
+    "Photo - underdeck storage door",
+    "Photo - underdeck storage frame",
+    "Photo - underdeck storage panels",
+    "Photo - storage threshold",
+    "Photo - storage enclosure",
+    "Photo - beach stair retaining tiers",
+    "Photo - Pooles lettering"
   ],
-  "triangles": 18580,
-  "clearancePolygons": 201,
+  "triangles": 43956,
+  "clearancePolygons": 202,
   "worldOrigin": [
     -34.17,
     0.0,

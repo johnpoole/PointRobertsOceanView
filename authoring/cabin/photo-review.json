@@ -1,0 +1,77 @@
+{
+  "issue": 93,
+  "method": "Reviewed all 12 stills in a contact sheet, inspected shed/passage/south photographs at larger size, and iterated Blender inspection renders. Approximate poses; no photogrammetric solve.",
+  "photos": [
+    {
+      "file": "PXL_20211108_174910713.jpg",
+      "status": "reviewed; geometry follow-up remains",
+      "finding": "Road-to-garden stair breaks, shed relationship to measured trunks, and upper route grade need a multi-view fit."
+    },
+    {
+      "file": "PXL_20211108_174924421.jpg",
+      "status": "used in this refinement",
+      "finding": "Shed full-width doors, horizontal board courses, shallow shingled roof, front rake trim and Pooles plaque."
+    },
+    {
+      "file": "PXL_20211108_174949325.MP.jpg",
+      "status": "reviewed; geometry follow-up remains",
+      "finding": "Final descent context reviewed; retain owner-positioned 19-step approach. Uneven individual risers remain unresolved."
+    },
+    {
+      "file": "PXL_20211108_175009151.jpg",
+      "status": "reviewed; geometry follow-up remains",
+      "finding": "Door recess already modeled; utility meter, conduit and entrance bench remain absent."
+    },
+    {
+      "file": "PXL_20211108_175012789.jpg",
+      "status": "used in this refinement",
+      "finding": "East passage block colour variation and softened edges; retain current metal roof rather than the historical covering."
+    },
+    {
+      "file": "PXL_20211115_192928437.jpg",
+      "status": "reviewed; geometry follow-up remains",
+      "finding": "Deck tree relationship and wire-rail details need a closer geometry pass."
+    },
+    {
+      "file": "PXL_20250517_150947629.MP.jpg",
+      "status": "used in this refinement",
+      "finding": "Cross-check pale fascia and weathered timber against the north view."
+    },
+    {
+      "file": "PXL_20260808_202820423.jpg",
+      "status": "used in this refinement",
+      "finding": "Pale fascia around current metal roof and weathered deck timber."
+    },
+    {
+      "file": "PXL_20260808_202833076.jpg",
+      "status": "reviewed; geometry follow-up remains",
+      "finding": "Underside joists, retaining corner and lower deck connections need refinement."
+    },
+    {
+      "file": "PXL_20260808_202908454.jpg",
+      "status": "used in this refinement",
+      "finding": "Six-panel green storage door, threshold, flanking boards and stepped retaining edge beside beach stairs."
+    },
+    {
+      "file": "PXL_20260808_202910826.jpg",
+      "status": "reviewed; geometry follow-up remains",
+      "finding": "Stair/deck proportions and underdeck support layout need reconciliation with the other south views."
+    },
+    {
+      "file": "PXL_20260808_202937782.MP.jpg",
+      "status": "used in this refinement",
+      "finding": "Cross-check storage door under south deck, retaining tiers, fascia and timber against the wider beach view."
+    }
+  ],
+  "videoFrames": {
+    "034": "Individual board UV samples and shed-side branch reference.",
+    "047": "Staggered wall blocks, paved junction and white daisies; existing paving texture retained."
+  },
+  "remaining": [
+    "Upper approach slope is still a coarse lidar-based profile; photographic stair breaks are not solved.",
+    "Shed absolute dimensions, pose and unseen support arrangement remain estimates.",
+    "Bank cuts remain visibly angular and the east wall profile requires fitting.",
+    "Deck proportions, underside framing and individual stair dimensions need additional view-by-view work."
+  ],
+  "inspection": "Blender renders show the authored structures and terrain context. They omit the app trees, sky and live scene. Source images and render PNGs remain local."
+}

@@ -1,6 +1,6 @@
 # Cabin authoring in Blender
 
-`cabin.blend` is the editable source for 389 West Bluff. Issues #89 and #90 continue #42.
+`cabin.blend` is the editable source for 389 West Bluff. Issues #89, #90 and #93 continue #42.
 The web app loads `assets/site/389-cabin.glb`, exported from this file. The original
 procedural builders remain only as a fallback when the GLB cannot load.
 
@@ -10,10 +10,11 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 50 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 60 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
-steps, retaining walls, bench, planting and deck furniture. Original mesh
+steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
+the Pooles plaque and underdeck storage details. Original mesh
 positions are welded for vertex/edge
 editing; colours are a `Color` corner attribute. These are editable meshes, not a
 parametric architectural/BIM model. Further subdivision into objects can be done
@@ -68,7 +69,7 @@ poses; the supplied north view is explicitly higher than its photo. Historical
 node authoring/cabin/verify.mjs
 ```
 
-`render_walkthrough.py` produces two textured comparison renders under
+`render_walkthrough.py` produces four textured comparison renders under
 `data/cabin-blender` (roughly half a minute per view on this machine). Open
 `authoring/cabin/compare.html` through the local preview to compare them with the
 source frames. The video/reference files and inspection PNGs remain local.
@@ -104,7 +105,7 @@ photo, constrained by the existing storey heights; they are not surveyed values.
 Issue #90 adds the road-side approach, a 1.1 m paved path beside a timber shed,
 separate shed-side steps, widened paved turn, bench alcove and retaining wall,
 connection to the existing 19-step descent, garden edges and simple deck furniture.
-The Blender source now exports 18,580 triangles in five batches, 2,717,180 bytes,
+That version exported 18,580 triangles in five batches, 2,717,180 bytes,
 with 201 terrain-ceiling polygons. Source terrain is unchanged; the cuts and
 walking sampler use the exported constraints. The route, shed size, branch step
 count and support piers are estimates anchored to the road, lidar and stair
@@ -114,6 +115,26 @@ is continuous but is not a measured reconstruction of the camera trajectory.
 `apply_walkthrough.py` records this one-time Blender edit and refuses to duplicate
 the new objects. Subsequent adjustments belong in the saved .blend. Remaining
 dimensional/photo reconciliation stays in #42.
+
+Issue #93 refines the saved model against the still photos. The shed has twelve
+board courses, full-width doors, small hinges/latch, a shallow shingled roof with
+rake fascia, and the photographed Pooles plaque. Retaining walls have staggered
+joints and worn edges. The original passage wall keeps its footprint with varied
+block tones. The newer cabin photos establish pale fascia and gray weathered
+deck timber. The August south views add the green six-panel storage door,
+threshold, flanking enclosure boards and stepped retaining tiers beside the
+beach stairs. A separate terrain ceiling clears its apron so the bank cannot
+bury the door. Upper planting uses smaller leaf/grass clusters and white daisies.
+
+`refine_photos.py` records this one-time edit on the post-#90 source and refuses
+to apply twice. The current export is 43,956 triangles, five material batches,
+5,558,292 bytes and 202 clearance polygons. The two embedded video images remain
+the only textures; the stills guide geometry and colours. `photo-review.json`
+distinguishes six photos used in this pass from six reviewed views with remaining
+work. Camera positions, bank profile, stair dimensions, shed placement and
+supports remain estimates. The Blender comparison page now includes shed,
+junction, east passage and south/beach views; these are inspection views, not
+calibrated camera matches.
 
 ## One-time migration
 

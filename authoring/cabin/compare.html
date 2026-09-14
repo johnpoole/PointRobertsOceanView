@@ -1,22 +1,32 @@
 <!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cabin walkthrough: video and model</title>
+<title>Cabin photographs and model</title>
 <style>
 body{margin:0;background:#eef0ed;color:#1e2d29;font:16px/1.5 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:32px 24px}h1{font-size:30px;margin:0 0 8px}h2{font-size:21px;margin:32px 0 14px}p{max-width:980px}a{color:#165d5c}section{display:grid;grid-template-columns:1fr 1fr;gap:16px}figure{margin:0;background:white;border:1px solid #d4dbd6;border-radius:8px;overflow:hidden}img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#dce1df}figcaption{padding:12px 16px}small{display:block;color:#54665f}nav{display:flex;gap:22px;flex-wrap:wrap;margin:20px 0}@media(max-width:750px){section{grid-template-columns:1fr}main{padding:20px 14px}}
 </style>
 <main>
-<h1>The walkthrough is now changing the model</h1>
-<p>The video guides the shed, paved approach, separate stair branch, wider turn, retaining wall and bench. Frames 034 and 047 also supply selected wood and paving pixels to the web model. These comparison viewpoints are approximate; this is not a photogrammetric camera solve.</p>
-<nav><a href="/#eye=48.988963,-123.085328,26.0&amp;aim=48.989049,-123.085630,13.0&amp;fov=40.000">Explore the updated approach</a><a href="walkthrough-evidence.json">All 69 frames: evidence mapping</a></nav>
+<h1>Cabin photographs and model</h1>
+<p>Photo refinement: full-width shed doors, individual boards, shingle courses, the Pooles plaque, weathered retaining blocks, pale cabin fascia and the green storage door beneath the lower deck. The views below use approximate camera positions.</p>
+<nav><a href="/#eye=48.988963,-123.085328,26.0&amp;aim=48.989049,-123.085630,13.0&amp;fov=40.000">Explore the updated approach</a><a href="photo-review.json">Photo review and remaining differences</a><a href="walkthrough-evidence.json">Video frame evidence</a></nav>
 <h2>Shed, doors and separate stair branch</h2>
 <section>
-<figure><img src="../../images/cabin-walkthrough-20170718/frame-034-017.03s.jpg" alt="Video frame showing weathered shed doors and separate steps alongside a retaining wall"><figcaption>Video · frame 034 · 17.03 seconds<small>The shed and side branch are distinct from the main path.</small></figcaption></figure>
-<figure><img src="../../data/cabin-blender/video-shed.png" alt="Blender render of the added timber shed, doors, side steps and wall"><figcaption>Model · new shed and branch<small>Wood surface from frame 034. Dimensions and support piers are estimates.</small></figcaption></figure>
+<figure><img src="../../images/Photos-1-001/PXL_20211108_174924421.jpg" alt="2021 photograph showing the shed's broad plank doors, name plaque and shallow shingled gable roof"><figcaption>Photograph · 8 November 2021 · 17:49:24<small>The doors occupy almost the entire gable front. <a href="../../images/cabin-walkthrough-20170718/frame-034-017.03s.jpg">Video frame 034</a> gives the closer board and branch view.</small></figcaption></figure>
+<figure><img src="../../data/cabin-blender/video-shed.png" alt="Refined Blender shed with plank doors, shingle courses and name plaque"><figcaption>Model · revised shed and branch<small>Individual board geometry with wood pixels from frame 034. Size, position and support arrangement remain estimates.</small></figcaption></figure>
 </section>
 <h2>The paved turn before the final descent</h2>
 <section>
 <figure><img src="../../images/cabin-walkthrough-20170718/frame-047-023.53s.jpg" alt="Video frame showing a wider paved turn, block wall, flowers and bench"><figcaption>Video · frame 047 · 23.53 seconds<small>Wider paving, retaining wall and a small seating area.</small></figcaption></figure>
 <figure><img src="../../data/cabin-blender/video-junction.png" alt="Blender render of the paved junction, bench alcove and connection to the approach stair"><figcaption>Model · connected junction and bench alcove<small>Paving surface from frame 047. The existing 19-step flight remains anchored.</small></figcaption></figure>
+</section>
+<h2>East passage and retaining wall</h2>
+<section>
+<figure><img src="../../images/Photos-1-001/PXL_20211108_175012789.jpg" alt="Narrow passage between the cabin and a weathered retaining wall"><figcaption>Photograph · 8 November 2021 · 17:50:12<small>The old cabin roof appears in this photograph.</small></figcaption></figure>
+<figure><img src="../../data/cabin-blender/photo-passage.png" alt="Blender inspection of the cabin passage and revised retaining blocks"><figcaption>Model · passage block finish<small>Block colour and edge wear revised; wall profile and bank shape still need refinement. The current metal roof remains.</small></figcaption></figure>
+</section>
+<h2>South deck, storage door and beach stairs</h2>
+<section>
+<figure><img src="../../images/Photos-1-001/PXL_20260808_202937782.MP.jpg" alt="Cabin from the beach with pale fascia, weathered decks, green storage door and stepped retaining edge"><figcaption>Photograph · 8 August 2026 · 20:29:37<small>The closer 20:29:08 photograph confirms the door panels and retaining tiers.</small></figcaption></figure>
+<figure><img src="../../data/cabin-blender/photo-south.png" alt="Blender south view with pale fascia, weathered deck framing, green storage door and retaining tiers"><figcaption>Model · revised south details<small>The storage door's terrain cut is included in the web model. Stair dimensions, deck proportions and surrounding bank remain approximate.</small></figcaption></figure>
 </section>
 <p><small>These are Blender inspection renders of the exported geometry, with inspection lighting. The web app includes the surrounding trees, sky and live scene. The current metal cabin roof is retained. Source video and comparison images stay in the local workspace.</small></p>
 </main></html>

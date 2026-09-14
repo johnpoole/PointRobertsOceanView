@@ -113,6 +113,20 @@ for (const s of surfaces) {
     }
 }
 const ray = new THREE.Raycaster(), down = new THREE.Vector3(0,-1,0);
+// The photographed storage entrance must remain visible above its apron;
+// previously the coarse bank buried the lower portion of the door.
+for(const x of [-3.2,-2.9,-2.6]) {
+  const start=oldCabin.cabinWorld(x,7.0), end=oldCabin.cabinWorld(x,5.35);
+  ray.set(new THREE.Vector3(start.x,7.25,start.z),
+    new THREE.Vector3(end.x-start.x,0,end.z-start.z).normalize());ray.far=1.65;
+  const hits=ray.intersectObjects(meshes);
+  assert.ok(hits.length && hits[0].distance>1.4,
+    'storage facade visible from the apron at '+x+': '+hits.map(h=>h.distance.toFixed(3)).join(','));
+  for(let z=5.45;z<=7;z+=.15) {
+    const w=oldCabin.cabinWorld(x,z), ll=fromWorld(w.x,w.z);
+    assert.ok(triangle(ll.lat,ll.lon)<6.32,'terrain below storage threshold');
+  }
+}
 function floor(x,z,y) {
   const w=oldCabin.cabinWorld(x,z);
   ray.set(new THREE.Vector3(w.x,y+.03,w.z),down); ray.far=.06;

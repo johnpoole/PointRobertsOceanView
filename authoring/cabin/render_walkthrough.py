@@ -19,7 +19,9 @@ sun.rotation_euler=(math.radians(28),math.radians(-25),math.radians(-45))
 scene.view_settings.view_transform='AgX'
 for name,eye,target in [
  ('video-shed',(22.0,19.2,8.4),(20.0,18.0,5.8)),
- ('video-junction',(13.45,15.1,8.7),(13.6,13.85,5.5))]:
+ ('video-junction',(13.45,15.1,8.7),(13.6,13.85,5.5)),
+ ('photo-south',(-9,7.5,15),(-1,9,3)),
+ ('photo-passage',(4.1,12.5,4.4),(3.9,11.8,-1.0))]:
     cam=bpy.data.cameras.new(name);cam.sensor_fit='VERTICAL';cam.angle=math.radians(58)
     obj=bpy.data.objects.new(name,cam);scene.collection.objects.link(obj)
     obj.location=local(*eye)

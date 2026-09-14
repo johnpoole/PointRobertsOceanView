@@ -443,3 +443,15 @@ Its Windows virtual environment needed tzdata and the already-declared
 pycryptodome dependency. These were installed locally; server code was unchanged.
 The preview serves the current GLB bytes. Export.py includes geometry, UVs, two
 selected textures, clearance controls and source hash in one asset.
+
+## Photo refinement - issue #93 (13 September 2026)
+
+Edited the existing Blender source against the still photographs: shed door
+coverage and board courses, shingle/rake detail and Pooles plaque; staggered,
+weathered retaining blocks; small approach planting; pale cabin fascia and
+weathered timber; green storage door/enclosure and stepped retaining beside
+beach stairs. Added a terrain ceiling at the storage apron to expose its door.
+Six stills informed changes; the remaining six were reviewed and unresolved
+features are listed in authoring/cabin/photo-review.json. Four approximate
+inspection views are on authoring/cabin/compare.html. No camera solve is claimed.
+The broader bank, stair/deck fit and upper route profile remain in #42.
