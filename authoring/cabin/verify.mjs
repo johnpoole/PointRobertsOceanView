@@ -114,20 +114,30 @@ for (const s of surfaces) {
     }
 }
 const ray = new THREE.Raycaster(), down = new THREE.Vector3(0,-1,0);
-// The photographed storage entrance must remain visible above its apron;
-// previously the coarse bank buried the lower portion of the door.
-for(const x of [-3.2,-2.9,-2.6]) {
-  const start=oldCabin.cabinWorld(x,7.0), end=oldCabin.cabinWorld(x,5.35);
+// Owner's August south view places the door in the first seaward bay.
+// Test actual GLB rays and actual terrain, not merely authoring coordinates.
+const greenDoor = JSON.parse(fs.readFileSync('authoring/cabin/green-door-layout.json')).door;
+assert.ok(greenDoor.x-.53>=-6.435 && greenDoor.x+.53<-5.0,'door stays inside the seaward structural bay');
+const doorPoint=(u,v)=>oldCabin.cabinWorld(greenDoor.x+Math.cos(greenDoor.angle)*u-Math.sin(greenDoor.angle)*v,
+  greenDoor.z+Math.sin(greenDoor.angle)*u+Math.cos(greenDoor.angle)*v);
+for(const u of [-.3,0,.3]) {
+  const start=doorPoint(u,1.1), end=doorPoint(u,-.1);
   ray.set(new THREE.Vector3(start.x,7.25,start.z),
-    new THREE.Vector3(end.x-start.x,0,end.z-start.z).normalize());ray.far=1.65;
+    new THREE.Vector3(end.x-start.x,0,end.z-start.z).normalize());ray.far=1.2;
   const hits=ray.intersectObjects(meshes);
-  assert.ok(hits.length && hits[0].distance>1.4,
-    'storage facade visible from the apron at '+x+': '+hits.map(h=>h.distance.toFixed(3)).join(','));
-  for(let z=5.45;z<=7;z+=.15) {
-    const w=oldCabin.cabinWorld(x,z), ll=fromWorld(w.x,w.z);
-    assert.ok(triangle(ll.lat,ll.lon)<6.32,'terrain below storage threshold');
+  assert.ok(hits.length && hits[0].distance>1.0 && hits[0].distance<1.12,
+    'relocated storage facade visible from apron at '+u);
+  for(let v=.3;v<=1;v+=.15) {
+    const w=doorPoint(u,v), ll=fromWorld(w.x,w.z);
+    assert.ok(triangle(ll.lat,ll.lon)<greenDoor.floor-.14,'terrain below storage apron underside');
+    ray.set(new THREE.Vector3(w.x,greenDoor.floor+.03,w.z),down);ray.far=.06;
+    assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-greenDoor.floor)<.00001),
+      'solid apron supports the corrected entrance');
   }
 }
+const rejected=oldCabin.cabinWorld(-2.9,5.42);
+ray.set(new THREE.Vector3(rejected.x,7.25,rejected.z),new THREE.Vector3(1,0,0));ray.far=.08;
+assert.equal(ray.intersectObjects(meshes).length,0,'old uphill door removed');
 function floor(x,z,y) {
   const w=oldCabin.cabinWorld(x,z);
   ray.set(new THREE.Vector3(w.x,y+.03,w.z),down); ray.far=.06;

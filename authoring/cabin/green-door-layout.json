@@ -1,0 +1,28 @@
+{
+  "issue": 95,
+  "photo": "PXL_20260808_202937782.MP.jpg",
+  "corroboratingPhoto": "PXL_20260808_202908454.jpg",
+  "door": {
+    "x": -5.77,
+    "z": 4.3792647920328065,
+    "floor": 6.32,
+    "angle": 0.3116997554838478,
+    "width": 0.9,
+    "height": 1.96
+  },
+  "camera": {
+    "eye": [
+      48.988889,
+      -123.085828,
+      4.2
+    ],
+    "aim": [
+      48.991573,
+      -123.08608,
+      23.0
+    ],
+    "fov": 57
+  },
+  "finding": "Door is in the first seaward bay below the lower south rim, not near the middle of the return.",
+  "limits": "Door, enclosure and local rock shelf dimensions estimated. Saved comparison camera is not a solved photo pose. Existing deck levels, roof and approach controls retained."
+}

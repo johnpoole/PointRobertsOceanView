@@ -50,7 +50,8 @@
     {
       "file": "PXL_20260808_202908454.jpg",
       "status": "used in this refinement",
-      "finding": "Six-panel green storage door, threshold, flanking boards and stepped retaining edge beside beach stairs."
+      "finding": "Six-panel green storage door, threshold, flanking boards and stepped retaining edge beside beach stairs.",
+      "followUp95": "Used to correct door location and connected lower enclosure; compare.html now uses owner south camera."
     },
     {
       "file": "PXL_20260808_202910826.jpg",
@@ -60,7 +61,8 @@
     {
       "file": "PXL_20260808_202937782.MP.jpg",
       "status": "used in this refinement",
-      "finding": "Cross-check storage door under south deck, retaining tiers, fascia and timber against the wider beach view."
+      "finding": "Cross-check storage door under south deck, retaining tiers, fascia and timber against the wider beach view.",
+      "followUp95": "Used to correct door location and connected lower enclosure; compare.html now uses owner south camera."
     }
   ],
   "videoFrames": {
@@ -74,5 +76,12 @@
     "Deck proportions, underside framing and individual stair dimensions need additional view-by-view work."
   ],
   "inspection": "Blender renders show the authored structures and terrain context. They omit the app trees, sky and live scene. Source images and render PNGs remain local.",
-  "routeCorrection": "2026-09-14: removed false pair of right-angle turns; continuous westward curve meets the retained stair head. Camera-pan frames excluded from route direction evidence. Geographic curve and side-pad placement remain estimates."
+  "routeCorrection": "2026-09-14: removed false pair of right-angle turns; continuous westward curve meets the retained stair head. Camera-pan frames excluded from route direction evidence. Geographic curve and side-pad placement remain estimates.",
+  "greenDoorCorrection": {
+    "issue": 95,
+    "date": "2026-09-14",
+    "finding": "Owner south camera comparison shows green door in the first seaward bay under the lower south deck; previous placement was about three metres too far uphill. Corrected door/frame, enclosure return and lattice, apron/rock support and terrain clearance.",
+    "layout": "green-door-layout.json",
+    "limits": "Dimensions and rock shelf are visual estimates. Camera uses supplied coordinates/FOV, not a recovered photo pose. Roof, deck levels and approach controls retained."
+  }
 }

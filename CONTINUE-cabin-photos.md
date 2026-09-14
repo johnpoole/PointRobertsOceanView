@@ -468,3 +468,17 @@ surfaces. Frame 047 supplies surface pixels only, never route direction.
 Comparison shows frames 040/052, a westward view and an overhead route view.
 Authoring edit: authoring/cabin/correct_route.py. Exact curve and elevations
 remain estimates; the owner's direction correction overrides earlier notes.
+
+
+## Green door and lower enclosure correction - issue #95
+
+The owner paired PXL_20260808_202937782.MP with the south-side eye
+48.988889,-123.085828,4.2 and aim 48.991573,-123.086080,23.0, FOV 57.
+The green door belongs in the first seaward bay underneath the lower south
+deck, not near the middle of the return. The saved Blender source places it
+there along the raked rim, with connected enclosure boards, recessed lattice,
+a supported apron and a small rock shelf. Its terrain clearance moves with it.
+Storey/deck levels, the mapped roof and owner-controlled approach are retained.
+Exact dimensions, rock profile and camera/photo registration remain estimates.
+See authoring/cabin/correct_green_door.py, green-door-layout.json and
+render_green_door.py. The local comparison now uses the owner camera.

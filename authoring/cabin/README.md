@@ -10,7 +10,7 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 56 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 60 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
 steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
@@ -153,6 +153,26 @@ The comparison now pairs frames 040 and 052 across the excluded pan, with a
 westward inspection view and an overhead route view. Frame 047 remains a paving
 texture source only. Connecting curve, bench position and elevations remain
 estimates between the existing anchors; no camera trajectory solve is claimed.
+
+## Green door correction
+
+Issue #95: the owner paired `PXL_20260808_202937782.MP.jpg` with a south-side
+camera. The former green door sat about three metres too far uphill, detached
+from the seaward enclosure. `correct_green_door.py` moves the existing door and
+frame to the first bay below the lower south deck, turns it along the raked rim,
+and adds the short enclosure return, recessed side lattice, apron and supporting
+rock shelf. The terrain clearance moves with it; the obsolete uphill cut is gone.
+The rock shelf joins the actual terrain around the threshold. It is model geometry,
+not a change to the elevation source. Door dimensions, enclosure and rock profile
+remain visual estimates; established deck levels, roof and stair controls stay fixed.
+
+`green-door-layout.json` records the evidence, estimates and owner's saved camera.
+`render_green_door.py` renders that camera at 57° vertical FOV on a 4:3 canvas
+in roughly twenty seconds. The local comparison uses this image alongside the
+August still; it is not a solved camera match. The current export has 43,997
+triangles, five material batches, 5,590,416 bytes and 171 terrain ceilings.
+The verifier checks the relocated doorway with rays through the GLB, the solid
+apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
 

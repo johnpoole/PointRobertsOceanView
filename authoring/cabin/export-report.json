@@ -1,8 +1,8 @@
 {
   "file": "assets/site/389-cabin.glb",
-  "bytes": 5547232,
-  "sha256": "fe442f07873a49b514fc0009e0b92bf829584815316c6f55858846760b1524f1",
-  "sourceSha256": "bd38a74af2382ab206047c1e920e9ac55d01154bc9192056ab12d3d0010ef825",
+  "bytes": 5590416,
+  "sha256": "4ee980ad858a97a2d3e061d4103a1e606f24acdf57a16bae15bd96d61bfc6c56",
+  "sourceSha256": "f8c59006a2592590e758bd9829d750223860904c39770fcc8d09d7a523b82e6e",
   "sourceObjects": [
     "Walls and siding",
     "East passage boards",
@@ -59,9 +59,13 @@
     "Video - continuous west approach foundation",
     "Video - continuous west approach paving",
     "Video - bench side pad foundation",
-    "Video - bench side pad paving"
+    "Video - bench side pad paving",
+    "Photo - storage entrance apron",
+    "Photo - storage rock shelf",
+    "Photo - lower enclosure return",
+    "Photo - storage side lattice"
   ],
-  "triangles": 43577,
+  "triangles": 43997,
   "clearancePolygons": 171,
   "worldOrigin": [
     -34.17,
