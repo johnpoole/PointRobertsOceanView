@@ -114,6 +114,36 @@ for (const s of surfaces) {
     }
 }
 const ray = new THREE.Raycaster(), down = new THREE.Vector3(0,-1,0);
+// Upper deck: the tree is outside the deck/rail envelope, in an open notch.
+const upperDeck=JSON.parse(fs.readFileSync('authoring/cabin/upper-deck-layout.json'));
+assert.ok(upperDeck.southEdge.west[1]-upperDeck.southEdge.east[1]>1,
+  'south return widens toward the water');
+const deckTree=upperDeck.tree, notch=upperDeck.notch;
+let notchChecks=0;
+for(let dx=-.5;dx<=.5;dx+=.125)for(let dz=-.5;dz<=.5;dz+=.125) {
+  const w=oldCabin.cabinWorld(deckTree.x+dx,deckTree.z+dz);
+  ray.set(new THREE.Vector3(w.x,11.65,w.z),down);ray.far=1.7;
+  assert.equal(ray.intersectObjects(meshes).length,0,'no deck, rail or framing through tree notch');notchChecks++;
+}
+// Keep a usable passage behind the three-sided notch rail, along the wall.
+for(let z=notch.north-.3;z<notch.south+.3;z+=.12) {
+  for(const x of [notch.back+.15,-3.385]) {
+    const w=oldCabin.cabinWorld(x,z);
+    ray.set(new THREE.Vector3(w.x,10.48,w.z),down);ray.far=.06;
+    assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.00001),'deck passage behind notch');
+    ray.set(new THREE.Vector3(w.x,10.48,w.z),new THREE.Vector3(0,1,0));ray.far=1.65;
+    assert.equal(ray.intersectObjects(meshes).length,0,'clear passage behind notch');
+  }
+}
+// Former rail must no longer cross the mouth; the new widened corner is solid.
+const mouth=oldCabin.cabinWorld(notch.west,deckTree.z);
+ray.set(new THREE.Vector3(mouth.x,11.65,mouth.z),down);ray.far=1.7;
+assert.equal(ray.intersectObjects(meshes).length,0,'open seaward mouth of notch');
+for(const x of [-6.8,-5.5,-4]) {
+  const w=oldCabin.cabinWorld(x,4.55);
+  ray.set(new THREE.Vector3(w.x,10.48,w.z),down);ray.far=.06;
+  assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.00001),'new tapered return has a floor');
+}
 // Owner's August south view places the door in the first seaward bay.
 // Test actual GLB rays and actual terrain, not merely authoring coordinates.
 const greenDoor = JSON.parse(fs.readFileSync('authoring/cabin/green-door-layout.json')).door;

@@ -176,6 +176,25 @@ apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
 
+Issue #96 refines the upper deck using the owner's selected
+`images/PXL_20211108_174949325.MP.jpg`: the south return widens westward from
+the entrance. Its estimated projection grows from 0.91 m to 2.40 m. The
+November 15 photograph establishes the open tree notch and three-sided railing.
+`refine_upper_deck.py` replaces the upper deck/rails and matching support framing
+in the saved source. `upper-deck-layout.json` records the plan and evidence.
+The notch follows the existing site-tree anchor, with estimated trunk clearance;
+the tree, wall, roof and entrance have not been repositioned. Actual GLB ray tests
+check the open notch, framing clearance, passage behind it and added tapered floor.
+Clearance helpers follow the new polygons. An inspection-only trunk is excluded
+from the exported MODEL collection so it cannot duplicate the app's site tree.
+
+`render_upper_deck.py` produces the two local comparisons in approximately
+20-40 seconds each. These are inspection cameras, not solved photo poses.
+Current export: 45,677 triangles, five material batches, 5,736,880 bytes and
+173 terrain ceilings. Further photos from on the deck looking down into the
+notch, or measured edge lengths, can refine dimensions without delaying this
+photo-supported outline correction. The raw reference images remain local.
+
 `bootstrap.mjs` and `create_blend.py` made the initial source from the legacy
 geometry, terrain and local references. They are retained for provenance, not
 the normal edit/export workflow. **Do not rerun them over an edited .blend.**

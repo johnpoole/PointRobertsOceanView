@@ -15,7 +15,8 @@
     {
       "file": "PXL_20211108_174949325.MP.jpg",
       "status": "reviewed; geometry follow-up remains",
-      "finding": "Final descent context reviewed; retain owner-positioned 19-step approach. Uneven individual risers remain unresolved."
+      "finding": "Final descent context reviewed; retain owner-positioned 19-step approach. Uneven individual risers remain unresolved.",
+      "followUp96": "Owner-selected root images copy establishes upper south deck taper toward the water."
     },
     {
       "file": "PXL_20211108_175009151.jpg",
@@ -29,8 +30,8 @@
     },
     {
       "file": "PXL_20211115_192928437.jpg",
-      "status": "reviewed; geometry follow-up remains",
-      "finding": "Deck tree relationship and wire-rail details need a closer geometry pass."
+      "status": "used for upper deck correction #96",
+      "finding": "Open U-shaped tree notch and inward railing returns; geometry follows existing tree anchor, dimensions estimated."
     },
     {
       "file": "PXL_20250517_150947629.MP.jpg",
@@ -83,5 +84,12 @@
     "finding": "Owner south camera comparison shows green door in the first seaward bay under the lower south deck; previous placement was about three metres too far uphill. Corrected door/frame, enclosure return and lattice, apron/rock support and terrain clearance.",
     "layout": "green-door-layout.json",
     "limits": "Dimensions and rock shelf are visual estimates. Camera uses supplied coordinates/FOV, not a recovered photo pose. Roof, deck levels and approach controls retained."
+  },
+  "upperDeckCorrection": {
+    "issue": 96,
+    "anglePhoto": "images/PXL_20211108_174949325.MP.jpg",
+    "treePhoto": "images/Photos-1-001/PXL_20211115_192928437.jpg",
+    "finding": "South return widens westward; tree sits in an open U-shaped notch, with railing and framing following the opening.",
+    "limits": "Estimated dimensions at existing site tree anchor; no camera solve."
   }
 }

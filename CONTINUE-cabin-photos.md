@@ -482,3 +482,15 @@ Storey/deck levels, the mapped roof and owner-controlled approach are retained.
 Exact dimensions, rock profile and camera/photo registration remain estimates.
 See authoring/cabin/correct_green_door.py, green-door-layout.json and
 render_green_door.py. The local comparison now uses the owner camera.
+
+
+## Upper deck taper and tree notch - issue #96
+
+Owner selected images/PXL_20211108_174949325.MP.jpg to establish the
+upper south return widening toward the water. The November 15 photograph
+shows the three-sided rail around an open tree notch. The saved Blender
+source now has a tapered return (estimated 0.91m east, 2.40m west), open
+notch around the existing site tree, matching rail/rim/framing and terrain
+clearance. Actual GLB tests check the notch void, clear passage beside the
+cabin, and widened floor. Source: refine_upper_deck.py and upper-deck-layout.json;
+local comparisons: render_upper_deck.py. Exact dimensions remain estimates.
