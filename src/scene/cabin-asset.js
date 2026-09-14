@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { groundClearance } from './ground-clearance.js';
 import { stairCarve } from './stair.js';
 import { toWorld } from '../geo.js';
+import { terrainGrade } from './terrain-grade.js';
 
 export async function loadCabinAsset() {
   const gltf = await new GLTFLoader().loadAsync('assets/site/389-cabin.glb');
@@ -17,13 +18,14 @@ export async function loadCabinAsset() {
     throw new Error('Invalid cabin GLB terrain constraints');
   }
   root.position.set(...worldOrigin);
+  const grade=terrainGrade(root.userData.grade ? JSON.parse(root.userData.grade) : null);
   return {
     carve(diagonal) {
       const floors = groundClearance(surfaces, diagonal);
       const approach = stairCarve(spec, diagonal, edge);
       return (lat, lon, height) => {
         const p = toWorld(lat, lon);
-        return floors(p.x, p.z, approach(lat, lon, height));
+        return floors(p.x, p.z, grade(p.x,p.z,approach(lat, lon, height)));
       };
     },
     addTo(scene, projector) {

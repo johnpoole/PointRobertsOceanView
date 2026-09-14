@@ -131,5 +131,6 @@
     ]
   },
   "limits": "Photo-guided dimensions and planting; non-walking bank skin is visual geometry, not a new elevation survey. Historical cabin appearance is excluded.",
-  "stairBaseFollowUp": 100
+  "stairBaseFollowUp": 100,
+  "bankSupersededBy": 101
 }

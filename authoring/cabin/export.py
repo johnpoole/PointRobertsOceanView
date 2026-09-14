@@ -82,6 +82,8 @@ root['entrance'] = json.dumps(edge, separators=(',', ':'))
 root['source'] = 'authoring/cabin/cabin.blend'
 root['sourceSha256'] = hashlib.sha256(Path(bpy.data.filepath).read_bytes()).hexdigest()
 root['sourceObjects'] = json.dumps([o.name for o in model.all_objects if o.type == 'MESH'])
+if 'entrance_grade' in scene:
+    root['grade'] = scene['entrance_grade']
 if 'walkthrough_validation' in scene:
     root['walkthrough'] = scene['walkthrough_validation']
 root.select_set(True)

@@ -565,3 +565,24 @@ route, wall, bank, tree, deck and door constraints. 69 source meshes; export
 52,402 triangles, five batches, 6,674,696 bytes, 285 terrain ceilings.
 stair-east-layout.json records evidence; render_stair_east.py and refreshed
 wall renders appear on local compare.html. Raw images/videos stay out of git.
+
+
+## Connected entrance correction - issue #101
+
+Owner rejected the entrance/stair-base area after #99/#100. Reconciled the
+existing ground photos together; late video frames show descent but end above
+the landing. No overhead image needed. Landing anchors already share 10.45m.
+reconcile_entrance.py archives six unsupported scenic-bank/return/planting
+meshes and the 112 bank ceilings. All 63 retained model meshes and controls
+remain geometrically unchanged. The root grade metadata now travels in the
+GLB; terrain-grade.js updates the actual rendered/sampled terrain after the
+approach cut and before walking ceilings. No separate bank skin remains.
+Grade dimensions are estimates between the retained wall and survey uphill.
+
+entrance-layout.json records evidence and connected paths. Verification adds
+318 floor/headroom/terrain samples between road-stair foot, entrance recess,
+deck, beach-side stair head and east passage, plus grade/sampler checks and
+all prior route/tread/door/deck/tree tests. Export: 46,717 triangles, five
+batches, 6,079,552 bytes, 173 ceilings. render_entrance.py adds two connected
+views at the top of local compare.html; earlier wall/stair views refreshed.
+Reference photos and videos remain local.

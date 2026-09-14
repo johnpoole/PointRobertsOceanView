@@ -142,14 +142,23 @@ for(let z=-2.73;z<3.3;z+=.27) {
     assert.equal(ray.intersectObjects(meshes).length,0,'wall and planting leave passage headroom');
   }
 }
-const bank=eastWall.bank;
-for(let j=0;j<bank.z.length-1;j++)for(let i=0;i<bank.x.length-1;i++) {
-  const x=(bank.x[i]+2*bank.x[i+1])/3,z=(2*bank.z[j]+bank.z[j+1])/3;
-  const y=(bank.heights[j][i]+bank.heights[j][i+1]+bank.heights[j+1][i+1])/3;
-  const w=oldCabin.cabinWorld(x,z),ll=fromWorld(w.x,w.z);
-  ray.set(new THREE.Vector3(w.x,y+.1,w.z),down);ray.far=.2;
-  assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-y)<.001),'bank skin survives export');
-  assert.ok(triangle(ll.lat,ll.lon)<y,'coarse terrain remains below bank skin');
+// The bank now belongs to the terrain mesh and sampler, never a second skin.
+const entranceLayout=JSON.parse(fs.readFileSync('authoring/cabin/entrance-layout.json'));
+assert.ok(exported.userData.grade,'authored grade travels with the cabin GLB');
+const gradeSpec=JSON.parse(exported.userData.grade);
+const {terrainGrade}=await import(load(path.join(root,'src/scene/terrain-grade.js')));
+const fitGrade=terrainGrade(gradeSpec);
+const testGrade=terrainGrade({fade:1,triangles:[[[0,2,0],[1,3,0],[0,2,1]]]});
+assert.equal(testGrade(.25,.25,0),2.25,'barycentric grade');
+assert.equal(testGrade(-2,0,9),9,'grade leaves distant ground alone');
+assert.ok(Math.abs(testGrade(-.999,0,9)-9)<.001,'grade blends into surrounding terrain');
+assert.equal(terrainGrade(null)(0,0,7),7,'older GLBs keep their terrain behavior');
+const activeNames=JSON.parse(exported.userData.sourceObjects);
+for(const n of entranceLayout.retired)assert.ok(!activeNames.includes(n),'unsupported bank/return is not exported: '+n);
+for(const x of [6.2,6.7,7.1])for(const z of [-1.1,.5,1.9,2.7]) {
+ const w=oldCabin.cabinWorld(x,z),ll=fromWorld(w.x,w.z),desired=fitGrade(w.x,w.z,0);
+ assert.ok(Math.abs(terrain.sample(ll.lat,ll.lon)-desired)<.015,'terrain sampler follows authored bank');
+ assert.ok(Math.abs(triangle(ll.lat,ll.lon)-desired)<.02,'visible terrain follows same bank grade');
 }
 // Upper deck: the tree is outside the deck/rail envelope, in an open notch.
 const upperDeck=JSON.parse(fs.readFileSync('authoring/cabin/upper-deck-layout.json'));
@@ -329,5 +338,26 @@ for(const tree of treeData.trees) {
   }
   if(t.z>2.4&&t.z<7.85)assert.ok(Math.abs(t.x-20.925)>radius+.525,'branch avoids measured tree');
 }
+// Walk complete junctions, including the road-stair foot, doorway recess,
+// upper deck, beach-side upper flight head and east passage. Board-joint gaps
+// are only 4mm; try an adjacent point before declaring the walking surface absent.
+let entranceSamples=0;
+for(const path of entranceLayout.routes)for(let i=1;i<path.length;i++) {
+ const a=path[i-1],b=path[i],dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);
+ for(let d=0;d<len;d+=.08)for(const side of [-.25,0,.25]) {
+  const x=a[0]+dx*d/len-dz/len*side,z=a[1]+dz*d/len+dx/len*side,w=oldCabin.cabinWorld(x,z),ll=fromWorld(w.x,w.z);
+  let supported=false;
+  for(const shift of [0,-.006,.006]) {
+   const q=oldCabin.cabinWorld(x,z+shift);ray.set(new THREE.Vector3(q.x,10.485,q.z),down);ray.far=.07;
+   supported ||= ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.008);
+  }
+  assert.ok(supported,'continuous entrance floor at '+[x,z]);
+  ray.set(new THREE.Vector3(w.x,10.475,w.z),new THREE.Vector3(0,1,0));ray.far=1.65;
+  assert.equal(ray.intersectObjects(meshes).length,0,'connected entrance headroom at '+[x,z]);
+  assert.ok(triangle(ll.lat,ll.lon)<10.36,'terrain below the whole entrance connection');
+  entranceSamples++;
+ }
+}
+console.log('PASS connected entrance:',entranceSamples,'floor/headroom/terrain samples');
 fs.writeFileSync('data/cabin-blender/current-terrain.json',JSON.stringify({assetSha256:report.sha256,grid:g,heights:Array.from(terrain.heights)}));
 console.log(`PASS: Three r${THREE.REVISION}, ${report.triangles} triangles, ${meshes.length} batches; source hash, frame texture decoding, ${samples} terrain checks, ${routeSamples} full-route walking/headroom samples, measured tree clearance, north connection and all 19 approach treads.`);

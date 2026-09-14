@@ -1,0 +1,127 @@
+{
+  "issue": 101,
+  "photos": [
+    "images/20190731_104156.jpg",
+    "images/PXL_20211108_174949325.MP.jpg",
+    "images/Photos-1-001/PXL_20211108_175009151.jpg",
+    "images/PXL_20211108_175012789.jpg",
+    "images/Photos-1-001/PXL_20260808_202937782.MP.jpg"
+  ],
+  "video": "frames 051-068 reviewed for final descent and cabin/deck context; 22-25s pan excluded as route evidence; video ends above the landing",
+  "retired": [
+    "Photo - east bank soil",
+    "Photo - east bank brush",
+    "Photo - east bank grass",
+    "Photo - stair-base wall return",
+    "Photo - stair-base soil",
+    "Photo - stair-base planting"
+  ],
+  "level": 10.45,
+  "routes": [
+    [
+      [
+        6.25,
+        4.835
+      ],
+      [
+        4.385,
+        3.85
+      ],
+      [
+        3.05,
+        3.85
+      ],
+      [
+        2.45,
+        3.05
+      ],
+      [
+        1.9,
+        2.6
+      ]
+    ],
+    [
+      [
+        4.385,
+        3.85
+      ],
+      [
+        3.81,
+        3.85
+      ],
+      [
+        3.81,
+        4.28
+      ]
+    ],
+    [
+      [
+        3.81,
+        3.85
+      ],
+      [
+        3.81,
+        2.9
+      ],
+      [
+        3.81,
+        1.8
+      ]
+    ]
+  ],
+  "bank": {
+    "x": [
+      4.94,
+      5.7,
+      7.3,
+      9.5
+    ],
+    "z": [
+      -2.995,
+      -1.5,
+      0,
+      1.5,
+      2.7,
+      3.395
+    ],
+    "heights": [
+      [
+        11.81,
+        12.261791802082442,
+        13.212932438045481,
+        14.52075081249466
+      ],
+      [
+        11.81,
+        12.258399918445734,
+        13.202399746752544,
+        14.500399510674407
+      ],
+      [
+        12.010000000000002,
+        12.431231833477629,
+        13.318035693430527,
+        14.537391000865764
+      ],
+      [
+        12.21,
+        12.593687750254395,
+        13.401451435000487,
+        14.512126501526364
+      ],
+      [
+        12.21,
+        12.5848255127975,
+        13.37393185552908,
+        14.458953076785
+      ],
+      [
+        12.21,
+        12.584848918170794,
+        13.374004535372466,
+        14.459093509024763
+      ]
+    ]
+  },
+  "limits": "Ground-photo topology and existing anchors retained. Bank grade between wall and survey is estimated; no new survey or recovered camera pose. Landing connections were already level; removed unsupported scenic solids rather than relocating confirmed stairs."
+}

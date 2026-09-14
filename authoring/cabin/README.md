@@ -10,7 +10,7 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 69 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 63 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
 steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
@@ -175,6 +175,31 @@ The verifier checks the relocated doorway with rays through the GLB, the solid
 apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
+
+Issue #101 corrects the disconnected scenic bank treatment from #99/#100.
+`reconcile_entrance.py` archives the separate soil skins, their planting,
+the diagonal wall return and 112 bank clearance triangles. The cabin, stair
+controls, walking surfaces, original retaining wall, stump and lower left rail
+remain. Existing ground photographs were reconciled together; late walkthrough
+frames establish the descent but do not show the entire landing. No overhead
+image or new sketch was needed. `entrance-layout.json` records the evidence,
+retired objects, estimated bank profile and connected verification routes.
+
+The source's `entrance_grade` is exported in the GLB. `terrain-grade.js` blends
+its triangles into the actual terrain; `cabin-asset.js` applies this after the
+broad approach cut and before walking-surface ceilings. The rendered terrain
+and its walking sampler therefore share the same surface. Grade dimensions
+remain visual estimates tied to the retained wall and original survey uphill.
+This replaces the previous visual-only bank mesh approach. Older GLBs without
+grade metadata retain their previous behavior.
+
+Verification adds 318 connected entrance floor/headroom/terrain samples between
+road-stair foot, doorway recess, deck, beach-side upper stair and east passage.
+It also checks terrain interpolation against the bank grade and confirms the
+rejected objects are not exported. Existing 19-tread, full-route, wall, deck,
+door and tree checks remain. Current export: 46,717 triangles, five batches,
+6,079,552 bytes and 173 ceilings. `render_entrance.py` adds connected overview
+and descending inspection views; these are not solved photo cameras.
 
 Issue #100 uses `images/20190731_104156.jpg`, looking east from the stair base.
 This complementary view replaces the #99 log-like stump with a broad decayed

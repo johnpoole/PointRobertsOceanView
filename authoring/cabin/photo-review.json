@@ -116,5 +116,12 @@
     "photo": "images/20190731_104156.jpg",
     "finding": "Complementary east-facing stair-base view: broad decayed stump with exposed core instead of upright log; wall return and soil lip adjoining stair; leafy growth and lower north rail; weathered concrete/timber.",
     "limits": "Photo-guided estimates; original 19 tread/riser planes and stair controls preserved. Bank remains scenic geometry, not surveyed walking terrain. Approximate inspection camera."
+  },
+  "connectedEntranceCorrection": {
+    "issue": 101,
+    "finding": "Reconciled the ground views together. Landing already shares the confirmed 10.45m level; retired separate soil skins, diagonal wall return and their planting. Authored bank grade now changes the actual terrain and walking sampler, with landing/stair ceilings applied afterward.",
+    "evidence": "20190731_104156; PXL_20211108_174949325.MP, 175009151 and 175012789; PXL_20260808_202937782.MP; video 051-068 for descent only (ends above landing).",
+    "validation": "318 connected entrance samples plus existing route/tread, door/deck/tree, wall and terrain tests. Retained model geometries and controls unchanged.",
+    "limits": "Bank grade between wall and survey remains estimated. No reconstructed photo camera; no overhead photo required."
   }
 }
