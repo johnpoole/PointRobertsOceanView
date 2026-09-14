@@ -10,7 +10,7 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 60 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 56 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
 steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
@@ -69,7 +69,7 @@ poses; the supplied north view is explicitly higher than its photo. Historical
 node authoring/cabin/verify.mjs
 ```
 
-`render_walkthrough.py` produces four textured comparison renders under
+`render_walkthrough.py` produces five textured comparison renders under
 `data/cabin-blender` (roughly half a minute per view on this machine). Open
 `authoring/cabin/compare.html` through the local preview to compare them with the
 source frames. The video/reference files and inspection PNGs remain local.
@@ -87,7 +87,7 @@ from `https://unpkg.com/three@0.186.0/examples/jsm/`. An alternate directory can
 passed as the first argument. It checks export hashes, materials, coordinates,
 actual terrain triangles and sampler, the north stair connection, and all 19
 approach treads. It also decodes the two embedded images through Pillow, checks
-727 samples along the complete new route for support and headroom, and checks
+846 samples along the complete new route for support and headroom, and checks
 the route against measured trunk positions. Node's texture upload is not a GPU
 render; textured Blender renders supply the visual check.
 
@@ -127,7 +127,7 @@ beach stairs. A separate terrain ceiling clears its apron so the bank cannot
 bury the door. Upper planting uses smaller leaf/grass clusters and white daisies.
 
 `refine_photos.py` records this one-time edit on the post-#90 source and refuses
-to apply twice. The current export is 43,956 triangles, five material batches,
+to apply twice. That export was 43,956 triangles, five material batches,
 5,558,292 bytes and 202 clearance polygons. The two embedded video images remain
 the only textures; the stills guide geometry and colours. `photo-review.json`
 distinguishes six photos used in this pass from six reviewed views with remaining
@@ -135,6 +135,24 @@ work. Camera positions, bank profile, stair dimensions, shed placement and
 supports remain estimates. The Blender comparison page now includes shed,
 junction, east passage and south/beach views; these are inspection views, not
 calibrated camera matches.
+
+Owner correction, 14 September 2026 (#93): the camera pans north around 22-25
+seconds, then continues west. This interval does not establish two physical
+right-angle turns. `correct_route.py` replaces the false dogleg with a smooth
+westward approach joining the exact existing stair-head edge. The bench sits
+on a side pad; the retaining edge and path-side planting follow the corrected
+layout. The rejected corridor and its old terrain ceilings are kept in hidden
+**ARCHIVE - rejected camera-pan dogleg**, outside the exported MODEL/CLEARANCE
+collections. Do not re-enable them for export or terrain carving.
+
+The current asset is 43,577 triangles, five batches, 5,547,232 bytes and 171
+terrain ceilings. `walkthrough-layout.json` records the route cross-sections;
+the verifier checks real walking surfaces, continuous westward progress, gradual
+heading changes, measured trunk clearance and the retained stair-head join.
+The comparison now pairs frames 040 and 052 across the excluded pan, with a
+westward inspection view and an overhead route view. Frame 047 remains a paving
+texture source only. Connecting curve, bench position and elevations remain
+estimates between the existing anchors; no camera trajectory solve is claimed.
 
 ## One-time migration
 

@@ -455,3 +455,16 @@ Six stills informed changes; the remaining six were reviewed and unresolved
 features are listed in authoring/cabin/photo-review.json. Four approximate
 inspection views are on authoring/cabin/compare.html. No camera solve is claimed.
 The broader bank, stair/deck fit and upper route profile remain in #42.
+
+## Camera-pan route correction - 14 September 2026, issue #93
+
+John corrected the 22-25 second interpretation: the camera turns right/north
+and then continues west; the path does not make two right-angle turns. Removed
+the false dogleg from the Blender export and its terrain clearances, keeping
+both in a hidden non-exported archive. A continuous gently bending westward
+approach now joins the unchanged final stair head, with a side pad for the bench.
+The corrected route is checked against measured trunks and real GLB walking
+surfaces. Frame 047 supplies surface pixels only, never route direction.
+Comparison shows frames 040/052, a westward view and an overhead route view.
+Authoring edit: authoring/cabin/correct_route.py. Exact curve and elevations
+remain estimates; the owner's direction correction overrides earlier notes.

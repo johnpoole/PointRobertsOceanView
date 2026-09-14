@@ -107,7 +107,8 @@ for (const s of surfaces) {
     for(let z=Math.min(...zs)+.001;z<Math.max(...zs);z+=.049) {
       if(!inside(s.polygon,x,z)) continue;
       const ll=fromWorld(x,z);
-      assert.ok(terrain.sample(ll.lat,ll.lon)<=s.ceiling+.00001, 'walking sampler below exported clearance');
+      assert.ok(terrain.sample(ll.lat,ll.lon)<=s.ceiling+.00001,
+        'walking sampler below '+s.name+' at '+[x,z]+': '+terrain.sample(ll.lat,ll.lon)+' > '+s.ceiling);
       assert.ok(triangle(ll.lat,ll.lon)<=s.ceiling+.00001, 'actual terrain triangles below exported clearance');
       samples++;
     }
@@ -157,11 +158,6 @@ for(let k=0;k<spec.steps;k++) {
 // Walk the complete new path at both sides of a 0.70 m corridor. Check a real
 // surface below and clear space above it, independently of the clearance helper.
 const layout=JSON.parse(exported.userData.walkthrough);
-function pathY(x) {
-  for(const [[a,ya],[b,yb]] of layout.stations.map((p,i)=>[p,layout.stations[i+1]]).slice(0,-1))
-    if(x>=b-1e-6&&x<=a+1e-6)return yb+(ya-yb)*(x-b)/(a-b);
-  throw Error('Point outside approach');
-}
 let routeSamples=0;
 function walk(x,z,y) {
   const w=oldCabin.cabinWorld(x,z);
@@ -172,9 +168,28 @@ function walk(x,z,y) {
   assert.equal(ray.intersectObjects(meshes).length,0,'body/head clearance '+[x,z,y]);
   routeSamples++;
 }
-for(let x=14.06;x<25.69;x+=.07)for(const dz of [-.35,0,.35])walk(x,8.4+dz,pathY(x));
-for(let z=5.13;z<8.7;z+=.07)for(const dx of [-.35,0,.35])walk(13.45+dx,z,layout.junctionLevel);
-for(let x=12.5;x<13.8;x+=.07)walk(x,5.10,layout.junctionLevel);
+const sections=layout.centerline;
+assert.ok(sections?.length>2,'owner-corrected continuous route is exported');
+assert.deepEqual(layout.routeCorrection.excludedDirectionIntervalSeconds,[22,25]);
+const exportedNames=JSON.parse(exported.userData.sourceObjects);
+assert.ok(!exportedNames.some(n=>n.startsWith('Video - widened turn')||n==='Video - head junction'),
+  'rejected dogleg stays out of the web asset');
+let lastAngle=null;
+for(let i=0;i<sections.length-1;i++) {
+  const a=sections[i],b=sections[i+1],dx=b.x-a.x,dz=b.z-a.z;
+  assert.ok(dx>0,'route always progresses westward when descending');
+  const angle=Math.atan2(dz,dx);
+  assert.ok(Math.abs(angle)<40*Math.PI/180,'gentle variation, no northbound right-angle leg');
+  if(lastAngle!==null)assert.ok(Math.abs(angle-lastAngle)<8*Math.PI/180,'no abrupt corner between route segments');
+  lastAngle=angle;
+  for(let k=0;k<3;k++) {
+    const t=(k+.5)/3,y=a.y+(b.y-a.y)*t;
+    const left=a.left.map((v,j)=>v+(b.left[j]-v)*t),right=a.right.map((v,j)=>v+(b.right[j]-v)*t);
+    for(const u of [.18,.5,.82])walk(left[0]+(right[0]-left[0])*u,left[1]+(right[1]-left[1])*u,y);
+  }
+}
+for(const [i,side] of [[0,'left'],[1,'right']])
+  assert.ok(Math.hypot(...sections[0][side].map((v,j)=>v-layout.headEdge[i][j]))<1e-6,'route meets retained stair-head edge');
 for(let z=4.65;z<8.4;z+=.08)walk(20.95,z,layout.shedBase);
 for(let k=0;k<7;k++)walk(20.95,4.6-(k+.5)*2.2/7,layout.shedBase+(k+1)*(layout.branchTop-layout.shedBase)/7);
 // Preserve measured trunks: none may intersect the newly laid walking corridor.
@@ -182,8 +197,12 @@ const treeData=JSON.parse(fs.readFileSync('assets/site/389-trees.json'));
 for(const tree of treeData.trees) {
   const wx=(tree.lon+123.085318)*111320*Math.cos(48.989009*Math.PI/180), wz=-(tree.lat-48.989009)*111320;
   const t=oldCabin.cabinLocal(wx,wz), radius=tree.height_m*.02;
-  if(t.x>14.05&&t.x<25.7)assert.ok(Math.abs(t.z-8.4)>radius+.55,'main path avoids measured tree');
-  if(t.z>layout.junctionNorth&&t.z<8.95)assert.ok(Math.abs(t.x-13.45)>radius+.60,'turn avoids measured tree');
+  for(let i=0;i<sections.length-1;i++) {
+    const a=sections[i],b=sections[i+1],dx=b.x-a.x,dz=b.z-a.z;
+    const u=Math.max(0,Math.min(1,((t.x-a.x)*dx+(t.z-a.z)*dz)/(dx*dx+dz*dz)));
+    const distance=Math.hypot(t.x-a.x-u*dx,t.z-a.z-u*dz);
+    assert.ok(distance>radius+Math.max(a.width,b.width)/2,'curved route avoids measured trunk at '+[t.x,t.z]);
+  }
   if(t.z>2.4&&t.z<7.85)assert.ok(Math.abs(t.x-20.925)>radius+.525,'branch avoids measured tree');
 }
 fs.writeFileSync('data/cabin-blender/current-terrain.json',JSON.stringify({assetSha256:report.sha256,grid:g,heights:Array.from(terrain.heights)}));

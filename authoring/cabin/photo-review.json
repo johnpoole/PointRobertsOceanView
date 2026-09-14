@@ -65,7 +65,7 @@
   ],
   "videoFrames": {
     "034": "Individual board UV samples and shed-side branch reference.",
-    "047": "Staggered wall blocks, paved junction and white daisies; existing paving texture retained."
+    "047": "Paving texture and local surface/planting context only. Owner correction: the 22-25 second camera pan does not establish a physical dogleg."
   },
   "remaining": [
     "Upper approach slope is still a coarse lidar-based profile; photographic stair breaks are not solved.",
@@ -73,5 +73,6 @@
     "Bank cuts remain visibly angular and the east wall profile requires fitting.",
     "Deck proportions, underside framing and individual stair dimensions need additional view-by-view work."
   ],
-  "inspection": "Blender renders show the authored structures and terrain context. They omit the app trees, sky and live scene. Source images and render PNGs remain local."
+  "inspection": "Blender renders show the authored structures and terrain context. They omit the app trees, sky and live scene. Source images and render PNGs remain local.",
+  "routeCorrection": "2026-09-14: removed false pair of right-angle turns; continuous westward curve meets the retained stair head. Camera-pan frames excluded from route direction evidence. Geographic curve and side-pad placement remain estimates."
 }
