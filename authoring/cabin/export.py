@@ -82,18 +82,22 @@ root['entrance'] = json.dumps(edge, separators=(',', ':'))
 root['source'] = 'authoring/cabin/cabin.blend'
 root['sourceSha256'] = hashlib.sha256(Path(bpy.data.filepath).read_bytes()).hexdigest()
 root['sourceObjects'] = json.dumps([o.name for o in model.all_objects if o.type == 'MESH'])
+if 'walkthrough_validation' in scene:
+    root['walkthrough'] = scene['walkthrough_validation']
 root.select_set(True)
 output = ROOT / 'assets/site/389-cabin.glb'
 bpy.ops.export_scene.gltf(filepath=str(output), export_format='GLB',
     use_selection=True, export_extras=True, export_yup=True,
     export_cameras=False, export_lights=False, export_animations=False,
-    export_materials='EXPORT', export_texcoords=False, export_normals=True)
+    export_materials='EXPORT', export_texcoords=True, export_normals=True)
 merged.data.calc_loop_triangles()
 report = {'file': output.relative_to(ROOT).as_posix(), 'bytes': output.stat().st_size,
     'sha256': hashlib.sha256(output.read_bytes()).hexdigest(),
     'sourceSha256': root['sourceSha256'], 'sourceObjects': json.loads(root['sourceObjects']),
     'triangles': len(merged.data.loop_triangles), 'clearancePolygons': len(surfaces),
     'worldOrigin': origin, 'stair': spec, 'entrance': edge,
-    'blender': bpy.app.version_string}
+    'blender': bpy.app.version_string,
+    'materialBatches': len([m for m in merged.data.materials if m]),
+    'texturedMaterials': [m.name for m in merged.data.materials if m and m.get('source_frame')]}
 (ROOT / 'authoring/cabin/export-report.json').write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps({k: report[k] for k in ['file', 'bytes', 'triangles', 'clearancePolygons', 'blender']}))

@@ -405,3 +405,41 @@ This completes the Blender conversion and north connection correction, not the
 entire road-to-cabin reconstruction. The upper road/shed path and remaining
 photo reconciliation stay open in #42. Having all frames available in Blender
 must not be reported as having used every frame to correct geometry.
+
+## Video evidence applied to rendered geometry - issue #90
+
+The earlier Blender conversion did not apply the full walkthrough evidence.
+The model now includes the shed-side paved approach, downhill border/upper rail,
+gabled timber shed and doors, separate seven-step branch and retaining wall,
+widened turn, bench alcove, planting edges, continuous connection to the existing
+19-step descent, and simple round deck table/chairs. Fifty named Blender meshes
+export to 18,580 triangles in five batches (2,717,180 bytes).
+
+Actual video pixels are now used too: frame 034 at 17.03 seconds supplies the
+shed's weathered wood, and frame 047 at 23.53 seconds supplies paving. UV regions
+exclude foreground plants. Those two full JPEGs are embedded in the GLB; other
+reference images remain excluded. All 69 frames were reviewed in contact sheets;
+walkthrough-evidence.json records the ranges, uses and the two texture frames.
+This is photo-guided geometry, not a camera solve or metric photogrammetry.
+
+Roadward path levels use the lidar bank; the lower turn meets the owner-controlled
+head landing at 13.4632 m MLLW. Path width is estimated at 1.1 m. Shed footprint,
+height, separate branch count and support piers are estimates; the support
+arrangement is not visible in the video. Current roof planes/material and the
+mapped entrance notch are preserved. Remaining exact geometry reconciliation
+continues in #42 rather than claiming the source is now survey accurate.
+
+Exported terrain constraints increase from 49 to 201 polygons, including each
+paving foundation and branch tread. The app terrain and walking sampler clear
+63,984 sampled points; 727 route/headroom samples cover the new path, turn and
+branch. Measured trunks avoid these corridors. The existing north connection
+and all 19 owner treads still pass. The two embedded textures decode and load
+through the actual Three r186 GLTFLoader. Final textured Blender comparisons of
+the shed and bench junction were inspected; authoring/cabin/compare.html exposes
+them beside frames 034/047 through the local preview.
+
+The stopped localhost:8097 preview was restored with the project app server.
+Its Windows virtual environment needed tzdata and the already-declared
+pycryptodome dependency. These were installed locally; server code was unchanged.
+The preview serves the current GLB bytes. Export.py includes geometry, UVs, two
+selected textures, clearance controls and source hash in one asset.

@@ -1,0 +1,607 @@
+{
+  "source": "images/VID_20170718_072727~2.mp4",
+  "sourceSha256": "93db776f7630102bc32a4822ba09d199d468e3c4a09bb5f8ebc8c68daf3ed827",
+  "method": "Photo-guided Blender modeling. All frames reviewed in contact sheets; key views inspected full-size. No camera pose solve or metric photogrammetry.",
+  "ranges": [
+    {
+      "first_frame": 0,
+      "last_frame": 10,
+      "features": "Upper approach rails and planting context",
+      "use": "Road connection anchored to existing road and lidar; frames do not establish surveyed dimensions."
+    },
+    {
+      "first_frame": 11,
+      "last_frame": 31,
+      "features": "Shed-side paved path, downhill border, timber shed",
+      "use": "Feature shape and relative placement guide new geometry."
+    },
+    {
+      "first_frame": 32,
+      "last_frame": 37,
+      "features": "Shed double doors, adjacent separate stair branch and block retaining wall",
+      "use": "Separate branch retained; frame 034 supplies wood texture pixels."
+    },
+    {
+      "first_frame": 38,
+      "last_frame": 42,
+      "features": "Paving and downhill garden edge",
+      "use": "Continuity between shed approach and widened junction."
+    },
+    {
+      "first_frame": 43,
+      "last_frame": 50,
+      "features": "Widened paved turn, uphill retaining wall, bench and planting",
+      "use": "New turn/bench geometry; frame 047 supplies paving texture pixels."
+    },
+    {
+      "first_frame": 51,
+      "last_frame": 59,
+      "features": "Final concrete descent, outer timber handrail and cabin relationship",
+      "use": "Connect new turn to owner-positioned existing 19-step flight; preserve count and controls."
+    },
+    {
+      "first_frame": 60,
+      "last_frame": 68,
+      "features": "Entrance recess, deck, separate lower stair and round deck furniture",
+      "use": "Preserve mapped notch/current roof; add simple table/chairs. Historical shingles excluded."
+    }
+  ],
+  "textureFrames": [
+    34,
+    47
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "filename": "frame-000-000.00s.jpg",
+      "time_seconds": 0.0,
+      "source_frame": 0,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 1,
+      "filename": "frame-001-000.50s.jpg",
+      "time_seconds": 0.502844,
+      "source_frame": 15,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 2,
+      "filename": "frame-002-001.00s.jpg",
+      "time_seconds": 1.002578,
+      "source_frame": 30,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 3,
+      "filename": "frame-003-001.50s.jpg",
+      "time_seconds": 1.502344,
+      "source_frame": 45,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 4,
+      "filename": "frame-004-002.00s.jpg",
+      "time_seconds": 2.0017,
+      "source_frame": 60,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 5,
+      "filename": "frame-005-002.50s.jpg",
+      "time_seconds": 2.501344,
+      "source_frame": 75,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 6,
+      "filename": "frame-006-003.00s.jpg",
+      "time_seconds": 3.0026,
+      "source_frame": 90,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 7,
+      "filename": "frame-007-003.50s.jpg",
+      "time_seconds": 3.502278,
+      "source_frame": 105,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 8,
+      "filename": "frame-008-004.00s.jpg",
+      "time_seconds": 4.0027,
+      "source_frame": 120,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 9,
+      "filename": "frame-009-004.50s.jpg",
+      "time_seconds": 4.502344,
+      "source_frame": 135,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 10,
+      "filename": "frame-010-005.00s.jpg",
+      "time_seconds": 5.002011,
+      "source_frame": 150,
+      "range": 0,
+      "texture": false
+    },
+    {
+      "index": 11,
+      "filename": "frame-011-005.50s.jpg",
+      "time_seconds": 5.501989,
+      "source_frame": 165,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 12,
+      "filename": "frame-012-006.00s.jpg",
+      "time_seconds": 6.002256,
+      "source_frame": 180,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 13,
+      "filename": "frame-013-006.50s.jpg",
+      "time_seconds": 6.502333,
+      "source_frame": 195,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 14,
+      "filename": "frame-014-007.00s.jpg",
+      "time_seconds": 7.002433,
+      "source_frame": 210,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 15,
+      "filename": "frame-015-007.50s.jpg",
+      "time_seconds": 7.502278,
+      "source_frame": 225,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 16,
+      "filename": "frame-016-008.00s.jpg",
+      "time_seconds": 8.002378,
+      "source_frame": 240,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 17,
+      "filename": "frame-017-008.50s.jpg",
+      "time_seconds": 8.501656,
+      "source_frame": 255,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 18,
+      "filename": "frame-018-009.00s.jpg",
+      "time_seconds": 9.002233,
+      "source_frame": 270,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 19,
+      "filename": "frame-019-009.50s.jpg",
+      "time_seconds": 9.501989,
+      "source_frame": 285,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 20,
+      "filename": "frame-020-010.00s.jpg",
+      "time_seconds": 10.001667,
+      "source_frame": 300,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 21,
+      "filename": "frame-021-010.50s.jpg",
+      "time_seconds": 10.501811,
+      "source_frame": 315,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 22,
+      "filename": "frame-022-011.00s.jpg",
+      "time_seconds": 11.001667,
+      "source_frame": 330,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 23,
+      "filename": "frame-023-011.50s.jpg",
+      "time_seconds": 11.501178,
+      "source_frame": 345,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 24,
+      "filename": "frame-024-012.00s.jpg",
+      "time_seconds": 12.000544,
+      "source_frame": 360,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 25,
+      "filename": "frame-025-012.53s.jpg",
+      "time_seconds": 12.532689,
+      "source_frame": 376,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 26,
+      "filename": "frame-026-013.03s.jpg",
+      "time_seconds": 13.028856,
+      "source_frame": 391,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 27,
+      "filename": "frame-027-013.53s.jpg",
+      "time_seconds": 13.528489,
+      "source_frame": 406,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 28,
+      "filename": "frame-028-014.03s.jpg",
+      "time_seconds": 14.028322,
+      "source_frame": 421,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 29,
+      "filename": "frame-029-014.53s.jpg",
+      "time_seconds": 14.5283,
+      "source_frame": 436,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 30,
+      "filename": "frame-030-015.03s.jpg",
+      "time_seconds": 15.031089,
+      "source_frame": 451,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 31,
+      "filename": "frame-031-015.53s.jpg",
+      "time_seconds": 15.529256,
+      "source_frame": 466,
+      "range": 1,
+      "texture": false
+    },
+    {
+      "index": 32,
+      "filename": "frame-032-016.03s.jpg",
+      "time_seconds": 16.027856,
+      "source_frame": 481,
+      "range": 2,
+      "texture": false
+    },
+    {
+      "index": 33,
+      "filename": "frame-033-016.53s.jpg",
+      "time_seconds": 16.527967,
+      "source_frame": 496,
+      "range": 2,
+      "texture": false
+    },
+    {
+      "index": 34,
+      "filename": "frame-034-017.03s.jpg",
+      "time_seconds": 17.027822,
+      "source_frame": 511,
+      "range": 2,
+      "texture": true
+    },
+    {
+      "index": 35,
+      "filename": "frame-035-017.53s.jpg",
+      "time_seconds": 17.527789,
+      "source_frame": 526,
+      "range": 2,
+      "texture": false
+    },
+    {
+      "index": 36,
+      "filename": "frame-036-018.03s.jpg",
+      "time_seconds": 18.0276,
+      "source_frame": 541,
+      "range": 2,
+      "texture": false
+    },
+    {
+      "index": 37,
+      "filename": "frame-037-018.53s.jpg",
+      "time_seconds": 18.531333,
+      "source_frame": 556,
+      "range": 2,
+      "texture": false
+    },
+    {
+      "index": 38,
+      "filename": "frame-038-019.03s.jpg",
+      "time_seconds": 19.032267,
+      "source_frame": 571,
+      "range": 3,
+      "texture": false
+    },
+    {
+      "index": 39,
+      "filename": "frame-039-019.53s.jpg",
+      "time_seconds": 19.531478,
+      "source_frame": 586,
+      "range": 3,
+      "texture": false
+    },
+    {
+      "index": 40,
+      "filename": "frame-040-020.03s.jpg",
+      "time_seconds": 20.030256,
+      "source_frame": 601,
+      "range": 3,
+      "texture": false
+    },
+    {
+      "index": 41,
+      "filename": "frame-041-020.53s.jpg",
+      "time_seconds": 20.527044,
+      "source_frame": 616,
+      "range": 3,
+      "texture": false
+    },
+    {
+      "index": 42,
+      "filename": "frame-042-021.03s.jpg",
+      "time_seconds": 21.029256,
+      "source_frame": 631,
+      "range": 3,
+      "texture": false
+    },
+    {
+      "index": 43,
+      "filename": "frame-043-021.53s.jpg",
+      "time_seconds": 21.531233,
+      "source_frame": 646,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 44,
+      "filename": "frame-044-022.03s.jpg",
+      "time_seconds": 22.029056,
+      "source_frame": 661,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 45,
+      "filename": "frame-045-022.53s.jpg",
+      "time_seconds": 22.529022,
+      "source_frame": 676,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 46,
+      "filename": "frame-046-023.03s.jpg",
+      "time_seconds": 23.027011,
+      "source_frame": 691,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 47,
+      "filename": "frame-047-023.53s.jpg",
+      "time_seconds": 23.526544,
+      "source_frame": 706,
+      "range": 4,
+      "texture": true
+    },
+    {
+      "index": 48,
+      "filename": "frame-048-024.03s.jpg",
+      "time_seconds": 24.026578,
+      "source_frame": 721,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 49,
+      "filename": "frame-049-024.53s.jpg",
+      "time_seconds": 24.529756,
+      "source_frame": 736,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 50,
+      "filename": "frame-050-025.03s.jpg",
+      "time_seconds": 25.029644,
+      "source_frame": 751,
+      "range": 4,
+      "texture": false
+    },
+    {
+      "index": 51,
+      "filename": "frame-051-025.53s.jpg",
+      "time_seconds": 25.529744,
+      "source_frame": 766,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 52,
+      "filename": "frame-052-026.03s.jpg",
+      "time_seconds": 26.030233,
+      "source_frame": 781,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 53,
+      "filename": "frame-053-026.53s.jpg",
+      "time_seconds": 26.5301,
+      "source_frame": 796,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 54,
+      "filename": "frame-054-027.03s.jpg",
+      "time_seconds": 27.029256,
+      "source_frame": 811,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 55,
+      "filename": "frame-055-027.53s.jpg",
+      "time_seconds": 27.531156,
+      "source_frame": 826,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 56,
+      "filename": "frame-056-028.03s.jpg",
+      "time_seconds": 28.032078,
+      "source_frame": 841,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 57,
+      "filename": "frame-057-028.53s.jpg",
+      "time_seconds": 28.5326,
+      "source_frame": 856,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 58,
+      "filename": "frame-058-029.03s.jpg",
+      "time_seconds": 29.032589,
+      "source_frame": 871,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 59,
+      "filename": "frame-059-029.53s.jpg",
+      "time_seconds": 29.532233,
+      "source_frame": 886,
+      "range": 5,
+      "texture": false
+    },
+    {
+      "index": 60,
+      "filename": "frame-060-030.03s.jpg",
+      "time_seconds": 30.031411,
+      "source_frame": 901,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 61,
+      "filename": "frame-061-030.53s.jpg",
+      "time_seconds": 30.531011,
+      "source_frame": 916,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 62,
+      "filename": "frame-062-031.03s.jpg",
+      "time_seconds": 31.031178,
+      "source_frame": 931,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 63,
+      "filename": "frame-063-031.53s.jpg",
+      "time_seconds": 31.5291,
+      "source_frame": 946,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 64,
+      "filename": "frame-064-032.03s.jpg",
+      "time_seconds": 32.028989,
+      "source_frame": 961,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 65,
+      "filename": "frame-065-032.53s.jpg",
+      "time_seconds": 32.529989,
+      "source_frame": 976,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 66,
+      "filename": "frame-066-033.03s.jpg",
+      "time_seconds": 33.030611,
+      "source_frame": 991,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 67,
+      "filename": "frame-067-033.53s.jpg",
+      "time_seconds": 33.530733,
+      "source_frame": 1006,
+      "range": 6,
+      "texture": false
+    },
+    {
+      "index": 68,
+      "filename": "frame-068-034.03s.jpg",
+      "time_seconds": 34.031244,
+      "source_frame": 1021,
+      "range": 6,
+      "texture": false
+    }
+  ]
+}

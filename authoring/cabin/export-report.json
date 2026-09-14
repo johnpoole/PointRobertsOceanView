@@ -1,8 +1,8 @@
 {
   "file": "assets/site/389-cabin.glb",
-  "bytes": 972396,
-  "sha256": "4612753d00b1746419686ca3a9a0e48aa823cc3ccd4ca7781a3e281b5ab4a72f",
-  "sourceSha256": "b21aef3849b47b1e1dd79c2c523bfee658e43b36f29aaa8113dabfe2a323eaf7",
+  "bytes": 2717180,
+  "sha256": "ab265da25a43c5f978adca7397098530f4dfd39ae59f2dd2f5ace7cb87b86564",
+  "sourceSha256": "89faa577d266928dab293956cb96298593b89ec6323597ef89b3746f41f054fe",
   "sourceObjects": [
     "Walls and siding",
     "East passage boards",
@@ -25,10 +25,38 @@
     "Approach concrete treads and landings",
     "Approach risers and paving joints",
     "Approach timber handrails",
-    "Upper west glazing"
+    "Upper west glazing",
+    "Video - shed-side path foundation",
+    "Video - shed-side path video paving",
+    "Video - head junction",
+    "Video - head junction video paving",
+    "Video - widened turn foundation",
+    "Video - widened turn video paving",
+    "Video - bench alcove foundation",
+    "Video - bench alcove video paving",
+    "Video - downhill block border",
+    "Video - upper approach rails",
+    "Video - junction retaining wall",
+    "Video - junction bench",
+    "Video - shed door branch foundation",
+    "Video - shed door branch video paving",
+    "Video - shed plinth",
+    "Video - shed support piers",
+    "Video - shed walls",
+    "Video - shed double doors",
+    "Video - shed door framing",
+    "Video - shed gables",
+    "Video - shed roof",
+    "Video - shed fascia",
+    "Video - shed side steps",
+    "Video - shed branch retaining wall",
+    "Video - garden planting",
+    "Video - garden flowers",
+    "Video - deck table",
+    "Video - deck chairs"
   ],
-  "triangles": 11904,
-  "clearancePolygons": 49,
+  "triangles": 18580,
+  "clearancePolygons": 201,
   "worldOrigin": [
     -34.17,
     0.0,
@@ -76,5 +104,10 @@
       -4.311888008117676
     ]
   ],
-  "blender": "4.5.10 LTS"
+  "blender": "4.5.10 LTS",
+  "materialBatches": 5,
+  "texturedMaterials": [
+    "Video frame 047 - paving surface",
+    "Video frame 034 - weathered shed boards"
+  ]
 }

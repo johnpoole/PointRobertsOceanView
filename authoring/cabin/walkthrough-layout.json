@@ -1,0 +1,92 @@
+{
+  "stations": [
+    [
+      25.7,
+      18.71
+    ],
+    [
+      24,
+      18.54
+    ],
+    [
+      22.5,
+      17.99
+    ],
+    [
+      21.45,
+      17.1
+    ],
+    [
+      20.35,
+      17.1
+    ],
+    [
+      19,
+      15.96
+    ],
+    [
+      17.7,
+      15.23
+    ],
+    [
+      15.5,
+      14.42
+    ],
+    [
+      14.05,
+      13.4632
+    ]
+  ],
+  "pathZ": 8.4,
+  "pathWidth": 1.1,
+  "junctionLevel": 13.4632,
+  "junctionNorth": 5.674413574569685,
+  "headEdge": [
+    [
+      12.455780686141008,
+      4.475314242935307
+    ],
+    [
+      12.409295466422199,
+      5.674413574569685
+    ]
+  ],
+  "shedBase": 17.1,
+  "branchTop": 18.1,
+  "frames": 69,
+  "newObjects": [
+    "Video - shed-side path foundation",
+    "Video - shed-side path video paving",
+    "Video - head junction",
+    "Video - head junction video paving",
+    "Video - widened turn foundation",
+    "Video - widened turn video paving",
+    "Video - bench alcove foundation",
+    "Video - bench alcove video paving",
+    "Video - downhill block border",
+    "Video - upper approach rails",
+    "Video - junction retaining wall",
+    "Video - junction bench",
+    "Video - shed door branch foundation",
+    "Video - shed door branch video paving",
+    "Video - shed plinth",
+    "Video - shed support piers",
+    "Video - shed walls",
+    "Video - shed double doors",
+    "Video - shed door framing",
+    "Video - shed gables",
+    "Video - shed roof",
+    "Video - shed fascia",
+    "Video - shed side steps",
+    "Video - shed branch retaining wall",
+    "Video - garden planting",
+    "Video - garden flowers",
+    "Video - deck table",
+    "Video - deck chairs"
+  ],
+  "texturedFrames": [
+    34,
+    47
+  ],
+  "estimates": "Geographic path, shed dimensions and levels use road/lidar/stair anchors; no camera solve."
+}
