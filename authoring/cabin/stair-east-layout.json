@@ -1,0 +1,33 @@
+{
+  "issue": 100,
+  "photo": "images/20190731_104156.jpg",
+  "stump": {
+    "centre": [
+      5.6,
+      12.16,
+      3.02
+    ],
+    "widthEW": 1.16,
+    "widthNS": 1.55,
+    "height": 1.13
+  },
+  "wallReturn": {
+    "from": [
+      4.65,
+      3.36
+    ],
+    "to": [
+      6.06,
+      4.04
+    ]
+  },
+  "northRail": {
+    "crossOffset": -0.7,
+    "along": [
+      -0.15,
+      2.65
+    ],
+    "height": 0.93
+  },
+  "limits": "Photo-guided root form, short wall return and planting; flight geometry and controls preserved. Scenic soil, not surveyed terrain. Mottled concrete uses vertex colours only."
+}

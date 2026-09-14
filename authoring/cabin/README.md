@@ -10,7 +10,7 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 65 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 69 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
 steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
@@ -175,6 +175,24 @@ The verifier checks the relocated doorway with rays through the GLB, the solid
 apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
+
+Issue #100 uses `images/20190731_104156.jpg`, looking east from the stair base.
+This complementary view replaces the #99 log-like stump with a broad decayed
+remnant: exposed brown core and peeling grey wood, estimated 1.16 x 1.55 m and
+1.13 m high, closer to the stair-side wall end. `refine_stair_east.py` also joins
+the wall end toward the north edge of the flight, fills the over-cut bank lip,
+adds leafy growth and the lower north handrail, and varies the concrete/timber
+finish. It runs once on #99; `stair-east-layout.json` records the estimates.
+
+Concrete faces are subdivided for mottled vertex colour, preserving every tread
+and riser plane. All stair controls and 59 other existing mesh geometries are
+unchanged. The new rail is outside the 1.2 m flight, approximately 0.93 m above
+its pitch. Tests cover three walking lines and headroom across all 19 treads,
+the revised stump location, prior wall/deck/door/tree tests and the full route.
+The existing scenic-bank limitations apply; this is not a survey or camera solve.
+Export: 52,402 triangles, five batches, 6,674,696 bytes and 285 terrain ceilings.
+`render_stair_east.py` and refreshed wall views accompany the new local comparison.
+No new image textures or reference media are embedded or committed.
 
 Issue #99 uses the owner-confirmed wall/hillside evidence in
 `images/PXL_20211108_175012789.jpg`, excluding its historical cabin appearance.

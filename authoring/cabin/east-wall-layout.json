@@ -119,10 +119,10 @@
         12.415715217590332
       ],
       [
-        10.170585632324219,
-        10.171682357788086,
-        10.174976348876953,
-        10.309601783752441,
+        12.190585632324218,
+        12.191682357788086,
+        12.194976348876953,
+        11.39729409144475,
         10.794398307800293,
         11.255390167236328,
         11.782238960266113,
@@ -130,5 +130,6 @@
       ]
     ]
   },
-  "limits": "Photo-guided dimensions and planting; non-walking bank skin is visual geometry, not a new elevation survey. Historical cabin appearance is excluded."
+  "limits": "Photo-guided dimensions and planting; non-walking bank skin is visual geometry, not a new elevation survey. Historical cabin appearance is excluded.",
+  "stairBaseFollowUp": 100
 }

@@ -110,5 +110,11 @@
     "photo": "images/PXL_20211108_175012789.jpg",
     "finding": "Owner confirms wall and hillside accuracy despite historical cabin. Replaced lidar-height towers with complete staggered courses and gentler setback; added local bank soil, sparse brush/grass and pale split stump/root mass. Existing cabin, passage boards and stair meshes preserved.",
     "limits": "Visual estimates: 0.40m blocks, 0.20m courses, 0.025m setback; 8/9/10 courses. Local bank is scenic geometry, not a new survey or fitted walking surface. Inspection camera is approximate."
+  },
+  "stairEastCorrection": {
+    "issue": 100,
+    "photo": "images/20190731_104156.jpg",
+    "finding": "Complementary east-facing stair-base view: broad decayed stump with exposed core instead of upright log; wall return and soil lip adjoining stair; leafy growth and lower north rail; weathered concrete/timber.",
+    "limits": "Photo-guided estimates; original 19 tread/riser planes and stair controls preserved. Bank remains scenic geometry, not surveyed walking terrain. Approximate inspection camera."
   }
 }

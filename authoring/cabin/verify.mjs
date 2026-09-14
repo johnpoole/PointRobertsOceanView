@@ -261,12 +261,23 @@ ray.far=.8;
 assert.equal(ray.intersectObjects(meshes).length,0,'no rail or wall blocks north lower landing into deck');
 const fx=(spec.bottom.lon+123.085318)*111320*Math.cos(48.989009*Math.PI/180);
 const fz=-(spec.bottom.lat-48.989009)*111320, bearing=spec.bearing_deg*Math.PI/180;
+const stairEast=JSON.parse(fs.readFileSync('authoring/cabin/stair-east-layout.json'));
+const stumpCentre=oldCabin.cabinWorld(stairEast.stump.centre[0],stairEast.stump.centre[2]);
+ray.set(new THREE.Vector3(stumpCentre.x,14,stumpCentre.z),down);ray.far=1.3;
+assert.ok(ray.intersectObjects(meshes).some(h=>h.point.y>12.8 && h.point.y<13.4),'broad low stump relocated beside stair base');
 for(let k=0;k<spec.steps;k++) {
   const along=(k+.5)*spec.going_m, x=fx+Math.sin(bearing)*along, z=fz-Math.cos(bearing)*along;
   const y=spec.bottom.ground_m+k*spec.rise_m, ll=fromWorld(x,z);
   ray.set(new THREE.Vector3(x,y+.03,z),down);ray.far=.06;
   assert.ok(ray.intersectObjects(meshes).length,'owner tread present in GLB');
   assert.ok(triangle(ll.lat,ll.lon)<y,'terrain below owner tread');
+  for(const offset of [-.45,0,.45]) {
+    const px=x+Math.cos(bearing)*offset,pz=z+Math.sin(bearing)*offset;
+    ray.set(new THREE.Vector3(px,y+.03,pz),down);ray.far=.06;
+    assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-y)<.00001),'weathering preserves full tread plane');
+    ray.set(new THREE.Vector3(px,y+.025,pz),new THREE.Vector3(0,1,0));ray.far=1.65;
+    assert.equal(ray.intersectObjects(meshes).length,0,'new wall, stump, planting and left rail clear stair corridor');
+  }
 }
 // Walk the complete new path at both sides of a 0.70 m corridor. Check a real
 // surface below and clear space above it, independently of the clearance helper.

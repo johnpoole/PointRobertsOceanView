@@ -549,3 +549,19 @@ Source: cabin.blend, layout: east-wall-layout.json; web: 389-cabin.glb.
 headroom and bank surface/terrain checks, alongside the full stair route and
 prior deck/tree/door checks. Local compare.html and render_east_wall.py show
 the photo and two approximate inspection views. Reference media remain local.
+
+
+## East-facing stair-base photo - issue #100
+
+images/20190731_104156.jpg clarifies a broad decayed stump with exposed core,
+wall return, leafy growth and lower left/north handrail. refine_stair_east.py
+replaces the prior log-shaped stump, fills the over-cut bank lip, adds the
+short wall return and north rail, and weathers the concrete/timber finishes.
+Estimated stump 1.16 x 1.55 x 1.13m; exact shape/location not surveyed.
+Concrete face subdivision only changes colour detail, not tread/riser planes.
+Controls and 59 other existing mesh geometries remain unchanged. Verification
+checks three walking lines/headroom across all 19 treads and the prior full
+route, wall, bank, tree, deck and door constraints. 69 source meshes; export
+52,402 triangles, five batches, 6,674,696 bytes, 285 terrain ceilings.
+stair-east-layout.json records evidence; render_stair_east.py and refreshed
+wall renders appear on local compare.html. Raw images/videos stay out of git.
