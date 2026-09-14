@@ -67,6 +67,7 @@ log = logging.getLogger("proxy")
 from server import blotter  # noqa: E402
 from server import community  # noqa: E402
 from server import pulsepoint  # noqa: E402
+from server import tracks as track_log  # noqa: E402
 # What nobody else keeps. The reason each feed is in there is written down in
 # the module, because the test of whether something belongs is whether it has a
 # history somewhere already.
@@ -198,6 +199,10 @@ COMMUNITY_POLL_SECONDS = 3600
 # catches a call while it is still active without leaning on their server.
 FIRE_PATH = REPO_ROOT / "data" / "fire.json"
 FIRE_POLL_SECONDS = 300
+
+# Where every ship and aircraft was, so the page can run the clock back and see
+# them there. Nothing else keeps it (server/tracks.py).
+tracks = track_log.TrackLog(REPO_ROOT / "data" / "tracks")
 BLOTTER_POLL_SECONDS = 3600
 
 
@@ -933,6 +938,15 @@ def _apply_static_fields(state: dict, src: dict) -> None:
 # AISStream labels StandardClassBPositionReport (18) and
 # ExtendedClassBPositionReport (19). All three carry position, sog, cog, heading;
 # the extended Class B report also carries name/type/dimensions.
+def record_track(kind: str, tid: str, when: datetime | None, state: dict) -> None:
+    """Write a position into the record. A disk that will not take it is said out
+    loud on every position rather than lost quietly."""
+    try:
+        tracks.record(kind, tid, when or utcnow(), state)
+    except RuntimeError as exc:
+        log.error("The %s record: %s", kind, exc)
+
+
 def apply_position_report(msg: dict, kind: str = "PositionReport") -> str | None:
     meta = msg.get("MetaData", {})
     report = msg.get("Message", {}).get(kind, {})
@@ -1114,6 +1128,9 @@ async def ais_task() -> None:
                                           "ExtendedClassBPositionReport")
                     if positioned:
                         mmsi = apply_position_report(msg, kind)
+                        if mmsi:
+                            record_track("vessels", mmsi, world.vessel_seen.get(mmsi),
+                                         world.vessels[mmsi])
                     elif kind == "ShipStaticData":
                         mmsi = apply_static_data(msg)
                     else:
@@ -1425,6 +1442,7 @@ async def aircraft_task() -> None:
                         state["also_from"] = "adsbdb.com"
                     world.aircraft[icao] = state
                     world.aircraft_seen[icao] = now
+                    record_track("aircraft", icao, now, state)
                     await clients.broadcast(envelope(
                         "aircraft.state", ADSB_SOURCE, now, state,
                         STALE_SECONDS["aircraft"]))
@@ -1782,6 +1800,7 @@ async def shipfinder_task() -> None:
                                              "beam": known["width_m"]}
             apply_ferry(state, world.ferry_sailings)
             world.vessel_seen[key] = seen_at
+            record_track("vessels", key, seen_at, state)
 
         # Only ours. An AIS vessel that came back to life is not this task's to
         # throw away.
@@ -2196,6 +2215,21 @@ async def api_places() -> JSONResponse:
             detail=f"assets/places.json could not be read ({exc}). Build it with "
                    f"python scripts/build_places.py.") from exc
     return JSONResponse(json.loads(body), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/tracks")
+async def api_tracks(kind: str, start: str, end: str) -> JSONResponse:
+    """Where every ship or every aircraft was between two times, from the record
+    the server keeps. At most three hours at a time. Times are ISO 8601."""
+    try:
+        began = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        ended = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if began.tzinfo is None or ended.tzinfo is None:
+            raise ValueError("start and end need a timezone, such as Z")
+        body = tracks.window(kind, began, ended)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return JSONResponse(body, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/admin/visitors", response_class=HTMLResponse)

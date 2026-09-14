@@ -38,6 +38,7 @@ import { buildNovel } from "./scene/novel.js";
 import { buildBlotter } from "./scene/blotter.js";
 import { buildPins } from "./scene/pins.js";
 import { preload as preloadFigures } from "./scene/figures.js";
+import { Replay } from "./replay.js";
 import { obsoleteMarinaBlock } from "./scene/marina-layout.js";
 import { buildReefArea } from "./scene/reef-area.js";
 import { isReefBuilding } from "./scene/reef-plan.js";
@@ -646,16 +647,26 @@ const sceneClock = new ClockControl({
     weather.apply(weatherAt() || {});
     hud.update(feed, { tide: tideShown(), weather: weatherAt(), current: currentAt() });
   },
-  onPast: (past) => {
-    vessels.setVisible(!past);
-    aircraft.setVisible(!past);
-  },
 });
 
 // Kept as a function because the novel's route and #hour= both
 // move the hour and none of them should have to know about the control.
 function setClockOffset(hours) {
   sceneClock.setHour(hours);
+}
+
+// Ships and aircraft at the moment the scene stands at. On the real clock they
+// are the live feed. Behind it they are the record the server keeps, moving
+// between the positions it wrote down, and a moment nothing was written for has
+// nobody in it rather than today's traffic.
+const replay = new Replay();
+const REPLAY_BEHIND_S = 60;
+
+function trafficAt() {
+  const when = sceneNow();
+  if (Date.now() - when.getTime() < REPLAY_BEHIND_S * 1000) return feed;
+  replay.ensure(when);
+  return replay.feedAt(when);
 }
 
 function onPastDay() {
@@ -2305,10 +2316,11 @@ function frame() {
   sky.setTime(t + offsetHours() * 3600);
   // Ships light up as the sun goes down, and so does the point.
   const night = 1 - weather.dayFactor;
-  vessels.update(feed, level, t, camera, night);
+  const traffic = trafficAt();
+  vessels.update(traffic, level, t, camera, night);
   if (lighthouse) lighthouse.update(t, night);
   if (pavilion) pavilion.update(night);
-  aircraft.update(feed, t, camera);
+  aircraft.update(traffic, t, camera);
   updateHover();
   selection.update(t);
   tracks.update(t);

@@ -10,14 +10,10 @@
 
 import { setOffsetHours, sceneNow } from "./clock.js";
 
-// What cannot be rewound. Ships and aircraft are live positions off a live
-// feed and there is no archive to run them back to — the free AIS and ADS-B
-// feeds carry now and nothing else. The club's sheet shows today. Rather than
-// leave today's traffic standing in a scene from last month, they go, and the
-// page says which.
+// What cannot be rewound. The club's sheet shows today and nothing else. Ships
+// and aircraft are replayed from what the server has written down.
 export const GONE_ON_A_PAST_DAY =
-  "ships, aircraft and the golf sheet are live and have no archive, so they are "
-  + "not shown on a past day";
+  "No golfers on a past day. The ships and aircraft go back to 13 September 2026.";
 
 // Midnight to midnight on the calendar, so dragging the sun across midnight
 // does not quietly change the day under the date box.
@@ -61,19 +57,15 @@ export function hourFromHash(hash, now = new Date()) {
 
 export class ClockControl {
   // onChange runs after every move, for everything that reads the clock.
-  // onPast(past) runs when the page crosses into or out of a past day, for the
-  // layers that have to go.
-  constructor({ onChange, onPast }) {
+  constructor({ onChange }) {
     this.range = document.getElementById("clock-range");
     this.value = document.getElementById("clock-value");
     this.date = document.getElementById("clock-date");
     this.note = document.getElementById("past-note");
     this.onChange = onChange;
-    this.onPast = onPast;
 
     this.hourShift = 0;    // what the slider holds, in hours
     this.dayShift = 0;     // whole days back. Never above zero.
-    this.wasPast = false;
 
     this.range.addEventListener("input",
       () => this.setHour(Number(this.range.value) / 60));
@@ -125,10 +117,6 @@ export class ClockControl {
     const past = this.past;
     this.note.textContent = past ? GONE_ON_A_PAST_DAY : "";
     this.note.classList.toggle("hidden", !past);
-    if (past !== this.wasPast) {
-      this.wasPast = past;
-      this.onPast(past);
-    }
     this.onChange();
   }
 }

@@ -52,6 +52,9 @@ the list of what those coordinates are.
 
 - [/api/state](/api/state): what every feed is saying right now, as one GET. The
   same structure the page receives when it connects.
+- [/api/tracks](/api/tracks): where every ship (`kind=vessels`) or aircraft
+  (`kind=aircraft`) was between `start` and `end`, ISO times, at most three hours,
+  from the record the server keeps.
 - [/openapi.json](/openapi.json) and [/docs](/docs): the HTTP surface.
 - `ws://<host>/ws/live`: the live feed. A snapshot on connect, then one message
   per reading as it arrives. A browser drawing at sixty frames a second wants
@@ -96,8 +99,8 @@ says so; it never shows its last good numbers as current.
 Tide and weather carry a baked forecast run beside the present reading, so
 moving the clock reads the water and the sky at that hour rather than showing
 the present one under a different sun. Past the end of the run it says it does
-not know. Ships and aircraft are live positions with no archive anywhere, so
-they are not shown on a past day at all.
+not know. Ships and aircraft are written down as they arrive, from 13 September
+2026, and moving the clock back replays them from that record.
 
 ## At the keyboard
 
