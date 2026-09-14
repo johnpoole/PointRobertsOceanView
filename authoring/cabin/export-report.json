@@ -1,0 +1,80 @@
+{
+  "file": "assets/site/389-cabin.glb",
+  "bytes": 972396,
+  "sha256": "4612753d00b1746419686ca3a9a0e48aa823cc3ccd4ca7781a3e281b5ab4a72f",
+  "sourceSha256": "b21aef3849b47b1e1dd79c2c523bfee658e43b36f29aaa8113dabfe2a323eaf7",
+  "sourceObjects": [
+    "Walls and siding",
+    "East passage boards",
+    "East retaining blocks",
+    "Deck posts beams and braces",
+    "Lower west glazing",
+    "Notch entrance doors",
+    "North window",
+    "South picture window",
+    "Lower south window",
+    "Roof shell",
+    "Standing seams",
+    "Fascia and open soffits",
+    "Brick chimney",
+    "Upper deck and wire rails",
+    "Lower deck and lattice",
+    "Lower south concrete flight",
+    "South landings and upper flight",
+    "North landings and timber flight",
+    "Approach concrete treads and landings",
+    "Approach risers and paving joints",
+    "Approach timber handrails",
+    "Upper west glazing"
+  ],
+  "triangles": 11904,
+  "clearancePolygons": 49,
+  "worldOrigin": [
+    -34.17,
+    0.0,
+    -7.03
+  ],
+  "stair": {
+    "what": "the concrete stair east of the house, as one average step",
+    "where_it_stands": "John, 2026-08-14. The bottom step is level with the floor of the upper level, 10.45 m. The north edge of the flight is in line with the south edge of the roof, which is John's setting and is not to be disturbed. The foot sits 1.44 m further up the flight than he first had it.",
+    "how_that_was_applied": "cabin.js puts the roof at (-34.17, -7.03) turned 18.2 deg, 8.17 m across the ridge by 8.49 along, eaves included. Its south edge runs from world (-36.72, -1.72) to (-28.96, -4.28) and the flight's north edge lies on that line, extended east, to under a millimetre. It had crept 1.052 m south of it: 0.08 m from sliding the foot down a flight whose bearing is 2.3 deg off the roof edge, and 0.99 m from moving it 3.60 m due east when the flight runs at 74 deg, so a sixth of that move went sideways. Corrected across the flight's own axis, which leaves the foot where it was along the line. Any move along the flight must be along 74 deg, not along a compass point, or it walks off the roof line again.",
+    "what_is_left_of_the_photograph_fit": "nothing. It fixed how far along the flight the foot sat, and the foot is John's now. The bearing, the placement across the flight, the tread and the rise are all John's, or solved against the ground from them.",
+    "measured": "off assets/reference/front_door-20260812T203304Z.png, 2026-08-12",
+    "not_measured": "the width, taken as 1.2 m, and the difference between one step and the next, which John says is real and this does not know",
+    "steps_and_tread_are_John's": "nineteen steps, tread about ten inches. Those two were never fitted.",
+    "checks": {
+      "slope_deg": 33.4,
+      "riser_in": 6.59,
+      "tread_in": 10,
+      "run_m": 4.57,
+      "total_rise_m": 3.01,
+      "top_m_mllw": 13.46,
+      "deepest_cut_m": 2.2
+    },
+    "bottom": {
+      "lat": 48.98904860000051,
+      "lon": -123.08568299999814,
+      "ground_m": 10.449999809265137
+    },
+    "bearing_deg": 73.99999998533572,
+    "steps": 19,
+    "going_m": 0.2539999958112944,
+    "rise_m": 0.16739998923407662,
+    "width_m": 1.2000003209692813,
+    "the_slope": "The tread is John's ten inches. The rise was solved to land the top step on the ground when the foot stood 3.60 m west of here, and it was kept when the flight moved east. 33.4 deg, a 6.6 in riser on a 10 in tread.",
+    "the_ground_is_cut_for_it": "John, 2026-08-14: the bank is cut away there, and the stairs are above the ground. It is not in the bake \u2014 the lidar cells are 1.14 m and the flight is 1.2 m wide, so a cut this narrow is smoothed out and the bake runs a bank across it. Against that bake the whole flight sits under the ground, 2.20 m at the foot and 1.02 m at the head. stairCarve puts the cut back, and three numbers in stair.js say how far: 0.15 m under the treads so the risers show, 1.2 m out past each edge of the flight at full depth and 2.5 m more to climb back to the bake, and 3.6 m back past the foot, which is the ground you cross from the house to reach a bottom step that is level with the floor. The first two are eyeballed off the photograph and the third is where the bake falls back to the foot's own height. It only cuts, never fills."
+  },
+  "entrance": [
+    [
+      -28.943346424102785,
+      10.449999809265137,
+      -5.176263122558594
+    ],
+    [
+      -28.658818645477297,
+      10.449999809265137,
+      -4.311888008117676
+    ]
+  ],
+  "blender": "4.5.10 LTS"
+}

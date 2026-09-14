@@ -25,6 +25,7 @@ import { buildPeople } from "./scene/people.js";
 import { VisitorList, visitorView } from "./visitors.js";
 import { travelPresence } from "./presence.js";
 import { buildCabin, cabinCarve, cabinApproachEdge } from "./scene/cabin.js";
+import { loadCabinAsset } from "./scene/cabin-asset.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
 import { buildMarinaArea } from "./scene/marina-area.js";
@@ -346,19 +347,24 @@ const stairSpec = fetch(SITE_STAIR)
   .then((r) => r.json())
   .catch((err) => { failed("the stair east of the house", err); return null; });
 
-stairSpec
-  .then((stair) => buildTerrain(scene, TERRAIN.fine,
+Promise.all([stairSpec, loadCabinAsset().catch(err => {
+  failed("the Blender cabin model (using the procedural fallback)", err);
+  return null;
+})])
+  .then(([stair, cabinAsset]) => buildTerrain(scene, TERRAIN.fine,
       { haze: 0, fog: true, landcover: LANDCOVER, projector: true, refine: 4, preserveSurvey: true,
         carveForGrid: (diagonal) => {
+          if (cabinAsset) return cabinAsset.carve(diagonal);
           const cabinCut = cabinCarve(diagonal);
           const uphillCut = stair ? stairCarve(stair, diagonal, cabinApproachEdge()) : (lat, lon, y) => y;
           return (lat, lon, y) => cabinCut(lat, lon, uphillCut(lat, lon, y));
         } })
-    .then((fine) => ({ stair, fine })))
-  .then(({ stair, fine }) => {
+    .then((fine) => ({ stair, cabinAsset, fine })))
+  .then(({ stair, cabinAsset, fine }) => {
     const covers = fineCovers(fine);
     return Promise.all([
       stair,
+      cabinAsset,
       fine,
       covers,
       buildTerrain(scene, TERRAIN.near,
@@ -376,7 +382,7 @@ stairSpec
       }),
     ]);
   })
-  .then(([stair, fine, covers, near, osm, siteTrees, siteBoulders, siteShrubs,
+  .then(([stair, cabinAsset, fine, covers, near, osm, siteTrees, siteBoulders, siteShrubs,
           siteTerraces, parcel]) => {
     // Everything standing on the ground asks one sampler, and it answers off the
     // lidar where the lidar reaches. Otherwise the cabin would sit on CUDEM while
@@ -404,12 +410,13 @@ stairSpec
     people = buildPeople(scene, near.sample);
     // The Breakers block is drawn on its own so the clubhouse can stand in for it
     // while the courts are up.
-    // The cabin is modelled off photographs rather than extruded from its OSM
-    // trace, so land.js leaves the home alone and cabin.js puts it there.
-    buildCabin(scene, near.sample, fine.surveySample);
-    // Drawn as steps because the terrain cannot hold them, and standing in the
-    // channel stairCarve cut for it above: see stair.js.
-    if (stair) buildStair(scene, stair, near.projector, cabinApproachEdge());
+    // The editable Blender model includes both the cabin and approach stair.
+    // Keep the legacy builder only as a recovery path if the asset fails.
+    if (cabinAsset) cabinAsset.addTo(scene, near.projector);
+    else {
+      buildCabin(scene, near.sample, fine.surveySample);
+      if (stair) buildStair(scene, stair, near.projector, cabinApproachEdge());
+    }
     lighthouse = buildLighthouse(scene, near.sample);
     marina = buildMarinaArea(scene, near.sample);
     marinaLot = buildMarinaLot(scene, near.sample);

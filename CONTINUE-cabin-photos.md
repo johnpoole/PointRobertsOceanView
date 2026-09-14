@@ -375,3 +375,33 @@ This completes the supported final-flight connection, handrail and head-landing
 correction. The full road/shed path and retaining junction need geographic/level
 anchors before extending the model uphill. The north-side landing/stair defects
 are not shown by this video and remain open in #42, as do exact dimensions.
+
+## Blender source and north access - issues #89 and #42
+
+The editable source is now authoring/cabin/cabin.blend (Blender 4.5 LTS), with
+22 named model meshes, original/cleared terrain references, 12 local photos,
+69 walkthrough frames, four contact sheets and six comparison/inspection cameras.
+See authoring/cabin/README.md for axes, controls and the edit/export workflow.
+The saved comparison cameras are not solved photo origins.
+
+The north landing now runs against the north wall at 10.45 m MLLW, with nine
+estimated timber steps descending west to a 0.91 m landing at 8.55 m that meets
+the lower deck. Rails connect to both landings. New clearances cover both plates
+and the relocated treads. Dimensions remain photo estimates.
+
+The web loads assets/site/389-cabin.glb: 11,904 triangles in three material
+batches, 972,396 bytes. Its 49 terrain-ceiling polygons, approach controls and
+source hash travel inside the same file as the geometry. Original JS geometry
+is a load-failure fallback only. Export merges copies; the .blend stays editable.
+
+Validation uses the app's actual Three r186 GLTFLoader, checks source/export
+hashes, colours and geographic placement, 50,048 actual terrain-triangle/sampler
+clearances, the north landing/stair/deck connection and all 19 approach treads.
+Existing roof-notch, south-stair, approach-landing and clearance checks pass.
+Blender inspection renders were reviewed from southeast, north and southwest.
+All 85 external reference images resolve locally and are excluded from the GLB.
+
+This completes the Blender conversion and north connection correction, not the
+entire road-to-cabin reconstruction. The upper road/shed path and remaining
+photo reconciliation stay open in #42. Having all frames available in Blender
+must not be reported as having used every frame to correct geometry.

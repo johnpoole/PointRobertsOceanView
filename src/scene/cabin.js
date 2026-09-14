@@ -73,7 +73,7 @@ import { fromWorld, toWorld } from "../geo.js";
 import { box, gableRoof, tint } from "./parts.js";
 import { cutRoofNotch, notchedStorey } from "./roof-notch.js";
 import { groundClearance } from "./ground-clearance.js";
-import { southStairPlan } from "./cabin-stairs-plan.js";
+import { southStairPlan, northStairPlan } from "./cabin-stairs-plan.js";
 
 // World metres. The centre of the roof the lidar measured, and how far the
 // building is turned, which the lidar could not measure and the footprint did.
@@ -146,18 +146,15 @@ const { x: SOUTH_UPPER_U, width: SOUTH_UPPER_W, rise: SOUTH_UPPER_RISER,
 // The stair down the north side runs between the two decks: off the top one and
 // down to the lower one. It does not go on to the ground. Like the timber flight
 // it has as many risers as the drop takes rather than a fixed count.
-const NORTH_RISER = 0.21;
-const NORTH_STEPS = Math.round((UPPER_FLOOR - LOWER_FLOOR) / NORTH_RISER);
-const NORTH_W = 0.91;        // three feet
-const NORTH_GOING = 0.28;
+const NORTH = northStairPlan({ halfW: W / 2, halfL: L / 2, lowerFloor: LOWER_FLOOR, upperFloor: UPPER_FLOOR });
+const NORTH_STEPS = NORTH.steps;
+const NORTH_W = NORTH.width;
+const NORTH_GOING = NORTH.going;
 const NORTH_TREAD = 0.05;
-// It descends west, away from the house, and its foot lands on the west edge of
-// the lower deck. That fixes where the head is rather than leaving it to be
-// picked: the run is the going times the risers, measured back from the edge.
-const NORTH_FOOT_U = -(W / 2) - LOWER_DECK_OUT;
-const NORTH_HEAD_U = NORTH_FOOT_U + (NORTH_STEPS - 1) * NORTH_GOING;
-// Its middle, out from the north wall far enough to clear the eave.
-const NORTH_V = -(L / 2) - 0.9;
+// Descend west along the north wall between the two boarded landings.
+const NORTH_HEAD_U = NORTH.head - NORTH_GOING / 2;
+// The inner tread edge meets the wall, beneath the deep eave.
+const NORTH_V = NORTH.z;
 
 const SEAM_SPACING = 0.55;   // standing seam, near enough off the roof photograph
 const CHIMNEY_W = 0.85;
@@ -256,6 +253,8 @@ export function cabinGroundSurfaces() {
       z - SOUTH_UPPER_GOING / 2, z + SOUTH_UPPER_GOING / 2, top - SOUTH_UPPER_RISER - 0.20);
   }
   const northRise = (UPPER_FLOOR - LOWER_FLOOR) / NORTH_STEPS;
+  add(NORTH.top, UPPER_FLOOR - 0.14);
+  add(NORTH.bottom, LOWER_FLOOR - 0.14);
   for (let k = 0; k < NORTH_STEPS; k++) {
     const x = NORTH_HEAD_U - k * NORTH_GOING, top = UPPER_FLOOR - (k + 1) * northRise;
     rectangle(x - (NORTH_GOING + 0.03) / 2, x + (NORTH_GOING + 0.03) / 2,
@@ -271,6 +270,15 @@ export function cabinCarve(gridDiagonal) {
     const p = toWorld(lat, lon), dx = p.x - AT.x, dz = p.z - AT.z;
     return carve(dx * c - dz * s, dx * s + dz * c, height);
   };
+}
+
+export function cabinWorld(x, z) {
+  return { x: AT.x + x * Math.cos(YAW) + z * Math.sin(YAW),
+    z: AT.z - x * Math.sin(YAW) + z * Math.cos(YAW) };
+}
+export function cabinLocal(x, z) {
+  const dx = x - AT.x, dz = z - AT.z;
+  return { x: dx * Math.cos(YAW) - dz * Math.sin(YAW), z: dx * Math.sin(YAW) + dz * Math.cos(YAW) };
 }
 
 // Open east side of the existing upper entrance landing. The uphill flight
@@ -740,11 +748,29 @@ export function buildCabin(scene, sample, bankSample = sample) {
     place(parts, box(0.1, 0.1, RAIL_H, x, floor, z, DECK_TIMBER));
   }
 
-  // The stair down the north side, off the top deck to the lower one. Open
-  // treads on stringers, three feet wide, running west out to the edge of the
-  // lower deck, with a handrail on the outer side. The photographs show no rail
-  // on the house side, and there is a wall there.
+  // North access in PXL_20250517_150947629.MP: boarded landing along the wall,
+  // timber flight descending west, outer rail. Lengths remain photo estimates.
   const northRise = (UPPER_FLOOR - LOWER_FLOOR) / NORTH_STEPS;
+  // Boarded landing flush against the wall, with a full-width lower landing
+  // opening sideways into the lower deck. No floating end or lateral gap.
+  for (const [poly, floor] of [[NORTH.top, UPPER_FLOOR], [NORTH.bottom, LOWER_FLOOR]]) {
+    const x0 = poly[0][0], x1 = poly[1][0], count = Math.ceil((x1 - x0) / 0.145);
+    for (let k = 0; k < count; k++) {
+      place(parts, box((x1 - x0) / count - 0.003, NORTH_W, 0.14,
+        x0 + (k + 0.5) * (x1 - x0) / count, floor - 0.14, NORTH_V, DECK_TIMBER));
+    }
+    for (const x of [x0 + 0.08, (x0 + x1) / 2, x1 - 0.08]) {
+      for (const z of [-hl - 0.08, -hl - NORTH_W + 0.08]) {
+        const base = Math.min(floor - 0.14, groundLocal(x, z) - 0.12);
+        place(parts, box(0.12, 0.12, floor - 0.14 - base, x, base, z, DECK_TIMBER));
+      }
+    }
+    // Leave the uphill last 0.91 m open to the bank approach.
+    const railEnd = floor === UPPER_FLOOR ? x1 - NORTH_W : x1;
+    for (const h of [0.55, RAIL_H]) place(parts, member([x0, floor + h, -hl - NORTH_W],
+      [railEnd, floor + h, -hl - NORTH_W], 0.09, 0.14, DECK_TIMBER));
+    for (const x of [x0, railEnd]) place(parts, box(0.1, 0.1, RAIL_H + 0.05, x, floor, -hl - NORTH_W, DECK_TIMBER));
+  }
   const northU = (k) => NORTH_HEAD_U - k * NORTH_GOING;
   for (let k = 0; k < NORTH_STEPS; k++) {
     const y = UPPER_FLOOR - (k + 1) * northRise;
@@ -752,22 +778,16 @@ export function buildCabin(scene, sample, bankSample = sample) {
                      northU(k), y - NORTH_TREAD, NORTH_V, DECK_TIMBER));
   }
   // The two stringers the treads sit on, raked to the pitch.
-  const northRake = Math.atan2(northRise, NORTH_GOING);
-  const northRun = (NORTH_STEPS - 1) * NORTH_GOING;
-  const northDrop = (NORTH_STEPS - 1) * northRise;
-  const northBar = (v, y0, thick) => {
-    const g = new THREE.BoxGeometry(Math.hypot(northRun, northDrop), thick, thick);
-    g.rotateZ(northRake);
-    g.translate(NORTH_HEAD_U - northRun / 2, y0 - northDrop / 2, v);
-    place(parts, tint(g, DECK_TIMBER));
-  };
+  const northBar = (v, offset, thick) => place(parts, member(
+    [NORTH.head, UPPER_FLOOR + offset, v],
+    [NORTH.foot, LOWER_FLOOR + offset, v], thick, thick, DECK_TIMBER));
   for (const s of [-1, 1]) {
-    northBar(NORTH_V + s * (NORTH_W / 2), UPPER_FLOOR - northRise - 0.14, 0.14);
+    northBar(NORTH_V + s * (NORTH_W / 2), -northRise - 0.14, 0.14);
   }
   // The handrail, on the outer side. North is -v, so that is the low side.
   const railV = NORTH_V - NORTH_W / 2;
-  northBar(railV, UPPER_FLOOR - northRise + RAIL_H, 0.09);
-  northBar(railV, UPPER_FLOOR - northRise + RAIL_H * 0.55, 0.09);
+  northBar(railV, RAIL_H, 0.09);
+  northBar(railV, 0.55, 0.09);
   for (let k = 0; k < NORTH_STEPS; k += 3) {
     place(parts, box(0.09, 0.09, RAIL_H, northU(k),
                      UPPER_FLOOR - (k + 1) * northRise, railV, DECK_TIMBER));

@@ -16,3 +16,15 @@ export function southStairPlan({ halfW, halfL, lowerFloor, upperFloor, southEnd,
   const topLanding = [[halfW, halfL], [right, halfL], [right, upper.head], [halfW, upper.head]];
   return { lower, upper, landing, topLanding, lowerFloor, upperFloor };
 }
+
+// May 2025 north photo: a landing beside the wall, then a westward descent.
+// Width/run are estimates; joins and storey levels are shared constraints.
+export function northStairPlan({ halfW, halfL, lowerFloor, upperFloor }) {
+  const width = 0.91, going = 0.28, steps = 9;
+  const head = -halfW + 1.20, foot = head - steps * going;
+  const z = -halfL - width / 2;
+  const rectangle = (a, b) => [[a, -halfL], [b, -halfL], [b, -halfL - width], [a, -halfL - width]];
+  return { width, going, steps, head, foot, z, rise: (upperFloor - lowerFloor) / steps,
+    top: rectangle(head, halfW), bottom: rectangle(foot - width, foot),
+    lowerFloor, upperFloor };
+}
