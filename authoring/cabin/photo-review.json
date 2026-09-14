@@ -123,5 +123,20 @@
     "evidence": "20190731_104156; PXL_20211108_174949325.MP, 175009151 and 175012789; PXL_20260808_202937782.MP; video 051-068 for descent only (ends above landing).",
     "validation": "318 connected entrance samples plus existing route/tread, door/deck/tree, wall and terrain tests. Retained model geometries and controls unchanged.",
     "limits": "Bank grade between wall and survey remains estimated. No reconstructed photo camera; no overhead photo required."
+  },
+  "pavedLandingCorrection": {
+    "issue": 101,
+    "ownerConfirmation": "A level ground/paved area connects the concrete stairs and wooden deck",
+    "changes": [
+      "Wider paved landing replaces the narrow diagonal connector",
+      "Level connector handrails removed; stair rails terminate at the flight",
+      "Solid subgrade beneath paving meets terrain beside the descending beach flight"
+    ],
+    "evidence": [
+      "images/PXL_20211108_174949325.MP.jpg",
+      "images/Photos-1-001/PXL_20211108_175009151.jpg",
+      "images/20190731_104156.jpg"
+    ],
+    "limits": "Ground/paved connection confirmed; perimeter dimensions remain estimates. Existing nineteen tread positions remain earlier owner controls."
   }
 }

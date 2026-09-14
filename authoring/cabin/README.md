@@ -10,7 +10,7 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 63 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 65 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
 steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
@@ -47,6 +47,17 @@ poses; the supplied north view is explicitly higher than its photo. Historical
 2017/2021 roof covering does not replace the current standing-seam roof.
 
 ## Edit and publish
+
+Issue #101 was reopened: its first change altered the adjacent terrain while
+leaving the rejected stair/landing connector intact. The owner subsequently
+confirmed a level ground/paved area between the concrete flight and wooden deck.
+`correct_paved_landing.py` replaces the narrow diagonal bridge with a wider court,
+removes its two level rails, and adds solid ground beneath the paving where the
+neighbouring descending stair's terrain clearance cuts below it. The matching
+clearance and grade travel with the GLB. Original meshes are archived outside
+MODEL. The nineteen approach treads retain their earlier owner controls; the
+landing perimeter is estimated, and this change does not claim a measured fit.
+The comparison starts with the previous and revised geometry at the same camera.
 
 1. Edit named meshes in **MODEL**. Preserve the mapped roof/upper-storey notch,
    measured roof slopes and levels, and owner-positioned 19-step approach unless

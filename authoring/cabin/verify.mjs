@@ -359,5 +359,20 @@ for(const path of entranceLayout.routes)for(let i=1;i<path.length;i++) {
  }
 }
 console.log('PASS connected entrance:',entranceSamples,'floor/headroom/terrain samples');
+// Owner-confirmed ground/paved area: these probes extend south beyond the
+// rejected diagonal bridge and pass through its former level handrail.
+assert.ok(exportedNames.includes('Entrance ground paving'),'authored paved landing exported');
+assert.ok(exportedNames.includes('Entrance compacted ground'),'solid landing subgrade exported');
+for(const [x,z] of [[4.85,5.12],[5.2,5.12],[5.7,5.12],[5.05,4.65],[5.5,4.95]]) {
+ const w=oldCabin.cabinWorld(x,z),ll=fromWorld(w.x,w.z);
+ ray.set(new THREE.Vector3(w.x,10.48,w.z),down);ray.far=.06;
+ assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.001),'widened paved landing floor');
+ ray.set(new THREE.Vector3(w.x,10.48,w.z),new THREE.Vector3(0,1,0));ray.far=1.5;
+ assert.equal(ray.intersectObjects(meshes).length,0,'former connector rail no longer crosses landing');
+ const ground=terrain.sample(ll.lat,ll.lon);
+ assert.ok(ground<10.31&&ground>7.9,'subgrade bottom stays buried and terrain stays below paving');
+ ray.set(new THREE.Vector3(w.x,10.29,w.z),down);ray.far=.025;
+ assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.28)<.001),'continuous subgrade meets paving underside');
+}
 fs.writeFileSync('data/cabin-blender/current-terrain.json',JSON.stringify({assetSha256:report.sha256,grid:g,heights:Array.from(terrain.heights)}));
 console.log(`PASS: Three r${THREE.REVISION}, ${report.triangles} triangles, ${meshes.length} batches; source hash, frame texture decoding, ${samples} terrain checks, ${routeSamples} full-route walking/headroom samples, measured tree clearance, north connection and all 19 approach treads.`);

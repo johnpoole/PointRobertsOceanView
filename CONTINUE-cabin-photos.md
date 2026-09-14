@@ -586,3 +586,5 @@ all prior route/tread/door/deck/tree tests. Export: 46,717 triangles, five
 batches, 6,079,552 bytes, 173 ceilings. render_entrance.py adds two connected
 views at the top of local compare.html; earlier wall/stair views refreshed.
 Reference photos and videos remain local.
+
+Follow-up to #101: owner rejected the terrain-only completion and confirmed a level ground/paved area between the road stairs and wooden deck. correct_paved_landing.py changes the actual landing footprint and handrail termination, replacing the narrow railed bridge. Added solid subgrade where clearance for the adjacent descending beach stair lowers terrain. The comparison begins with identical-camera before/after renders. Original nineteen tread locations/count/going remain previous owner controls; landing perimeter is still a photo-based estimate. Issue reopened; do not treat traversal checks as proof of photographic accuracy.

@@ -1,8 +1,8 @@
 {
   "file": "assets/site/389-cabin.glb",
-  "bytes": 6079552,
-  "sha256": "824ef4ef70304306855446eb4a3e87daa506431422a5b759b860764b3afc0927",
-  "sourceSha256": "26c66ff7d3e772ed7bc304e6fd9002e00b0d7d97b6b43f6e865bfbd3b0aa7b79",
+  "bytes": 6050748,
+  "sha256": "c0fda430c34a5929702ddd194f894f05ffd147411eca34954d282e8bdca8677f",
+  "sourceSha256": "8af4e9bf8ba95180a953ee31c90e152759c0c19445fa430db1bb967fc8cb1775",
   "sourceObjects": [
     "Walls and siding",
     "East passage boards",
@@ -66,9 +66,11 @@
     "East retaining blocks",
     "Photo - east wall weathering",
     "Photo - east bank stump",
-    "Photo - lower north stair rail"
+    "Photo - lower north stair rail",
+    "Entrance ground paving",
+    "Entrance compacted ground"
   ],
-  "triangles": 46717,
+  "triangles": 46505,
   "clearancePolygons": 173,
   "worldOrigin": [
     -34.17,

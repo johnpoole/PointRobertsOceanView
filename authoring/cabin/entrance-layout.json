@@ -67,6 +67,28 @@
         3.81,
         1.8
       ]
+    ],
+    [
+      [
+        5.7,
+        4.85
+      ],
+      [
+        5.1,
+        4.85
+      ],
+      [
+        4.9,
+        4.7
+      ],
+      [
+        4.9,
+        3.85
+      ],
+      [
+        3.8,
+        3.85
+      ]
     ]
   ],
   "bank": {
@@ -123,5 +145,38 @@
       ]
     ]
   },
-  "limits": "Ground-photo topology and existing anchors retained. Bank grade between wall and survey is estimated; no new survey or recovered camera pose. Landing connections were already level; removed unsupported scenic solids rather than relocating confirmed stairs."
+  "limits": "Ground/paved landing connection confirmed by owner. Landing perimeter and bank grade are estimates; stair count, going and existing location remain the earlier owner controls.",
+  "pavedLanding": {
+    "ownerConfirmation": "A level ground/paved area connects them",
+    "outline": [
+      [
+        4.385,
+        3.395
+      ],
+      [
+        4.9,
+        3.395
+      ],
+      [
+        6.334378242492676,
+        4.238007545471191
+      ],
+      [
+        6.287893295288086,
+        5.437106609344482
+      ],
+      [
+        4.385,
+        5.437106609344482
+      ]
+    ],
+    "surface": 10.45,
+    "base": 10.28,
+    "changed": [
+      "Broadened landing footprint south of the former diagonal connector",
+      "Removed the two level connector handrails; rails now end at the concrete flight",
+      "Terrain and solid subgrade support the paving instead of a raised bridge"
+    ],
+    "limits": "The ground/paved connection is owner-confirmed; outline dimensions remain photo-based estimates. No new measurement relocates the 19-step flight."
+  }
 }
