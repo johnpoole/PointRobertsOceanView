@@ -10,7 +10,7 @@ Open the source with Blender 4.5 LTS. This machine has a verified portable copy:
 & 'data/tools/blender-4.5.10-windows-x64/blender.exe' 'authoring/cabin/cabin.blend'
 ```
 
-The **MODEL** collection has 60 named editable meshes: walls, upper/lower glazing,
+The **MODEL** collection has 65 named editable meshes: walls, upper/lower glazing,
 notch doors, roof shell, standing seams, fascia/soffits, chimney, decks, framing,
 retaining blocks, access structures and the video-derived shed, paving, branch
 steps, retaining walls, bench, planting and deck furniture, plus shed hardware,
@@ -175,6 +175,25 @@ The verifier checks the relocated doorway with rays through the GLB, the solid
 apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
+
+Issue #99 uses the owner-confirmed wall/hillside evidence in
+`images/PXL_20211108_175012789.jpg`, excluding its historical cabin appearance.
+`refine_east_wall.py` replaces the independent lidar-height block columns with
+complete staggered courses: estimated 0.40 m blocks, 0.20 m courses, 0.025 m
+setback per course, and 8/9/10-course runs north to south. Passage bounds stay
+fixed. Local soil geometry joins the wall to the existing terrain, with brush,
+grass, weathering and a pale split stump/root mass above the wall. All dimensions
+and individual plant/root shapes are visual estimates. The bank is scenic
+geometry, not a replacement elevation survey or a calibrated walking surface.
+
+The 112 bank ceiling triangles keep coarse terrain below the visible skin.
+`east-wall-layout.json` records the profile and provenance. Tests ray-check the
+wall courses, board-centre surfaces, passage headroom and bank skin, alongside
+the existing full-route, door, deck, tree and terrain checks. Geometry snapshots
+confirm all 59 pre-existing meshes besides the retaining blocks are unchanged.
+Export: 43,393 triangles, five batches, 5,434,488 bytes and 285 terrain ceilings.
+`render_east_wall.py` refreshes two local inspection views in roughly 20-40 seconds
+each; these are not solved camera matches. Photo media remain local.
 
 Issue #98 uses `images/20190112_130800.jpg` to narrow the east-west deck
 projection and replace the front tree's dense generic crown. Estimated upper

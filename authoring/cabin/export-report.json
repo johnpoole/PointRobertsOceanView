@@ -1,12 +1,11 @@
 {
   "file": "assets/site/389-cabin.glb",
-  "bytes": 5657588,
-  "sha256": "72bd57dbf990d5ec8e591ead73e85bd1e08aac93b8a403e3a68e39a524bffe8f",
-  "sourceSha256": "bbbb124b658684437e4147b5acee0bf7f5df142c3797ed9b27227eef9f3c6caf",
+  "bytes": 5434488,
+  "sha256": "7757267a20a4a6849c86c9a710f0634b927d84461562a5f53977ff7aa0bcf43c",
+  "sourceSha256": "08c0728764b802fb58937944371aaeb662325c8627aba48d140a35cf40dd8517",
   "sourceObjects": [
     "Walls and siding",
     "East passage boards",
-    "East retaining blocks",
     "Deck posts beams and braces",
     "Lower west glazing",
     "Notch entrance doors",
@@ -63,10 +62,16 @@
     "Photo - storage entrance apron",
     "Photo - storage rock shelf",
     "Photo - lower enclosure return",
-    "Photo - storage side lattice"
+    "Photo - storage side lattice",
+    "East retaining blocks",
+    "Photo - east wall weathering",
+    "Photo - east bank soil",
+    "Photo - east bank stump",
+    "Photo - east bank brush",
+    "Photo - east bank grass"
   ],
-  "triangles": 44789,
-  "clearancePolygons": 173,
+  "triangles": 43393,
+  "clearancePolygons": 285,
   "worldOrigin": [
     -34.17,
     0.0,

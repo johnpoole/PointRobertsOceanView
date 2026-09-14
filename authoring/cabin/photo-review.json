@@ -26,7 +26,8 @@
     {
       "file": "PXL_20211108_175012789.jpg",
       "status": "used in this refinement",
-      "finding": "East passage block colour variation and softened edges; retain current metal roof rather than the historical covering."
+      "finding": "East passage block colour variation and softened edges; retain current metal roof rather than the historical covering.",
+      "followUp99": "Owner-confirmed wall/hillside reference: course profile, local bank, brush and stump/root mass now modeled."
     },
     {
       "file": "PXL_20211115_192928437.jpg",
@@ -103,5 +104,11 @@
     "photo": "images/20190112_130800.jpg",
     "finding": "Narrowed westward deck projections to upper 2.40m and lower 2.10m; moved full-width green-door bay and supports with the rim. Front tree has a 6-degree seaward lean, exposed irregular forked branches and 16 small foliage clusters. Trunk at deck height remains 0.15m inside the edge and the notch remains 0.83m deep.",
     "limits": "Visual estimates; original lidar tree height retained. Branches approximate the sparse silhouette, not individually surveyed. Inspection camera is not solved."
+  },
+  "eastWallCorrection": {
+    "issue": 99,
+    "photo": "images/PXL_20211108_175012789.jpg",
+    "finding": "Owner confirms wall and hillside accuracy despite historical cabin. Replaced lidar-height towers with complete staggered courses and gentler setback; added local bank soil, sparse brush/grass and pale split stump/root mass. Existing cabin, passage boards and stair meshes preserved.",
+    "limits": "Visual estimates: 0.40m blocks, 0.20m courses, 0.025m setback; 8/9/10 courses. Local bank is scenic geometry, not a new survey or fitted walking surface. Inspection camera is approximate."
   }
 }

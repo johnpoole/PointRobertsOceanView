@@ -119,6 +119,38 @@ for (const s of surfaces) {
     }
 }
 const ray = new THREE.Raycaster(), down = new THREE.Vector3(0,-1,0);
+// East wall: complete block courses and a clear boarded passage, rather than
+// independent lidar-height columns. Check the exported triangles, not helpers.
+const eastWall=JSON.parse(fs.readFileSync('authoring/cabin/east-wall-layout.json'));
+const eastDirection=new THREE.Vector3(Math.cos(.318),0,-Math.sin(.318));
+let eastWallChecks=0;
+for(let z=-2.73;z<3.3;z+=.27) {
+  for(const row of [1,3,5]) {
+    const w=oldCabin.cabinWorld(4.3,z),y=eastWall.wall.base+row*.2+.1;
+    ray.set(new THREE.Vector3(w.x,y,w.z),eastDirection);ray.far=.7;
+    const hit=ray.intersectObjects(meshes)[0];assert.ok(hit,'continuous east retaining wall');
+    assert.ok(Math.abs(oldCabin.cabinLocal(hit.point.x,hit.point.z).x-(4.46+row*.025))<.025,'photo wall setback follows courses');
+    eastWallChecks++;
+  }
+  for(const x of [3.55,3.95,4.3]) {
+    // Sample board centres, avoiding the intentional 4 mm timber joints.
+    const pitch=6.39/45,boardZ=-2.995+(Math.floor((z+2.995)/pitch)+.5)*pitch;
+    const w=oldCabin.cabinWorld(x,boardZ);
+    ray.set(new THREE.Vector3(w.x,10.48,w.z),down);ray.far=.08;
+    assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.0001),'boarded east passage remains');
+    ray.set(new THREE.Vector3(w.x,10.48,w.z),new THREE.Vector3(0,1,0));ray.far=1.65;
+    assert.equal(ray.intersectObjects(meshes).length,0,'wall and planting leave passage headroom');
+  }
+}
+const bank=eastWall.bank;
+for(let j=0;j<bank.z.length-1;j++)for(let i=0;i<bank.x.length-1;i++) {
+  const x=(bank.x[i]+2*bank.x[i+1])/3,z=(2*bank.z[j]+bank.z[j+1])/3;
+  const y=(bank.heights[j][i]+bank.heights[j][i+1]+bank.heights[j+1][i+1])/3;
+  const w=oldCabin.cabinWorld(x,z),ll=fromWorld(w.x,w.z);
+  ray.set(new THREE.Vector3(w.x,y+.1,w.z),down);ray.far=.2;
+  assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-y)<.001),'bank skin survives export');
+  assert.ok(triangle(ll.lat,ll.lon)<y,'coarse terrain remains below bank skin');
+}
 // Upper deck: the tree is outside the deck/rail envelope, in an open notch.
 const upperDeck=JSON.parse(fs.readFileSync('authoring/cabin/upper-deck-layout.json'));
 assert.ok(upperDeck.southEdge.west[1]-upperDeck.southEdge.east[1]>1,

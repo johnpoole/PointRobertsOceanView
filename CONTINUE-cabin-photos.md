@@ -530,3 +530,22 @@ Verification: Three r186 geometry and visibility, 58,917 terrain checks,
 full-width door rays. Export: 44,789 triangles, five batches, 5,657,588 bytes,
 173 terrain ceilings. Local compare.html has updated deck/notch, sparse-tree
 and owner south-camera renders. No raw photo or video added to git.
+
+
+## East retaining wall and hillside - issue #99
+
+Owner confirms images/PXL_20211108_175012789.jpg is current for the wall and
+hill, but not the cabin. refine_east_wall.py replaces the uneven lidar-derived
+wall top with complete staggered courses and 25mm-per-course setback. Estimated
+block/course sizes 0.40/0.20m; 8/9/10 courses from north to south. Passage, cabin,
+roof, decks and stair meshes remain unchanged. Adds a local scenic bank skin,
+brush/grass, surface weathering and pale split stump/root mass above the wall.
+The bank is visual geometry, not a new elevation survey or fitted walking surface.
+112 clearance triangles keep existing terrain below the skin.
+
+Source: cabin.blend, layout: east-wall-layout.json; web: 389-cabin.glb.
+65 named meshes; 43,393 export triangles, five batches, 5,434,488 bytes,
+285 ceilings. Tests include complete wall courses, board-centre rays, passage
+headroom and bank surface/terrain checks, alongside the full stair route and
+prior deck/tree/door checks. Local compare.html and render_east_wall.py show
+the photo and two approximate inspection views. Reference media remain local.
