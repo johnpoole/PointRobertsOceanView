@@ -229,12 +229,25 @@
       "crown_base_frac": 0.5
     },
     {
-      "lat": 48.9890535,
-      "lon": -123.0858436,
-      "ground_m": 5.79,
+      "lat": 48.98904697456592,
+      "lon": -123.08587380986567,
+      "ground_m": 4.9072,
       "height_m": 22.8,
       "radius_m": 3.8,
-      "crown_base_frac": 0.32
+      "crown_base_frac": 0.32,
+      "id": "cabin-deck-tree",
+      "position_override": {
+        "issue": 97,
+        "date": "2026-09-14",
+        "photo": "images/PXL_20220615_171325558.jpg",
+        "original": {
+          "lat": 48.9890535,
+          "lon": -123.0858436,
+          "ground_m": 5.79
+        },
+        "method": "Owner identifies trunk barely inside upper deck edge. Estimated centre 0.15m inside west edge; north/south position retained. Ground resampled from original fine terrain at corrected position.",
+        "limits": "Photo-guided placement, not a surveyed trunk position. Original crown height/radius retained."
+      }
     },
     {
       "lat": 48.9890638,
@@ -276,5 +289,6 @@
       "radius_m": 0.0,
       "crown_base_frac": 0.22
     }
-  ]
+  ],
+  "position_override_note": "The cabin-deck-tree row has an owner/photo correction (#97). Preserve its override and original values when refreshing the lidar bake."
 }

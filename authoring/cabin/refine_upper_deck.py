@@ -7,13 +7,17 @@ from pathlib import Path
 from mathutils import Vector
 
 ROOT=Path(__file__).resolve().parents[2];scene=bpy.context.scene
-if scene.get('upper_deck_correction_96'):raise RuntimeError('Already applied; edit the saved source')
+correct_tree=bool(globals().get('CORRECT_DECK_TREE_97',False))
+if scene.get('upper_deck_correction_96') and not correct_tree:raise RuntimeError('Already applied; edit the saved source')
+if correct_tree and (not scene.get('upper_deck_correction_96') or scene.get('deck_tree_correction_97')):
+    raise RuntimeError('Tree correction requires the existing #96 model and must run only once')
 model=bpy.data.collections['MODEL - exported cabin and access']
 clear=bpy.data.collections['CLEARANCE - edit with walking surfaces']
 material=bpy.data.materials['Cabin vertex colours']
 c,s=math.cos(.318),math.sin(.318)
 def point(x,y,z):return Vector((x*c+z*s,x*s-z*c,y))
-tree=min(json.loads((ROOT/'assets/site/389-trees.json').read_text())['trees'],
+trees=json.loads((ROOT/'assets/site/389-trees.json').read_text())['trees']
+tree=next(t for t in trees if t.get('id')=='cabin-deck-tree') if correct_tree else min(trees,
     key=lambda t:(t['lat']-48.9890535)**2+(t['lon']+123.0858436)**2)
 wx=(tree['lon']+123.085318)*111320*math.cos(math.radians(48.989009));wz=-(tree['lat']-48.989009)*111320
 tx=(wx+34.17)*c-(wz+7.03)*s;tz=(wx+34.17)*s+(wz+7.03)*c
@@ -99,18 +103,27 @@ for name,polys in [('Cabin clearance 01',polygons[:3]),('Cabin clearance 02',pol
 
 # Inspection-only trunk uses the same site anchor as the web trees. Never
 # export it: the application already renders that tree from 389-trees.json.
-context=bpy.data.collections.new('CONTEXT - deck tree');scene.collection.children.link(context)
-bpy.ops.mesh.primitive_cone_add(vertices=16,radius1=.456,radius2=.30,depth=10,location=point(tx,tree['ground_m']+5,tz))
-trunk=bpy.context.object;trunk.name='Deck tree reference - not exported'
-for col in list(trunk.users_collection):col.objects.unlink(trunk)
-context.objects.link(trunk)
-mat=bpy.data.materials.new('Reference bark');mat.diffuse_color=(.14,.10,.07,1);trunk.data.materials.append(mat)
+if correct_tree:
+    trunk=bpy.data.objects['Deck tree reference - not exported']
+    trunk.location=point(tx,tree['ground_m']+5,tz)
+else:
+    context=bpy.data.collections.new('CONTEXT - deck tree');scene.collection.children.link(context)
+    bpy.ops.mesh.primitive_cone_add(vertices=16,radius1=.456,radius2=.30,depth=10,location=point(tx,tree['ground_m']+5,tz))
+    trunk=bpy.context.object;trunk.name='Deck tree reference - not exported'
+    for col in list(trunk.users_collection):col.objects.unlink(trunk)
+    context.objects.link(trunk)
+    mat=bpy.data.materials.new('Reference bark');mat.diffuse_color=(.14,.10,.07,1);trunk.data.materials.append(mat)
 layout={'issue':96,'photos':['images/PXL_20211108_174949325.MP.jpg','images/Photos-1-001/PXL_20211115_192928437.jpg','images/Photos-1-001/PXL_20260808_202820423.jpg'],
     'floor':level,'polygons':polygons,'railBoundary':boundary,
     'tree':{'lat':tree['lat'],'lon':tree['lon'],'x':tx,'z':tz,'radiusEnvelope':.456},
     'notch':{'west':west,'back':back,'north':zn,'south':zs},
     'southEdge':{'east':[east,outer_e],'west':[west,outer_w]},
-    'limits':'Owner-selected November 8 image establishes south return widening westward; November 15 shows the tree notch. Projections of 2.40m west and 0.91m east, and notch dimensions around the existing tree anchor, remain estimates. No new survey/camera solve.'}
+    'limits':'Owner-selected November 8 image establishes south return widening westward; November 15 shows the tree notch. Projections of 2.40m west and 0.91m east, and notch dimensions, remain estimates. No new survey/camera solve.'}
+if correct_tree:
+    layout['issue']=97;layout['photos'].append('images/PXL_20220615_171325558.jpg')
+    layout['tree']['positionCorrection']=tree['position_override']
+    layout['limits']+=' Owner June 2022 photo overrides the former tree anchor: centre estimated 0.15m inside the west edge, with an approximately 0.83m-deep notch.'
+    scene['deck_tree_correction_97']=json.dumps(tree['position_override'])
 (ROOT/'authoring/cabin/upper-deck-layout.json').write_text(json.dumps(layout,indent=2)+'\n')
 scene['upper_deck_correction_96']=json.dumps(layout)
 bpy.context.preferences.filepaths.save_version=0

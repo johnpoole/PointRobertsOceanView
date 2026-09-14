@@ -119,6 +119,17 @@ const upperDeck=JSON.parse(fs.readFileSync('authoring/cabin/upper-deck-layout.js
 assert.ok(upperDeck.southEdge.west[1]-upperDeck.southEdge.east[1]>1,
   'south return widens toward the water');
 const deckTree=upperDeck.tree, notch=upperDeck.notch;
+assert.ok(notch.back-notch.west<1.0,'owner correction: shallow edge notch, not a deep slot');
+assert.ok(deckTree.x-notch.west>0 && deckTree.x-notch.west<.25,'tree barely inside seaward edge');
+const runtimeDeckTree=JSON.parse(fs.readFileSync('assets/site/389-trees.json')).trees.find(t=>t.id==='cabin-deck-tree');
+assert.ok(runtimeDeckTree?.position_override?.original,'original rejected tree position is retained as provenance');
+const runtimeTreeWorld={x:(runtimeDeckTree.lon+123.085318)*111320*Math.cos(48.989009*Math.PI/180),
+  z:-(runtimeDeckTree.lat-48.989009)*111320};
+const runtimeTreeLocal=oldCabin.cabinLocal(runtimeTreeWorld.x,runtimeTreeWorld.z);
+assert.ok(Math.hypot(runtimeTreeLocal.x-deckTree.x,runtimeTreeLocal.z-deckTree.z)<1e-6,'web tree and Blender notch share corrected anchor');
+const restored=oldCabin.cabinWorld(-5.2,deckTree.z);
+ray.set(new THREE.Vector3(restored.x,10.48,restored.z),down);ray.far=.06;
+assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.00001),'floor restored inside the former oversized notch');
 let notchChecks=0;
 for(let dx=-.5;dx<=.5;dx+=.125)for(let dz=-.5;dz<=.5;dz+=.125) {
   const w=oldCabin.cabinWorld(deckTree.x+dx,deckTree.z+dz);

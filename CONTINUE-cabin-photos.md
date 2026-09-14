@@ -494,3 +494,15 @@ notch around the existing site tree, matching rail/rim/framing and terrain
 clearance. Actual GLB tests check the notch void, clear passage beside the
 cabin, and widened floor. Source: refine_upper_deck.py and upper-deck-layout.json;
 local comparisons: render_upper_deck.py. Exact dimensions remain estimates.
+
+
+## Shallow deck notch and photo-corrected tree - issue #97
+
+Owner photo images/PXL_20220615_171325558.jpg shows the tree barely inside
+the west edge. The earlier site-tree anchor was wrong for this fit; it must
+not drive a 3.15m slot through the deck. The corrected tree centre is 0.15m
+inside the edge, and the notch is 0.83m deep (estimated). Runtime site-tree
+data and Blender inspection trunk share the new position. Original coordinates
+are retained in position_override on the cabin-deck-tree row; preserve them
+and the override when refreshing the lidar bake. Deck, rail, framing and
+clearance restore the former oversized opening. See correct_deck_tree.py.

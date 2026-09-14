@@ -91,5 +91,11 @@
     "treePhoto": "images/Photos-1-001/PXL_20211115_192928437.jpg",
     "finding": "South return widens westward; tree sits in an open U-shaped notch, with railing and framing following the opening.",
     "limits": "Estimated dimensions at existing site tree anchor; no camera solve."
+  },
+  "shallowTreeNotchCorrection": {
+    "issue": 97,
+    "photo": "images/PXL_20220615_171325558.jpg",
+    "finding": "Tree barely inside the seaward edge; previous fixed site-tree anchor was too far inland and caused an oversized 3.15m notch. Runtime tree moved west, notch reduced to estimated 0.83m, deck restored.",
+    "limits": "Estimated centre 0.15m inside edge; no new survey."
   }
 }

@@ -1,9 +1,10 @@
 {
-  "issue": 96,
+  "issue": 97,
   "photos": [
     "images/PXL_20211108_174949325.MP.jpg",
     "images/Photos-1-001/PXL_20211115_192928437.jpg",
-    "images/Photos-1-001/PXL_20260808_202820423.jpg"
+    "images/Photos-1-001/PXL_20260808_202820423.jpg",
+    "images/PXL_20220615_171325558.jpg"
   ],
   "floor": 10.45,
   "polygons": [
@@ -18,39 +19,39 @@
       ],
       [
         -3.235,
-        -0.12865414614882487
+        -0.12865414602510383
       ],
       [
         -7.135,
-        -0.12865414614882487
+        -0.12865414602510383
       ]
     ],
     [
       [
-        -3.981728762606377,
-        -0.12865414614882487
+        -6.304999999575096,
+        -0.12865414602510383
       ],
       [
         -3.235,
-        -0.12865414614882487
+        -0.12865414602510383
       ],
       [
         -3.235,
-        1.4313458538511752
+        1.4313458539748962
       ],
       [
-        -3.981728762606377,
-        1.4313458538511752
+        -6.304999999575096,
+        1.4313458539748962
       ]
     ],
     [
       [
         -7.135,
-        1.4313458538511752
+        1.4313458539748962
       ],
       [
         -3.235,
-        1.4313458538511752
+        1.4313458539748962
       ],
       [
         -3.235,
@@ -91,19 +92,19 @@
     ],
     [
       -7.135,
-      -0.12865414614882487
+      -0.12865414602510383
     ],
     [
-      -3.981728762606377,
-      -0.12865414614882487
+      -6.304999999575096,
+      -0.12865414602510383
     ],
     [
-      -3.981728762606377,
-      1.4313458538511752
+      -6.304999999575096,
+      1.4313458539748962
     ],
     [
       -7.135,
-      1.4313458538511752
+      1.4313458539748962
     ],
     [
       -7.135,
@@ -115,17 +116,29 @@
     ]
   ],
   "tree": {
-    "lat": 48.9890535,
-    "lon": -123.0858436,
-    "x": -4.661728762606377,
-    "z": 0.6513458538511752,
-    "radiusEnvelope": 0.456
+    "lat": 48.98904697456592,
+    "lon": -123.08587380986567,
+    "x": -6.984999999575096,
+    "z": 0.6513458539748962,
+    "radiusEnvelope": 0.456,
+    "positionCorrection": {
+      "issue": 97,
+      "date": "2026-09-14",
+      "photo": "images/PXL_20220615_171325558.jpg",
+      "original": {
+        "lat": 48.9890535,
+        "lon": -123.0858436,
+        "ground_m": 5.79
+      },
+      "method": "Owner identifies trunk barely inside upper deck edge. Estimated centre 0.15m inside west edge; north/south position retained. Ground resampled from original fine terrain at corrected position.",
+      "limits": "Photo-guided placement, not a surveyed trunk position. Original crown height/radius retained."
+    }
   },
   "notch": {
     "west": -7.135,
-    "back": -3.981728762606377,
-    "north": -0.12865414614882487,
-    "south": 1.4313458538511752
+    "back": -6.304999999575096,
+    "north": -0.12865414602510383,
+    "south": 1.4313458539748962
   },
   "southEdge": {
     "east": [
@@ -137,5 +150,5 @@
       5.795
     ]
   },
-  "limits": "Owner-selected November 8 image establishes south return widening westward; November 15 shows the tree notch. Projections of 2.40m west and 0.91m east, and notch dimensions around the existing tree anchor, remain estimates. No new survey/camera solve."
+  "limits": "Owner-selected November 8 image establishes south return widening westward; November 15 shows the tree notch. Projections of 2.40m west and 0.91m east, and notch dimensions, remain estimates. No new survey/camera solve. Owner June 2022 photo overrides the former tree anchor: centre estimated 0.15m inside the west edge, with an approximately 0.83m-deep notch."
 }

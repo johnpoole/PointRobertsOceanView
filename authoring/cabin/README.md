@@ -176,6 +176,22 @@ apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
 
+Issue #97 supersedes the fixed-tree assumption in #96. The owner-selected
+`images/PXL_20220615_171325558.jpg` shows the trunk barely inside the deck edge.
+`correct_deck_tree.py` moves that one site-tree row about 2.32 m west in cabin
+axes, preserving the rejected coordinates in its `position_override`. Its
+estimated centre is 0.15 m inside the rim; notch depth is now 0.83 m instead
+of 3.15 m. Ground is resampled from the original fine elevation tile at the
+new position; crown dimensions stay unchanged. Preserve this explicit photo
+override when regenerating the site-tree bake.
+
+The same correction rebuilds the upper deck/rail/framing and clearance on the
+current Blender source, and moves its inspection-only trunk. The large lost
+deck area is restored. Tests assert that the live tree data and authored notch
+agree, the notch is shallow, and floor is present in the rejected deep slot.
+Current export: 45,149 triangles, five batches, 5,685,284 bytes and 173 ceilings.
+Tree placement and notch dimensions remain photo-guided estimates, not a survey.
+
 Issue #96 refines the upper deck using the owner's selected
 `images/PXL_20211108_174949325.MP.jpg`: the south return widens westward from
 the entrance. Its estimated projection grows from 0.91 m to 2.40 m. The
