@@ -58,6 +58,16 @@ the first leg and after the last they are not drawn at all.
 
 ## Baking it
 
+The kite surfer is a fourteenth member, built separately from the thirteen road
+routes. He shares the P toggle and scene clock. Owner references in `kitesurf/`
+provide the turquoise/red canopy and dark wetsuit. His offshore course, wind
+threshold (7.7 m/s) and occasional ten-minute sessions are assumed. Actual
+sunrise/sunset, available scene-time wind, and wet seabed gate his appearance.
+Live weather must be connected and fresh; shifted time requires forecast coverage.
+See `kitesurf/README.md` and issue #94. Source media and video archives stay local.
+Run `node src/scene/test-kitesurfer.mjs` with the pinned Three dependency cache
+used by `authoring/cabin/verify.mjs` to check gating, seabed, motion and geometry.
+
 ```bash
 python scripts/build_cast.py
 node src/scene/test-cast.mjs

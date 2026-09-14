@@ -65,7 +65,9 @@ import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
 import { ClockControl, hourFromHash } from "./clock-control.js";
-import { getPosition } from "suncalc";
+import { getPosition, getTimes } from "suncalc";
+import { KITE_SURFER } from "./scene/kitesurfer-plan.js";
+import { kiteWind } from "./scene/kitesurfer-weather.js";
 import * as tide from "./tide.js";
 import { Nav } from "./nav.js";
 import { Live } from "./live.js";
@@ -745,6 +747,22 @@ function currentAt() {
   const [drift, set, state] = row;
   return { ...c, drift_mps: drift, drift_kn: drift / 0.514444,
            set_degrees: set, state, predicted: true };
+}
+
+const kiteDay = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+let kiteSunDate = '', kiteSun = {};
+const kiteSurface = (x, z) => ocean.surfaceAt(x, z).y;
+function kiteConditions(now, waterLevel) {
+  const day = kiteDay.format(now);
+  if (day !== kiteSunDate) {
+    kiteSunDate = day;
+    // Anchor the astronomical day at local midday, including near UTC midnight.
+    kiteSun = getTimes(new Date(`${day}T20:00:00Z`), KITE_SURFER.lat, KITE_SURFER.lon);
+  }
+  return { ...kiteWind(feed, now, shifted()), sunrise: kiteSun.sunrise,
+    sunset: kiteSun.sunset, waterLevel, surfaceAt: kiteSurface };
 }
 
 function weatherAt() {
@@ -2348,7 +2366,10 @@ function frame() {
   // the course is empty rather than showing this morning's bookings.
   if (golf) golf.update(camera, window.innerHeight, onPastDay() ? null : feed.tee);
   // The clock the sun runs on is the clock the town runs on.
-  if (cast) cast.update(new Date(Date.now() + offsetHours() * 3600 * 1000), camera);
+  if (cast?.shown) {
+    const now = sceneNow();
+    cast.update(now, camera, kiteConditions(now, level));
+  }
   updateTour(t);
   if (blotter) blotter.update(camera, t);
   if (marina && marina.wanted && t > marinaPingDue) {

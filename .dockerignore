@@ -9,3 +9,10 @@ __pycache__
 *.pyc
 scripts/_tiles
 CONTINUE.md
+kitesurf
+**/*.[mM][pP]4
+**/*.[mM][oO][vV]
+**/*.[mM]4[vV]
+**/*.[wW][eE][bB][mM]
+**/*.[aA][vV][iI]
+**/*.[mM][kK][vV]

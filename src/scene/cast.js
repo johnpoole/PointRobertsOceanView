@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import { CAST } from "../config.js";
 import { toWorld } from "../geo.js";
+import { buildKiteSurfer } from "./kitesurfer.js";
 import { buildWalker, buildBicycle, buildGolfCart, painted, paint, box, cyl,
   personGeoms } from "./vehicles.js";
 
@@ -77,11 +78,12 @@ export async function buildCast(scene, sample) {
     return { figure, legs, model, walked: 0, was: null };
   });
 
+  const kiteSurfer = buildKiteSurfer(group, ground);
   scene.add(group);
 
   return {
     group,
-    count: people.length,
+    count: people.length + 1,
     get shown() { return group.visible; },
     toggle() { group.visible = !group.visible; return group.visible; },
     // now is a Date; the page hands in the clock it is standing at, so moving
@@ -90,8 +92,9 @@ export async function buildCast(scene, sample) {
     // Somebody four kilometres behind you costs a draw for nothing, so a figure
     // is only put on the screen when it is in front of whoever is looking and
     // near enough to see.
-    update(now, camera) {
+    update(now, camera, conditions = {}) {
       if (!group.visible) return;
+      kiteSurfer.update(now, camera, conditions);
       const minutes = minutesInZone(now);
       if (camera) {
         camera.updateMatrixWorld();

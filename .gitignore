@@ -26,3 +26,22 @@ models/
 
 # Fetched by src/test-sun.mjs off the URL the importmap pins.
 assets/vendor/
+
+# Local video references never belong in Git (including uppercase extensions).
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[mM]4[vV]
+*.[wW][eE][bB][mM]
+*.[aA][vV][iI]
+*.[mM][kK][vV]
+*.[mM][pP][gG]
+*.[mM][pP][eE][gG]
+*.[mM][tT][sS]
+*.[mM]2[tT][sS]
+*.3[gG][pP]
+*.[oO][gG][vV]
+*.[wW][mM][vV]
+*.[vV][oO][bB]
+# The reference ZIP contains videos; the motion photo may contain video too.
+kitesurf/*
+!kitesurf/README.md
