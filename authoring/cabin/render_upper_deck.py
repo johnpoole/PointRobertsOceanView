@@ -1,4 +1,4 @@
-"""Two inspection views for the tapered upper deck and open tree notch.
+"""Inspection views for the narrower tapered deck and sparse leaning tree.
 Run on the saved cabin.blend; output stays under ignored data/cabin-blender.
 Approximately 20-40 seconds per view on CPU; no photo-camera solve is claimed.
 """
@@ -15,7 +15,8 @@ light=bpy.data.lights.new('Upper deck inspection sun','SUN');light.energy=2;ligh
 sun=bpy.data.objects.new('Upper deck inspection sun',light);scene.collection.objects.link(sun);sun.rotation_euler=(.45,-.5,-.8)
 for name,eye,target,orthographic in [
     ('upper-deck-angle',(10,19,10),(-2,10.5,2.4),False),
-    ('upper-deck-notch',(-12,24,7),(-4.7,10.45,1.0),True)]:
+    ('upper-deck-notch',(-12,24,7),(-4.7,10.45,1.0),True),
+    ('deck-width-tree',(-10,15,32),(-2,15,0),False)]:
     cam=bpy.data.cameras.new(name);cam.sensor_fit='VERTICAL';cam.angle=math.radians(52)
     if orthographic:cam.type='ORTHO';cam.ortho_scale=12
     obj=bpy.data.objects.new(name,cam);scene.collection.objects.link(obj);obj.location=local(*eye)

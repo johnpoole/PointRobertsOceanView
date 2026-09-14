@@ -8,7 +8,8 @@ from mathutils import Vector
 
 ROOT=Path(__file__).resolve().parents[2];scene=bpy.context.scene
 correct_tree=bool(globals().get('CORRECT_DECK_TREE_97',False))
-if scene.get('upper_deck_correction_96') and not correct_tree:raise RuntimeError('Already applied; edit the saved source')
+refine_shape=bool(globals().get('REFINE_WIDTH_TREE_98',False))
+if scene.get('upper_deck_correction_96') and not (correct_tree or refine_shape):raise RuntimeError('Already applied; edit the saved source')
 if correct_tree and (not scene.get('upper_deck_correction_96') or scene.get('deck_tree_correction_97')):
     raise RuntimeError('Tree correction requires the existing #96 model and must run only once')
 model=bpy.data.collections['MODEL - exported cabin and access']
@@ -17,11 +18,16 @@ material=bpy.data.materials['Cabin vertex colours']
 c,s=math.cos(.318),math.sin(.318)
 def point(x,y,z):return Vector((x*c+z*s,x*s-z*c,y))
 trees=json.loads((ROOT/'assets/site/389-trees.json').read_text())['trees']
-tree=next(t for t in trees if t.get('id')=='cabin-deck-tree') if correct_tree else min(trees,
+tree=next(t for t in trees if t.get('id')=='cabin-deck-tree') if (correct_tree or refine_shape) else min(trees,
     key=lambda t:(t['lat']-48.9890535)**2+(t['lon']+123.0858436)**2)
 wx=(tree['lon']+123.085318)*111320*math.cos(math.radians(48.989009));wz=-(tree['lat']-48.989009)*111320
 tx=(wx+34.17)*c-(wz+7.03)*s;tz=(wx+34.17)*s+(wz+7.03)*c
 west,wall,east,north,south,level=-7.135,-3.235,3.235,-3.395,3.395,10.45
+if refine_shape:
+    west=wall-2.40
+    contact=tree['shape_override']['deckContactOffset']
+    tx+=contact[0]*c-contact[2]*s;tz+=contact[0]*s+contact[2]*c
+    assert abs(tx-(west+.15))<.001, 'Leaning trunk must meet revised edge at deck height'
 back=tx+.68;zn,zs=tz-.78,tz+.78
 # Owner-selected PXL_20211108_174949325.MP shows the taper from the narrow
 # entrance to the table-width seaward end. Estimate 2.40 m projection there,
@@ -72,7 +78,7 @@ for x,z in posts:member(deck,(x,10.45,z),(x,11.55,z),.07,.07,frame)
 # bridging the now-empty notch. Feet are estimated from the existing bank.
 terrain=json.loads((ROOT/'data/cabin-blender/current-terrain.json').read_text());g=terrain['grid'];h=terrain['heights']
 def ground(x,z):
-    p=point(x,0,z);lat=48.989009+(p.y-7.03)/111320;lon=-123.085318+(p.x-34.17)/(111320*math.cos(math.radians(48.989009)))
+    p=point(x,0,z);lat=48.989009+(p.y+7.03)/111320;lon=-123.085318+(p.x-34.17)/(111320*math.cos(math.radians(48.989009)))
     r=(g['north_lat']-lat)/g['cellsize_deg'];col=(lon-g['west_lon'])/g['cellsize_deg'];i=max(0,min(g['nrows']-2,math.floor(r)));j=max(0,min(g['ncols']-2,math.floor(col)))
     u=max(0,min(1,col-j));v=max(0,min(1,r-i));n=g['ncols']
     return (h[i*n+j]*(1-u)+h[i*n+j+1]*u)*(1-v)+(h[(i+1)*n+j]*(1-u)+h[(i+1)*n+j+1]*u)*v
@@ -103,7 +109,7 @@ for name,polys in [('Cabin clearance 01',polygons[:3]),('Cabin clearance 02',pol
 
 # Inspection-only trunk uses the same site anchor as the web trees. Never
 # export it: the application already renders that tree from 389-trees.json.
-if correct_tree:
+if correct_tree or refine_shape:
     trunk=bpy.data.objects['Deck tree reference - not exported']
     trunk.location=point(tx,tree['ground_m']+5,tz)
 else:
@@ -124,6 +130,11 @@ if correct_tree:
     layout['tree']['positionCorrection']=tree['position_override']
     layout['limits']+=' Owner June 2022 photo overrides the former tree anchor: centre estimated 0.15m inside the west edge, with an approximately 0.83m-deep notch.'
     scene['deck_tree_correction_97']=json.dumps(tree['position_override'])
+if refine_shape:
+    layout['issue']=98;layout['photos'].append('images/20190112_130800.jpg')
+    layout['upperProjection']=2.4;layout['lowerProjection']=2.1
+    layout['tree']['shapeSource']=tree['shape_override']['source']
+    layout['limits']='Owner January 2019 photo: narrower westward deck projection and sparse tree leaning away from cabin. Upper/lower projections 2.40/2.10m and 6-degree lean are estimates. Tree coordinates in this plan are at deck height, not root position.'
 (ROOT/'authoring/cabin/upper-deck-layout.json').write_text(json.dumps(layout,indent=2)+'\n')
 scene['upper_deck_correction_96']=json.dumps(layout)
 bpy.context.preferences.filepaths.save_version=0

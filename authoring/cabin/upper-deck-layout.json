@@ -1,16 +1,16 @@
 {
-  "issue": 97,
+  "issue": 98,
   "photos": [
     "images/PXL_20211108_174949325.MP.jpg",
     "images/Photos-1-001/PXL_20211115_192928437.jpg",
     "images/Photos-1-001/PXL_20260808_202820423.jpg",
-    "images/PXL_20220615_171325558.jpg"
+    "images/20190112_130800.jpg"
   ],
   "floor": 10.45,
   "polygons": [
     [
       [
-        -7.135,
+        -5.635,
         -3.395
       ],
       [
@@ -19,52 +19,52 @@
       ],
       [
         -3.235,
-        -0.12865414602510383
+        -0.1286541117855493
       ],
       [
-        -7.135,
-        -0.12865414602510383
+        -5.635,
+        -0.1286541117855493
       ]
     ],
     [
       [
-        -6.304999999575096,
-        -0.12865414602510383
+        -4.804999857139618,
+        -0.1286541117855493
       ],
       [
         -3.235,
-        -0.12865414602510383
+        -0.1286541117855493
       ],
       [
         -3.235,
-        1.4313458539748962
+        1.4313458882144507
       ],
       [
-        -6.304999999575096,
-        1.4313458539748962
+        -4.804999857139618,
+        1.4313458882144507
       ]
     ],
     [
       [
-        -7.135,
-        1.4313458539748962
+        -5.635,
+        1.4313458882144507
       ],
       [
         -3.235,
-        1.4313458539748962
+        1.4313458882144507
       ],
       [
         -3.235,
         3.395
       ],
       [
-        -7.135,
+        -5.635,
         3.395
       ]
     ],
     [
       [
-        -7.135,
+        -5.635,
         3.395
       ],
       [
@@ -76,7 +76,7 @@
         4.305
       ],
       [
-        -7.135,
+        -5.635,
         5.795
       ]
     ]
@@ -87,27 +87,27 @@
       -3.395
     ],
     [
-      -7.135,
+      -5.635,
       -3.395
     ],
     [
-      -7.135,
-      -0.12865414602510383
+      -5.635,
+      -0.1286541117855493
     ],
     [
-      -6.304999999575096,
-      -0.12865414602510383
+      -4.804999857139618,
+      -0.1286541117855493
     ],
     [
-      -6.304999999575096,
-      1.4313458539748962
+      -4.804999857139618,
+      1.4313458882144507
     ],
     [
-      -7.135,
-      1.4313458539748962
+      -5.635,
+      1.4313458882144507
     ],
     [
-      -7.135,
+      -5.635,
       5.795
     ],
     [
@@ -116,29 +116,18 @@
     ]
   ],
   "tree": {
-    "lat": 48.98904697456592,
-    "lon": -123.08587380986567,
-    "x": -6.984999999575096,
-    "z": 0.6513458539748962,
+    "lat": 48.989052587058644,
+    "lon": -123.08584782651207,
+    "x": -5.484999857139618,
+    "z": 0.6513458882144507,
     "radiusEnvelope": 0.456,
-    "positionCorrection": {
-      "issue": 97,
-      "date": "2026-09-14",
-      "photo": "images/PXL_20220615_171325558.jpg",
-      "original": {
-        "lat": 48.9890535,
-        "lon": -123.0858436,
-        "ground_m": 5.79
-      },
-      "method": "Owner identifies trunk barely inside upper deck edge. Estimated centre 0.15m inside west edge; north/south position retained. Ground resampled from original fine terrain at corrected position.",
-      "limits": "Photo-guided placement, not a surveyed trunk position. Original crown height/radius retained."
-    }
+    "shapeSource": "Owner images/20190112_130800.jpg; sparse leaning tree, dimensions and branch layout estimated"
   },
   "notch": {
-    "west": -7.135,
-    "back": -6.304999999575096,
-    "north": -0.12865414602510383,
-    "south": 1.4313458539748962
+    "west": -5.635,
+    "back": -4.804999857139618,
+    "north": -0.1286541117855493,
+    "south": 1.4313458882144507
   },
   "southEdge": {
     "east": [
@@ -146,9 +135,11 @@
       4.305
     ],
     "west": [
-      -7.135,
+      -5.635,
       5.795
     ]
   },
-  "limits": "Owner-selected November 8 image establishes south return widening westward; November 15 shows the tree notch. Projections of 2.40m west and 0.91m east, and notch dimensions, remain estimates. No new survey/camera solve. Owner June 2022 photo overrides the former tree anchor: centre estimated 0.15m inside the west edge, with an approximately 0.83m-deep notch."
+  "limits": "Owner January 2019 photo: narrower westward deck projection and sparse tree leaning away from cabin. Upper/lower projections 2.40/2.10m and 6-degree lean are estimates. Tree coordinates in this plan are at deck height, not root position.",
+  "upperProjection": 2.4,
+  "lowerProjection": 2.1
 }

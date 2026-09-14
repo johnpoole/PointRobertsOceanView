@@ -24,6 +24,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld } from "../geo.js";
+import { buildPhotoTree } from "./deck-tree.js";
 import { COVER_ONLY_M } from "./terrain.js";
 import { ROAD_EXAGGERATION, ROAD_WIDTH } from "./land.js";
 
@@ -387,6 +388,7 @@ export function buildTrees(scene, sample, cover, roads, measured, excludeScatter
   const atHome = new Uint8Array(room);
 
   let count = 0;
+  const photoTrees = [];
   let belowCover = 0;
   let onRoad = 0;
   for (let i = 0; i < nrows; i++) {
@@ -440,6 +442,10 @@ export function buildTrees(scene, sample, cover, roads, measured, excludeScatter
   if (measured) {
     for (const t of measured.trees) {
       const w = toWorld(t.lat, t.lon, t.ground_m);
+      if (t.shape_override) {
+        photoTrees.push({ model: buildPhotoTree(scene,t), atHome: Math.hypot(w.x,w.z)<CLEAR_OF_CAMERA_M });
+        continue; // Never also draw a dense generic crown at this position.
+      }
       // The view opens at the origin looking west, and the lidar found trees
       // standing in it. The nearest is 11.4 m out and 28 m tall, and with two
       // behind it they cover 13 degrees of a 25 degree lens — the page opens on
@@ -720,7 +726,7 @@ export function buildTrees(scene, sample, cover, roads, measured, excludeScatter
   }
 
   return {
-    trees: count,
+    trees: count + photoTrees.length,
     conifers: farAt[CONIFER],
     broadleaves: farAt[BROADLEAF],
     belowCover,
@@ -739,6 +745,7 @@ export function buildTrees(scene, sample, cover, roads, measured, excludeScatter
       // ring, and the eye can cross it inside the rebuild step, so that counts
       // as having moved whatever the distance says.
       const opening = atOpening(camera.position);
+      for (const t of photoTrees) t.model.update(camera, !(hideHome && t.atHome && opening));
       if (anchor && opening === lastAtOpening
           && anchor.distanceToSquared(camera.position) < REBUILD_M * REBUILD_M) return;
       lastAtOpening = opening;

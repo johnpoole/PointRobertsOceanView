@@ -76,7 +76,7 @@
     "Bank cuts remain visibly angular and the east wall profile requires fitting.",
     "Deck proportions, underside framing and individual stair dimensions need additional view-by-view work."
   ],
-  "inspection": "Blender renders show the authored structures and terrain context. They omit the app trees, sky and live scene. Source images and render PNGs remain local.",
+  "inspection": "Blender renders show authored structures and cleared terrain context. Deck comparisons include the same sparse front-tree shape used in the app; surrounding app trees, sky and live scene are omitted. Source images and render PNGs remain local.",
   "routeCorrection": "2026-09-14: removed false pair of right-angle turns; continuous westward curve meets the retained stair head. Camera-pan frames excluded from route direction evidence. Geographic curve and side-pad placement remain estimates.",
   "greenDoorCorrection": {
     "issue": 95,
@@ -97,5 +97,11 @@
     "photo": "images/PXL_20220615_171325558.jpg",
     "finding": "Tree barely inside the seaward edge; previous fixed site-tree anchor was too far inland and caused an oversized 3.15m notch. Runtime tree moved west, notch reduced to estimated 0.83m, deck restored.",
     "limits": "Estimated centre 0.15m inside edge; no new survey."
+  },
+  "deckWidthTreeCorrection": {
+    "issue": 98,
+    "photo": "images/20190112_130800.jpg",
+    "finding": "Narrowed westward deck projections to upper 2.40m and lower 2.10m; moved full-width green-door bay and supports with the rim. Front tree has a 6-degree seaward lean, exposed irregular forked branches and 16 small foliage clusters. Trunk at deck height remains 0.15m inside the edge and the notch remains 0.83m deep.",
+    "limits": "Visual estimates; original lidar tree height retained. Branches approximate the sparse silhouette, not individually surveyed. Inspection camera is not solved."
   }
 }

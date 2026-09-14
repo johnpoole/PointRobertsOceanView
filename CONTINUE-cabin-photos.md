@@ -506,3 +506,27 @@ data and Blender inspection trunk share the new position. Original coordinates
 are retained in position_override on the cabin-deck-tree row; preserve them
 and the override when refreshing the lidar bake. Deck, rail, framing and
 clearance restore the former oversized opening. See correct_deck_tree.py.
+
+
+## Deck width and sparse leaning tree - issue #98
+
+Owner reference: images/20190112_130800.jpg. Upper westward projection is now
+2.40 m (was 3.90), lower 2.10 m (was 3.20). Rails, framing, lower lattice,
+terrain clearance and the full-width green-door bay follow the narrower rim.
+The southward taper and anchored stair flights remain. The front tree now
+leans an estimated 6 degrees seaward with irregular forked limbs and 16 small
+foliage clusters. Its trunk centre at deck height remains 0.15 m inside the
+rim, so the notch is still shallow (0.83 m). Root ground uses the original fine tile; support footings use the cleared
+terrain reference. Both use the corrected world-to-latitude offset.
+
+389-trees.json stores the shape; src/scene/deck-tree.js renders it in two
+merged meshes and trees.js excludes its generic dense crown. The Blender
+context tree uses the same shape but is excluded from the cabin GLB.
+refine_deck_width_tree.py is a one-time migration from the #97 source.
+Exact dimensions, lean and branch layout remain visual estimates.
+
+Verification: Three r186 geometry and visibility, 58,917 terrain checks,
+846 complete-route walking/headroom samples, shallow notch and deck rays,
+full-width door rays. Export: 44,789 triangles, five batches, 5,657,588 bytes,
+173 terrain ceilings. Local compare.html has updated deck/notch, sparse-tree
+and owner south-camera renders. No raw photo or video added to git.

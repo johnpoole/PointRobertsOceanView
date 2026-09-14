@@ -80,7 +80,12 @@ oldCabin.buildCabin(legacy, terrain.sample, terrain.surveySample);
 buildStair(legacy, JSON.parse(fs.readFileSync('assets/site/389-stair.json')), null, oldCabin.cabinApproachEdge());
 legacy.updateMatrixWorld(true);
 const a = new THREE.Box3().setFromObject(scene), b = new THREE.Box3().setFromObject(legacy);
-assert.ok(a.clone().expandByScalar(.0001).containsBox(b), 'original cabin remains within the extended site model');
+// The old deck footprint is intentionally reduced; retain the fitted roof and
+// building envelope, not the superseded seaward extent of the legacy model.
+for(const x of [-4.085,4.085])for(const z of [-4.245,4.245]) {
+  const w=oldCabin.cabinWorld(x,z);
+  assert.ok(a.containsPoint(new THREE.Vector3(w.x,12.8,w.z)), 'fitted cabin roof envelope retained');
+}
 assert.equal(meshes.filter(m=>m.material.map).length,2,'only the two selected surface frames are textures');
 assert.equal(meshes.reduce((n,m) => n + m.geometry.index.count/3, 0), report.triangles);
 
@@ -125,9 +130,33 @@ const runtimeDeckTree=JSON.parse(fs.readFileSync('assets/site/389-trees.json')).
 assert.ok(runtimeDeckTree?.position_override?.original,'original rejected tree position is retained as provenance');
 const runtimeTreeWorld={x:(runtimeDeckTree.lon+123.085318)*111320*Math.cos(48.989009*Math.PI/180),
   z:-(runtimeDeckTree.lat-48.989009)*111320};
-const runtimeTreeLocal=oldCabin.cabinLocal(runtimeTreeWorld.x,runtimeTreeWorld.z);
+const shape=runtimeDeckTree.shape_override;
+assert.ok(shape && shape.lean_degrees>=4 && shape.lean_degrees<=10,'photo tree leans seaward');
+const { buildPhotoTree } = await import(load(path.join(root,'src/scene/deck-tree.js')));
+const photoTree=buildPhotoTree(new THREE.Group(),runtimeDeckTree);
+let treeTriangles=0;
+photoTree.group.traverse(o=>{
+  if(!o.geometry)return;
+  for(const attr of Object.values(o.geometry.attributes))for(const n of attr.array)assert.ok(Number.isFinite(n),'finite photo-tree geometry');
+  treeTriangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;
+});
+assert.equal(photoTree.group.children.length,2,'one bark mesh and one sparse foliage mesh');
+assert.ok(treeTriangles<2000 && shape.foliage.length<=20,'small separated foliage clusters, bounded geometry');
+const foliageVolume=shape.foliage.reduce((sum,f)=>sum+4/3*Math.PI*f.scale[0]*f.scale[1]*f.scale[2],0);
+assert.ok(foliageVolume<10,'open crown rather than a filled canopy volume');
+const top=shape.trunk.at(-1).at;
+assert.ok(top[0]<-2 && top[1]>20,'trunk top leans west away from cabin');
+const treeCamera=new THREE.PerspectiveCamera(60,1,.1,3000);
+treeCamera.position.copy(photoTree.group.position).add(new THREE.Vector3(-15,10,15));
+treeCamera.lookAt(photoTree.group.position.clone().add(new THREE.Vector3(0,10,0)));
+photoTree.update(treeCamera);assert.equal(photoTree.group.visible,true);
+photoTree.update(treeCamera,false);assert.equal(photoTree.group.visible,false,'home-tree visibility remains controllable');
+treeCamera.position.y+=3000;photoTree.update(treeCamera);assert.equal(photoTree.group.visible,false,'photo tree culls at distance');
+assert.equal(upperDeck.upperProjection,2.4,'upper seaward projection narrowed');
+assert.equal(upperDeck.lowerProjection,2.1,'lower deck stays inside upper edge');
+const runtimeTreeLocal=oldCabin.cabinLocal(runtimeTreeWorld.x+shape.deckContactOffset[0],runtimeTreeWorld.z+shape.deckContactOffset[2]);
 assert.ok(Math.hypot(runtimeTreeLocal.x-deckTree.x,runtimeTreeLocal.z-deckTree.z)<1e-6,'web tree and Blender notch share corrected anchor');
-const restored=oldCabin.cabinWorld(-5.2,deckTree.z);
+const restored=oldCabin.cabinWorld((notch.back-3.235)/2,deckTree.z);
 ray.set(new THREE.Vector3(restored.x,10.48,restored.z),down);ray.far=.06;
 assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.00001),'floor restored inside the former oversized notch');
 let notchChecks=0;
@@ -150,7 +179,7 @@ for(let z=notch.north-.3;z<notch.south+.3;z+=.12) {
 const mouth=oldCabin.cabinWorld(notch.west,deckTree.z);
 ray.set(new THREE.Vector3(mouth.x,11.65,mouth.z),down);ray.far=1.7;
 assert.equal(ray.intersectObjects(meshes).length,0,'open seaward mouth of notch');
-for(const x of [-6.8,-5.5,-4]) {
+for(const x of [notch.west+.2,notch.west+.7,-4]) {
   const w=oldCabin.cabinWorld(x,4.55);
   ray.set(new THREE.Vector3(w.x,10.48,w.z),down);ray.far=.06;
   assert.ok(ray.intersectObjects(meshes).some(h=>Math.abs(h.point.y-10.45)<.00001),'new tapered return has a floor');
@@ -158,7 +187,8 @@ for(const x of [-6.8,-5.5,-4]) {
 // Owner's August south view places the door in the first seaward bay.
 // Test actual GLB rays and actual terrain, not merely authoring coordinates.
 const greenDoor = JSON.parse(fs.readFileSync('authoring/cabin/green-door-layout.json')).door;
-assert.ok(greenDoor.x-.53>=-6.435 && greenDoor.x+.53<-5.0,'door stays inside the seaward structural bay');
+assert.ok(greenDoor.x-.53>=-3.235-upperDeck.lowerProjection && greenDoor.x+.53<-3.235,
+  'full-width door stays inside the narrowed seaward structural bay');
 const doorPoint=(u,v)=>oldCabin.cabinWorld(greenDoor.x+Math.cos(greenDoor.angle)*u-Math.sin(greenDoor.angle)*v,
   greenDoor.z+Math.sin(greenDoor.angle)*u+Math.cos(greenDoor.angle)*v);
 for(const u of [-.3,0,.3]) {
@@ -167,7 +197,7 @@ for(const u of [-.3,0,.3]) {
     new THREE.Vector3(end.x-start.x,0,end.z-start.z).normalize());ray.far=1.2;
   const hits=ray.intersectObjects(meshes);
   assert.ok(hits.length && hits[0].distance>1.0 && hits[0].distance<1.12,
-    'relocated storage facade visible from apron at '+u);
+    'relocated storage facade visible from apron at '+u+': '+hits.map(h=>h.distance.toFixed(3)).join(','));
   for(let v=.3;v<=1;v+=.15) {
     const w=doorPoint(u,v), ll=fromWorld(w.x,w.z);
     assert.ok(triangle(ll.lat,ll.lon)<greenDoor.floor-.14,'terrain below storage apron underside');

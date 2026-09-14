@@ -1,8 +1,8 @@
 {
   "file": "assets/site/389-cabin.glb",
-  "bytes": 5685284,
-  "sha256": "338badad82a4602f5234df159046015db31d732431ec5930a2d483b4e502a860",
-  "sourceSha256": "6c4a5cc116561492f00456c036e9f3bdcf3fcc6ab3b3481868ce21894a4c1eab",
+  "bytes": 5657588,
+  "sha256": "72bd57dbf990d5ec8e591ead73e85bd1e08aac93b8a403e3a68e39a524bffe8f",
+  "sourceSha256": "bbbb124b658684437e4147b5acee0bf7f5df142c3797ed9b27227eef9f3c6caf",
   "sourceObjects": [
     "Walls and siding",
     "East passage boards",
@@ -65,7 +65,7 @@
     "Photo - lower enclosure return",
     "Photo - storage side lattice"
   ],
-  "triangles": 45149,
+  "triangles": 44789,
   "clearancePolygons": 173,
   "worldOrigin": [
     -34.17,

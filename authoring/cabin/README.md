@@ -176,6 +176,30 @@ apron surface, terrain below it, and absence of the rejected uphill door.
 
 ## One-time migration
 
+Issue #98 uses `images/20190112_130800.jpg` to narrow the east-west deck
+projection and replace the front tree's dense generic crown. Estimated upper
+projection is 2.40 m from the west wall (formerly 3.90 m); lower projection is
+2.10 m (formerly 3.20 m). The upper southward taper remains. Rails, posts, lower
+lattice, terrain ceilings and the full-width green-door bay follow the new rims.
+
+`refine_deck_width_tree.py` applies once to the #97 source, then calls the upper
+deck generator. The tree root is fitted to the original fine elevation tile;
+its estimated 6-degree seaward lean puts the trunk centre 0.15 m inside the
+rim at deck height, retaining the 0.83 m notch. Latitude conversion for support
+ground sampling now matches the runtime world origin. `389-trees.json` stores
+the root, trunk nodes, irregular forked limbs and 16 separated foliage clusters.
+`src/scene/deck-tree.js` renders these as two merged meshes instead of adding
+a generic crown. It follows existing home-tree visibility and view culling.
+The Blender inspection tree uses this same shape and stays outside the GLB.
+
+Branch arrangement, lean and deck dimensions are photo-guided estimates, not
+a survey. The existing lidar tree height is retained. Verification covers actual
+Three r186 geometry, tree/notch alignment, bounded sparse-tree geometry, visibility,
+deck and doorway rays, terrain clearance and the complete approach. Current
+export: 44,789 triangles, five batches, 5,657,588 bytes and 173 terrain ceilings.
+`render_upper_deck.py` now also produces a wider tree/deck view; `compare.html`
+pairs it with the January 2019 photo. Reference media and renders remain local.
+
 Issue #97 supersedes the fixed-tree assumption in #96. The owner-selected
 `images/PXL_20220615_171325558.jpg` shows the trunk barely inside the deck edge.
 `correct_deck_tree.py` moves that one site-tree row about 2.32 m west in cabin
