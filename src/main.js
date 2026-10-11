@@ -896,8 +896,8 @@ function grabEnd(e) {
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const tip = document.getElementById("vessel-tip");
-const selection = new Selection(camera, feed);
-const tracks = new TrackList(camera, feed, selection);
+const selection = new Selection(camera, trafficAt);
+const tracks = new TrackList(camera, trafficAt, selection);
 document.getElementById("tracks-btn").addEventListener("click", () => tracks.toggle());
 let pointerInside = false, cursorX = 0, cursorY = 0;
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));

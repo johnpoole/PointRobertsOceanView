@@ -72,9 +72,11 @@ function clockText(iso) {
 }
 
 export class Selection {
-  constructor(camera, feed) {
+  // traffic() is what the scene is drawing: the live feed, or the record on a
+  // past day. Read through it so a ship you can see is a ship the card can find.
+  constructor(camera, traffic) {
     this.camera = camera;
-    this.feed = feed;
+    this.traffic = traffic;
     this.pick = null;   // { kind: "vessel" | "aircraft", id }
     this.card = document.getElementById("track");
     this.titleEl = document.getElementById("track-title");
@@ -106,9 +108,14 @@ export class Selection {
   }
 
   _refresh() {
-    const feed = this.feed;
+    const feed = this.traffic();
     const vessel = this.pick.kind === "vessel";
-    const entry = vessel ? feed.vessels.get(this.pick.id) : feed.aircraft.get(this.pick.id);
+    // The live feed keys by the number the message carried; the record keys by
+    // the string a JSON object key always is. A tapped ship hands over the
+    // number, a row in the list hands over the string.
+    const map = vessel ? feed.vessels : feed.aircraft;
+    const id = this.pick.id;
+    const entry = map.get(id) ?? map.get(String(id)) ?? map.get(Number(id));
     if (!entry) {
       this._draw(String(this.pick.id), [["track", "gone from the feed"]], false);
       return;
@@ -164,9 +171,9 @@ export class Selection {
 // putting a hand over the water. Names on the left and the range on the right,
 // vessels then aircraft, and the one the card is showing is marked.
 export class TrackList {
-  constructor(camera, feed, selection) {
+  constructor(camera, traffic, selection) {
     this.camera = camera;
-    this.feed = feed;
+    this.traffic = traffic;
     this.selection = selection;
     this.panel = document.getElementById("tracks");
     this.rowsEl = document.getElementById("tracks-rows");
@@ -236,9 +243,10 @@ export class TrackList {
   _draw() {
     if (this._held) return;
     const items = [];
+    const feed = this.traffic();
     for (const [kind, label, tracked] of
-         [["vessel", "vessels", this.feed.vessels],
-          ["aircraft", "aircraft", this.feed.aircraft]]) {
+         [["vessel", "vessels", feed.vessels],
+          ["aircraft", "aircraft", feed.aircraft]]) {
       const rows = this._rows(kind, tracked);
       items.push({ heading: `${label} · ${rows.length}` });
       for (const r of rows) items.push(r);
