@@ -206,6 +206,7 @@ export class Ocean {
     const far = new THREE.Mesh(new THREE.PlaneGeometry(FAR_SIZE, FAR_SIZE, 1, 1), farMat);
     far.rotation.x = -Math.PI / 2;
     far.renderOrder = 0;
+    far.userData.noShadow = true;   // a flat sheet under everything shades nothing
     scene.add(far);
     this.far = far;
 

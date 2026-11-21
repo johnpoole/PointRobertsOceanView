@@ -14,6 +14,11 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld } from "../geo.js";
 import { OSM } from "../config.js";
+import { dressSurface } from "./detail.js";
+
+// Grain on what is built: less than the ground carries, because a wall and a
+// road are flatter things than a bank. See detail.js.
+const BUILT_GRAIN = { depth: 0.06, lean: 0.3 };
 
 // Roughly what each is on the ground, in metres. Drawn a little over life so a
 // lane still reads at a distance, but not so much that the small ones all come
@@ -347,6 +352,7 @@ export async function buildLand(scene, sample, opts = {}) {
   // the land. The lift is only enough to keep them off the terrain surface, not
   // to clear the rises — the drape does that.
   const roadMat = new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 1, side: THREE.DoubleSide });
+  dressSurface(roadMat, { detail: BUILT_GRAIN });
   for (const [width, lines] of byWidth) {
     const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * ROAD_EXAGGERATION, ROAD_MIN_M), 0.15), roadMat);
     mesh.renderOrder = 1;
@@ -384,6 +390,7 @@ export async function buildLand(scene, sample, opts = {}) {
   // on their own so they can be told apart from the four thousand others.
   const plainMat = new THREE.MeshStandardMaterial({
     color: 0xa7a396, roughness: 0.9, metalness: 0 });
+  dressSurface(plainMat, { detail: BUILT_GRAIN });
   const plain = data.buildings.filter((b) => !b.home && !b.name && !opts.skipBuilding?.(b));
   const bgeom = buildings(plain.filter((b) => !isolate(b)), sample);
   if (bgeom) scene.add(new THREE.Mesh(bgeom, plainMat));

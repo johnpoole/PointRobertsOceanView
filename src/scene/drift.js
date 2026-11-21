@@ -93,7 +93,7 @@ export function buildDrift(scene, opts = {}) {
       counts[name]);
     mesh.setColorAt(0, white);        // allocate the colour buffer up front
     mesh.frustumCulled = false;       // its bounds are one piece at the origin
-    mesh.castShadow = false;
+    mesh.userData.noShadow = true;    // flat on the water, and it moves
     group.add(mesh);
     kinds.push({ name, mesh, spec: s, pieces: [] });
     for (let i = 0; i < counts[name]; i++) {

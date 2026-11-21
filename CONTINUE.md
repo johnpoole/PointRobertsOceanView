@@ -388,6 +388,10 @@ src/scene/campground.js    that plan drawn. Off unless asked for
 src/scene/campground-noise.js  how far it carries, by distance alone. Shades the map
 src/scene/cabin.js         389 W Bluff Rd, modelled off photographs rather than extruded
 src/scene/parts.js         tint, box and gableRoof, shared by the cabin and the clubhouse
+src/scene/detail-texels.js the stone grain, as bytes. No three
+src/scene/detail.js        lays the grain on a material, and the shade of a hollow
+src/scene/openness.js      how much sky each cell of a heightmap can see. No three
+src/scene/shadows.js       which meshes throw the sun's shadow and which take it. No three
 src/scene/drift.js         kelp, sticks and foam on the water, so the current can be seen
 src/scene/orcas.js         a group running the west shore, at the rate the month says. Not a feed.
 src/scene/lights.js        points that hold their size in pixels, for lights seen a long way off
@@ -718,6 +722,43 @@ for the Canadian end of the tile, which a US survey does not cover.
 
 Loose stone is geometry, 1707 cobbles and 48 logs, only where there is slope. Pea gravel is per
 pixel in the fragment shader, at 25 mm, faded out past 45 m where an inch is smaller than a pixel.
+
+## Grain, hollows and shadows
+
+Three things taken from how Abyssal Garden (github.com/Noniv/abyssal-garden, MIT) lights its
+seabed, rebuilt for three.js. None of its code is here: it is WebGPU with no library under it.
+
+**Grain.** One 256 px square of generated stone, `detail-texels.js`, laid on the near ground, the
+plain buildings and the roads at three sizes at once: 31 m, 5.3 m and 0.9 m to a repeat. It is
+thrown on from above and from two sides and each counts for as much as the surface faces it, so a
+bank gets grain that runs down it. It moves the colour about what is already there and tips the
+surface a little; it does not set a colour. Its mean is exactly the middle, so with distance it
+blurs to nothing and the far ground is the colour it was. That matters because the colours here
+are matched to photographs. The ground carries it at 0.12, a wall at 0.06, and flat sand gives
+up seven tenths of it, because even is what makes sand read as sand.
+
+**Hollows.** `openness.js` walks the heightmap out to 25 m in eight directions from every cell
+and keeps how much sky is left. It dims the light from the sky and never the sun. It is honest
+and so it is slight: 0.7% of the near tile sees less than nine tenths of the sky, and the least
+is 0.52. Only the ground is in it, because the lidar is bare earth. It costs about 0.6 s on load.
+
+**Shadows.** The sun is three's `SunLight` and not a `DirectionalLight`: two shadow maps of
+2048 px, refitted to the view each frame, reaching 1500 m from the eye. `shadows.js` goes round
+the scene twice a second and gives each new mesh its part by what it is made of, so no builder
+has to say. A mesh sets `userData.noShadow` to throw none, or `userData.shadowsSet` to be left
+alone. They fade out over the last two degrees as the sun comes down, because the sun's light is
+left on through twilight from under the horizon and a shadow map would put the whole world in
+the shade of the Earth.
+
+The far ring of trees throws no shadow. With it casting, an Iris Xe went from 25 frames a second
+to 13. So a tree shades the ground within 300 m of the eye and not past it, while a house and
+the ground itself do out to 1500 m.
+
+The near ground is now cut into squares of about 256 cells, each its own mesh over shared vertex
+buffers, so what is out of view is not drawn. It was one mesh of 3.5 million vertices on every
+frame. That is what pays for the shadows: measured on the Iris Xe in headless Chrome at
+1280 x 800, a view over the houses ran 21 before and 26 after, and one walking the road 25
+before and 18 to 26 after. Those readings wander by a few frames from run to run.
 
 ## Modes
 

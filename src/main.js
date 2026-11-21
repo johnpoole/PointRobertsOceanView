@@ -4,6 +4,7 @@
 
 import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
+import { SunLight } from "three/addons/lights/SunLight.js";
 
 import { EYE_HEIGHT_M, LANDCOVER, OPENING_VIEW, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN, TIDE_HARMONICS } from "./config.js";
 import { Feed } from "./feed.js";
@@ -14,6 +15,7 @@ import { Vessels } from "./scene/vessels.js";
 import { Aircraft } from "./scene/aircraft.js";
 import { Weather } from "./scene/weather.js";
 import { buildTerrain, buildScreen } from "./scene/terrain.js";
+import { handOutShadows, shadowStrength } from "./scene/shadows.js";
 import { buildLand, osmFeatures } from "./scene/land.js";
 import { buildBeach } from "./scene/beach.js";
 import { buildShrubs } from "./scene/shrubs.js";
@@ -100,6 +102,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // cap for Iris Xe
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
 
 const scene = new THREE.Scene();
 
@@ -227,8 +230,36 @@ function solarPosition(date, latDeg, lonDeg) {
 const sky = new Sky(scene);
 const ambient = new THREE.AmbientLight(0xffffff, 0.3);
 const hemi = new THREE.HemisphereLight(0xbcd3e6, 0x33404a, 0.5);
-const sun = new THREE.DirectionalLight(0xfff2d8, 1.2);
+// three's own sun: a directional light whose shadow is two maps, a fine one
+// for what is near the eye and a coarse one for what is further off, both
+// refitted to the view on every frame. A plain directional light has one map
+// of a fixed size, and this scene is twenty-four kilometres across with a
+// person standing in it.
+//
+// The range is how far from the eye a shadow is drawn at all. At fifteen
+// hundred metres the near map comes out at about a fifth of a metre to a texel,
+// which holds a person, and the far one at under a metre, which holds a fir and
+// a house. Past that the ground is lit as it was.
+const SHADOW_RANGE_M = 1500;
+const SHADOW_MAP_PX = 2048;
+// Seen through this much air, a point is lit from a little above itself rather
+// than from its own surface, in metres. It is what keeps a road laid fifteen
+// centimetres over the ground from shading the ground under it, and keeps a
+// slope from shading itself where one texel covers a metre of it.
+const SHADOW_LIFT_M = 0.35;
+const sun = new SunLight(0xfff2d8, 1.2);
+sun.castShadow = true;
+sun.shadow.mapSize.set(SHADOW_MAP_PX, SHADOW_MAP_PX);
+sun.shadow.camera.far = SHADOW_RANGE_M;
+sun.shadow.normalBias = SHADOW_LIFT_M;
+// Drawn once whatever the hour, so there is a map behind the sampler even on a
+// page opened at midnight. After that only while the sun is up: see updateSun.
+sun.shadow.needsUpdate = true;
 scene.add(ambient, hemi, sun);
+// Every mesh that has been given its part in the shadows. See shadows.js.
+const shadowed = new WeakSet();
+const SHADOW_ROUND_SECONDS = 0.5;
+let shadowRoundDue = 0;
 
 const ocean = new Ocean(scene);
 const vessels = new Vessels(scene);
@@ -356,6 +387,7 @@ Promise.all([stairSpec, loadCabinAsset().catch(err => {
 })])
   .then(([stair, cabinAsset]) => buildTerrain(scene, TERRAIN.fine,
       { haze: 0, fog: true, landcover: LANDCOVER, projector: true, refine: 4, preserveSurvey: true,
+        grain: true, hollows: true, shadows: true,
         carveForGrid: (diagonal) => {
           if (cabinAsset) return cabinAsset.carve(diagonal);
           const cabinCut = cabinCarve(diagonal);
@@ -371,7 +403,8 @@ Promise.all([stairSpec, loadCabinAsset().catch(err => {
       fine,
       covers,
       buildTerrain(scene, TERRAIN.near,
-        { haze: 0, fog: true, landcover: LANDCOVER, hole: covers, projector: true }),
+        { haze: 0, fog: true, landcover: LANDCOVER, hole: covers, projector: true,
+          grain: true, hollows: true, shadows: true }),
       osmFeatures(),
       fetch(SITE_TREES).then((r) => r.json()),
       fetch(SITE_BOULDERS).then((r) => r.json()),
@@ -691,6 +724,10 @@ function updateSun() {
   const { azimuth, elevation } = solarPosition(sceneNow(), ORIGIN.lat, ORIGIN.lon);
   sky.setSun(sunDirection(azimuth, elevation), elevation);
   sun.position.copy(sunDirection(azimuth, elevation)).multiplyScalar(15000);
+  // The shadows go as the sun comes down onto the horizon, and with it under
+  // the horizon the map is not drawn at all.
+  sun.shadow.intensity = shadowStrength(elevation);
+  sun.shadow.autoUpdate = sun.shadow.intensity > 0;
   weather.dayFactor = Math.max(0, Math.min((elevation + 6) / 12, 1));
   weather.apply(weatherAt() || {});
 }
@@ -2428,6 +2465,10 @@ function frame() {
   }
 
   if (t >= waterScanDue) { waterScanDue = t + WATER_SCAN_SECONDS; scanWaterDistance(); }
+  if (t >= shadowRoundDue) {
+    shadowRoundDue = t + SHADOW_ROUND_SECONDS;
+    handOutShadows(scene, shadowed);
+  }
   const wx = feed.weather && feed.weather.data;
   audio.update(dt, {
     waveHeightM: wx ? wx.wave_height_m : null,

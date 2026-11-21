@@ -7,6 +7,8 @@
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
 import { EYE_HEIGHT_M } from "../config.js";
+import { openness } from "./openness.js";
+import { dressSurface } from "./detail.js";
 
 // What washes out a distant hill over this water is not the aerosol column of
 // the whole atmosphere. It is the marine layer: the damp air that sits on the
@@ -77,6 +79,19 @@ const GRAVEL_COARSE_M = 0.07;
 const GRAVEL_DEPTH = 0.16;
 const GRAVEL_FADE_NEAR_M = 12.0;
 const GRAVEL_FADE_FAR_M = 45.0;
+
+// The ground is cut into squares of about this many cells and each is its own
+// mesh, so what is behind the camera, and what the sun's shadow map does not
+// reach, is thrown out before it is drawn. As one mesh the near tile was three
+// and a half million vertices on every frame wherever you looked, and a shadow
+// map would have drawn all of them twice more.
+const CHUNK_CELLS = 256;
+
+// How far the grain moves the ground's colour and tips its surface, and how
+// much of it flat sand gives up. See detail.js.
+const GRAIN_DEPTH = 0.12;
+const GRAIN_LEAN = 0.55;
+const SAND_EVEN = 0.7;
 
 // Value noise off the grid indices. Not smooth, and it does not need to be:
 // what is wanted is speckle at about the size of a stone.
@@ -521,8 +536,11 @@ async function grab(url) {
 }
 
 // asset: { heightmap, meta }. opts: { haze 0..1, hazeGrade [nearM,farM,nearHaze,
-// farHaze], fog, yOffset }. hazeGrade ramps haze with distance for atmospheric
-// perspective, so nearer islands read crisp and far mountains fade.
+// farHaze], fog, yOffset, grain, hollows, shadows }. hazeGrade ramps haze with
+// distance for atmospheric perspective, so nearer islands read crisp and far
+// mountains fade. grain lays stone grain on the ground, hollows shades what
+// cannot see the sky, and shadows has the ground cast and take the sun's
+// shadow. All three are for ground near enough to walk on.
 export async function buildTerrain(scene, asset, opts = {}) {
   const haze = opts.haze || 0;
   const grade = opts.hazeGrade || null;
@@ -737,27 +755,58 @@ export async function buildTerrain(scene, asset, opts = {}) {
     }
   }
 
+  // The triangles, a square of cells at a time, so each square's are together
+  // in the buffer and can be lifted out as a mesh of its own.
+  const squareRows = Math.ceil((nrows - 1) / CHUNK_CELLS);
+  const squareCols = Math.ceil((ncols - 1) / CHUNK_CELLS);
+  const rowsEach = Math.ceil((nrows - 1) / squareRows);
+  const colsEach = Math.ceil((ncols - 1) / squareCols);
   const indices = new Uint32Array((nrows - 1) * (ncols - 1) * 6);
+  const squares = [];
   let k = 0;
-  for (let i = 0; i < nrows - 1; i++) {
-    for (let j = 0; j < ncols - 1; j++) {
-      const a = i * ncols + j;
-      const b = a + 1;
-      const c = a + ncols;
-      const d = c + 1;
-      if (isHole(a) || isHole(b) || isHole(c) || isHole(d)) continue;
-      indices[k++] = a; indices[k++] = c; indices[k++] = b;
-      indices[k++] = b; indices[k++] = c; indices[k++] = d;
+  for (let si = 0; si < squareRows; si++) {
+    for (let sj = 0; sj < squareCols; sj++) {
+      const i0 = si * rowsEach, i1 = Math.min(i0 + rowsEach, nrows - 1);
+      const j0 = sj * colsEach, j1 = Math.min(j0 + colsEach, ncols - 1);
+      const start = k;
+      for (let i = i0; i < i1; i++) {
+        for (let j = j0; j < j1; j++) {
+          const a = i * ncols + j;
+          const b = a + 1;
+          const c = a + ncols;
+          const d = c + 1;
+          if (isHole(a) || isHole(b) || isHole(c) || isHole(d)) continue;
+          indices[k++] = a; indices[k++] = c; indices[k++] = b;
+          indices[k++] = b; indices[k++] = c; indices[k++] = d;
+        }
+      }
+      if (k > start) squares.push({ i0, i1, j0, j1, start, end: k });
     }
   }
 
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geom.setAttribute("stony", new THREE.BufferAttribute(stony, 1));
-  if (hazed) geom.setAttribute("hazy", new THREE.BufferAttribute(hazy, 1));
-  geom.setIndex(new THREE.BufferAttribute(indices.subarray(0, k), 1));
-  geom.computeVertexNormals();
+  // Every square reads the same vertex buffers. Only its triangles are its own.
+  const attributes = {
+    position: new THREE.BufferAttribute(positions, 3),
+    color: new THREE.BufferAttribute(colors, 3),
+    stony: new THREE.BufferAttribute(stony, 1),
+  };
+  if (hazed) attributes.hazy = new THREE.BufferAttribute(hazy, 1);
+  if (opts.hollows) {
+    // Off the heights as they stand after the cuts, so the ground dug out from
+    // under a deck is in the shade of its own bank. A cell the survey left
+    // empty hides nothing; ground a finer tile covers is still ground.
+    attributes.open = new THREE.BufferAttribute(
+      openness(Z, nrows, ncols, cellNorthM, cellEastM,
+        nodata != null ? (n) => isValueHole(Z[n]) : null),
+      1, true);
+  }
+  // The normals want every triangle at once, or the squares would meet at a
+  // crease. Worked out on the whole and then shared like the rest.
+  const whole = new THREE.BufferGeometry();
+  whole.setAttribute("position", attributes.position);
+  whole.setIndex(new THREE.BufferAttribute(indices.subarray(0, k), 1));
+  whole.computeVertexNormals();
+  attributes.normal = whole.getAttribute("normal");
 
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true, roughness: 1, metalness: 0, fog,
@@ -777,7 +826,46 @@ export async function buildTerrain(scene, asset, opts = {}) {
     : null;
   const gravel = opts.gravel !== false;
   if (gravel || projector || hazed) dressGround(mat, projector, gravel, hazeColor);
-  const mesh = new THREE.Mesh(geom, mat);
+  if (opts.grain || opts.hollows) {
+    if (opts.grain && !gravel) {
+      throw new Error(
+        "buildTerrain: grain was asked for on a tile built without gravel. The " +
+        "grain is thinned over sand by the same stony attribute the gravel reads.");
+    }
+    dressSurface(mat, {
+      detail: opts.grain
+        ? { depth: GRAIN_DEPTH, lean: GRAIN_LEAN,
+            sand: { even: SAND_EVEN, from: BEACH_ONLY_M, to: COVER_ONLY_M } }
+        : null,
+      open: !!opts.hollows,
+    });
+  }
+  const mesh = new THREE.Group();
+  const corner = new THREE.Vector3();
+  for (const sq of squares) {
+    const geom = new THREE.BufferGeometry();
+    for (const [name, attribute] of Object.entries(attributes)) {
+      geom.setAttribute(name, attribute);
+    }
+    geom.setIndex(new THREE.BufferAttribute(indices.slice(sq.start, sq.end), 1));
+    // Its own bounds, from its own corner of the grid. Asking three for them
+    // would measure the whole shared buffer and nothing would ever be culled.
+    const box = new THREE.Box3();
+    for (let i = sq.i0; i <= sq.i1; i++) {
+      for (let j = sq.j0; j <= sq.j1; j++) {
+        box.expandByPoint(corner.fromArray(positions, (i * ncols + j) * 3));
+      }
+    }
+    geom.boundingBox = box;
+    geom.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+    const part = new THREE.Mesh(geom, mat);
+    part.castShadow = !!opts.shadows;
+    part.receiveShadow = !!opts.shadows;
+    // Said here, so whatever goes round the scene handing out shadows leaves a
+    // tile that was told to stay out of them alone.
+    part.userData.shadowsSet = true;
+    mesh.add(part);
+  }
   mesh.position.y = yOffset;
   scene.add(mesh);
 

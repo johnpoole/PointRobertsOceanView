@@ -217,10 +217,7 @@ export function buildStair(scene, spec, projector, entryEdge) {
   ];
   if (wood.length) parts.push(new THREE.Mesh(mergeGeometries(wood, false),
     new THREE.MeshStandardMaterial({ color: 0x8e816d, roughness: 1, metalness: 0 })));
-  for (const m of parts) {
-    m.castShadow = false;
-    scene.add(m);
-  }
+  for (const m of parts) scene.add(m);
   const top = foot.y + spec.rise_m * (spec.steps - 1);
   return { meshes: parts, bottom: foot.y, top, run: spec.going_m * spec.steps };
 }

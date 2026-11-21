@@ -99,6 +99,7 @@ export class InstancedMesh {
     this.count = room;
     this.instanceMatrix = new Attribute(room * 16, 16);
     this.instanceColor = null;
+    this.userData = {};
     this.written = 0;
   }
   setMatrixAt(i, m) {
@@ -163,7 +164,11 @@ export class IcosahedronGeometry extends BufferGeometry { constructor() { super(
 export class OctahedronGeometry extends BufferGeometry { constructor() { super(); corners(this, 24); } }
 export class PlaneGeometry extends BufferGeometry { constructor() { super(); corners(this, 6); } }
 
-export class MeshStandardMaterial { constructor(o = {}) { Object.assign(this, o); } }
+export class MeshStandardMaterial {
+  constructor(o = {}) { Object.assign(this, o); }
+  onBeforeCompile() {}
+  customProgramCacheKey() { return ""; }
+}
 
 export class Mesh {
   constructor(geometry, material) {

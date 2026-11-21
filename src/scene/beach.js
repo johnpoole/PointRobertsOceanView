@@ -174,7 +174,6 @@ export function buildBeach(scene, sample, origin, boulders) {
     const mesh = new THREE.Mesh(
       mergeGeometries(geoms, false),
       new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0 }));
-    mesh.castShadow = false;
     scene.add(mesh);
   }
   return { stones, logs, boulders: rocks };

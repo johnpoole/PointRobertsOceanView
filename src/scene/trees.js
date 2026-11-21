@@ -301,7 +301,6 @@ class Ring {
       // origin, so three would cull the whole forest the moment you looked
       // away from the middle of the tile.
       m.frustumCulled = false;
-      m.castShadow = false;
       m.count = 0;
       scene.add(m);
     }
@@ -542,6 +541,12 @@ export function buildTrees(scene, sample, cover, roads, measured, excludeScatter
     broadleaf: broadleafCrown(new THREE.OctahedronGeometry(1, 0)),
     trunk: null,
   }, byForm, 0, { conifer: farConiferMat, broadleaf: farBroadleafMat });
+  // The far ring throws no shadow. It is every tree on the tile in one mesh,
+  // and the shadow map would run all of them through twice more a frame: on an
+  // Iris Xe that took the page from 25 frames a second to 13. So a tree shades
+  // the ground inside NEAR_M of the eye, where the near ring is drawing it, and
+  // past that it does not.
+  for (const crown of far.crowns) crown.userData.noShadow = true;
 
   const m = new THREE.Matrix4();
   const pos = new THREE.Vector3();

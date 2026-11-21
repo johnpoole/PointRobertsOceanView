@@ -31,7 +31,6 @@ export async function loadCabinAsset() {
     addTo(scene, projector) {
       root.traverse(obj => {
         if (!obj.isMesh) return;
-        obj.castShadow = false;
         // Preserve the existing camera projector on the approach concrete.
         for (const mat of Array.isArray(obj.material) ? obj.material : [obj.material]) {
           if (projector && mat.name === 'Approach concrete') projector.dress(mat);
