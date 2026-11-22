@@ -23,6 +23,34 @@ export function daysBetween(then, now) {
   return Math.round((a - b) / 86400000);
 }
 
+// Which day the scene stands on against today: 0 today, -1 yesterday. Both
+// controls count. The slider is twelve hours either way, so before noon it
+// reaches back into last night on its own, and that is a past day as much as
+// one picked in the date box is.
+export function sceneDay(hourShift, dayShift, now = new Date()) {
+  const scene = new Date(now.getTime() + (hourShift + dayShift * 24) * 3600000);
+  return daysBetween(scene, now);
+}
+
+// What the two controls hold once a date has been picked, so that the scene
+// stands on that date at the hour the slider already shows.
+//
+// The days are counted from where the slider alone has the clock, not from now.
+// Counted from now, a slider that had carried the hour over midnight left every
+// picked date a day off, and the box wrote back a different date from the one
+// just chosen.
+//
+// Nothing goes forward, so a date ahead of where the slider has the clock has
+// no day shift that reaches it. That is today, picked while the slider is back
+// in last night. The one way to stand on today from there is to let go of the
+// hours, which is what "now" does.
+export function shiftsForDate(picked, hourShift, now = new Date()) {
+  const slider = new Date(now.getTime() + hourShift * 3600000);
+  const days = daysBetween(picked, slider);
+  if (days > 0) return { hourShift: 0, dayShift: 0 };
+  return { hourShift, dayShift: days };
+}
+
 export function asDateValue(when) {
   return `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, "0")}`
     + `-${String(when.getDate()).padStart(2, "0")}`;
@@ -70,9 +98,12 @@ export class ClockControl {
     this.range.addEventListener("input",
       () => this.setHour(Number(this.range.value) / 60));
     this.date.addEventListener("change", () => {
-      if (!this.date.value) { this.setDay(0); return; }
-      const [y, m, d] = this.date.value.split("-").map(Number);
-      this.setDay(daysBetween(new Date(y, m - 1, d), new Date()));
+      // A box that has been emptied is asking for today.
+      const now = new Date();
+      const [y, m, d] = this.date.value
+        ? this.date.value.split("-").map(Number)
+        : [now.getFullYear(), now.getMonth() + 1, now.getDate()];
+      this.pickDate(new Date(y, m - 1, d));
     });
     document.getElementById("clock-now").addEventListener("click", () => {
       this.dayShift = 0;
@@ -80,8 +111,9 @@ export class ClockControl {
     });
   }
 
+  // Whether the scene stands on a day before today, by either control.
   get past() {
-    return this.dayShift < 0;
+    return sceneDay(this.hourShift, this.dayShift) < 0;
   }
 
   // The hour within the day. Everything that moves the sun comes through here:
@@ -91,10 +123,12 @@ export class ClockControl {
     this.apply();
   }
 
-  // Whole days back from today. Nothing forward: a past day can be looked up
-  // and a future one cannot.
-  setDay(days) {
-    this.dayShift = Math.min(0, Math.round(days));
+  // Stand the scene on a calendar date, at the hour the slider shows. Nothing
+  // forward: a past day can be looked up and a future one cannot.
+  pickDate(picked) {
+    const to = shiftsForDate(picked, this.hourShift);
+    this.hourShift = to.hourShift;
+    this.dayShift = to.dayShift;
     this.apply();
   }
 

@@ -57,6 +57,52 @@ test("a date reads back the way the box writes it", () => {
   assert.equal(c.asDateValue(new Date(2026, 11, 31)), "2026-12-31");
 });
 
+// ---- the slider across midnight ----------------------------------------------
+
+test("the slider alone can put the scene on yesterday, and that is a past day", () => {
+  // Eight in the morning, dragged back ten hours, is ten the night before.
+  const now = new Date(2026, 8, 12, 8, 0);
+  assert.equal(c.sceneDay(-10, 0, now), -1);
+  // Dragged back two hours it is still this morning.
+  assert.equal(c.sceneDay(-2, 0, now), 0);
+  assert.equal(c.sceneDay(0, 0, now), 0);
+  assert.equal(c.sceneDay(0, -3, now), -3);
+  // The two add up: three days back and then over midnight is four.
+  assert.equal(c.sceneDay(-10, -3, now), -4);
+});
+
+test("a picked date is the date the scene lands on, wherever the slider is", () => {
+  const now = new Date(2026, 8, 12, 8, 0);
+  const lands = (picked, hourShift) => {
+    const to = c.shiftsForDate(picked, hourShift, now);
+    const scene = new Date(now.getTime() + (to.hourShift + to.dayShift * 24) * 3600000);
+    return { date: c.asDateValue(scene), ...to };
+  };
+  // Slider at rest.
+  assert.equal(lands(new Date(2026, 8, 5), 0).date, "2026-09-05");
+  // Slider over midnight into last night. Counted from now this came out as the
+  // 4th, and the box wrote the 4th back over the 5th that had just been chosen.
+  const over = lands(new Date(2026, 8, 5), -10);
+  assert.equal(over.date, "2026-09-05");
+  assert.equal(over.hourShift, -10, "the hour the slider shows is kept");
+  // Yesterday, from last night, is where the slider already is.
+  assert.deepEqual(c.shiftsForDate(new Date(2026, 8, 11), -10, now), { hourShift: -10, dayShift: 0 });
+  // Slider forward over midnight, at eight in the evening.
+  const late = new Date(2026, 8, 12, 20, 0);
+  const back = c.shiftsForDate(new Date(2026, 8, 12), 6, late);
+  assert.equal(c.asDateValue(new Date(late.getTime() + (back.hourShift + back.dayShift * 24) * 3600000)),
+    "2026-09-12");
+});
+
+test("today picked from last night lets go of the hours", () => {
+  // The slider has the clock on yesterday evening. Today is ahead of that and
+  // nothing goes forward, so the only way onto today is the real clock.
+  const now = new Date(2026, 8, 12, 8, 0);
+  assert.deepEqual(c.shiftsForDate(new Date(2026, 8, 12), -10, now), { hourShift: 0, dayShift: 0 });
+  // With the slider still on today, picking today changes nothing.
+  assert.deepEqual(c.shiftsForDate(new Date(2026, 8, 12), -2, now), { hourShift: -2, dayShift: 0 });
+});
+
 // ---- what the label says ----------------------------------------------------
 
 test("standing on the real clock reads now", () => {
