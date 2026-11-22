@@ -91,10 +91,15 @@ export class Touch {
 
   // On while driving, off while looking around from the bluff. With the zone
   // gone the left of the screen is a drag like anywhere else.
+  //
+  // The zone only comes up where there is a stick to open in it. It lies over
+  // the left half of the canvas and takes every press that lands there, so on
+  // a machine with a mouse and no touch screen it was a dead half: no look, no
+  // tooltip and no card, with nothing drawn to say why.
   setActive(on) {
     if (this.active === on) return;
     this.active = on;
-    this.zone.classList.toggle("hidden", !on);
+    this.zone.classList.toggle("hidden", !(on && this._stick));
     if (!on) this._release();
   }
 
