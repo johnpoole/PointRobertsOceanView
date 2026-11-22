@@ -126,6 +126,52 @@ function test_stamping_an_aircraft_keeps_the_rest_of_its_envelope() {
   assert.equal(plane.quality.age_seconds, 3);
 }
 
+// ---- a provider that has failed ----------------------------------------------
+
+const reading = (data) => ({ data, quality: { stale: false, age_seconds: 4, warnings: [] } });
+const snapshot = (health) => ({
+  message_type: "initial.snapshot",
+  data: {
+    weather: reading({ temperature_c: 9 }),
+    tide: reading({ water_level_m: 2.6 }),
+    current: reading({ drift_mps: 0.4 }),
+    provider_health: { weather: "live", tide: "live", currents: "live", ...health },
+  },
+});
+
+function test_a_failed_provider_takes_its_last_reading_with_it() {
+  // The server sends the health and the last good reading in the same
+  // snapshot. The reading used to be kept and shown beside the word offline.
+  const feed = new Feed();
+  feed._handle(snapshot({}));
+  assert.equal(feed.tide.data.water_level_m, 2.6);
+  assert.equal(feed.weather.data.temperature_c, 9);
+  assert.equal(feed.current.data.drift_mps, 0.4);
+
+  feed._handle(snapshot({ tide: "offline" }));
+  assert.equal(feed.tide, null, "the tide's last reading was kept");
+  assert.equal(feed.weather.data.temperature_c, 9, "the weather went with the tide");
+  assert.equal(feed.current.data.drift_mps, 0.4, "the current went with the tide");
+
+  feed._handle(snapshot({ weather: "offline", currents: "offline" }));
+  assert.equal(feed.weather, null);
+  assert.equal(feed.current, null);
+  assert.equal(feed.tide.data.water_level_m, 2.6, "the tide did not come back");
+}
+
+function test_a_reading_too_old_does_not_stand_in_for_a_failed_provider() {
+  const feed = new Feed();
+  feed._handle(snapshot({ tide: "offline" }));
+  const old = { message_type: "tide.state", ...reading({ water_level_m: 1.1 }) };
+  old.quality.stale = true;
+  feed._handle(old);
+  assert.equal(feed.tide, null);
+  // A fresh one brings the provider back and is kept.
+  feed._handle({ message_type: "tide.state", ...reading({ water_level_m: 1.2 }) });
+  assert.equal(feed.providerHealth.tide, "live");
+  assert.equal(feed.tide.data.water_level_m, 1.2);
+}
+
 // ---- run -------------------------------------------------------------------
 
 const tests = Object.entries({
@@ -138,6 +184,8 @@ const tests = Object.entries({
   test_the_proxys_own_flag_still_wins,
   test_a_missing_entry_is_stale,
   test_an_unknown_kind_raises_rather_than_guessing,
+  test_a_failed_provider_takes_its_last_reading_with_it,
+  test_a_reading_too_old_does_not_stand_in_for_a_failed_provider,
   test_both_vessels_and_aircraft_are_stamped_on_arrival,
   test_stamping_an_aircraft_keeps_the_rest_of_its_envelope,
 });

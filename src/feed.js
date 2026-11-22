@@ -155,18 +155,18 @@ export class Feed {
         this._emit("heartbeat");
         break;
       case "weather.state":
-        this.weather = { data: msg.data, quality: msg.quality };
         this._providerLive("weather", msg);
+        this.weather = this._reading("weather", msg);
         this._emit("weather");
         break;
       case "tide.state":
-        this.tide = { data: msg.data, quality: msg.quality };
         this._providerLive("tide", msg);
+        this.tide = this._reading("tide", msg);
         this._emit("tide");
         break;
       case "current.state":
-        this.current = { data: msg.data, quality: msg.quality };
         this._providerLive("currents", msg);
+        this.current = this._reading("currents", msg);
         this._emit("current");
         break;
       case "aircraft.state":
@@ -234,11 +234,11 @@ export class Feed {
     for (const env of data.vessels || []) this._applyVessel(env);
     this.aircraft.clear();
     for (const env of data.aircraft || []) this._applyAircraft(env);
-    this.weather = data.weather ? { data: data.weather.data, quality: data.weather.quality } : null;
-    this.tide = data.tide ? { data: data.tide.data, quality: data.tide.quality } : null;
-    this.current = data.current
-      ? { data: data.current.data, quality: data.current.quality } : null;
+    // The health first, because it decides which readings are kept.
     this.providerHealth = data.provider_health || this.providerHealth;
+    this.weather = this._reading("weather", data.weather);
+    this.tide = this._reading("tide", data.tide);
+    this.current = this._reading("currents", data.current);
     this.marina = data.marina || null;
     this.tee = data.tee || null;
     this.calls = data.calls || null;
@@ -257,6 +257,15 @@ export class Feed {
   // it keeps answering.
   _providerLive(key, msg) {
     if (!(msg.quality && msg.quality.stale)) this.providerHealth[key] = "live";
+  }
+
+  // A reading is kept only while its provider is live. When a provider fails
+  // the server says so in a snapshot and sends its last good reading along in
+  // the same one. Kept, that reading stood on the panel beside the word offline
+  // for as long as the provider stayed down, and the sea stood at its level.
+  _reading(key, env) {
+    if (!env || this.providerHealth[key] !== "live") return null;
+    return { data: env.data, quality: env.quality };
   }
 
   _applyAircraft(env) {
