@@ -18,7 +18,7 @@ import asyncio
 import logging
 import re
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -437,6 +437,61 @@ def test_a_provider_coming_back_is_broadcast() -> None:
         restore()
 
 
+# ---- a chip that reads offline over a feed that is working -------------------
+
+def test_a_dead_ais_feed_does_not_call_scraped_ships_offline() -> None:
+    now = datetime(2026, 11, 22, 13, 0, tzinfo=timezone.utc)
+    ago = lambda s: now - timedelta(seconds=s)  # noqa: E731
+    # The scrape ran four minutes ago. AIS failing again changes nothing.
+    assert proxy.vessels_without_ais("scraped", ago(240), now) == "scraped"
+    # One pass late is still the scrape's to speak for.
+    assert proxy.vessels_without_ais("scraped", ago(590), now) == "scraped"
+    # Two passes missed and nobody is filling the water.
+    assert proxy.vessels_without_ais("scraped", ago(700), now) == "offline"
+    # AIS was the one delivering, and it has stopped.
+    assert proxy.vessels_without_ais("live", ago(240), now) == "offline"
+    assert proxy.vessels_without_ais("live", None, now) == "offline"
+    assert proxy.vessels_without_ais("offline", None, now) == "offline"
+
+
+class _EmptySky:
+    """adsb.fi answering properly with nobody overhead."""
+    def __init__(self, **_kwargs): pass
+    async def __aenter__(self): return self
+    async def __aexit__(self, *_exc): return False
+
+    async def get(self, _url, headers=None):
+        class Answer:
+            def raise_for_status(self): pass
+            def json(self): return {"aircraft": []}
+        return Answer()
+
+
+def test_an_empty_sky_is_a_working_feed() -> None:
+    """adsb.fi answered with nobody in range at 13:04 UTC on 22 November 2026
+    and the chip read offline."""
+    sent, restore = _collect_broadcasts()
+    original = proxy.httpx.AsyncClient
+    proxy.httpx.AsyncClient = _EmptySky
+    proxy.world.aircraft.clear()
+    proxy.world.health["aircraft"] = "offline"
+
+    async def one_poll() -> None:
+        try:
+            # The first poll is done at once and the task then sleeps.
+            await asyncio.wait_for(proxy.aircraft_task(), 0.5)
+        except asyncio.TimeoutError:
+            pass
+
+    try:
+        asyncio.run(one_poll())
+        assert proxy.world.health["aircraft"] == "live", proxy.world.health["aircraft"]
+        assert sent and sent[-1]["data"]["provider_health"]["aircraft"] == "live"
+    finally:
+        proxy.httpx.AsyncClient = original
+        restore()
+
+
 def test_no_feed_writes_its_own_health_behind_the_broadcast() -> None:
     """Health that is not sent is not health.
 
@@ -660,7 +715,6 @@ def test_a_feed_with_a_history_elsewhere_is_refused() -> None:
 
 def test_every_reading_carries_the_second_it_was_taken() -> None:
     import json
-    from datetime import datetime, timezone
     a = _archive()
     when = datetime(2026, 2, 12, 16, 12, 0, tzinfo=timezone.utc)
     a.keep("marina", {"boats": 3}, when)

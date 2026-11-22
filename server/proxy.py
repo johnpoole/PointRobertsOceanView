@@ -284,6 +284,9 @@ class World:
         self.tee_time: datetime | None = None
         # Why vessels are offline, in the monitor's words. Empty when they are not.
         self.vessels_note = ""
+        # When the scrape last put ships on the water, so a dead AIS feed is not
+        # called offline over ships that are a few minutes old.
+        self.vessels_scraped_at: datetime | None = None
         # What the lookups have answered, kept so the same question is not asked
         # twice. An empty dict is an answer: they were asked and had never heard
         # of it. A key that is not here has not been asked yet.
@@ -1077,7 +1080,8 @@ async def ais_task() -> None:
                     try:
                         raw = await asyncio.wait_for(ws.recv(), AIS_SILENCE_SECONDS)
                     except asyncio.TimeoutError:
-                        await set_health("vessels", "offline")
+                        await set_health("vessels", vessels_without_ais(
+                            world.health["vessels"], world.vessels_scraped_at, utcnow()))
                         # Report on the silence itself, not on a change of health.
                         # Health starts offline, so keying off a transition says
                         # nothing at all when the feed never delivers to begin with.
@@ -1085,7 +1089,7 @@ async def ais_task() -> None:
                             silence_reported = True
                             log.error(
                                 "AISStream has sent nothing for %.0fs with the socket "
-                                "still open, so vessels are now reported offline. "
+                                "still open, so it is not delivering. "
                                 "Probing the whole world to see whose fault it is.",
                                 AIS_SILENCE_SECONDS,
                             )
@@ -1160,7 +1164,8 @@ async def ais_task() -> None:
                             STALE_SECONDS["vessels"] if positioned else None,
                         ))
         except Exception as exc:
-            await set_health("vessels", "offline")
+            await set_health("vessels", vessels_without_ais(
+                world.health["vessels"], world.vessels_scraped_at, utcnow()))
             log.error("AISStream connection lost: %s. Retrying in %.0fs.", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60.0)
@@ -1446,16 +1451,13 @@ async def aircraft_task() -> None:
                     await clients.broadcast(envelope(
                         "aircraft.state", ADSB_SOURCE, now, state,
                         STALE_SECONDS["aircraft"]))
-                # Live means aircraft arrived, not that the request returned.
-                if seen_now:
-                    if world.health["aircraft"] != "live":
-                        await set_health("aircraft", "live")
-                        log.info("%s delivering; aircraft live (%d in range)",
-                                 ADSB_SOURCE, len(seen_now))
-                elif world.health["aircraft"] != "offline":
-                    await set_health("aircraft", "offline")
-                    log.warning("%s answered with no aircraft within %d nm.",
-                                ADSB_SOURCE, ADSB_RADIUS_NM)
+                # Live means the feed answered with a list that could be read.
+                # A list with nothing in it is an empty sky and not a fault: a
+                # feed that has changed shape raises in aircraft_records above.
+                if world.health["aircraft"] != "live":
+                    await set_health("aircraft", "live")
+                    log.info("%s delivering; aircraft live (%d in range)",
+                             ADSB_SOURCE, len(seen_now))
                 ok = True
             except Exception as exc:
                 await set_health("aircraft", "offline")
@@ -1717,6 +1719,22 @@ async def weather_task() -> None:
 SHIPFINDER_PERIOD_SECONDS = 300.0
 SHIPFINDER_IDLE_CHECK_SECONDS = 15.0
 SHIPFINDER_NOTE = "scraped from shipfinder"
+# How long one scrape pass speaks for the ships. Two periods: one pass late is a
+# slow pass, two is a scrape that has stopped.
+SCRAPE_SPEAKS_SECONDS = SHIPFINDER_PERIOD_SECONDS * 2
+
+
+def vessels_without_ais(health: str, scraped_at: datetime | None, now: datetime) -> str:
+    """What the ships' health is when AIS has just failed again.
+
+    AIS fails every two minutes while it is dead and the scrape runs every
+    five. Each failure used to write offline over the scrape's word, so the chip
+    read offline over ships a few minutes old for most of every cycle. While the
+    scrape is keeping the water filled, its word stands."""
+    if health == "scraped" and scraped_at is not None \
+            and (now - scraped_at).total_seconds() <= SCRAPE_SPEAKS_SECONDS:
+        return "scraped"
+    return "offline"
 
 
 async def shipfinder_task() -> None:
@@ -1811,6 +1829,7 @@ async def shipfinder_task() -> None:
             world.vessel_seen.pop(key, None)
 
         world.vessels_note = SHIPFINDER_NOTE
+        world.vessels_scraped_at = seen_at
         await set_health("vessels", "scraped")
         log.info("Shipfinder: %d vessels in the box", len(found))
         await clients.broadcast(snapshot())
