@@ -405,7 +405,11 @@ function makeCard(hole) {
   ctx.fillStyle = "#9fb6c4";
   ctx.font = "38px Arial, Helvetica, sans-serif";
   // No par in the map means no par on the card.
-  ctx.fillText(hole.par ? `par ${hole.par}` : "par not mapped", 150, 140);
+  ctx.fillText(hole.par ? `par ${hole.par}` : "par not mapped", 150, 136);
+  // The figures on the course are bookings walked round at a set pace. Nobody
+  // watched them play.
+  ctx.font = "24px Arial, Helvetica, sans-serif";
+  ctx.fillText("players from the tee sheet", 150, 172);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const card = new THREE.Mesh(new THREE.PlaneGeometry(11, 4.125),

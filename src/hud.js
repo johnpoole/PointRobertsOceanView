@@ -19,6 +19,29 @@ function num(value, digits, suffix = "") {
   return value.toFixed(digits) + suffix;
 }
 
+// What stands beside "weather". The figures are a forecast model's for one
+// grid cell, and the marine ones for a cell offshore. No instrument read them,
+// so the source is not printed bare where a station's name would go.
+export function weatherTitle(wx) {
+  if (!wx) return "";
+  if (wx.beyond) return "beyond the forecast";
+  if (wx.predicted) return "forecast";
+  return wx.station_id ? `${wx.station_id} model` : "";
+}
+
+// What stands beside "tide". Point Roberts has no gauge. The present level is
+// its prediction with the surge measured at another station added, and the
+// panel says so. Off the present hour the trend row says what is on screen and
+// this goes back to the station.
+export function tideTitle(tide) {
+  if (!tide) return "";
+  const present = !tide.beyond && !tide.held && !tide.predicted;
+  if (present && tide.surge_m != null && tide.gauge_station_name) {
+    return `predicted, surge from ${tide.gauge_station_name}`;
+  }
+  return tide.station_id || "";
+}
+
 export class Hud {
   // The row in the corner. Says what it is doing from the first frame, because a
   // one-line reading is not in anybody's way.
@@ -103,7 +126,7 @@ export class Hud {
 
     // Tide
     const tide = at.tide || (feed.tide && feed.tide.data);
-    el("tide-station").textContent = tide && tide.station_id ? tide.station_id : "";
+    el("tide-station").textContent = tideTitle(tide);
     el("tide-level").textContent = tide
       ? `${num(tide.water_level_m, 2, " m")} ${tide.datum || ""}`.trim() : "—";
     // Held beats predicted beats measured. While a photograph is on the ground
@@ -120,9 +143,7 @@ export class Hud {
         ? "held to the frame" : (tide && tide.predicted
           ? "predicted" : (tide && tide.trend ? tide.trend : "—")));
     // A forecast is not a reading and the panel titles say which is on screen.
-    el("wx-station").textContent = wx && wx.beyond
-      ? "beyond the forecast" : (wx && wx.predicted
-        ? "forecast" : (wx && wx.station_id ? wx.station_id : ""));
+    el("wx-station").textContent = weatherTitle(wx);
 
     el("vessel-count").textContent = String(feed.vessels.size);
     el("aircraft-count").textContent = String(feed.aircraft.size);

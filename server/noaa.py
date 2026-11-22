@@ -29,6 +29,7 @@ from server.when import parse_time, utcnow
 #
 # That keeps the live surge and puts the astronomical tide where the view is.
 TIDE_GAUGE_STATION = "9449424"    # Cherry Point, observed water level
+TIDE_GAUGE_NAME = "Cherry Point"  # what the panel calls it
 TIDE_STATION = "9449639"          # Point Roberts, predictions
 TIDE_DATUM = "MLLW"
 COOPS_BASE = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
@@ -169,6 +170,7 @@ async def fetch_tide(client: httpx.AsyncClient) -> dict:
             "trend": trend,
             "surge_m": surge_m,
             "gauge_station_id": TIDE_GAUGE_STATION,
+            "gauge_station_name": TIDE_GAUGE_NAME,
             # The whole prediction, so a page standing at another hour can read
             # the water there. Astronomical only: the surge is a measurement made
             # ten minutes ago and it is weather, so carrying it six hours out
