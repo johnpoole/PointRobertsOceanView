@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 import { SunLight } from "three/addons/lights/SunLight.js";
 
-import { EYE_HEIGHT_M, LANDCOVER, OPENING_VIEW, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN, TIDE_HARMONICS } from "./config.js";
+import { LANDCOVER, OPENING_VIEW, ORIGIN, SITE_BOULDERS, SITE_CAMPGROUND, SITE_SHRUBS, SITE_STAIR, SITE_TERRACES, SITE_TREES, TERRAIN, TIDE_HARMONICS } from "./config.js";
 import { Feed } from "./feed.js";
 import { Hud } from "./hud.js";
 import { Ocean } from "./scene/ocean.js";

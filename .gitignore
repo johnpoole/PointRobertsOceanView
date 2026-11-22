@@ -45,3 +45,12 @@ assets/vendor/
 # The reference ZIP contains videos; the motion photo may contain video too.
 kitesurf/*
 !kitesurf/README.md
+
+# Left in the checkout and used by nothing that is tracked. They stay on disk
+# and stay out of Git: one `git add -A` would have committed 197 MB of them.
+/three160.js
+/images/
+/assets/fspy/
+/assets/images/bens_store.jpg
+/assets/reference/ocean_view-20260901T023252Z.png
+/renders/novel/shield.png
