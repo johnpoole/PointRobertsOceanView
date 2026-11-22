@@ -77,3 +77,34 @@ export function slotAt(series, run, when) {
   if (i == null || !Array.isArray(run) || i > run.length - 1) return null;
   return run[Math.round(i)];
 }
+
+const WEATHER_NUMBERS = ["cloud_cover_percent", "cloud_cover_low_percent",
+                         "cloud_cover_mid_percent", "cloud_cover_high_percent",
+                         "wind_speed_mps",
+                         "temperature_c", "relative_humidity_percent", "visibility_m",
+                         "precipitation_probability_percent"];
+
+// The weather at an hour the page has been moved to: the present reading with
+// whatever the run holds for that hour laid over it, marked as a forecast.
+//
+// The run is a few days long and the date box reaches months back. An hour the
+// run has nothing at all for comes back with no reading in it and says so. It
+// used to come back as the present reading whole, with forecast written on it.
+export function weatherAtHour(w, when) {
+  const s = w.series;
+  if (!s) return w;
+  const out = { ...w, predicted: true };
+  let found = 0;
+  for (const k of WEATHER_NUMBERS) {
+    const v = numberAt(s, s[k], when);
+    if (v != null) { out[k] = v; found++; }
+  }
+  // Not with the numbers above it. A bearing wraps and blending it as a number
+  // reads 180 halfway between 350 and 10.
+  const bearing = bearingAt(s, s.wind_direction_degrees, when);
+  if (bearing != null) { out.wind_direction_degrees = bearing; found++; }
+  const d = slotAt(s, s.description, when);
+  if (d) { out.description = d; found++; }
+  if (!found) return { predicted: true, beyond: true };
+  return out;
+}

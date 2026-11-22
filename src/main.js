@@ -80,7 +80,7 @@ import { Share, readViewHash } from "./share.js";
 import { Audio } from "./audio.js";
 import { OverviewMap } from "./map.js";
 import { fromWorld, toWorld } from "./geo.js";
-import { bearingAt, numberAt, offsetHours, sceneNow, shifted, slotAt } from "./clock.js";
+import { numberAt, offsetHours, sceneNow, shifted, slotAt, weatherAtHour } from "./clock.js";
 
 const canvas = document.getElementById("scene");
 // The depth buffer is logarithmic. With the near plane at 1 m and the far at
@@ -805,25 +805,7 @@ function kiteConditions(now, waterLevel) {
 function weatherAt() {
   const w = feed.weather && feed.weather.data;
   if (!w || !shifted()) return w;
-  const s = w.series;
-  if (!s) return w;
-  const when = sceneNow();
-  const out = { ...w, predicted: true };
-  for (const k of ["cloud_cover_percent", "cloud_cover_low_percent",
-                   "cloud_cover_mid_percent", "cloud_cover_high_percent",
-                   "wind_speed_mps",
-                   "temperature_c", "relative_humidity_percent", "visibility_m",
-                   "precipitation_probability_percent"]) {
-    const v = numberAt(s, s[k], when);
-    if (v != null) out[k] = v;
-  }
-  // Not with the numbers above it. A bearing wraps and blending it as a number
-  // reads 180 halfway between 350 and 10.
-  const bearing = bearingAt(s, s.wind_direction_degrees, when);
-  if (bearing != null) out.wind_direction_degrees = bearing;
-  const d = slotAt(s, s.description, when);
-  if (d) out.description = d;
-  return out;
+  return weatherAtHour(w, sceneNow());
 }
 
 // Whichever is higher under a point, the sea floor or the tide.

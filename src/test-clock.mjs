@@ -10,7 +10,7 @@
 
 import assert from "node:assert/strict";
 import { bearingAt, numberAt, offsetHours, sceneNow, setOffsetHours,
-         shifted, slotAt } from "./clock.js";
+         shifted, slotAt, weatherAtHour } from "./clock.js";
 
 function test(name, fn) {
   try { fn(); console.log(`ok   ${name}`); }
@@ -110,6 +110,45 @@ test("a bearing run that does not reach is refused", () => {
 test("a gap in the bearings takes the side that has one", () => {
   assert.equal(bearingAt(RUN, [null, 10], at(0, 30)), 10);
   assert.equal(bearingAt(RUN, [350, null], at(0, 30)), 350);
+});
+
+// ---- the weather at another hour ----------------------------------------------
+
+const NOW_WX = {
+  station_id: "CWVF", temperature_c: 9, wind_speed_mps: 4, wind_direction_degrees: 200,
+  description: "overcast", cloud_cover_percent: 90, wave_height_m: 0.4,
+  series: { ...RUN, temperature_c: [5, 6, 7], wind_speed_mps: [1, 2, 3],
+            wind_direction_degrees: [350, 10, 30], description: ["clear", "fog", "rain"] },
+};
+
+test("inside the run the weather is the run's, marked a forecast", () => {
+  const w = weatherAtHour(NOW_WX, at(1));
+  assert.equal(w.predicted, true);
+  assert.ok(!w.beyond);
+  assert.equal(w.temperature_c, 6);
+  assert.equal(w.wind_speed_mps, 2);
+  assert.equal(w.wind_direction_degrees, 10);
+  assert.equal(w.description, "fog");
+  assert.equal(w.station_id, "CWVF");
+});
+
+test("an hour the run does not reach has no reading in it and says so", () => {
+  // Three months back. This used to be the present nine degrees and overcast,
+  // with forecast written over it.
+  for (const when of [new Date(Date.UTC(2026, 4, 4, 12)), at(5)]) {
+    const w = weatherAtHour(NOW_WX, when);
+    assert.equal(w.beyond, true);
+    assert.equal(w.predicted, true);
+    for (const k of ["temperature_c", "wind_speed_mps", "wind_direction_degrees",
+                     "description", "cloud_cover_percent", "wave_height_m"]) {
+      assert.equal(w[k], undefined, `${k} is still the present reading`);
+    }
+  }
+});
+
+test("a reading with no run comes back as it is", () => {
+  const bare = { temperature_c: 9 };
+  assert.equal(weatherAtHour(bare, at(1)), bare);
 });
 
 // ---- the offset itself ------------------------------------------------------

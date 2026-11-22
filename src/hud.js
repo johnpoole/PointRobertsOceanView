@@ -120,8 +120,9 @@ export class Hud {
         ? "held to the frame" : (tide && tide.predicted
           ? "predicted" : (tide && tide.trend ? tide.trend : "—")));
     // A forecast is not a reading and the panel titles say which is on screen.
-    el("wx-station").textContent = wx && wx.predicted
-      ? "forecast" : (wx && wx.station_id ? wx.station_id : "");
+    el("wx-station").textContent = wx && wx.beyond
+      ? "beyond the forecast" : (wx && wx.predicted
+        ? "forecast" : (wx && wx.station_id ? wx.station_id : ""));
 
     el("vessel-count").textContent = String(feed.vessels.size);
     el("aircraft-count").textContent = String(feed.aircraft.size);
