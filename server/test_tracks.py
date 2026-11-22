@@ -80,8 +80,31 @@ def test_a_window_crosses_midnight_and_carries_the_points_either_side() -> None:
     times = [p[0] for p in points]
     assert min(times) < (T0 + timedelta(minutes=10)).timestamp(), "no point before the window"
     assert max(times) > (T0 + timedelta(minutes=20)).timestamp(), "no point after the window"
-    assert got["tracks"]["1"]["info"]["name"] == "QUEEN OF ALBERNI"
+    assert got["tracks"]["1"]["infos"][0][1]["name"] == "QUEEN OF ALBERNI"
     assert got["fields"][:3] == ["t", "lat", "lon"]
+
+
+def test_what_it_was_is_what_it_was_then_and_not_at_the_end_of_the_day() -> None:
+    """One airframe flew as HR201 at five and stood on the ground as HR209 at
+    ten. Asked about five, the record answered HR209, on the ground."""
+    t = log()
+    noon = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+
+    def plane(callsign, on_ground):
+        return {"icao": "a1b2c3", "callsign": callsign, "on_ground": on_ground,
+                "latitude": 49.0, "longitude": -123.2, "altitude_m": 900}
+
+    t.record("aircraft", "a1b2c3", noon, plane("HR100", False))
+    t.record("aircraft", "a1b2c3", noon + timedelta(hours=5), plane("HR201", False))
+    t.record("aircraft", "a1b2c3", noon + timedelta(hours=5, minutes=5), plane("HR202", False))
+    t.record("aircraft", "a1b2c3", noon + timedelta(hours=10), plane("HR209", True))
+
+    got = t.window("aircraft", noon + timedelta(hours=5, minutes=-1),
+                   noon + timedelta(hours=5, minutes=10))
+    infos = got["tracks"]["a1b2c3"]["infos"]
+    assert [i[1]["callsign"] for i in infos] == ["HR100", "HR201", "HR202"], infos
+    assert infos[1][0] == (noon + timedelta(hours=5)).timestamp()
+    assert all(i[1]["on_ground"] is False for i in infos), infos
 
 
 def test_a_track_with_nothing_near_the_window_is_not_sent() -> None:

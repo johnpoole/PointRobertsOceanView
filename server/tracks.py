@@ -97,7 +97,12 @@ class TrackLog:
     def window(self, kind: str, start: datetime, end: datetime) -> dict:
         """Every track with a position between start and end, and the positions
         either side of the window within a gap, so the first and last moments
-        can be drawn between two real points."""
+        can be drawn between two real points.
+
+        What each one was is sent as it stood going into the window and at each
+        change inside it, with the time of each. It used to be the last account
+        in the day's file, so an aircraft airborne at five as one flight came
+        back as the flight it flew at ten, on the ground."""
         if kind not in KINDS:
             raise ValueError(f"tracks are kept for {KINDS}, not {kind!r}")
         if end <= start:
@@ -116,9 +121,12 @@ class TrackLog:
                         line = json.loads(raw)
                     except json.JSONDecodeError as exc:
                         raise RuntimeError(f"{path} line {n} is not JSON: {exc}") from exc
-                    track = tracks.setdefault(line["id"], {"info": {}, "points": []})
+                    track = tracks.setdefault(line["id"], {"infos": [], "points": []})
                     if "info" in line:
-                        track["info"] = line["info"]
+                        if line["t"] <= lo:
+                            track["infos"] = [[line["t"], line["info"]]]
+                        elif line["t"] <= hi:
+                            track["infos"].append([line["t"], line["info"]])
                     if lo <= line["t"] <= hi:
                         track["points"].append([line["t"], line["lat"], line["lon"], *line["m"]])
             day += timedelta(days=1)

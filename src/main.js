@@ -704,6 +704,16 @@ function trafficAt() {
   return replay.feedAt(when);
 }
 
+// Whether the scene stands at an hour no ship was written down near. Looked at
+// once a second: the record arrives after the clock has moved.
+const RECORD_CHECK_SECONDS = 1;
+let recordCheckDue = 0;
+function shipsUnrecorded() {
+  const when = sceneNow();
+  if (Date.now() - when.getTime() < REPLAY_BEHIND_S * 1000) return false;
+  return replay.recordedNear("vessels", when) === false;
+}
+
 function onPastDay() {
   return sceneClock.past;
 }
@@ -2399,6 +2409,10 @@ function frame() {
   // Ships light up as the sun goes down, and so does the point.
   const night = 1 - weather.dayFactor;
   const traffic = trafficAt();
+  if (t >= recordCheckDue) {
+    recordCheckDue = t + RECORD_CHECK_SECONDS;
+    sceneClock.setUnrecorded(shipsUnrecorded());
+  }
   vessels.update(traffic, level, t, camera, night);
   if (lighthouse) lighthouse.update(t, night);
   if (pavilion) pavilion.update(night);

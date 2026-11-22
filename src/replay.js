@@ -30,6 +30,19 @@ function number(a, b, k) {
   return a + (b - a) * k;
 }
 
+// What a track was at t: its last account of itself at or before t. The record
+// sends each account with its time, because a ship changes its destination and
+// an airframe flies under a new callsign in the course of a day. Before the
+// first of them, the first.
+function infoAt(track, t) {
+  let at = track.infos[0];
+  for (const next of track.infos) {
+    if (next[0] > t) break;
+    at = next;
+  }
+  return at ? at[1] : {};
+}
+
 // Where one track was at t (epoch seconds), as the same fields the live feed
 // carries, or null if the record does not say.
 export function stateAt(track, kind, t, gapS) {
@@ -51,7 +64,7 @@ export function stateAt(track, kind, t, gapS) {
   } else {
     return null;
   }
-  const info = track.info || {};
+  const info = infoAt(track, t);
   if (kind === "vessels") {
     return { ...info, latitude: lat, longitude: lon, speed_over_ground_knots: m[0],
              course_over_ground_degrees: m[1], true_heading_degrees: m[2] };
@@ -95,6 +108,24 @@ export class Replay {
         })
         .finally(() => { this.loading[kind] = false; });
     }
+  }
+
+  // Whether anything of this kind was written down near a moment: true or
+  // false, or null while the record for that moment is not in hand.
+  //
+  // The ships are written down only while their feed is delivering, so the
+  // record has holes, and a hole draws the same empty sea that an empty sea
+  // does. This is what tells them apart, as far as they can be told apart.
+  recordedNear(kind, when) {
+    const t = when.getTime() / 1000;
+    const held = this.held[kind];
+    if (!held || t < held.start || t > held.end) return null;
+    for (const track of Object.values(held.tracks)) {
+      for (const p of track.points) {
+        if (Math.abs(p[0] - t) <= held.gap) return true;
+      }
+    }
+    return false;
   }
 
   // The scene's ships and aircraft at a moment, in the live feed's shape.

@@ -188,4 +188,12 @@ test("the page says what it is not showing", () => {
   }
 });
 
+test("an hour no ship was written for is said, with or without a past day", () => {
+  assert.equal(c.noteFor(false, false), "");
+  assert.equal(c.noteFor(true, false), c.GONE_ON_A_PAST_DAY);
+  // An hour back today is not a past day and the record can still have a hole.
+  assert.equal(c.noteFor(false, true), c.NOT_RECORDED);
+  assert.equal(c.noteFor(true, true), `${c.GONE_ON_A_PAST_DAY} ${c.NOT_RECORDED}`);
+});
+
 if (!process.exitCode) console.log("\nPASS: days, labels and hour= all hold.");

@@ -15,6 +15,16 @@ import { setOffsetHours, sceneNow } from "./clock.js";
 export const GONE_ON_A_PAST_DAY =
   "No golfers on a past day. The ships and aircraft go back to 13 September 2026.";
 
+// The record of ships has holes: they are written down only while their feed
+// is delivering. A hole draws an empty sea, and so does an empty sea.
+export const NOT_RECORDED = "No ships were recorded at this hour.";
+
+// What the note under the scene says, or nothing.
+export function noteFor(past, unrecorded) {
+  return [past ? GONE_ON_A_PAST_DAY : "", unrecorded ? NOT_RECORDED : ""]
+    .filter(Boolean).join(" ");
+}
+
 // Midnight to midnight on the calendar, so dragging the sun across midnight
 // does not quietly change the day under the date box.
 export function daysBetween(then, now) {
@@ -111,6 +121,7 @@ export class ClockControl {
 
     this.hourShift = 0;    // what the slider holds, in hours
     this.dayShift = 0;     // whole days back. Never above zero.
+    this.unrecorded = false;   // the clock is back at an hour no ship was written for
 
     this.range.addEventListener("input",
       () => this.setHour(Number(this.range.value) / 60));
@@ -138,6 +149,20 @@ export class ClockControl {
   setHour(hours) {
     this.hourShift = hours;
     this.apply();
+  }
+
+  // Told from outside, because only the record knows, and it is fetched after
+  // the clock has moved.
+  setUnrecorded(unrecorded) {
+    if (unrecorded === this.unrecorded) return;
+    this.unrecorded = unrecorded;
+    this.showNote();
+  }
+
+  showNote() {
+    const text = noteFor(this.past, this.unrecorded);
+    this.note.textContent = text;
+    this.note.classList.toggle("hidden", !text);
   }
 
   // Both at once, for a link that names a day and an hour.
@@ -171,9 +196,7 @@ export class ClockControl {
     this.value.textContent = clockLabel(when, this.hourShift, this.dayShift);
     this.date.value = asDateValue(when);
 
-    const past = this.past;
-    this.note.textContent = past ? GONE_ON_A_PAST_DAY : "";
-    this.note.classList.toggle("hidden", !past);
+    this.showNote();
     this.onChange();
   }
 }
