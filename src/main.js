@@ -2221,6 +2221,16 @@ function toggleCampground() {
   controls.update();
 }
 document.getElementById("campground-btn").addEventListener("click", toggleCampground);
+// Each of these had a key and no button, which on a phone is nothing at all.
+// Pressed before its part has loaded, the press is kept and it comes on when it
+// has, the way a shared link's is.
+document.getElementById("golf-btn").addEventListener("click", () => {
+  if (golf) golf.toggle(); else golfWanted = !golfWanted;
+});
+document.getElementById("cast-btn").addEventListener("click", () => {
+  if (cast) cast.toggle(); else castWanted = !castWanted;
+});
+document.getElementById("pavilion-btn").addEventListener("click", togglePavilion);
 // The novel had a key and nothing else, which on a phone is nothing at all.
 document.getElementById("novel-btn").addEventListener("click", toggleTour);
 document.getElementById("calls-btn").addEventListener("click", toggleCalls);
