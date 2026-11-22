@@ -2307,9 +2307,11 @@ window.addEventListener("keydown", (e) => {
   // Held down, C would strobe the photograph on and off at the key repeat rate.
   if (e.code === "KeyC" && !e.repeat) flipWyze();
   if (e.code === "KeyN" && !e.repeat) nextWyzeCam();
-  // E and S are lift and reverse in nav. Editing puts you in orbit and holds you
-  // there, and nav reads neither key in orbit, so the two never meet.
-  if (e.code === "KeyE" && !e.repeat) flipWyzeEdit();
+  // E and S are lift and reverse in nav, and nav reads neither in orbit. So
+  // editing is only ever started from orbit, where it then holds you. Without
+  // that, E to climb in the air threw you out of the aircraft and onto the
+  // roof with the editing tools up. S saves only while editing, which is orbit.
+  if (e.code === "KeyE" && !e.repeat && nav.mode === "orbit") flipWyzeEdit();
   if (e.code === "KeyS" && !e.repeat) saveWyze();
   if (e.code === "KeyL") tracks.toggle();
   if (e.code === "Escape") selection.clear();
