@@ -66,7 +66,7 @@ import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
-import { ClockControl, hourFromHash } from "./clock-control.js";
+import { ClockControl, asDateValue, dayFromHash, hourFromHash } from "./clock-control.js";
 import { getPosition, getTimes } from "suncalc";
 import { KITE_SURFER } from "./scene/kitesurfer-plan.js";
 import { kiteWind } from "./scene/kitesurfer-weather.js";
@@ -731,7 +731,7 @@ function updateSun() {
   weather.dayFactor = Math.max(0, Math.min((elevation + 6) / 12, 1));
   weather.apply(weatherAt() || {});
 }
-setClockOffset(hourFromHash(location.hash) ?? 0);
+sceneClock.setShifts(hourFromHash(location.hash) ?? 0, dayFromHash(location.hash) ?? 0);
 setInterval(updateSun, 60000);
 
 // The corner row says "connecting" from the first frame. The banner does not:
@@ -2305,6 +2305,9 @@ const share = new Share(camera, () => ({
   hour: offsetHours()
     ? Math.round((sceneNow().getHours() + sceneNow().getMinutes() / 60) * 4) / 4
     : null,
+  // The day, once the scene stands on one that has gone. The hour alone opens
+  // on today.
+  day: onPastDay() ? asDateValue(sceneNow()) : null,
 }));
 
 window.addEventListener("keydown", (e) => {

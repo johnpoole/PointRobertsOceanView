@@ -145,6 +145,40 @@ test("midnight is an hour like any other", () => {
   assert.equal(c.hourFromHash("#hour=0", now), -12);
 });
 
+test("day= is whole days back from today", () => {
+  const now = new Date(2026, 8, 12, 8, 0);
+  assert.equal(c.dayFromHash("#day=2026-09-12", now), 0);
+  assert.equal(c.dayFromHash("#day=2026-09-11", now), -1);
+  assert.equal(c.dayFromHash("#eye=1,2,3&hour=22&day=2026-09-05&map=1", now), -7);
+  // Across a month end.
+  assert.equal(c.dayFromHash("#day=2026-08-31", now), -12);
+});
+
+test("a day and an hour in a link land on that day at that hour", () => {
+  // The link was taken on the 5th at ten at night and is opened on the 12th at
+  // eight in the morning. The hour alone would have opened on the 12th.
+  const now = new Date(2026, 8, 12, 8, 0);
+  const hash = "#eye=1,2,3&hour=22&day=2026-09-05";
+  const shift = c.hourFromHash(hash, now) + c.dayFromHash(hash, now) * 24;
+  const scene = new Date(now.getTime() + shift * 3600000);
+  assert.equal(c.asDateValue(scene), "2026-09-05");
+  assert.equal(scene.getHours(), 22);
+  assert.equal(c.sceneDay(c.hourFromHash(hash, now), c.dayFromHash(hash, now), now), -7);
+});
+
+test("a day that is not a past or present date is refused", () => {
+  const now = new Date(2026, 8, 12, 8, 0);
+  assert.equal(c.dayFromHash("#day=2026-09-13", now), null, "tomorrow");
+  assert.equal(c.dayFromHash("#day=2026-02-31", now), null, "the 31st of February");
+  assert.equal(c.dayFromHash("#day=2026-13-01", now), null, "a thirteenth month");
+  assert.equal(c.dayFromHash("#day=yesterday", now), null);
+  assert.equal(c.dayFromHash("#day=2026-9-5", now), null);
+  assert.equal(c.dayFromHash("#day=2026-09-051", now), null);
+  assert.equal(c.dayFromHash("#hour=14", now), null);
+  assert.equal(c.dayFromHash("", now), null);
+  assert.equal(c.dayFromHash(null, now), null);
+});
+
 // ---- what a past day costs --------------------------------------------------
 
 test("the page says what it is not showing", () => {

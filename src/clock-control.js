@@ -83,6 +83,23 @@ export function hourFromHash(hash, now = new Date()) {
   return want - (now.getHours() + now.getMinutes() / 60);
 }
 
+// #day=2026-11-19 opens on that date, as whole days back from today. With
+// #hour= beside it the scene stands on that date at that hour, because the hour
+// alone always lands on today.
+//
+// A day that is not a date on the calendar, or one that has not come yet, is
+// refused: nothing here goes forward.
+export function dayFromHash(hash, now = new Date()) {
+  const m = /(?:^#|&)day=(\d{4})-(\d{2})-(\d{2})(?:&|$)/.exec(String(hash || ""));
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const day = new Date(y, mo - 1, d);
+  // The 31st of February comes back from Date as the 3rd of March.
+  if (day.getFullYear() !== y || day.getMonth() !== mo - 1 || day.getDate() !== d) return null;
+  const days = daysBetween(day, now);
+  return days > 0 ? null : days;
+}
+
 export class ClockControl {
   // onChange runs after every move, for everything that reads the clock.
   constructor({ onChange }) {
@@ -121,6 +138,12 @@ export class ClockControl {
   setHour(hours) {
     this.hourShift = hours;
     this.apply();
+  }
+
+  // Both at once, for a link that names a day and an hour.
+  setShifts(hours, days) {
+    this.dayShift = days;
+    this.setHour(hours);
   }
 
   // Stand the scene on a calendar date, at the hour the slider shows. Nothing

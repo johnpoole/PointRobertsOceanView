@@ -30,6 +30,9 @@ https://<host>/#eye=48.999711,-123.068253,158.9&aim=49.001271,-123.068253,53.2&f
 - `hour=0` to `hour=23.99` — open at that hour of the day, as a decimal. The sun,
   the sky, the tide and the wind all move to it. Left off, the page stands on the
   real clock. Zero means midnight, not "no hour given".
+- `day=2026-11-19` — open on that date. Ships and aircraft are the ones recorded
+  for it. Left off, the page stands on today. A date that has not come yet is
+  ignored.
 - `map=1` `golf=1` `cast=1` `novel=1` `campground=1` `brademy=1` `pavilion=1` —
   switches, on only. Anything absent is off.
 
@@ -117,7 +120,8 @@ the camera to the call.
 
 The clock is a slider and a date box at the foot of the page. The slider moves
 the hour twelve either way; the date reaches back as far as the oldest month the
-crossing figures cover. Both end up in the hash as `hour=`.
+crossing figures cover. They end up in the hash as `hour=` and, on a past day,
+`day=`.
 
 ## The code
 
