@@ -1,9 +1,10 @@
 // Weather applied to the scene: fog from visibility, the state of the air into
 // the sky, cloud cover into the lights, wind into the ocean swell, and light
-// rain when precipitation is likely. Null fields leave the prior look untouched
+// rain when rain is falling. Null fields leave the prior look untouched
 // — the feed's "not supplied" is not treated as zero.
 
 import * as THREE from "three";
+import { raining } from "./rain.js";
 import { turbidityFromAerosol } from "./skylight.js";
 
 const RAIN_COUNT = 2500;
@@ -85,8 +86,7 @@ export class Weather {
       this.ocean.setWind(state.wind_direction_degrees, state.wind_speed_mps);
     }
 
-    const precip = state.precipitation_probability_percent;
-    this.rainOn = precip != null && precip >= 55;
+    this.rainOn = raining(state);
     this.rain.visible = this.rainOn;
   }
 

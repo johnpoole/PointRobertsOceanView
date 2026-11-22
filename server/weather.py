@@ -75,6 +75,9 @@ HOURLY_FIELDS = {
     "relative_humidity_2m": "relative_humidity_percent",
     "visibility": "visibility_m",
     "precipitation_probability": "precipitation_probability_percent",
+    # Millimetres fallen in the hour ending at each slot. The page draws rain
+    # from this and not from the chance of it.
+    "precipitation": "precipitation_mm",
 }
 
 
@@ -115,7 +118,7 @@ async def fetch_weather(client: httpx.AsyncClient, point: tuple) -> dict:
         # The hourly run as well as the reading for now, so a page standing at
         # another hour can shade the sky and set the vane for that hour. Two days
         # covers the twelve hours the clock moves either way.
-        "hourly": "visibility,precipitation_probability,cloud_cover,cloud_cover_low,"
+        "hourly": "visibility,precipitation_probability,precipitation,cloud_cover,cloud_cover_low,"
                   "cloud_cover_mid,cloud_cover_high,wind_speed_10m,"
                   "wind_direction_10m,temperature_2m,relative_humidity_2m,weather_code",
         "wind_speed_unit": "ms", "timezone": "GMT", "forecast_days": 2,

@@ -9,7 +9,7 @@
 // 350 to 10 reads 180, and the vane pointed due south in a northerly.
 
 import assert from "node:assert/strict";
-import { bearingAt, numberAt, offsetHours, sceneNow, setOffsetHours,
+import { bearingAt, hourEndingAt, numberAt, offsetHours, sceneNow, setOffsetHours,
          shifted, slotAt, weatherAtHour } from "./clock.js";
 
 function test(name, fn) {
@@ -144,6 +144,25 @@ test("an hour the run does not reach has no reading in it and says so", () => {
       assert.equal(w[k], undefined, `${k} is still the present reading`);
     }
   }
+});
+
+test("rainfall is the total for the hour the scene stands in, not blended", () => {
+  // Dry to one o'clock, wet from one to two.
+  const mm = [0, 0, 1.2];
+  assert.equal(hourEndingAt(RUN, mm, at(0, 30)), 0);
+  assert.equal(hourEndingAt(RUN, mm, at(1)), 0);
+  assert.equal(hourEndingAt(RUN, mm, at(1, 5)), 1.2);
+  assert.equal(hourEndingAt(RUN, mm, at(2)), 1.2);
+  assert.equal(hourEndingAt(RUN, mm, at(2, 5)), null, "past the end");
+});
+
+test("the rain at another hour is that hour's, not what is falling now", () => {
+  const wet = { ...NOW_WX, precipitation_mm: 3,
+                series: { ...NOW_WX.series, precipitation_mm: [0, 0, 1.2] } };
+  assert.equal(weatherAtHour(wet, at(0, 30)).precipitation_mm, 0);
+  assert.equal(weatherAtHour(wet, at(1, 30)).precipitation_mm, 1.2);
+  // A run that carries no rainfall leaves it unknown and does not keep the 3.
+  assert.equal(weatherAtHour({ ...NOW_WX, precipitation_mm: 3 }, at(1)).precipitation_mm, null);
 });
 
 test("a reading with no run comes back as it is", () => {

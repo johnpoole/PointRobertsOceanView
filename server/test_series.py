@@ -44,7 +44,7 @@ def hourly(count: int) -> dict:
     for field in ("cloud_cover", "cloud_cover_low", "cloud_cover_mid",
                   "cloud_cover_high", "wind_speed_10m", "wind_direction_10m",
                   "temperature_2m", "relative_humidity_2m", "visibility",
-                  "precipitation_probability"):
+                  "precipitation_probability", "precipitation"):
         block[field] = list(range(count))
     block["weather_code"] = [0] * count
     return block
@@ -108,6 +108,7 @@ def test_the_hourly_run_is_renamed_to_what_the_page_reads():
     assert block["wind_speed_mps"] == [0, 1, 2, 3]
     assert block["cloud_cover_percent"] == [0, 1, 2, 3]
     assert block["visibility_m"] == [0, 1, 2, 3]
+    assert block["precipitation_mm"] == [0, 1, 2, 3]
     assert "cloud_cover" not in block
 
 

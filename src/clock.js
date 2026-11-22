@@ -78,6 +78,15 @@ export function slotAt(series, run, when) {
   return run[Math.round(i)];
 }
 
+// A total for the hour ending at each slot, which is how rainfall is counted.
+// The hour the scene stands in ends at the next slot up, and a total is not
+// blended: half way between a dry hour and a wet one it is one or the other.
+export function hourEndingAt(series, run, when) {
+  const i = indexIn(series, when);
+  if (i == null || !Array.isArray(run) || i > run.length - 1) return null;
+  return run[Math.ceil(i)];
+}
+
 const WEATHER_NUMBERS = ["cloud_cover_percent", "cloud_cover_low_percent",
                          "cloud_cover_mid_percent", "cloud_cover_high_percent",
                          "wind_speed_mps",
@@ -105,6 +114,10 @@ export function weatherAtHour(w, when) {
   if (bearing != null) { out.wind_direction_degrees = bearing; found++; }
   const d = slotAt(s, s.description, when);
   if (d) { out.description = d; found++; }
+  // Set whether or not the run has it. What is falling now is not what was
+  // falling then, and a run with no figure for the hour leaves it unknown.
+  out.precipitation_mm = hourEndingAt(s, s.precipitation_mm, when);
+  if (out.precipitation_mm != null) found++;
   if (!found) return { predicted: true, beyond: true };
   return out;
 }
