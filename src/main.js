@@ -1350,6 +1350,21 @@ function toBluff() {
   controls.update();
 }
 
+// From 389 W Bluff Rd, due west over the strait. Galiano Island lies on that
+// line, forty kilometres off, so west is all the aim has to be. The eye is the
+// address itself at EYE_HEIGHT_M, which is where the trees on the lot stand down
+// to leave the water in view.
+const BLUFF_WEST_AIM_M = 300;
+function toGaliano() {
+  lookFov = LOOK_FOV_DEG;
+  leaveWyze();
+  nav.toOrbit();
+  const eye = toWorld(ORIGIN.lat, ORIGIN.lon, EYE_HEIGHT_M);
+  camera.position.set(eye.x, eye.y, eye.z);
+  controls.target.set(eye.x - BLUFF_WEST_AIM_M, eye.y, eye.z);
+  controls.update();
+}
+
 // Stand the scene camera where the Ocean View camera hangs, with its lens, so a
 // frame off it and the render can be held against each other.
 //
@@ -1762,7 +1777,7 @@ new VisitorList(feed, camera, at => {
 // run aground, a cart and a pair of feet to stay on it. Without the terrain they
 // would all be moving over nothing, so they are refused and told why. Looking
 // around and free flight need no ground and stay available.
-const needsGround = (id) => id !== "bluff" && id !== "look";
+const needsGround = (id) => id !== "bluff" && id !== "galiano" && id !== "look";
 
 // Two sensors to ask for and either can refuse, so this one is not instant and
 // cannot simply be entered. The chooser stays up until the phone is answering or
@@ -1796,6 +1811,7 @@ function chooseMode(id) {
   if (id === "live") { startLive(); return; }
   chooser.classList.add("hidden");
   if (id === "bluff") { toBluff(); return; }
+  if (id === "galiano") { toGaliano(); return; }
   if (id === "look") { toMapView(); return; }
   if (id === "boat") { nav.toggleBoat(BOAT_START); return; }
   const spec = vehicleById(id);
@@ -1810,6 +1826,7 @@ for (const [id, label, note] of [
   ["ultralight", "ultra light", "90 km/h"],
   ["live", "live", "where the phone is"],
   ["bluff", "bluff", "looking west"],
+  ["galiano", "389 W Bluff Rd", "west to Galiano Island"],
   ["look", "look around", "no vehicle"],
 ]) {
   const b = document.createElement("button");

@@ -763,7 +763,8 @@ before and 18 to 26 after. Those readings wander by a few frames from run to run
 ## Modes
 
 The page opens looking around from the bluff. `M` or the button opens the chooser: walking,
-bicycle, golf cart, boat, ultra light, bluff, look around. Each starts where it really would —
+bicycle, golf cart, boat, ultra light, bluff, 389 W Bluff Rd, look around. 389 W Bluff Rd stands
+at the address 20 m up and looks due west, which is the line Galiano Island lies on. Each starts where it really would —
 the community centre, the border, the golf club, the foot of the bluff, the apron at 1RL.
 Controls vary by mode; the boat's tiller is backwards on purpose and nothing else is. `O` toggles
 the overview map.
