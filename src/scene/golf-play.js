@@ -37,6 +37,16 @@ const PLAYER_LINE = [-13, 7, -5, 15];
 const PLAYER_STAND = [-2.1, 0.7, -0.7, 2.1];
 const PLAYER_REACH = [0.04, -0.03, 0.06, -0.05];
 
+// What a player is standing on, by how far down the hole they are: the tee at
+// the start of the line, the green at the end of it, the fairway between. Each
+// is laid a little above the ground and a figure stood on the ground itself is
+// in the grass to the ankle.
+export function standingOn(along) {
+  if (along < 0.06) return "tee";
+  if (along > 0.93) return "green";
+  return "fairway";
+}
+
 // Where one player stands at this moment of their hole.
 export function playing(fraction, player) {
   const t = Math.min(Math.max(fraction, 0), 1);

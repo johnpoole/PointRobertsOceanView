@@ -29,6 +29,9 @@ export const ROAD_WIDTH = { motorway: 12, trunk: 10, primary: 8, secondary: 7, t
                      bridleway: 2, cycleway: 2, path: 1.5, footway: 1.5, steps: 1.2 };
 const ROAD_WIDTH_DEFAULT = 4;
 export const ROAD_EXAGGERATION = 1.6;
+// How far a road is laid above the ground it follows. Whatever stands or drives
+// on a road stands this far up too, or it is in the tarmac to the ankle.
+export const ROAD_LIFT_M = 0.15;
 const ROAD_MIN_M = 2.0;
 
 // The bake is 1.3 MB and both the land and the trees want it, so it is fetched
@@ -354,7 +357,7 @@ export async function buildLand(scene, sample, opts = {}) {
   const roadMat = new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 1, side: THREE.DoubleSide });
   dressSurface(roadMat, { detail: BUILT_GRAIN });
   for (const [width, lines] of byWidth) {
-    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * ROAD_EXAGGERATION, ROAD_MIN_M), 0.15), roadMat);
+    const mesh = new THREE.Mesh(ribbon(lines, sample, Math.max(width * ROAD_EXAGGERATION, ROAD_MIN_M), ROAD_LIFT_M), roadMat);
     mesh.renderOrder = 1;
     scene.add(mesh);
   }

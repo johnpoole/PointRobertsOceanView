@@ -109,6 +109,12 @@ export function buildMarinaLot(scene, sample) {
       box(1.66, 2.42, 0.62, 0, 1.0, -0.1, colour),
       box(1.72, 0.16, 0.30, 0, 0.42, 2.12, 0x2b2f33),
       box(1.72, 0.16, 0.30, 0, 0.42, -2.12, 0x2b2f33),
+      // Four wheels down to the ground. The body starts 0.28 m up and had
+      // nothing under it, so every car hung over the lot.
+      box(0.24, 0.64, 0.64, 0.80, 0, 1.36, 0x15171a),
+      box(0.24, 0.64, 0.64, -0.80, 0, 1.36, 0x15171a),
+      box(0.24, 0.64, 0.64, 0.80, 0, -1.36, 0x15171a),
+      box(0.24, 0.64, 0.64, -0.80, 0, -1.36, 0x15171a),
     ];
     const car = new THREE.Mesh(mergeAll(parts),
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }));

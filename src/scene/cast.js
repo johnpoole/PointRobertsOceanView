@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import { CAST } from "../config.js";
 import { toWorld } from "../geo.js";
+import { ROAD_LIFT_M } from "./land.js";
 import { buildKiteSurfer } from "./kitesurfer.js";
 import { buildWalker, buildBicycle, buildGolfCart, painted, paint, box, cyl,
   personGeoms } from "./vehicles.js";
@@ -105,7 +106,8 @@ export async function buildCast(scene, sample) {
         const { figure, legs, model } = person;
         const at = placeAt(legs, minutes);
         if (!at) { figure.visible = false; person.was = null; continue; }
-        const y = ground(at.lat, at.lon);
+        // They keep to the roads, and a road is laid above the ground.
+        const y = ground(at.lat, at.lon) + ROAD_LIFT_M;
         figure.position.set(at.x, y, at.z);
         if (at.heading !== null) figure.rotation.y = at.heading;
         if (model.stride) {

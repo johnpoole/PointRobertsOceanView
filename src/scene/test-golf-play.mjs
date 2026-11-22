@@ -1,6 +1,6 @@
 // Run: node src/scene/test-golf-play.mjs
 import assert from "node:assert/strict";
-import { playing } from "./golf-play.js";
+import { playing, standingOn } from "./golf-play.js";
 
 // No two of a group stand in one body at any moment of a hole. For a fifth of
 // every hole all four were at the same spot, on the tee and on the green.
@@ -28,5 +28,10 @@ assert.ok(Math.max(...tee.map(s => Math.abs(s.off))) <= 3, "the row is wider tha
 // Out at their balls each is still on their own line.
 assert.equal(playing(0.3, 0).off, -13);
 assert.equal(playing(0.3, 3).off, 15);
+
+// Waiting on the tee they are on the tee, and at the end they are on the green.
+assert.equal(standingOn(playing(0.05, 0).along), "tee");
+assert.equal(standingOn(playing(0.3, 2).along), "fairway");
+assert.equal(standingOn(playing(0.95, 1).along), "green");
 
 console.log(`PASS: no two golfers closer than ${nearest.toFixed(2)} m anywhere on a hole.`);

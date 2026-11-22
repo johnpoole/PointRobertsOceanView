@@ -17,7 +17,8 @@ import { areaView } from "./area-view.js";
 import { minutesInZone, minutesOf } from "./cast.js";
 import { buildWalker } from "./vehicles.js";
 import { buildCar } from "./cast.js";
-import { playing } from "./golf-play.js";
+import { playing, standingOn } from "./golf-play.js";
+import { ROAD_LIFT_M } from "./land.js";
 
 // What each kind is drawn in, how far it stands off the ground, and how finely
 // it is broken up to follow the ground under it. A green is small and read
@@ -194,7 +195,7 @@ export async function buildGolf(scene, sample) {
         // Off the centre line, square to the way the hole runs.
         const ox = Math.cos(at.heading) * spot.off, oz = -Math.sin(at.heading) * spot.off;
         const x = at.x + ox, z = at.z + oz;
-        figure.position.set(x, ground(x, z), z);
+        figure.position.set(x, ground(x, z) + SURFACE[standingOn(spot.along)].lift, z);
         figure.rotation.y = at.heading;
         // The walk runs off ground covered, the same as the cast's. Standing
         // over a ball is standing still and looks like it.
@@ -248,7 +249,7 @@ export async function buildGolf(scene, sample) {
         const spot = onRoad(along);
         if (!spot) { car.visible = false; continue; }
         car.visible = true;
-        car.position.set(spot.x, ground(spot.x, spot.z), spot.z);
+        car.position.set(spot.x, ground(spot.x, spot.z) + ROAD_LIFT_M, spot.z);
         car.rotation.y = spot.heading;
       }
     }
