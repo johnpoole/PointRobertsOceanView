@@ -106,6 +106,34 @@ def test_the_braces_balance() -> None:
     rules(SHEET.read_text(encoding="utf-8"))
 
 
+def declarations(text: str, selector: str):
+    """The body of every rule, at any depth, one of whose selectors is exactly
+    this one."""
+    text = strip_comments(text)
+    out = []
+    for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", text):
+        if selector in {p.strip() for p in m.group(1).split(",")}:
+            out.append(m.group(2))
+    return out
+
+
+def test_the_mode_button_is_not_behind_the_hamburger() -> None:
+    # REQUIREMENTS.md: how you are getting about is always on screen and does
+    # not go behind the hamburger with the readouts. It did, on a desktop: the
+    # panel it sits in was display: none until the hamburger was opened.
+    text = SHEET.read_text(encoding="utf-8")
+    for selector in (".views", ".mode-pill", ".icon-btn, .mode-pill"):
+        bodies = declarations(text, selector) if "," not in selector else [
+            m.group(2) for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", strip_comments(text))
+            if m.group(1).strip() == selector]
+        for body in bodies:
+            assert not re.search(r"display\s*:\s*none", body), (
+                f"styles.css hides {selector} with display: none, which puts the "
+                f"mode button out of reach until something else shows it.")
+    assert declarations(text, ".views"), "styles.css has no rule for .views to check"
+    assert declarations(text, ".mode-pill"), "styles.css has no rule for .mode-pill to check"
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

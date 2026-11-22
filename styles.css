@@ -109,15 +109,17 @@ html, body {
 }
 
 /* --- The buttons -----------------------------------------------------------
-   On a desktop these are what they always were: words, in a panel in the bottom
-   right corner, behind the hamburger with the readouts. The phone rules are in
-   the media query at the foot of this file and they stay there. */
+   On a desktop these are words, in a panel in the bottom right corner. The
+   panel is always there and the mode button is always in it, because how you
+   are getting about does not go behind the hamburger: see REQUIREMENTS.md. The
+   rest of the buttons do, with the readouts. The phone rules are in the media
+   query at the foot of this file and they stay there. */
 .views {
   position: fixed;
   bottom: 40px;
   right: 14px;
   z-index: 6;
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 6px;
   background: var(--panel);
@@ -129,8 +131,8 @@ html, body {
   -webkit-backdrop-filter: blur(6px);
   user-select: none;
 }
-body.hud-visible .views { display: flex; }
-.view-icons { display: flex; flex-direction: column; gap: 6px; }
+.view-icons { display: none; flex-direction: column; gap: 6px; }
+body.hud-visible .view-icons { display: flex; }
 .icon-btn, .mode-pill {
   font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
   width: 100%;
@@ -625,7 +627,7 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
-  .view-icons { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .view-icons { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .icon-btn {
     width: 44px;
     height: 44px;
