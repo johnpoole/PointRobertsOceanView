@@ -105,6 +105,16 @@ await test("an hour with nothing written near it is told from an empty sea", asy
   // Twenty minutes on, nothing was written within a gap either side.
   assert.equal(r.recordedNear("vessels", at(1060 + 1200)), false);
   assert.equal(r.recordedNear("aircraft", at(1030)), false);
+  // The sky can be empty for longer than an aircraft's two minute gap and
+  // still have been watched, so it is asked with a longer reach.
+  const sky = new Replay(async (url) => (url.includes("aircraft")
+    ? { gap_s: 120, tracks: { a1b2c3: { infos: [], points: [[1000, 49, -123.2, 900, 240, 90]] } } }
+    : { gap_s: 900, tracks: {} }));
+  sky.ensure(at(1600));
+  await new Promise((done) => setTimeout(done, 0));
+  assert.equal(sky.recordedNear("aircraft", at(1600)), false);
+  assert.equal(sky.recordedNear("aircraft", at(1600), 900), true);
+  assert.equal(sky.recordedNear("aircraft", at(2000), 900), false);
   // Outside what was fetched it does not say.
   assert.equal(r.recordedNear("vessels", at(1030 + 7200)), null);
 });

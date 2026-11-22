@@ -66,7 +66,7 @@ import { buildDrift } from "./scene/drift.js";
 import { buildOrcas } from "./scene/orcas.js";
 import { buildBoat } from "./scene/boat.js";
 import { VEHICLES, vehicleById, BOAT_START } from "./scene/vehicles.js";
-import { ClockControl, asDateValue, dayFromHash, hourFromHash } from "./clock-control.js";
+import { ClockControl, asDateValue, dayFromHash, hourFromHash, notRecorded } from "./clock-control.js";
 import { getPosition, getTimes } from "suncalc";
 import { KITE_SURFER } from "./scene/kitesurfer-plan.js";
 import { kiteWind } from "./scene/kitesurfer-weather.js";
@@ -704,14 +704,21 @@ function trafficAt() {
   return replay.feedAt(when);
 }
 
-// Whether the scene stands at an hour no ship was written down near. Looked at
-// once a second: the record arrives after the clock has moved.
+// What the page says when the scene stands at an hour nothing was written
+// down near, or the empty string. Looked at once a second: the record arrives
+// after the clock has moved.
+//
+// A sky can be empty for a quarter of an hour and have been watched the whole
+// time, so the aircraft are given that long either side before it is said.
 const RECORD_CHECK_SECONDS = 1;
+const SKY_QUIET_SECONDS = 900;
 let recordCheckDue = 0;
-function shipsUnrecorded() {
+function unrecordedNote() {
   const when = sceneNow();
-  if (Date.now() - when.getTime() < REPLAY_BEHIND_S * 1000) return false;
-  return replay.recordedNear("vessels", when) === false;
+  if (Date.now() - when.getTime() < REPLAY_BEHIND_S * 1000) return "";
+  return notRecorded(
+    replay.recordedNear("vessels", when) === false,
+    replay.recordedNear("aircraft", when, SKY_QUIET_SECONDS) === false);
 }
 
 function onPastDay() {
@@ -2421,7 +2428,7 @@ function frame() {
   const traffic = trafficAt();
   if (t >= recordCheckDue) {
     recordCheckDue = t + RECORD_CHECK_SECONDS;
-    sceneClock.setUnrecorded(shipsUnrecorded());
+    sceneClock.setUnrecorded(unrecordedNote());
   }
   vessels.update(traffic, level, t, camera, night);
   if (lighthouse) lighthouse.update(t, night);

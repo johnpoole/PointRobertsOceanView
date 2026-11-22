@@ -1514,7 +1514,14 @@ async def aircraft_task() -> None:
                 if icao not in world.aircraft_registry:
                     await look_up_aircraft(client, icao)
                     asked += 1
-                callsign = callsign_of(world.aircraft[icao])
+                # The reaper runs while a lookup waits and can take this one
+                # off. Reading it straight back raised, the task died of it, and
+                # a dead task is not started again: the sky then stayed empty
+                # and unrecorded until the next deploy.
+                state = world.aircraft.get(icao)
+                if state is None:
+                    continue
+                callsign = callsign_of(state)
                 if asked < LOOKUPS_PER_POLL and callsign and \
                         callsign not in world.flight_routes:
                     await look_up_route(client, callsign)

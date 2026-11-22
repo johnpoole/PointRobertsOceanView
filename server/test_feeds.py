@@ -566,6 +566,57 @@ def test_an_aircraft_the_feed_has_let_go_of_comes_off_at_once() -> None:
         restore()
 
 
+class _GoneDuringLookup:
+    """adsb.fi lists one aircraft. While adsbdb is being asked about it, it is
+    taken off, which is what the reaper does."""
+    def __init__(self, **_kwargs): pass
+    async def __aenter__(self): return self
+    async def __aexit__(self, *_exc): return False
+
+    async def get(self, url, headers=None):
+        feed = "adsbdb" not in url
+        if not feed:
+            proxy.world.aircraft.pop("leaving", None)
+
+        class Answer:
+            status_code = 200 if feed else 404
+            def raise_for_status(self): pass
+            def json(self):
+                return {"aircraft": [{"hex": "leaving", "flight": "WJA123 ", "lat": 49.0,
+                                      "lon": -123.1, "alt_baro": 3000, "seen_pos": 0.2}]}
+        return Answer()
+
+
+def test_an_aircraft_taken_off_during_a_lookup_does_not_kill_the_task() -> None:
+    """The aircraft record on the server stops dead on 15 September, 11 October
+    and 21 November 2026 and starts again at the next deploy."""
+    sent, restore = _collect_broadcasts()
+    original = proxy.httpx.AsyncClient
+    original_record = proxy.record_track
+    proxy.httpx.AsyncClient = _GoneDuringLookup
+    proxy.record_track = lambda *_a, **_k: None
+    proxy.world.aircraft.clear()
+    proxy.world.aircraft_seen.clear()
+    proxy.world.aircraft_registry.pop("leaving", None)
+
+    async def one_poll() -> None:
+        try:
+            await asyncio.wait_for(proxy.aircraft_task(), 0.5)
+        except asyncio.TimeoutError:
+            pass   # still running, asleep until the next poll: it lived
+
+    try:
+        asyncio.run(one_poll())
+        assert proxy.world.health["aircraft"] == "live"
+    finally:
+        proxy.httpx.AsyncClient = original
+        proxy.record_track = original_record
+        proxy.world.aircraft_registry.pop("leaving", None)
+        proxy.world.aircraft.clear()
+        proxy.world.aircraft_seen.clear()
+        restore()
+
+
 def test_no_feed_writes_its_own_health_behind_the_broadcast() -> None:
     """Health that is not sent is not health.
 

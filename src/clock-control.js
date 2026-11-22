@@ -15,13 +15,20 @@ import { setOffsetHours, sceneNow } from "./clock.js";
 export const GONE_ON_A_PAST_DAY =
   "No golfers on a past day. The ships and aircraft go back to 13 September 2026.";
 
-// The record of ships has holes: they are written down only while their feed
-// is delivering. A hole draws an empty sea, and so does an empty sea.
-export const NOT_RECORDED = "No ships were recorded at this hour.";
+// The record has holes. Ships and aircraft are written down only while their
+// feeds are delivering, and the aircraft went unwritten for weeks at a time in
+// the autumn of 2026. A hole draws an empty sea or sky, and so does an empty one.
+export function notRecorded(ships, aircraft) {
+  if (ships && aircraft) return "No ships or aircraft were recorded at this hour.";
+  if (ships) return "No ships were recorded at this hour.";
+  if (aircraft) return "No aircraft were recorded at this hour.";
+  return "";
+}
 
-// What the note under the scene says, or nothing.
+// What the note under the scene says, or nothing. unrecorded is the sentence
+// notRecorded gave, or the empty string.
 export function noteFor(past, unrecorded) {
-  return [past ? GONE_ON_A_PAST_DAY : "", unrecorded ? NOT_RECORDED : ""]
+  return [past ? GONE_ON_A_PAST_DAY : "", unrecorded]
     .filter(Boolean).join(" ");
 }
 
@@ -121,7 +128,7 @@ export class ClockControl {
 
     this.hourShift = 0;    // what the slider holds, in hours
     this.dayShift = 0;     // whole days back. Never above zero.
-    this.unrecorded = false;   // the clock is back at an hour no ship was written for
+    this.unrecorded = "";  // what was not written down at the hour the clock is back at
 
     this.range.addEventListener("input",
       () => this.setHour(Number(this.range.value) / 60));

@@ -103,9 +103,9 @@ Tide and weather carry a baked forecast run beside the present reading, so
 moving the clock reads the water and the sky at that hour rather than showing
 the present one under a different sun. Past the end of the run it says it does
 not know. Ships and aircraft are written down as they arrive, from 13 September
-2026, and moving the clock back replays them from that record. Ships are
-written down only while their feed is delivering, so the record has holes, and
-at an hour with no ship written near it the page says so.
+2026, and moving the clock back replays them from that record. They are
+written down only while their feeds are delivering, so the record has holes,
+and at an hour with no ship or no aircraft written near it the page says so.
 
 ## At the keyboard
 

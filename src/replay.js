@@ -111,18 +111,19 @@ export class Replay {
   }
 
   // Whether anything of this kind was written down near a moment: true or
-  // false, or null while the record for that moment is not in hand.
+  // false, or null while the record for that moment is not in hand. Near is
+  // within reach seconds either side, and the record's own gap unless told.
   //
   // The ships are written down only while their feed is delivering, so the
   // record has holes, and a hole draws the same empty sea that an empty sea
   // does. This is what tells them apart, as far as they can be told apart.
-  recordedNear(kind, when) {
+  recordedNear(kind, when, reach = null) {
     const t = when.getTime() / 1000;
     const held = this.held[kind];
     if (!held || t < held.start || t > held.end) return null;
     for (const track of Object.values(held.tracks)) {
       for (const p of track.points) {
-        if (Math.abs(p[0] - t) <= held.gap) return true;
+        if (Math.abs(p[0] - t) <= (reach ?? held.gap)) return true;
       }
     }
     return false;
