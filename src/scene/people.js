@@ -26,6 +26,7 @@ import { toWorld } from "../geo.js";
 import { box, tint } from "./parts.js";
 import { VEHICLES } from "./vehicles.js";
 import { buildBoat } from "./boat.js";
+import { bakedColours } from "./baked-colours.js";
 
 // A generic 1.8 m figure. Presence reports the camera eye, not the feet.
 const AVATAR_EYE_M = 1.62;
@@ -75,10 +76,15 @@ function vehicleGeometry(group) {
     if (!child.material.transparent) {
       const geo = child.geometry.index ? child.geometry.toNonIndexed() : child.geometry.clone();
       geo.applyMatrix4(child.matrixWorld);
+      // A part painted at its vertices keeps that paint. See baked-colours.js.
+      const own = child.material.vertexColors ? geo.getAttribute("color") : null;
+      const colours = bakedColours(geo.attributes.position.count, own || null,
+                                   child.material.color);
       for (const name of Object.keys(geo.attributes)) {
         if (name !== "position" && name !== "normal") geo.deleteAttribute(name);
       }
-      parts.push(tint(geo, child.material.color));
+      geo.setAttribute("color", new THREE.BufferAttribute(colours, 3));
+      parts.push(geo);
     }
     child.geometry.dispose();
     child.material.dispose();
