@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
 import { LAG_S, addFix, placeAt } from "./between-fixes.js";
+import { altitudeLabel } from "./aircraft-height.js";
 
 const KN = 0.514444;
 const FT = 0.3048;
@@ -154,7 +155,7 @@ export class Aircraft {
     rows.push(["flight", state.callsign || state.registration || state.icao]);
     if (state.aircraft_type) rows.push(["type", state.aircraft_type]);
     if (state.on_ground) rows.push(["altitude", "on the ground"]);
-    else if (state.altitude_m != null) rows.push(["altitude", `${Math.round(state.altitude_m)} m`]);
+    else if (state.altitude_m != null) rows.push([altitudeLabel(state), `${Math.round(state.altitude_m)} m`]);
     if (state.ground_speed_kn != null) {
       rows.push(["speed", `${Math.round(state.ground_speed_kn)} kn`]);
     }
@@ -197,17 +198,24 @@ export class Aircraft {
 
     seen.add("altitude_m");
     seen.add("on_ground");
+    seen.add("altitude_source");
+    seen.add("altitude_pressure_m");
     if (state.on_ground) {
       rows.push(["altitude", "on the ground"]);
     } else if (state.altitude_m != null) {
-      rows.push(["altitude",
+      rows.push([altitudeLabel(state),
         `${Math.round(state.altitude_m)} m · ${Math.round(state.altitude_m / FT)} ft`]);
+      // Beside the GPS height it is drawn at, what its altimeter reads.
+      if (state.altitude_source === "geometric" && state.altitude_pressure_m != null) {
+        rows.push(["pressure altitude", `${Math.round(state.altitude_pressure_m)} m · `
+          + `${Math.round(state.altitude_pressure_m / FT)} ft`]);
+      }
     }
 
     take("ground_speed_kn", "speed", (v) => `${Math.round(v)} kn · ${Math.round(v * KN * 3.6)} km/h`);
     take("track_degrees", "track", (v) => `${Math.round(v)}°`);
     take("distance_nm", "off the point", (v) => `${v.toFixed(1)} nm`);
-    take("altitude_geometric_m", "geometric altitude",
+    take("altitude_geometric_m", "height above the ellipsoid",
       (v) => `${Math.round(v)} m · ${Math.round(v / FT)} ft`);
     take("vertical_rate_fpm", "vertical rate",
       (v) => `${v > 0 ? "+" : ""}${Math.round(v)} ft/min`);

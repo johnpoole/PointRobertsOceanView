@@ -41,7 +41,8 @@ MOTION = {
 INFO = {
     "vessels": ("mmsi", "name", "vessel_type", "vessel_type_name", "dimensions_m",
                 "call_sign", "imo", "destination", "navigation_status", "source"),
-    "aircraft": ("icao", "callsign", "registration", "aircraft_type", "on_ground"),
+    "aircraft": ("icao", "callsign", "registration", "aircraft_type", "on_ground",
+                 "altitude_source"),
 }
 
 # The most a single request may ask for, so the page cannot ask for a month.

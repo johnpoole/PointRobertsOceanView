@@ -1343,6 +1343,32 @@ async def ferries_task() -> None:
 # ---- aircraft feed ----------------------------------------------------------
 
 
+# The scene's heights are metres above MLLW at Point Roberts. An aircraft's GPS
+# height is above the ellipsoid, which here stands 21.156 m above the geoid
+# (NGS GEOID18 at the origin, read 22 November 2026), and NAVD88 zero sits
+# 0.411 m above MLLW (NOAA VDatum at the origin, as in the README). The metre
+# between the WGS84 and NAD83 ellipsoids is left in.
+ELLIPSOID_TO_MLLW_M = 21.156 + 0.411
+
+
+def aircraft_height(a: dict) -> tuple[float | None, str | None]:
+    """How high to draw it, in the scene's own metres, and what that came from.
+
+    Barometric altitude is a pressure, not a height: it is off by about 8.2 m
+    for every hPa the day differs from 1013. On a 990 hPa day it drew a
+    floatplane 190 m too high, and on a 1035 one 28 m under the sea. The GPS
+    height arrives in the same record and is used when it does. The pressure
+    one is the fallback, and the page says which it has."""
+    baro, geom = a.get("alt_baro"), a.get("alt_geom")
+    if baro == "ground":
+        return 0.0, None
+    if geom is not None:
+        return round(float(geom) * FT_TO_M + ELLIPSOID_TO_MLLW_M, 1), "geometric"
+    if baro is not None:
+        return float(baro) * FT_TO_M, "barometric"
+    return None, None
+
+
 def aircraft_state(a: dict) -> dict | None:
     """One record as our own shape, or None if it cannot be placed."""
     lat, lon = a.get("lat"), a.get("lon")
@@ -1350,7 +1376,7 @@ def aircraft_state(a: dict) -> dict | None:
         return None
     alt = a.get("alt_baro")
     on_ground = alt == "ground"
-    altitude_m = 0.0 if on_ground else (float(alt) * FT_TO_M if alt is not None else None)
+    altitude_m, altitude_source = aircraft_height(a)
     callsign = (a.get("flight") or "").strip() or None
     state = {
         "icao": a.get("hex"),
@@ -1370,6 +1396,9 @@ def aircraft_state(a: dict) -> dict | None:
     # in them, and only the ones this aircraft actually reported — an old Mode S
     # box sends a handful of these and a new one sends all of them.
     extra = {
+        "altitude_source": altitude_source,
+        "altitude_pressure_m": (round(float(alt) * FT_TO_M, 1)
+                                if alt is not None and not on_ground else None),
         "squawk": a.get("squawk"),
         "category": a.get("category"),
         "indicated_airspeed_kn": a.get("ias"),

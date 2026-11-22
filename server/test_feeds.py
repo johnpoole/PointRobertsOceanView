@@ -153,10 +153,26 @@ FULL = {
 }
 
 
+def test_a_low_floatplane_on_a_high_pressure_day_is_not_under_the_sea() -> None:
+    """At 1035 hPa an aircraft 150 m up reports a pressure altitude of about
+    -28 m. Its GPS height says where it is."""
+    state = proxy.aircraft_state({"hex": "c07e59", "lat": 48.98, "lon": -123.07,
+                                  "alt_baro": -92, "alt_geom": 421, "seen_pos": 0.2})
+    assert state["altitude_source"] == "geometric"
+    assert 149 < state["altitude_m"] < 151, state["altitude_m"]
+    on_water = proxy.aircraft_state({"hex": "c07e59", "lat": 48.98, "lon": -123.07,
+                                     "alt_baro": "ground", "alt_geom": -60})
+    assert on_water["altitude_m"] == 0.0 and on_water["on_ground"] is True
+    assert "altitude_source" not in on_water
+
+
 def test_everything_the_transponder_sent_is_carried() -> None:
     state = proxy.aircraft_state(FULL)
     assert state["callsign"] == "ACA553"
-    assert abs(state["altitude_m"] - 1219.2) < 0.1
+    # Drawn at its GPS height carried down to MLLW, not at its pressure altitude.
+    assert abs(state["altitude_m"] - (1264.92 + 21.567)) < 0.1, state["altitude_m"]
+    assert state["altitude_source"] == "geometric"
+    assert abs(state["altitude_pressure_m"] - 1219.2) < 0.1
     assert abs(state["altitude_geometric_m"] - 1264.9) < 0.1
     assert state["vertical_rate_fpm"] == -640      # the barometric one is preferred
     assert state["squawk"] == "1200"
@@ -193,6 +209,9 @@ def test_a_plain_mode_s_box_gets_no_invented_fields() -> None:
     state = proxy.aircraft_state({"hex": "c00685", "lat": 49.0, "lon": -123.1,
                                   "alt_baro": 2300})
     assert state["icao"] == "c00685"
+    # No GPS height, so the pressure one is all there is, and it says so.
+    assert abs(state["altitude_m"] - 701.04) < 0.01
+    assert state["altitude_source"] == "barometric"
     for key in ("squawk", "mach", "wind_kn", "vertical_rate_fpm",
                 "altitude_geometric_m", "signal_dbm"):
         assert key not in state, f"{key} was invented for an aircraft that never sent it"
