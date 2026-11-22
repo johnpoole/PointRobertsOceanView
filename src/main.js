@@ -1283,6 +1283,18 @@ const chooserBtns = document.getElementById("chooser-btns");
 const modeHint = document.getElementById("boat-hint");
 const chooserNote = document.getElementById("chooser-note");
 
+// Shut it and stay where you are. Every option on it moves the camera, so
+// without this a press of M by mistake cost you the view you had. The reason a
+// mode was refused goes with it, or it would be standing there on the next
+// opening, answering for a press nobody has made.
+function closeChooser() {
+  chooser.classList.add("hidden");
+  chooserNote.textContent = "";
+}
+document.getElementById("chooser-close").addEventListener("click", closeChooser);
+// A press on the dark round the card, and not one inside it that bubbled up.
+chooser.addEventListener("click", (e) => { if (e.target === chooser) closeChooser(); });
+
 // The phone's location and compass. A sensor that stops answering takes the view
 // with it: live mode ends and the reason goes on the chooser, rather than the
 // screen sitting on the last reading looking live.
@@ -1811,6 +1823,9 @@ function chooseMode(id) {
   }
   if (id === "live") { startLive(); return; }
   chooser.classList.add("hidden");
+  // Already in it. The boat is a toggle underneath, and choosing it again put
+  // you ashore.
+  if (id === "boat" && nav.mode === "boat") return;
   if (id === "bluff") { toBluff(); return; }
   if (id === "galiano") { toGaliano(); return; }
   if (id === "look") { toMapView(); return; }
@@ -2293,7 +2308,10 @@ const share = new Share(camera, () => ({
 }));
 
 window.addEventListener("keydown", (e) => {
-  if (e.code === "KeyM") chooser.classList.remove("hidden");
+  if (e.code === "KeyM" && !e.repeat) {
+    if (chooser.classList.contains("hidden")) chooser.classList.remove("hidden");
+    else closeChooser();
+  }
   if (e.code === "KeyO") overview.toggle();
   if (e.code === "KeyT") toggleBrademy();
   if (e.code === "KeyG") toggleCampground();
@@ -2314,7 +2332,11 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyE" && !e.repeat && nav.mode === "orbit") flipWyzeEdit();
   if (e.code === "KeyS" && !e.repeat) saveWyze();
   if (e.code === "KeyL") tracks.toggle();
-  if (e.code === "Escape") selection.clear();
+  if (e.code === "Escape") {
+    // The chooser is on top, so it is what Escape shuts first.
+    if (!chooser.classList.contains("hidden")) closeChooser();
+    else selection.clear();
+  }
   // Walking the Sheriff's calls. Only while the card is up, because the arrows
   // belong to whoever is driving the rest of the time, and OrbitControls reads
   // them to pan.

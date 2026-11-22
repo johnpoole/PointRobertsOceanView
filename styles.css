@@ -502,12 +502,18 @@ body.hud-visible .clock:not(.hidden) { display: flex; }
    it on source order alone and the chooser would never go away. */
 .chooser.hidden { display: none; }
 .chooser-card {
+  position: relative;
   background: var(--panel); border: 1px solid var(--edge); border-radius: 12px;
   padding: 22px 26px; text-align: center; pointer-events: auto;
 }
+/* In the corner of the card, and a thumb's size, because on a phone it is the
+   only way out that is not a key. */
+.chooser-close { position: absolute; top: 0; right: 0; min-width: 44px; min-height: 44px; }
 .chooser-title { color: var(--ink); font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; }
 .chooser-sub { color: var(--dim); margin: 4px 0 14px; }
-.chooser-btns { display: flex; flex-direction: column; gap: 6px; min-width: 210px; }
+/* Wide enough for the longest row, "389 W Bluff Rd" and where it looks, to
+   keep its two halves apart. */
+.chooser-btns { display: flex; flex-direction: column; gap: 6px; min-width: 290px; }
 .chooser-btn {
   font: 13px/1.6 ui-monospace, Menlo, Consolas, monospace;
   color: var(--ink); background: rgba(255, 255, 255, 0.05);
