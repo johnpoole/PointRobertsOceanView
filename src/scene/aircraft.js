@@ -8,6 +8,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { toWorld, headingToYaw } from "../geo.js";
+import { LAG_S, addFix, placeAt } from "./between-fixes.js";
 
 const KN = 0.514444;
 const FT = 0.3048;
@@ -93,7 +94,7 @@ export class Aircraft {
         const mesh = new THREE.Mesh(planeGeometry(length), material);
         group = new THREE.Group();
         group.add(mesh);
-        group.userData = { material, length, target: new THREE.Vector3(), placed: false };
+        group.userData = { material, length, fixes: [] };
         this.scene.add(group);
         if (this.shown === false) group.visible = false;
         this.groups.set(icao, group);
@@ -104,14 +105,21 @@ export class Aircraft {
 
       const w = toWorld(state.latitude, state.longitude, 0);
       const alt = state.altitude_m != null ? state.altitude_m : 0;
-      group.userData.target.set(w.x, alt, w.z);
-      if (!group.userData.placed) {
-        group.position.copy(group.userData.target);
-        group.userData.placed = true;
+      // When this position was made, on this page's own clock: when it was
+      // heard, less how old the feed said it was.
+      const fixedAt = entry.receivedTime != null && entry.quality
+        && entry.quality.age_seconds != null
+        ? entry.receivedTime / 1000 - entry.quality.age_seconds : null;
+      if (fixedAt == null) {
+        // The record, with the clock moved back. It is already worked out for
+        // the moment on screen, so it is drawn where it says.
+        group.userData.fixes.length = 0;
+        group.position.set(w.x, alt, w.z);
       } else {
-        // Six seconds between polls, so carry it along the track in between
-        // rather than letting it sit still and jump.
-        group.position.lerp(group.userData.target, 0.06);
+        // A position every six seconds. See between-fixes.js.
+        addFix(group.userData.fixes, { t: fixedAt, x: w.x, y: alt, z: w.z });
+        const at = placeAt(group.userData.fixes, performance.now() / 1000 - LAG_S);
+        group.position.set(at.x, at.y, at.z);
       }
 
       const dist = camera ? group.position.distanceTo(camera.position) : group.position.length();
