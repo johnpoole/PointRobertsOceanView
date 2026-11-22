@@ -617,6 +617,46 @@ def test_an_aircraft_taken_off_during_a_lookup_does_not_kill_the_task() -> None:
         restore()
 
 
+def test_a_feed_task_that_dies_is_started_again() -> None:
+    """It used to be logged, marked offline and left dead until the next deploy."""
+    sent, restore = _collect_broadcasts()
+    starts: list[int] = []
+
+    async def reader() -> None:
+        starts.append(len(starts))
+        if len(starts) == 1:
+            raise RuntimeError("the feed changed shape")
+        await asyncio.sleep(3600)
+
+    original_wait = proxy.RESTART_SECONDS
+    original_health = proxy.world.health["weather"]
+    proxy.RESTART_SECONDS = 0.01
+    proxy.world.health["weather"] = "live"
+
+    async def run() -> None:
+        proxy._spawn(reader, "test-reader", "weather")
+        await asyncio.sleep(0.2)
+        task = proxy._tasks.pop("test-reader")
+        alive = not task.done()
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        assert len(starts) == 2, f"started {len(starts)} times"
+        assert alive, "the second start did not stay up"
+
+    try:
+        asyncio.run(run())
+        said = [m["data"]["provider_health"]["weather"] for m in sent
+                if m["message_type"] == "initial.snapshot"]
+        assert "offline" in said, "its death was not told to the page"
+    finally:
+        proxy.RESTART_SECONDS = original_wait
+        proxy.world.health["weather"] = original_health
+        restore()
+
+
 def test_no_feed_writes_its_own_health_behind_the_broadcast() -> None:
     """Health that is not sent is not health.
 

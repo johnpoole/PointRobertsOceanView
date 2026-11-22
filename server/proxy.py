@@ -2127,12 +2127,25 @@ app = FastAPI()
 # several times the CPU, and this is re-compressed on every cold request.
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
-_tasks: list[asyncio.Task] = []
+# The running task for each name, so a shutdown can stop whichever one is the
+# current one.
+_tasks: dict[str, asyncio.Task] = {}
+_stopping = False
+
+# How long a dead task lies before it is started again. Long enough that a task
+# dying at once every time does not spin, short enough that a feed is not down
+# for long over one bad answer.
+RESTART_SECONDS = 60.0
 
 
-def _spawn(coro, name: str, feed: str | None = None) -> asyncio.Task:
+def _spawn(make, name: str, feed: str | None = None) -> asyncio.Task:
     """A task that dies takes its feed with it, and asyncio says nothing unless
-    somebody asks. This asks.
+    somebody asks. This asks, and then starts it again.
+
+    make is the task's function, not a coroutine already made, because a
+    coroutine runs once. A dead task used to stay dead until the next deploy.
+    The aircraft record has two months missing that way: it stops on 15
+    September 2026 and starts again at the next container.
 
     feed is the health key the task keeps up to date. Logging the death is not
     enough on its own: the last thing a task did before dying was probably set
@@ -2140,17 +2153,19 @@ def _spawn(coro, name: str, feed: str | None = None) -> asyncio.Task:
     on showing LIVE over numbers that had stopped moving. So the death sets it
     offline. A surviving task that shares the key will put it back on its next
     good cycle, which is what should happen — the vessels key has two owners."""
-    task = asyncio.create_task(coro, name=name)
+    task = asyncio.create_task(make(), name=name)
+    _tasks[name] = task
 
     def done(t: asyncio.Task) -> None:
-        if t.cancelled():
+        if t.cancelled() or _stopping:
             return
         exc = t.exception()
         if exc is not None:
-            log.error("Feed task %s died and its feed has stopped: %r", name, exc,
-                      exc_info=exc)
+            log.error("Feed task %s died and its feed has stopped. It is started "
+                      "again in %.0f s: %r", name, RESTART_SECONDS, exc, exc_info=exc)
         else:
-            log.error("Feed task %s returned and its feed has stopped.", name)
+            log.error("Feed task %s returned and its feed has stopped. It is "
+                      "started again in %.0f s.", name, RESTART_SECONDS)
         if feed:
             if feed == "vessels":
                 world.vessels_note = f"{name} task died"
@@ -2158,9 +2173,17 @@ def _spawn(coro, name: str, feed: str | None = None) -> asyncio.Task:
             # whose task has died is the one that most needs saying out loud, and
             # writing the word offline into a dict nobody re-reads does not.
             asyncio.get_running_loop().create_task(set_health(feed, "offline"))
+        asyncio.get_running_loop().call_later(RESTART_SECONDS, _respawn, make, name, feed)
 
     task.add_done_callback(done)
     return task
+
+
+def _respawn(make, name: str, feed: str | None) -> None:
+    if _stopping:
+        return
+    log.warning("Starting feed task %s again.", name)
+    _spawn(make, name, feed)
 
 
 @app.on_event("startup")
@@ -2170,30 +2193,32 @@ async def startup() -> None:
     visitors.load()
     # The third column is the health key the task owns, so its death takes that
     # reading down with it. The heartbeat owns none: it is not a feed.
-    for coro, name, feed in ((ais_task(), "ais", "vessels"),
-                             (shipfinder_task(), "shipfinder", "vessels"),
-                             (tide_task(), "tide", "tide"),
-                             (current_task(), "current", "currents"),
-                             (aircraft_task(), "aircraft", "aircraft"),
-                             (weather_task(), "weather", "weather"),
-                             (crossings_task(), "crossings", "crossings"),
-                             (wait_task(), "wait", "wait"),
-                             (blotter_task(), "blotter", "blotter"),
-                             (community_task(), "community", "community"),
-                             (fire_task(), "fire", "fire"),
-                             (ferries_task(), "ferries", None),
-                             (heartbeat_task(), "heartbeat", None),
-                             (presence_task(), "presence", None),
-                             (reaper_task(), "reaper", None),
-                             (visitors_task(), "visitors", None),
-                             (marina_task(), "marina", "marina"),
-                             (tee_task(), "tee", "golf")):
-        _tasks.append(_spawn(coro, name, feed))
+    for make, name, feed in ((ais_task, "ais", "vessels"),
+                             (shipfinder_task, "shipfinder", "vessels"),
+                             (tide_task, "tide", "tide"),
+                             (current_task, "current", "currents"),
+                             (aircraft_task, "aircraft", "aircraft"),
+                             (weather_task, "weather", "weather"),
+                             (crossings_task, "crossings", "crossings"),
+                             (wait_task, "wait", "wait"),
+                             (blotter_task, "blotter", "blotter"),
+                             (community_task, "community", "community"),
+                             (fire_task, "fire", "fire"),
+                             (ferries_task, "ferries", None),
+                             (heartbeat_task, "heartbeat", None),
+                             (presence_task, "presence", None),
+                             (reaper_task, "reaper", None),
+                             (visitors_task, "visitors", None),
+                             (marina_task, "marina", "marina"),
+                             (tee_task, "tee", "golf")):
+        _spawn(make, name, feed)
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-    for task in _tasks:
+    global _stopping
+    _stopping = True
+    for task in _tasks.values():
         task.cancel()
     await clients.shutdown()
     # Whatever the last save tick missed. A deploy is a shutdown, and a deploy
