@@ -1,7 +1,8 @@
-// Ocean in two planes. A near plane carries the cheap vertex-shader swell where
-// it reads; a large far plane is flat water that reaches past the Gulf Islands so
-// the strait is filled to the skyline. Both sit at the tide height. Normals on
-// the near plane come from the wave gradient so lighting and sky reflect right.
+// Ocean in two planes. A near plane carries the swell where it reads; a large
+// far plane is flat water that reaches past the Gulf Islands so the strait is
+// filled to the skyline. Both sit at the tide height. Normals on the near plane
+// come from the wave gradient at each pixel so lighting and sky reflect right,
+// and the mesh is raised only by the waves long enough for it to hold.
 // MeshStandardMaterial via onBeforeCompile keeps three's fog and lighting.
 //
 // The swell is capped by the water it stands in. Without that cap the whole
@@ -13,9 +14,11 @@
 
 import * as THREE from "three";
 import { toWorld } from "../geo.js";
+import { CARRY_FROM, CARRY_FULL, PARTS, ampFor, carried, lengthFor } from "./waves.js";
 
 const NEAR_SIZE = 24000;   // where waves are worth resolving
 const NEAR_SEG = 512;      // ~47 m spacing
+const NEAR_SPACING_M = NEAR_SIZE / NEAR_SEG;
 const FAR_SIZE = 100000;   // reaches beyond the far terrain tile
 
 const BREAKER_GAMMA = 0.78; // depth-limited breaking, H <= gamma * depth
@@ -155,6 +158,47 @@ const SEA_MASK_DISCARD = `
 // x,y lands on world x,-z for either of them.
 const SEA_MASK_VARYING = "vSeaXZ = vec2(position.x, -position.y);";
 
+// Water depth under a world x,z. Off the baked tile there is no bed, so the
+// water is deep and the swell runs at full height.
+const DEPTH_GLSL = `
+  float depthAt(vec2 world) {
+    if (uHasBed < 0.5) return 1000.0;
+    vec2 uv = (world - uBedMin) / uBedSize;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1000.0;
+    return uLevel - texture2D(uBed, uv).r;
+  }
+`;
+
+// The sum of the waves at a plane-local point: height, then the slope along x
+// and y. share is how much of each wave this caller takes, written in GLSL with
+// len and ph to hand. The mesh takes what its spacing can carry as a shape. The
+// lighting takes what a pixel can still tell apart, and lets go of a wave as it
+// closes up to under a pixel or two, where it would only crawl.
+function swellGlsl(name, share) {
+  const parts = PARTS.map((part, i) => `{
+      float ang = baseDir + ${((i - 1) * 0.4).toFixed(2)};
+      vec2 d = vec2(cos(ang), sin(ang));
+      float len = uLen * ${part.len.toFixed(3)};
+      float k = 6.2831853 / len;
+      float ph = k * dot(d, p) - sqrt(9.81 * k) * uTime;
+      float amp = amp0 * ${part.amp.toFixed(3)} * (${share});
+      h += amp * sin(ph);
+      dh += amp * k * d * cos(ph);
+    }`).join("\n");
+  return `
+  vec3 ${name}(vec2 p, float depth) {
+    // Depth-limited breaking. Deep water leaves uAmp untouched.
+    float amp0 = min(uAmp, ${(BREAKER_GAMMA / 2).toFixed(3)} * max(depth, 0.0));
+    float h = 0.0; vec2 dh = vec2(0.0);
+    float baseDir = atan(uDir.y, uDir.x);
+    ${parts}
+    return vec3(h, dh);
+  }`;
+}
+const SWELL_CARRIED_GLSL = swellGlsl("swellCarried",
+  `smoothstep(${CARRY_FROM.toFixed(1)}, ${CARRY_FULL.toFixed(1)}, len / ${NEAR_SPACING_M.toFixed(3)})`);
+const SWELL_LIT_GLSL = swellGlsl("swellLit", "1.0 - smoothstep(1.0, 2.5, fwidth(ph))");
+
 export class Ocean {
   constructor(scene) {
     this.uniforms = {
@@ -227,7 +271,20 @@ export class Ocean {
         .replace("#include <common>", `#include <common>
            ${SEA_MASK_GLSL}
            ${CLEAR_WATER_GLSL}
-           uniform float uLevel; uniform sampler2D uBed; uniform float uHasBed;`)
+           uniform float uLevel; uniform sampler2D uBed; uniform float uHasBed;
+           uniform float uTime; uniform vec2 uDir; uniform float uAmp; uniform float uLen;
+           ${DEPTH_GLSL}
+           ${SWELL_LIT_GLSL}`)
+        // The light comes off the waves themselves, worked out at each pixel,
+        // so a wave too short for the mesh to hold is still a wave to the eye.
+        // The plane's x,y is world x,-z, and its normal turns with it.
+        .replace("#include <normal_fragment_begin>",
+                 `#include <normal_fragment_begin>
+                  {
+                    vec3 lit = swellLit(vec2(vSeaXZ.x, -vSeaXZ.y), depthAt(vSeaXZ));
+                    normal = normalize(mat3(viewMatrix) * vec3(-lit.y, 1.0, lit.z));
+                    nonPerturbedNormal = normal;
+                  }`)
         .replace("#include <clipping_planes_fragment>",
                  `#include <clipping_planes_fragment>
                   ${SEA_MASK_DISCARD}
@@ -242,49 +299,14 @@ export class Ocean {
            uniform float uTime; uniform vec2 uDir; uniform float uAmp; uniform float uLen;
            uniform float uLevel; uniform sampler2D uBed;
            uniform vec2 uBedMin; uniform vec2 uBedSize; uniform float uHasBed;
-
-           // Water depth under a world x,z. Off the baked tile there is no bed,
-           // so the water is deep and the swell runs at full height.
-           float depthAt(vec2 world) {
-             if (uHasBed < 0.5) return 1000.0;
-             vec2 uv = (world - uBedMin) / uBedSize;
-             if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1000.0;
-             return uLevel - texture2D(uBed, uv).r;
-           }
-
-           vec3 swell(vec2 p, float depth) {
-             // Depth-limited breaking. Deep water leaves uAmp untouched.
-             float amp0 = min(uAmp, ${(BREAKER_GAMMA / 2).toFixed(3)} * max(depth, 0.0));
-             float h = 0.0; vec2 dh = vec2(0.0);
-             float baseDir = atan(uDir.y, uDir.x);
-             for (int i = 0; i < 3; i++) {
-               float fi = float(i);
-               float ang = baseDir + (fi - 1.0) * 0.4;
-               vec2 d = vec2(cos(ang), sin(ang));
-               float len = uLen * (1.0 - 0.35 * fi);
-               float amp = amp0 * (1.0 - 0.3 * fi);
-               float k = 6.2831853 / len;
-               float w = sqrt(9.81 * k);
-               float ph = k * dot(d, p) - w * uTime;
-               h += amp * sin(ph);
-               dh += amp * k * d * cos(ph);
-             }
-             return vec3(h, dh);
-           }`
-        )
-        .replace(
-          "#include <beginnormal_vertex>",
-          // The plane is rotated -90 deg about X, so local x,y lands on world x,-z.
-          `vec3 _s = swell(position.xy, depthAt(vec2(position.x, -position.y)));
-           vec3 objectNormal = normalize(vec3(-_s.y, -_s.z, 1.0));
-           #ifdef USE_TANGENT
-             vec3 objectTangent = vec3(1.0, 0.0, 0.0);
-           #endif`
+           ${DEPTH_GLSL}
+           ${SWELL_CARRIED_GLSL}`
         )
         .replace(
           "#include <begin_vertex>",
+          // The plane is rotated -90 deg about X, so local x,y lands on world x,-z.
           `vec3 transformed = vec3(position);
-           transformed.z += _s.x;
+           transformed.z += swellCarried(position.xy, depthAt(vec2(position.x, -position.y))).x;
            ${SEA_MASK_VARYING}`
         );
     };
@@ -306,18 +328,20 @@ export class Ocean {
     }
   }
 
-  // Real sea state from the marine feed. Amplitude is half the wave height;
-  // wavelength from the period, clamped so short chop does not alias. FROM dir.
+  // Real sea state from the marine feed. The height is a significant height
+  // and the three waves are sized to stand at it. The wavelength is the one the
+  // period gives, held above a metre so a period of nought cannot divide by it.
+  // FROM dir.
   setWaves(heightM, fromDeg, periodS) {
     if (fromDeg != null) {
       const toward = (fromDeg + 180) * Math.PI / 180;
       this.uniforms.uDir.value.set(Math.sin(toward), Math.cos(toward)).normalize();
     }
     if (heightM != null) {
-      this.uniforms.uAmp.value = Math.min(Math.max(heightM / 2, 0.05), 2.5);
+      this.uniforms.uAmp.value = Math.min(Math.max(ampFor(heightM), 0.05), 2.5);
     }
     if (periodS != null) {
-      this.uniforms.uLen.value = Math.max(70, 1.56 * periodS * periodS);
+      this.uniforms.uLen.value = Math.max(1, lengthFor(periodS));
     }
   }
 
@@ -390,8 +414,8 @@ export class Ocean {
 
   // The same swell the vertex shader draws, worked out on the CPU so a boat can
   // ride it. Kept deliberately in step with the GLSL above — the wave sum, the
-  // breaker cap and the plane's x,-z mapping all have to match or the hull sits
-  // in water that is not where it is drawn.
+  // breaker cap, what the mesh carries and the plane's x,-z mapping all have to
+  // match or the hull sits in water that is not where it is drawn.
   surfaceAt(x, z) {
     const level = this.uniforms.uLevel.value;
     const bed = this._bedAt(x, z);
@@ -403,11 +427,11 @@ export class Ocean {
     const t = this.uniforms.uTime.value;
     const px = x, py = -z;
     let h = 0, gx = 0, gy = 0;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < PARTS.length; i++) {
       const ang = base + (i - 1) * 0.4;
       const dx = Math.cos(ang), dy = Math.sin(ang);
-      const len = this.uniforms.uLen.value * (1 - 0.35 * i);
-      const amp = amp0 * (1 - 0.3 * i);
+      const len = this.uniforms.uLen.value * PARTS[i].len;
+      const amp = amp0 * PARTS[i].amp * carried(len, NEAR_SPACING_M);
       const k = (2 * Math.PI) / len;
       const w = Math.sqrt(9.81 * k);
       const ph = k * (dx * px + dy * py) - w * t;

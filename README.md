@@ -130,6 +130,11 @@ of roughly 0.78 of the depth, so the shader reads the baked bed under each verte
 and clamps amplitude to that. The waves shrink to nothing as they shoal and the
 waterline holds at the still-water line.
 
+The sea stands at the significant height the feed reports and runs at the
+wavelength its period gives: 0.54 m at 2.95 s is a 13.6 m wave. The water's mesh
+has a point every 47 m and cannot hold a wave that short as a shape, so a wave
+is lit at each pixel and only raised where the mesh can carry it.
+
 ## The lot
 
 `assets/site/389-w-bluff.json` holds the parcel boundary at the origin — four
@@ -170,5 +175,5 @@ publishes MSL 1.718 m above MLLW, agreeing with VDatum to 13 mm.
 
 ## Hardware
 
-Tuned for an Intel Iris Xe laptop: vertex-shader swell, no reflections, no heavy
+Tuned for an Intel Iris Xe laptop: a swell worked out in the shader, no reflections, no heavy
 post-processing, capped pixel ratio.
