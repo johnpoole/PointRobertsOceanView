@@ -97,7 +97,17 @@ def test_the_live_feed_still_decrypts_with_their_password() -> None:
         async with httpx.AsyncClient(timeout=45) as client:
             r = await client.get(pulsepoint.FEED, headers=pulsepoint.HEADERS)
             r.raise_for_status()
-            return r.json()
+            try:
+                return r.json()
+            except ValueError as exc:
+                # A 200 that is not JSON. It used to end the whole run on a
+                # traceback, with the tests after it never tried.
+                raise RuntimeError(
+                    f"PulsePoint's live feed at {pulsepoint.FEED} answered "
+                    f"{r.status_code} with something that is not JSON ({exc}). "
+                    f"It began {r.text[:120]!r}. The feed is down or has changed "
+                    f"its form, and this test needs it to check the password."
+                ) from exc
     feed = pulsepoint.decrypt(asyncio.run(fetch()))
     assert "incidents" in feed and "recent" in feed["incidents"], sorted(feed)
 

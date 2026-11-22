@@ -1,0 +1,4 @@
+# For scripts/load_presence.py, which loads the presence socket and watches
+# what the machine does under it. Not installed in the image.
+#   pip install -r requirements.txt -r scripts/requirements-load.txt
+psutil==7.2.2
