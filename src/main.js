@@ -26,7 +26,7 @@ import { buildCampground } from "./scene/campground.js";
 import { buildPeople } from "./scene/people.js";
 import { VisitorList, visitorView } from "./visitors.js";
 import { travelPresence } from "./presence.js";
-import { buildCabin, cabinCarve, cabinApproachEdge } from "./scene/cabin.js";
+import { buildCabin, cabinCarve, cabinApproachEdge, upperDeckStand } from "./scene/cabin.js";
 import { loadCabinAsset } from "./scene/cabin-asset.js";
 import { buildStair, stairCarve } from "./scene/stair.js";
 import { buildLighthouse } from "./scene/lighthouse.js";
@@ -1350,18 +1350,19 @@ function toBluff() {
   controls.update();
 }
 
-// From 389 W Bluff Rd, due west over the strait. Galiano Island lies on that
-// line, forty kilometres off, so west is all the aim has to be. The eye is the
-// address itself at EYE_HEIGHT_M, which is where the trees on the lot stand down
-// to leave the water in view.
+// From the upper deck of the cabin at 389 W Bluff Rd, due west over the strait.
+// Galiano Island lies on that line, forty kilometres off, so west is all the aim
+// has to be. The eye is a person's, standing in the middle of the deck.
 const BLUFF_WEST_AIM_M = 300;
+const STANDING_EYE_M = 1.62;
 function toGaliano() {
   lookFov = LOOK_FOV_DEG;
   leaveWyze();
   nav.toOrbit();
-  const eye = toWorld(ORIGIN.lat, ORIGIN.lon, EYE_HEIGHT_M);
-  camera.position.set(eye.x, eye.y, eye.z);
-  controls.target.set(eye.x - BLUFF_WEST_AIM_M, eye.y, eye.z);
+  const deck = upperDeckStand();
+  const eyeY = deck.y + STANDING_EYE_M;
+  camera.position.set(deck.x, eyeY, deck.z);
+  controls.target.set(deck.x - BLUFF_WEST_AIM_M, eyeY, deck.z);
   controls.update();
 }
 

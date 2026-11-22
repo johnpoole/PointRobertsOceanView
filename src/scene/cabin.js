@@ -276,6 +276,11 @@ export function cabinWorld(x, z) {
   return { x: AT.x + x * Math.cos(YAW) + z * Math.sin(YAW),
     z: AT.z - x * Math.sin(YAW) + z * Math.cos(YAW) };
 }
+// Where somebody stands on the upper deck: the middle of it, on the boards.
+export function upperDeckStand() {
+  const at = cabinWorld(-W / 2 - DECK_OUT / 2, 0);
+  return { x: at.x, y: UPPER_FLOOR, z: at.z };
+}
 export function cabinLocal(x, z) {
   const dx = x - AT.x, dz = z - AT.z;
   return { x: dx * Math.cos(YAW) - dz * Math.sin(YAW), z: dx * Math.sin(YAW) + dz * Math.cos(YAW) };
