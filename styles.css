@@ -210,6 +210,10 @@ body.hud-visible .view-icons { display: flex; }
   padding: 0 2px; cursor: pointer;
 }
 .track-close:hover { color: var(--ink); }
+/* Under a thumb the x is a 44 px target. It was the size of the letter. */
+@media (pointer: coarse) {
+  .track-close { min-width: 44px; min-height: 44px; }
+}
 
 /* The list of what is out there. Down the right, opposite the card, so picking
    one and reading it do not happen in the same place. */
@@ -706,7 +710,8 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
 }
 
 /* --- The keys ---------------------------------------------------------------
-   A mark in the top right corner and the list under it on hover. The list is
+   A mark in the top right corner and the list under it on hover, and on a
+   press or a tab to the mark, which nothing but a mouse could do. The list is
    the only place on the page that says what any key does. */
 .keys-btn {
   position: fixed;
@@ -741,6 +746,7 @@ body.chrome-dim .fly-hint { opacity: 0.22; }
 /* The list stays up while the pointer is on the mark or on the list itself, so
    it can be read on the way down. */
 .keys-btn:hover + .keys,
+.keys-btn:focus + .keys,
 .keys:hover { display: block; }
 .keys-row { display: flex; gap: 10px; align-items: baseline; }
 .keys-k {

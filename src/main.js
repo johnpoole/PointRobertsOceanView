@@ -1325,12 +1325,14 @@ readTrim();
 // each says what the stick does instead.
 const TOUCH = window.matchMedia("(pointer: coarse)").matches;
 const LOOK_HINT = TOUCH ? "drag right side to look" : "drag to look";
+// A phone has no M. It has the button, which reads "mode" there.
+const CHANGE_HINT = TOUCH ? "tap mode to change" : "M to change";
 const BOAT_HINT = TOUCH
-  ? `stick: push to open the throttle, across for the tiller · ${LOOK_HINT} · M to change`
-  : `W throttle · A/D tiller (A turns right) · ${LOOK_HINT} · M to change`;
+  ? `stick: push to open the throttle, across for the tiller · ${LOOK_HINT} · ${CHANGE_HINT}`
+  : `W throttle · A/D tiller (A turns right) · ${LOOK_HINT} · ${CHANGE_HINT}`;
 // Nothing to drive in live mode: the phone is the control, and walking is the
 // only way to move.
-const LIVE_HINT = "hold the phone up and turn · slide aim until the view lines up · M to change";
+const LIVE_HINT = `hold the phone up and turn · slide aim until the view lines up · ${CHANGE_HINT}`;
 function vehicleHint(spec) {
   const air = spec.medium === "air";
   if (TOUCH) {
@@ -1338,14 +1340,14 @@ function vehicleHint(spec) {
     // ground, which is the one place it does not mean the same thing.
     const stick = air ? "stick: push to climb, pull to descend, across to turn"
                       : "stick: push to go, across to steer";
-    return `${stick} · ${LOOK_HINT} · M to change`;
+    return `${stick} · ${LOOK_HINT} · ${CHANGE_HINT}`;
   }
   const parts = ["W go"];
   if (spec.reverse) parts.push("S back");
   parts.push("A/D steer");
   if (air) parts.push("Q/E down-up");
   parts.push(LOOK_HINT);
-  parts.push("M to change");
+  parts.push(CHANGE_HINT);
   return parts.join(" · ");
 }
 
