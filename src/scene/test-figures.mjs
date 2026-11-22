@@ -27,7 +27,11 @@ async function test(name, fn) {
 const src = fs.readFileSync(path.join(HERE, "figures.js"), "utf8");
 const URL_ = /XBOT_URL =\s*"([^"]+)"/.exec(src)[1];
 const figures = await import("data:text/javascript;base64," + Buffer.from(
-  src.replace(/from "(three|three\/[^"]*)"/g, `from "${STUB}"`), "utf8")
+  src.replace(/from "(three|three\/[^"]*)"/g, `from "${STUB}"`)
+    // A module loaded from text has no folder, so its own neighbours are named
+    // in full.
+    .replace(/from "\.\/([^"]+)"/g, (_all, file) =>
+      `from "${pathToFileURL(path.join(HERE, file)).href}"`), "utf8")
   .toString("base64"));
 
 // ---- the model --------------------------------------------------------------
@@ -64,6 +68,11 @@ function values(accessor) {
 
 await test("the model carries a walk", () => {
   assert.ok(g.animations.some(a => a.name === "walk"),
+    `the clips are ${g.animations.map(a => a.name).join(", ")}`);
+});
+
+await test("the model carries a standing pose for when a figure stops", () => {
+  assert.ok(g.animations.some(a => a.name === "idle"),
     `the clips are ${g.animations.map(a => a.name).join(", ")}`);
 });
 

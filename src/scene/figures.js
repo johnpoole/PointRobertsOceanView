@@ -22,6 +22,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import { MOVED_M, walkWeight } from "./standing.js";
 
 export const XBOT_URL =
   "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r186/examples/models/gltf/Xbot.glb";
@@ -33,6 +34,8 @@ const STRIDE_M = 0.76;
 const CYCLE_M = STRIDE_M * 2;
 
 const WALK = "walk";
+// The same model's standing pose, for when the ground stops moving under it.
+const STAND = "idle";
 
 // The parts a person is dressed in, in the order the shader indexes them.
 export const REGIONS = ["skin", "shirt", "trousers", "shoes", "hair"];
@@ -153,14 +156,18 @@ function load() {
   if (loaded) return loaded;
   loaded = new GLTFLoader().loadAsync(XBOT_URL)
     .then((gltf) => {
-      const walk = gltf.animations.find(a => a.name === WALK);
-      if (!walk) {
-        throw new Error(
-          `${XBOT_URL} has no clip called ${WALK}. It carries ` +
-          `${gltf.animations.map(a => a.name).join(", ")}.`);
-      }
+      const clip = (name) => {
+        const found = gltf.animations.find(a => a.name === name);
+        if (!found) {
+          throw new Error(
+            `${XBOT_URL} has no clip called ${name}. It carries ` +
+            `${gltf.animations.map(a => a.name).join(", ")}.`);
+        }
+        return found;
+      };
+      const walk = clip(WALK), stand = clip(STAND);
       dress(gltf.scene);
-      return { scene: gltf.scene, walk };
+      return { scene: gltf.scene, walk, stand };
     })
     .catch((err) => {
       // Nobody on the peninsula is a thing you would notice, but only if it is
@@ -185,6 +192,9 @@ export function buildWalker(coat = 0x808080, role = null) {
   // the callers drive it from the first frame.
   let mixer = null;
   let action = null;
+  let standing = null;
+  let walking = 1;        // how much of the pose is the walk, nought to one
+  let lookedAt = null;    // when stride was last called, in seconds
 
   load().then((model) => {
     const body = cloneSkinned(model.scene);
@@ -200,6 +210,9 @@ export function buildWalker(coat = 0x808080, role = null) {
     mixer = new THREE.AnimationMixer(body);
     action = mixer.clipAction(model.walk);
     action.play();
+    standing = mixer.clipAction(model.stand);
+    standing.play();
+    standing.setEffectiveWeight(0);
     // Wherever the caller had walked to before the model arrived.
     mixer.setTime(group.walked * (model.walk.duration / CYCLE_M));
   }).catch((err) => {
@@ -211,8 +224,16 @@ export function buildWalker(coat = 0x808080, role = null) {
   group.walked = 0;
   // Metres covered, not seconds elapsed. Feet that run off a clock skate.
   group.stride = (metres) => {
+    const advanced = Math.abs(metres - group.walked) > MOVED_M;
     group.walked = metres;
     if (!mixer || !action) return;
+    // A figure that has stopped stands. It used to hold whatever frame of the
+    // walk it stopped on. See standing.js.
+    const now = performance.now() / 1000;
+    walking = walkWeight(walking, advanced, lookedAt === null ? 0 : now - lookedAt);
+    lookedAt = now;
+    action.setEffectiveWeight(walking);
+    standing.setEffectiveWeight(1 - walking);
     mixer.setTime(metres * (action.getClip().duration / CYCLE_M));
   };
   return group;

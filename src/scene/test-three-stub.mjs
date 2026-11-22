@@ -207,7 +207,8 @@ export class AnimationClip {
 export class AnimationMixer {
   constructor(root) { this.root = root; this.time = 0; }
   clipAction(clip) {
-    return { _clip: clip, play() { return this; }, getClip() { return this._clip; } };
+    return { _clip: clip, weight: 1, play() { return this; }, getClip() { return this._clip; },
+             setEffectiveWeight(w) { this.weight = w; return this; } };
   }
   setTime(t) { this.time = t; return this; }
 }
@@ -219,7 +220,7 @@ export class GLTFLoader {
   loadAsync(url) {
     const scene = new Group();
     scene.name = url;
-    return Promise.resolve({ scene, animations: [STUB_WALK] });
+    return Promise.resolve({ scene, animations: [STUB_WALK, new AnimationClip("idle", 3.3)] });
   }
 }
 
