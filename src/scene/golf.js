@@ -17,6 +17,7 @@ import { areaView } from "./area-view.js";
 import { minutesInZone, minutesOf } from "./cast.js";
 import { buildWalker } from "./vehicles.js";
 import { buildCar } from "./cast.js";
+import { playing } from "./golf-play.js";
 
 // What each kind is drawn in, how far it stands off the ground, and how finely
 // it is broken up to follow the ground under it. A green is small and read
@@ -309,60 +310,6 @@ const CAR_COLOURS = [0x6a6f76, 0x8c5a3c, 0x46655c, 0x5c6b8a, 0x7d6a3f, 0x8a5a4a]
 // What a car does on these roads: fifty down Tyee, slower at the ends.
 const DRIVE_MS = 12.5;
 
-
-// How a hole is played, as a place to be at each moment of it.
-//
-// A group does not slide down the fairway at a constant crawl: they stand on the
-// tee, walk to their ball, stand over it, walk again, and gather on the green.
-// Each player keeps their own line down the hole and their own ball, so they
-// spread out through the middle of it and come back together at the end.
-//
-// The tee time and the four players are the club's; this rhythm is not. It is a
-// depiction of how the fifteen minutes are spent, and nothing in the sheet says
-// where anybody is standing.
-//
-// Keyframes are (time through the hole, distance down it, metres off the line).
-// Where two in a row hold the same place, the player is standing still over the
-// ball.
-const PLAY = [
-  { t: 0.00, along: 0.02, off: 0 },
-  { t: 0.09, along: 0.02, off: 0 },   // waiting on the tee
-  { t: 0.26, along: 0.33, off: 1 },   // out to the first ball
-  { t: 0.34, along: 0.33, off: 1 },   // standing over it
-  { t: 0.50, along: 0.62, off: 1 },
-  { t: 0.58, along: 0.62, off: 1 },
-  { t: 0.72, along: 0.85, off: 1 },
-  { t: 0.79, along: 0.85, off: 1 },
-  { t: 0.88, along: 0.97, off: 0 },   // onto the green, together again
-  { t: 1.00, along: 1.00, off: 0 },
-];
-
-// How far off the centre line each player's own ball lies, in metres, and how
-// much further or shorter they hit it. Fixed per player rather than random, so
-// the same group walks the same way every time it is looked at.
-const PLAYER_LINE = [-13, 7, -5, 15];
-const PLAYER_REACH = [0.04, -0.03, 0.06, -0.05];
-
-// Where one player stands at this moment of their hole.
-function playing(fraction, player) {
-  const t = Math.min(Math.max(fraction, 0), 1);
-  let i = 1;
-  while (i < PLAY.length - 1 && PLAY[i].t < t) i++;
-  const a = PLAY[i - 1], b = PLAY[i];
-  const span = Math.max(b.t - a.t, 1e-6);
-  let k = (t - a.t) / span;
-  // Ease in and out of every walk, so they set off and pull up rather than
-  // snapping from standing to walking.
-  k = k * k * (3 - 2 * k);
-  const reach = PLAYER_REACH[player % PLAYER_REACH.length];
-  const lineOff = PLAYER_LINE[player % PLAYER_LINE.length];
-  const alongA = a.along + (a.off ? reach : 0);
-  const alongB = b.along + (b.off ? reach : 0);
-  return {
-    along: alongA + (alongB - alongA) * k,
-    off: (a.off + (b.off - a.off) * k) * lineOff,
-  };
-}
 
 // A fraction of the way down a hole's centre line, and the way it is facing.
 function along(line, fraction) {
