@@ -1742,7 +1742,14 @@ function leaveWyze() {
 const MAP_RANGE_M = 1200;
 const MAP_TILT_DEG = 55;      // from straight down, so 35° above the ground
 function toMapView() {
+  // The app's own lens, and its own stop on looking up. A link taken from live
+  // mode or from a camera carries that view's wide lens, and a link pitched
+  // above level lifts the stop. Looking around used to keep both. A camera view
+  // and the novel lift the stop for themselves and put it back themselves.
+  lookFov = LOOK_FOV_DEG;
   nav.toOrbit();
+  if (!wyzeView && !tour) controls.maxPolarAngle = MAP_MAX_POLAR;
+  applyFov();
   const groundY = groundSample ? groundSample(ORIGIN.lat, ORIGIN.lon) : 0;
   const tilt = (MAP_TILT_DEG * Math.PI) / 180;
   // East of the house, so the water is beyond it and the view still faces west.
@@ -1761,11 +1768,23 @@ function toShared() {
   nav.toOrbit();
   lookFov = shared.fov ?? LOOK_FOV_DEG;
   applyFov();
+  // The stop on looking up is there for a view that is dragged. A link that
+  // looks up past it would be read by update() as an illegal angle and swung
+  // round to a legal one, so the stop is lifted for a link that needs it.
+  // Looking around puts it back.
+  const pitch = new THREE.Spherical().setFromVector3(shared.eye.clone().sub(shared.aim));
+  if (pitch.phi > MAP_MAX_POLAR) controls.maxPolarAngle = Math.PI;
   camera.position.copy(shared.eye);
   controls.target.copy(shared.aim);
   controls.update();
 }
 if (shared) toShared();
+
+// A link pasted into a tab that is already open. The address bar is rewritten
+// with replaceState, which does not fire this, so it fires only when somebody
+// has put a new address in. The page is opened again on it, which is what the
+// link would have done in a new tab: the view, the clock and every switch.
+window.addEventListener("hashchange", () => location.reload());
 
 new VisitorList(feed, camera, at => {
   const view = visitorView(at, groundSample || undefined);
