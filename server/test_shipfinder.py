@@ -53,6 +53,7 @@ BOX = {"min_lat": 48.80, "min_lon": -123.50, "max_lat": 49.18, "max_lon": -122.9
 
 def payload(vessels: list[tuple[str, int, float, float]]) -> bytes:
     out = bytearray(b"\x00" * HEADER_BYTES)
+    struct.pack_into("<I", out, 15, len(vessels))    # the header's own count
     for ship_id, kind, lat, lon in vessels:
         assert len(ship_id) == 16
         out += b"\x10\x00" + ship_id.encode()
@@ -83,6 +84,28 @@ def test_many_records_all_decode() -> None:
 def test_an_empty_payload_is_no_vessels_not_an_error() -> None:
     assert decode(b"\x00" * HEADER_BYTES) == []
     assert decode(b"") == []
+
+
+def test_bytes_after_the_counted_records_are_not_a_ship() -> None:
+    """On 22 November 2026 the full answer came with 20 bytes after its 418
+    records. Reading by size took them for a broken record and every ship was
+    refused."""
+    ships = [(f"{i:016X}", 1, 48.9 + i / 1000, -123.1 - i / 1000) for i in range(3)]
+    tail = bytes.fromhex("203830000000000030a7a6f8033ce902b77d036b")
+    got = decode(payload(ships) + tail)
+    assert [v["id"] for v in got] == [s[0] for s in ships], got
+
+
+def test_a_whole_record_the_header_does_not_count_raises() -> None:
+    ships = [(f"{i:016X}", 1, 48.9, -123.1) for i in range(3)]
+    blob = bytearray(payload(ships))
+    struct.pack_into("<I", blob, 15, 2)
+    try:
+        decode(bytes(blob))
+    except ValueError as exc:
+        assert "format has changed" in str(exc), exc
+    else:
+        raise AssertionError("a record the header did not count was passed over")
 
 
 def test_a_payload_that_does_not_divide_raises() -> None:

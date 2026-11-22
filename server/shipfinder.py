@@ -47,25 +47,35 @@ SETTLE_MS = 8_000        # before the map exists to be moved
 COLLECT_MS = 20_000      # after moving it, for the poll to come back
 
 # Record layout, confirmed against a captured payload: 576 records, 43 bytes
-# each, no remainder. The first record starts at 23; what comes before it is a
-# header that has not been worked out and is not needed.
+# each. The first record starts at 23. What comes before it is a header, and
+# four bytes of it at 15 are the number of records, low byte first: 418 in the
+# full answer of 22 November 2026 and nought in the empty one beside it.
+#
+# That day the full answer grew 20 bytes after its last record. They are not a
+# record and have not been worked out. Reading by the size of the payload, as
+# this did, took them for a broken record and refused every ship. The header's
+# own count says where the records end.
 HEADER_BYTES = 23
 RECORD_BYTES = 43
+COUNT_AT = 15
 ID_LENGTH = b"\x10\x00"     # uint16 16, the length of the ship id that follows
 
 
 def decode(blob: bytes) -> list[dict]:
     """Vessels out of one payload. Raises if the stride does not hold, because a
     format that has quietly changed should stop rather than produce nonsense."""
-    if len(blob) <= HEADER_BYTES:
+    if len(blob) < HEADER_BYTES:
         return []
+    (count,) = struct.unpack_from("<I", blob, COUNT_AT)
     body = len(blob) - HEADER_BYTES
-    count, remainder = divmod(body, RECORD_BYTES)
-    if remainder:
+    after = body - count * RECORD_BYTES
+    # Fewer bytes than the header counts, or a whole record's worth and more
+    # that it does not count: either way the header is not being read right.
+    if after < 0 or after >= RECORD_BYTES:
         raise ValueError(
-            f"shipfinder payload is {len(blob)} bytes: {body} after the "
-            f"{HEADER_BYTES}-byte header does not divide by the {RECORD_BYTES}-byte "
-            f"record, {remainder} left over. The format has changed."
+            f"shipfinder payload is {len(blob)} bytes and its header counts "
+            f"{count} records of {RECORD_BYTES}, which leaves {after} of the "
+            f"{body} after the {HEADER_BYTES}-byte header. The format has changed."
         )
     out = []
     for k in range(count):
