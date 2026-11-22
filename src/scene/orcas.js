@@ -27,6 +27,7 @@
 import * as THREE from "three";
 
 import { toWorld } from "../geo.js";
+import { shoreAt } from "./shore-at.js";
 
 // Unique Bigg's killer whale sightings in the Salish Sea by month, 2025.
 const SALISH_2025 = [82, 96, 160, 170, 205, 230, 195, 210, 190, 170, 78, 74];
@@ -435,9 +436,7 @@ export function buildOrcas(scene, opts = {}) {
 
   // Where along the shore a distance falls, and which way the coast runs there.
   function at(s) {
-    const i = Math.min(shore.length - 1,
-                       Math.max(0, Math.round(s / SHORE_STEP_M)));
-    return shore[i];
+    return shoreAt(shore, s, SHORE_STEP_M);
   }
 
   const group = new THREE.Group();
