@@ -135,6 +135,8 @@ export class Aircraft {
         mat.color.setHex(stale ? 0x5a626c : 0xffffff);
         mat.transparent = stale;
         mat.opacity = stale ? 0.45 : 1;
+        // The shader is built solid or see-through, so it has to be told.
+        mat.needsUpdate = true;
         group.userData.stale = stale;
       }
     }

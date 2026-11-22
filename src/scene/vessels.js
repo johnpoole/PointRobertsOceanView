@@ -339,6 +339,10 @@ export class Vessels {
         mat.color.setHex(stale ? 0x5a626c : 0xffffff);
         mat.transparent = stale;
         mat.opacity = stale ? 0.5 : 1;
+        // The shader is built solid or see-through, so it has to be told. Left
+        // untold the hull went grey and stayed solid: measured, a half faded
+        // box over red read 87,95,105 untold and 171,48,53 told.
+        mat.needsUpdate = true;
         group.userData.stale = stale;
       }
 
