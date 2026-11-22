@@ -15,7 +15,7 @@ export const MAGNETIC_DECLINATION_DEG = 15.3;
 // A track is stale when the proxy flags it, or its age exceeds these seconds.
 export const STALE_SECONDS = {
   vessels: 300,
-  aircraft: 120,
+  aircraft: 30,
 };
 
 export const EYE_HEIGHT_M = 20; // camera eye above sea level

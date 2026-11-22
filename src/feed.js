@@ -299,7 +299,7 @@ export class Feed {
   //
   // kind picks the threshold and is not optional. This used to read the vessel
   // threshold for both, so an aircraft gone quiet for four minutes still drew as
-  // live: aircraft go stale at two minutes and ships at five, and the aircraft
+  // live: aircraft go stale at thirty seconds and ships at five minutes, and the aircraft
   // figure sat in config.js unused.
   isStale(entry, kind) {
     const limit = STALE_SECONDS[kind];

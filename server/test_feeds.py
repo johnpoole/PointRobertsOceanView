@@ -382,7 +382,7 @@ def test_a_scraped_ship_survives_the_gap_between_two_passes() -> None:
 
 
 def test_an_aircraft_that_has_flown_out_of_range_comes_off() -> None:
-    store, seen = _stock({"here": 30, "greying": 200, "gone": 400}, [])
+    store, seen = _stock({"here": 10, "greying": 60, "gone": 200}, [])
     assert proxy.reap(store, seen, proxy.DROP_SECONDS["aircraft"]) == ["gone"]
     assert sorted(store) == ["greying", "here"]
 
@@ -489,6 +489,80 @@ def test_an_empty_sky_is_a_working_feed() -> None:
         assert sent and sent[-1]["data"]["provider_health"]["aircraft"] == "live"
     finally:
         proxy.httpx.AsyncClient = original
+        restore()
+
+
+def test_an_aircraft_is_as_old_as_its_own_last_position() -> None:
+    now = datetime(2026, 11, 22, 20, 0, tzinfo=timezone.utc)
+    fixed = proxy.aircraft_fix_time({"hex": "a1b2c3", "seen_pos": 42.1}, now)
+    assert (now - fixed).total_seconds() == 42.1
+    try:
+        proxy.aircraft_fix_time({"hex": "a1b2c3", "lat": 49.0, "lon": -123.1}, now)
+    except KeyError as exc:
+        assert "seen_pos" in str(exc) and "a1b2c3" in str(exc), exc
+    else:
+        raise AssertionError("a position of unknown age was taken as a fresh one")
+
+
+class _OneLeftOneFading:
+    """adsb.fi listing one aircraft whose last position is 42 s old. Another
+    that was held here is no longer in the answer."""
+    def __init__(self, **_kwargs): pass
+    async def __aenter__(self): return self
+    async def __aexit__(self, *_exc): return False
+
+    async def get(self, _url, headers=None):
+        class Answer:
+            def raise_for_status(self): pass
+            def json(self):
+                return {"aircraft": [{"hex": "fading", "lat": 49.0, "lon": -123.1,
+                                      "alt_baro": 3000, "seen": 42.1, "seen_pos": 42.1}]}
+        return Answer()
+
+
+def test_an_aircraft_the_feed_has_let_go_of_comes_off_at_once() -> None:
+    """It used to stay until 300 s had gone by and the reaper next came round,
+    drawn white where it was last seen for the first 120 of them."""
+    sent, restore = _collect_broadcasts()
+    original = proxy.httpx.AsyncClient
+    original_record = proxy.record_track
+    proxy.httpx.AsyncClient = _OneLeftOneFading
+    proxy.record_track = lambda *_a, **_k: None
+    proxy.world.aircraft.clear()
+    proxy.world.aircraft_seen.clear()
+    proxy.world.aircraft["left"] = {"icao": "left", "latitude": 49.0, "longitude": -123.2}
+    proxy.world.aircraft_seen["left"] = proxy.utcnow()
+    proxy.world.health["aircraft"] = "live"
+    # Already asked about, so the poll does not go on to adsbdb for it.
+    proxy.world.aircraft_registry["fading"] = {}
+
+    async def one_poll() -> None:
+        try:
+            await asyncio.wait_for(proxy.aircraft_task(), 0.5)
+        except asyncio.TimeoutError:
+            pass
+
+    try:
+        asyncio.run(one_poll())
+        assert "left" not in proxy.world.aircraft
+        assert "left" not in proxy.world.aircraft_seen
+        snapshots = [m for m in sent if m["message_type"] == "initial.snapshot"]
+        assert snapshots, "nobody was told the aircraft had gone"
+        listed = [a["data"]["icao"] for a in snapshots[-1]["data"]["aircraft"]]
+        assert listed == ["fading"], listed
+
+        # The one still listed is as old as its own position, and that is stale.
+        age = (proxy.utcnow() - proxy.world.aircraft_seen["fading"]).total_seconds()
+        assert 42 <= age < 44, age
+        states = [m for m in sent if m["message_type"] == "aircraft.state"]
+        assert states[-1]["quality"]["stale"] is True, states[-1]["quality"]
+        assert 42 <= states[-1]["quality"]["age_seconds"] < 44
+    finally:
+        proxy.httpx.AsyncClient = original
+        proxy.record_track = original_record
+        proxy.world.aircraft_registry.pop("fading", None)
+        proxy.world.aircraft.clear()
+        proxy.world.aircraft_seen.clear()
         restore()
 
 

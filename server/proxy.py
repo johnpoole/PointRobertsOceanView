@@ -101,7 +101,11 @@ BBOX = {"min_lat": 48.899, "min_lon": -123.222, "max_lat": 49.079, "max_lon": -1
 # is not a fault, short enough that nobody reads a quarter-hour-old sky as now.
 # These were None, which made quality.stale false for those three whatever the
 # age, so a reading could not be condemned by age at all.
-STALE_SECONDS = {"vessels": 300, "aircraft": 120,
+#
+# An aircraft is asked after every 6 s and its age is the age of its own last
+# position, so 30 s is five answers with no new fix. It was 120, and a jet at
+# 250 kn is 15 km from where it is drawn by then.
+STALE_SECONDS = {"vessels": 300, "aircraft": 30,
                  "weather": 900, "tide": 900, "currents": 900}
 
 # When a ship stops being a ship on the water. Nothing upstream ever says a
@@ -113,7 +117,10 @@ STALE_SECONDS = {"vessels": 300, "aircraft": 120,
 # Longer than the stale threshold, so a track greys before it goes and is not
 # taken off the moment the feed hiccups. For ships, longer than the shipfinder
 # pass at 300s too, so a scraped one is not reaped between two good passes.
-DROP_SECONDS = {"vessels": 900, "aircraft": 300}
+#
+# An aircraft the feed has stopped listing is taken off by the poll that finds
+# it missing. This figure is for the feed itself going quiet, when no poll can.
+DROP_SECONDS = {"vessels": 900, "aircraft": 90}
 REAP_PERIOD_SECONDS = 60.0
 HEARTBEAT_SECONDS = 10.0
 
@@ -1416,6 +1423,32 @@ def aircraft_records(payload: dict) -> list:
     return records
 
 
+def aircraft_fix_time(record: dict, now: datetime) -> datetime:
+    """When the aircraft was where this record puts it.
+
+    The feed goes on listing an aircraft for about a minute after its last
+    position and says how old that position is in seen_pos. Stamping the record
+    with the time it was fetched made every one of them a fresh fix, so an
+    aircraft that had flown out of cover sat white and still until the feed let
+    go of it.
+
+    Raises when the age is not there, because a position of unknown age cannot
+    be called the present one."""
+    age = record.get("seen_pos")
+    if age is None:
+        raise KeyError(
+            f"{ADSB_SOURCE} sent aircraft {record.get('hex')!r} with a position "
+            f"and no 'seen_pos'. It had {sorted(record)!r}. How old the position "
+            f"is cannot be said, and aircraft_fix_time in server/proxy.py needs it.")
+    return now - timedelta(seconds=float(age))
+
+
+def aircraft_gone(held: dict, answered: set) -> list[str]:
+    """The aircraft held here that a good answer no longer has in it. They have
+    left the feed, and the next thing known about them is nothing."""
+    return [icao for icao in held if icao not in answered]
+
+
 def callsign_of(state: dict) -> str | None:
     """The callsign to ask adsbdb about, or None when it did not send one."""
     callsign = (state.get("callsign") or "").strip()
@@ -1438,6 +1471,7 @@ async def aircraft_task() -> None:
                     if not state or not state["icao"]:
                         continue
                     icao = state["icao"]
+                    fixed_at = aircraft_fix_time(record, now)
                     seen_now.add(icao)
                     state.update(world.aircraft_registry.get(icao) or {})
                     if callsign_of(state):
@@ -1446,11 +1480,19 @@ async def aircraft_task() -> None:
                             world.flight_routes.get(callsign_of(state) or ""):
                         state["also_from"] = "adsbdb.com"
                     world.aircraft[icao] = state
-                    world.aircraft_seen[icao] = now
-                    record_track("aircraft", icao, now, state)
+                    world.aircraft_seen[icao] = fixed_at
+                    record_track("aircraft", icao, fixed_at, state)
                     await clients.broadcast(envelope(
-                        "aircraft.state", ADSB_SOURCE, now, state,
+                        "aircraft.state", ADSB_SOURCE, fixed_at, state,
                         STALE_SECONDS["aircraft"]))
+                # The page only drops an aircraft when a snapshot comes without
+                # it, so the snapshot is what tells it.
+                gone = aircraft_gone(world.aircraft, seen_now)
+                for icao in gone:
+                    del world.aircraft[icao]
+                    world.aircraft_seen.pop(icao, None)
+                if gone:
+                    await clients.broadcast(snapshot())
                 # Live means the feed answered with a list that could be read.
                 # A list with nothing in it is an empty sky and not a fault: a
                 # feed that has changed shape raises in aircraft_records above.
