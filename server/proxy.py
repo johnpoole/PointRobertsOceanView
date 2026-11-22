@@ -2291,11 +2291,37 @@ async def admin_visitors(request: Request) -> Response:
 # Static site last so the WebSocket route wins for /ws/live. This is a local dev
 # server for source files, so serve them no-cache: edits show on reload without
 # stale ES modules lingering in the browser.
+# What the page is, and nothing else. The mount below is rooted at the whole
+# checkout because the page's own files are spread across it, and for a while
+# that meant the whole checkout was the website: data/visitors.json, which
+# /admin/visitors asks a password for, came down as a plain file, and so did
+# this one. So a path is served only if it is named here.
+PUBLIC_FILES = frozenset({
+    ".", "index.html", "styles.css", "favicon.svg", "llms.txt",
+    "README.md", "REQUIREMENTS.md", "renders/marina-comparison.html",
+})
+PUBLIC_FOLDERS = ("src", "assets")
+
+
+def is_public(path: str) -> bool:
+    """Whether a path under the checkout is part of the page. path is what
+    StaticFiles hands over: normalised, relative, in the platform's separators."""
+    parts = Path(path).parts
+    if ".." in parts or Path(path).is_absolute():
+        return False
+    as_posix = "/".join(parts) if parts else "."
+    return as_posix in PUBLIC_FILES or (len(parts) > 1 and parts[0] in PUBLIC_FOLDERS)
+
+
 class NoCacheStatic(StaticFiles):
     def is_not_modified(self, *args, **kwargs) -> bool:
         return False
 
     async def get_response(self, path: str, scope) -> Response:
+        if not is_public(path):
+            # The same answer a file that is not there gets, so asking tells
+            # nobody what is on the disk.
+            raise HTTPException(status_code=404)
         response = await super().get_response(path, scope)
         response.headers["Cache-Control"] = "no-store"
         return response
