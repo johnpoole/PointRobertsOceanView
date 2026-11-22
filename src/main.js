@@ -1,5 +1,5 @@
-// Scene bootstrap. Camera on the West Bluff, eye ~20 m above sea level, looking
-// due west. Wires the live feed to the ocean, terrain, sky, vessels, weather,
+// Scene bootstrap. The camera opens at OPENING_VIEW, on Tyee Drive at the
+// border, looking south. Wires the live feed to the ocean, terrain, sky, vessels, weather,
 // and the HUD. Renders empty water honestly when the feed is down.
 
 import * as THREE from "three";
@@ -1345,7 +1345,7 @@ function vehicleHint(spec) {
 // Back to where the app opens, which is OPENING_VIEW. toOrbit aims the target
 // down the current view, so the position and the target are set after it, not
 // before.
-function toBluff() {
+function toBorder() {
   lookFov = LOOK_FOV_DEG;
   leaveWyze();
   nav.toOrbit();
@@ -1782,7 +1782,7 @@ new VisitorList(feed, camera, at => {
 // run aground, a cart and a pair of feet to stay on it. Without the terrain they
 // would all be moving over nothing, so they are refused and told why. Looking
 // around and free flight need no ground and stay available.
-const needsGround = (id) => id !== "bluff" && id !== "galiano" && id !== "look";
+const needsGround = (id) => id !== "border" && id !== "galiano" && id !== "look";
 
 // Two sensors to ask for and either can refuse, so this one is not instant and
 // cannot simply be entered. The chooser stays up until the phone is answering or
@@ -1818,7 +1818,7 @@ function chooseMode(id) {
   // Already in it. The boat is a toggle underneath, and choosing it again put
   // you ashore.
   if (id === "boat" && nav.mode === "boat") return;
-  if (id === "bluff") { toBluff(); return; }
+  if (id === "border") { toBorder(); return; }
   if (id === "galiano") { toGaliano(); return; }
   if (id === "look") { toMapView(); return; }
   if (id === "boat") { nav.toggleBoat(BOAT_START); return; }
@@ -1833,7 +1833,7 @@ for (const [id, label, note] of [
   ["boat", "boat", "8 kn"],
   ["ultralight", "ultra light", "90 km/h"],
   ["live", "live", "where the phone is"],
-  ["bluff", "bluff", "looking west"],
+  ["border", "border", "looking south"],
   ["galiano", "389 W Bluff Rd", "west to Galiano Island"],
   ["look", "look around", "no vehicle"],
 ]) {

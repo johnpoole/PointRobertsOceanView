@@ -1,7 +1,7 @@
 # CONTINUE — Point Roberts ocean view
 
-A three.js page that stands on the West Bluff at Point Roberts and looks west over the Salish
-Sea, with a FastAPI proxy behind it bridging live feeds. It is built and deployed. This file is
+A three.js page of Point Roberts and the Salish Sea around it. It opens on Tyee Drive at the
+border, looking south, with a FastAPI proxy behind it bridging live feeds. It is built and deployed. This file is
 for picking it up cold.
 
 Deployed at https://oceanview.johnpoole.ca, on the Basement server (`ssh basement`),
@@ -396,7 +396,7 @@ src/scene/drift.js         kelp, sticks and foam on the water, so the current ca
 src/scene/orcas.js         a group running the west shore, at the rate the month says. Not a feed.
 src/scene/lights.js        points that hold their size in pixels, for lights seen a long way off
 src/scene/lighthouse.js    Point Roberts Light on the point, and its two flashes
-src/scene/people.js        a ball where each other browser is, eased between updates
+src/scene/people.js        a 1.8 m figure or a vehicle where each other browser is, eased between updates
 assets/                    everything baked. Do not edit by hand.
 ```
 
@@ -423,7 +423,7 @@ AISStream went silent with the socket open and stayed that way. It is not our ke
 bounding box: the proxy proves it with a worldwide probe and an outside monitor, and the service
 looks abandoned — its owner last spoke on their tracker in April 2025. Issue #1 has the options.
 
-The shipfinder scrape only runs while a browser is connected, and then every 600 seconds. Their
+The shipfinder scrape only runs while a browser is connected, and then every 300 seconds. Their
 own map polls the same endpoint every ten seconds, so one ordinary visitor to their site is worth
 about sixty of these. It stands down entirely if AIS ever comes back. Nothing outside a browser
 gets past their Unauthorized, so a headless Chromium loads their map and the answer is read off
@@ -670,7 +670,7 @@ screen under it and a stair down the north side. `buildLand` takes `skipHome` so
 The ground under it falls from 10.79 m at the east corner to 5.74 m at the west — five metres under
 a seven metre building. The east side is dug into the bank and the west stands on posts, which is
 the whole reason that packet exists. The address node is 34 m uphill of the cabin, at 18.84 m, up on
-Bluff Road; the camera opens there, not on the cabin.
+Bluff Road. That node is the model's origin. The camera opens at the border, not here.
 
 The OSM footprint is six corners plus its closing coordinate, 55.1 m². The walls are a
 6.47 by 6.79 m rectangle in the model; the roof's outer rectangle is 8.17 by 8.49 m.
@@ -762,8 +762,8 @@ before and 18 to 26 after. Those readings wander by a few frames from run to run
 
 ## Modes
 
-The page opens looking around from the bluff. `M` or the button opens the chooser: walking,
-bicycle, golf cart, boat, ultra light, bluff, 389 W Bluff Rd, look around. 389 W Bluff Rd stands
+The page opens looking around at the border, on Tyee Drive, facing south. `M` or the button opens the chooser: walking,
+bicycle, golf cart, boat, ultra light, border, 389 W Bluff Rd, look around. 389 W Bluff Rd stands
 in the middle of the cabin's upper deck at eye height and looks due west, which is the line
 Galiano Island lies on. Each starts where it really would —
 the community centre, the border, the golf club, the foot of the bluff, the apron at 1RL.

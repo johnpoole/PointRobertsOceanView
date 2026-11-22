@@ -1,11 +1,12 @@
 # Point Roberts — West Bluff ocean view
 
-A three.js view from the West Bluff at Point Roberts, WA, looking due west over the
-Salish Sea. Live vessels, weather, and tide are drawn on the water from public feeds.
+A three.js model of Point Roberts, WA, and the Salish Sea around it. Live vessels,
+weather, and tide are drawn on the water from public feeds.
 Nothing is invented: when a feed is down the HUD says so and the water renders empty.
 
-The camera stands at 389 W Bluff Rd (48.989009, -123.085318), eye ~20 m above sea
-level, heading 270°.
+The page opens on Tyee Drive at the border crossing (49.001930, -123.068460), at a
+driver's eye height, looking south at the booths. The model's origin is 389 W Bluff
+Rd (48.989009, -123.085318).
 
 ## What drives the scene
 
