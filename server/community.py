@@ -1,16 +1,15 @@
 """What neighbours post publicly, when it names a place on the point.
 
-Two sources can be read without an account. Nextdoor puts the newest posts from
-Point Roberts on two public pages, and their data is in the page as JSON with
-the exact time each was posted. r/PointRoberts has an RSS feed. Facebook and X
-cannot be read without signing in, so they are not here.
+Nextdoor can be read without an account. It puts the newest posts from Point
+Roberts on two public pages, and their data is in the page as JSON with the
+exact time each was posted. Facebook and X cannot be read without signing in,
+so they are not here.
 
 A post goes on the map only when something happened and its words say where.
 Where is a road the OSM bake has, or a place people call by name, like Lily Point
 or the marina, and it stands on the first one the text mentions. Something
 happened means it is not a question or a request, and it says when or says what:
-6pm, tonight, Thursday, or lost, stolen, a fire, the police, orcas. The Reddit
-feed is mostly people asking about the border and the post office, and a map of
+6pm, tonight, Thursday, or lost, stolen, a fire, the police, orcas. A map of
 questions says nothing about the point.
 
 Only the post is kept: when it was posted, what it says, and a link back to it.
@@ -22,12 +21,10 @@ posts are kept on disk as they are read and the map grows from there.
 
 from __future__ import annotations
 
-import html
 import json
 import logging
 import math
 import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -38,13 +35,15 @@ from server.peninsula import in_point_roberts
 
 log = logging.getLogger("oceanview.community")
 
-SOURCE = "Nextdoor public pages and r/PointRoberts"
+SOURCE = "Nextdoor public pages"
+# The sources whose posts go out. r/PointRoberts was read until 22 November
+# 2026, and its posts are still in the file on disk. They are not sent.
+SOURCES = ["nextdoor"]
 NEXTDOOR_PAGES = [
     "https://nextdoor.com/city/point-roberts--wa/",
     "https://nextdoor.com/neighborhood/pointroberts--point-roberts--wa/",
 ]
-REDDIT_FEED = "https://www.reddit.com/r/PointRoberts/new/.rss?limit=100"
-# Both answer a browser and turn away anything that does not look like one.
+# It answers a browser and turns away anything that does not look like one.
 BROWSER = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/140.0 Safari/537.36",
@@ -52,7 +51,6 @@ BROWSER = {
 }
 KEEP_DAYS = 365
 
-ATOM = {"a": "http://www.w3.org/2005/Atom"}
 PHONE = re.compile(r"\(?\b\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}\b")
 
 # What people call a place, and which of the named places it is. The names in
@@ -236,32 +234,6 @@ def read_nextdoor(page: str) -> list[dict]:
     return posts
 
 
-def read_reddit(feed: str) -> list[dict]:
-    """The posts in r/PointRoberts's Atom feed."""
-    try:
-        root = ET.fromstring(feed)
-    except ET.ParseError as exc:
-        raise RuntimeError(f"r/PointRoberts did not answer with a feed: {exc}") from exc
-    posts = []
-    for e in root.findall("a:entry", ATOM):
-        pid = e.findtext("a:id", default="", namespaces=ATOM)
-        title = e.findtext("a:title", default="", namespaces=ATOM)
-        body = html.unescape(re.sub(r"<[^>]+>", " ", e.findtext("a:content", default="", namespaces=ATOM)))
-        body = re.sub(r"\s*submitted by\s+/u/\S+.*$", "", re.sub(r"\s+", " ", body)).strip()
-        link = e.find("a:link", ATOM)
-        posted = e.findtext("a:published", default="", namespaces=ATOM)
-        if not pid or not posted:
-            continue
-        posts.append({
-            "id": f"reddit:{pid}",
-            "source": "reddit",
-            "url": link.get("href") if link is not None else None,
-            "posted": posted,
-            "text": f"{title}. {body}".strip(". ") if body else title,
-        })
-    return posts
-
-
 # ---- keeping them -----------------------------------------------------------
 
 @dataclass
@@ -304,7 +276,7 @@ class Community:
         self.posts = {k: p for k, p in self.posts.items() if _when(p["posted"]) >= cutoff}
 
     async def refresh(self, client: httpx.AsyncClient) -> int:
-        """Read both sources. What one source gives is kept even if the other
+        """Read both pages. What one page gives is kept even if the other
         fails, and then the failure is raised so the feed says so."""
         added, failed = 0, []
         for url in NEXTDOOR_PAGES:
@@ -314,12 +286,6 @@ class Community:
                 added += self.take(read_nextdoor(page.text))
             except (httpx.HTTPError, RuntimeError) as exc:
                 failed.append(f"{url}: {exc}")
-        try:
-            feed = await client.get(REDDIT_FEED, headers=BROWSER, follow_redirects=True)
-            feed.raise_for_status()
-            added += self.take(read_reddit(feed.text))
-        except (httpx.HTTPError, RuntimeError) as exc:
-            failed.append(f"{REDDIT_FEED}: {exc}")
         self.trim(datetime.now(timezone.utc))
         self.save()
         if failed:
@@ -327,11 +293,14 @@ class Community:
         return added
 
     def as_data(self) -> dict:
-        newest = sorted(self.posts.values(), key=lambda p: _when(p["posted"]), reverse=True)
-        return {"posts": newest, "sources": ["nextdoor", "reddit"]}
+        newest = sorted(self._sent(), key=lambda p: _when(p["posted"]), reverse=True)
+        return {"posts": newest, "sources": SOURCES}
 
     def latest_time(self) -> datetime | None:
-        return max((_when(p["posted"]) for p in self.posts.values()), default=None)
+        return max((_when(p["posted"]) for p in self._sent()), default=None)
+
+    def _sent(self) -> list[dict]:
+        return [p for p in self.posts.values() if p["source"] in SOURCES]
 
 
 def _when(text: str) -> datetime:

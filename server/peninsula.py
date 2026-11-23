@@ -1,8 +1,7 @@
 """Where Point Roberts is, for anything that has to keep to it.
 
-The feeds read here cover more than the point. PulsePoint carries the whole of
-Whatcom County, Reddit and Nextdoor posts name places across the line in
-Tsawwassen, and OSM has roads on both sides of it. What goes on the map is
+The feeds read here cover more than the point. Nextdoor posts name places
+across the line in Tsawwassen, and OSM has roads on both sides of it. What goes on the map is
 what is on the peninsula.
 
 The line is the 49th parallel as it is surveyed here, and it runs between the

@@ -90,8 +90,8 @@ def test_every_found_place_is_on_the_peninsula() -> None:
 
 # ---- something happened, or somebody is asking -------------------------------
 #
-# Real posts, the ones the first pass put on the map. The questions were most of
-# the Reddit feed and they are not events.
+# Real posts, the ones the first pass put on the map. The questions are not
+# events.
 
 def test_what_happened_somewhere_is_an_event() -> None:
     for text in (
@@ -129,7 +129,7 @@ def test_a_post_that_says_neither_when_nor_what_is_not_an_event() -> None:
 
 def test_a_question_is_not_kept_even_when_it_names_a_place() -> None:
     s = store()
-    raw = [{"id": "reddit:q", "source": "reddit", "url": None,
+    raw = [{"id": "nextdoor:q", "source": "nextdoor", "url": None,
             "posted": "2026-06-16T11:39:00+00:00",
             "text": "Day trip to PR without the car. I am planning to visit near Maple Beach"}]
     assert s.take(raw) == 0 and not s.posts
@@ -147,16 +147,16 @@ NEXTDOOR = """<html><script id="__NEXT_DATA__" type="application/json">""" + jso
          "link": "https://nextdoor.com/p/2XfyWtmCXJBP?view=detail"},
     ]}}}}}) + """</script></html>"""
 
-REDDIT = """<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
- <entry>
-  <id>t3_abc123</id>
-  <title>Point Roberts shipwreck</title>
-  <link href="https://www.reddit.com/r/PointRoberts/comments/abc123/point_roberts_shipwreck/"/>
-  <published>2026-05-03T03:39:19+00:00</published>
-  <content type="html">&lt;p&gt;Pics at low tide and high tide, just off the entrance to the marina.&lt;/p&gt; submitted by /u/someone [link] [comments]</content>
- </entry>
-</feed>"""
+# A post as r/PointRoberts gave it while that feed was read. Some are still in
+# the file on the server.
+KEPT_FROM_REDDIT = {
+    "id": "reddit:t3_abc123", "source": "reddit",
+    "url": "https://www.reddit.com/r/PointRoberts/comments/abc123/point_roberts_shipwreck/",
+    "posted": "2026-05-03T03:39:19+00:00",
+    "text": "Point Roberts shipwreck. Pics at low tide and high tide, just off "
+            "the entrance to the marina.",
+    "place": "The marina building", "lat": 48.9745, "lon": -123.0645,
+}
 
 
 def test_nextdoor_posts_are_read_with_their_exact_time_and_a_link() -> None:
@@ -180,15 +180,6 @@ def test_a_page_with_no_data_is_an_error_not_an_empty_list() -> None:
         assert "__NEXT_DATA__" in str(exc)
     else:
         raise AssertionError("a sign-in wall was read as no posts")
-
-
-def test_reddit_posts_are_read_with_title_and_body_and_no_byline() -> None:
-    posts = community.read_reddit(REDDIT)
-    assert len(posts) == 1
-    p = posts[0]
-    assert p["posted"] == "2026-05-03T03:39:19+00:00"
-    assert "shipwreck" in p["text"] and "entrance to the marina" in p["text"]
-    assert "submitted by" not in p["text"] and "/u/" not in p["text"]
 
 
 # ---- keeping them -----------------------------------------------------------
@@ -221,22 +212,31 @@ def test_a_post_read_twice_is_kept_once() -> None:
 
 def test_posts_are_kept_on_disk_and_come_back() -> None:
     s = store()
-    s.take(community.read_reddit(REDDIT))
+    s.take(community.read_nextdoor(NEXTDOOR))
     s.save()
     again = community.Community(s.path, FINDER)
     again.load()
-    assert again.posts == s.posts
+    assert again.posts and again.posts == s.posts
 
 
-def test_the_newest_comes_first_and_old_ones_go() -> None:
+def test_a_post_kept_from_reddit_is_not_sent() -> None:
     s = store()
     s.take(community.read_nextdoor(NEXTDOOR))
-    s.take(community.read_reddit(REDDIT))
-    posts = s.as_data()["posts"]
-    assert [p["source"] for p in posts] == ["nextdoor", "reddit"]
-    s.trim(datetime(2027, 6, 1, tzinfo=timezone.utc))
-    assert [p["source"] for p in s.as_data()["posts"]] == ["nextdoor"], \
-        "a post more than a year old was kept"
+    s.posts[KEPT_FROM_REDDIT["id"]] = dict(KEPT_FROM_REDDIT)
+    data = s.as_data()
+    assert [p["source"] for p in data["posts"]] == ["nextdoor"], data
+    assert data["sources"] == ["nextdoor"], data
+    assert s.latest_time() == datetime(2026, 9, 7, 2, 13, 37, 825000, tzinfo=timezone.utc)
+
+
+def test_a_post_more_than_a_year_old_goes() -> None:
+    s = store()
+    s.take(community.read_nextdoor(NEXTDOOR))
+    assert len(s.posts) == 1
+    s.trim(datetime(2027, 9, 1, tzinfo=timezone.utc))
+    assert len(s.posts) == 1, "a post under a year old was dropped"
+    s.trim(datetime(2027, 9, 8, tzinfo=timezone.utc))
+    assert not s.posts, "a post more than a year old was kept"
 
 
 def main() -> int:

@@ -52,7 +52,6 @@ export class Feed {
     this.tee = null;
     this.calls = null;
     this.community = null;      // what neighbours posted, pinned to a place
-    this.fire = null;           // fire and medical dispatches on the point
     this.crossings = null;
     this.selfId = null;         // what the server called us, so we can skip it
 
@@ -199,11 +198,6 @@ export class Feed {
         this.community = msg;
         this._emit("community");
         break;
-      case "fire.calls":
-        // Fire and medical dispatches on the point, off PulsePoint.
-        this.fire = msg;
-        this._emit("fire");
-        break;
       case "golf.tee":
         // Who the club's booking sheet says is out on the course.
         this.tee = msg;
@@ -243,7 +237,6 @@ export class Feed {
     this.tee = data.tee || null;
     this.calls = data.calls || null;
     this.community = data.community || null;
-    this.fire = data.fire || null;
     // The monthly counts. The page reads the oldest month off them to know how
     // far back the date on the clock may go.
     this.crossings = data.crossings || null;

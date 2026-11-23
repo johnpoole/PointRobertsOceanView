@@ -1,7 +1,6 @@
 // Things somebody reported on the point, stood on the ground where they were.
 //
-// One layer each for what neighbours posted and for the fire and medical calls.
-// The server works out where every item is, on the peninsula, and hands it over
+// One layer, for what neighbours posted. The server works out where every item is, on the peninsula, and hands it over
 // with a latitude and a longitude, so this only stands a post there. Several at
 // one spot stand in a ring round it rather than inside each other.
 
