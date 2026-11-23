@@ -197,7 +197,9 @@ function swellGlsl(name, share) {
 }
 const SWELL_CARRIED_GLSL = swellGlsl("swellCarried",
   `smoothstep(${CARRY_FROM.toFixed(1)}, ${CARRY_FULL.toFixed(1)}, len / ${NEAR_SPACING_M.toFixed(3)})`);
-const SWELL_LIT_GLSL = swellGlsl("swellLit", "1.0 - smoothstep(1.0, 2.5, fwidth(ph))");
+// A wave is let go between twelve pixels to the wavelength and four. Held down
+// to two and a half it was at the edge of what a screen can show.
+const SWELL_LIT_GLSL = swellGlsl("swellLit", "1.0 - smoothstep(0.5, 1.5, fwidth(ph))");
 
 export class Ocean {
   constructor(scene) {

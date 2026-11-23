@@ -397,6 +397,15 @@ src/scene/orcas.js         a group running the west shore, at the rate the month
 src/scene/lights.js        points that hold their size in pixels, for lights seen a long way off
 src/scene/lighthouse.js    Point Roberts Light on the point, and its two flashes
 src/scene/people.js        a 1.8 m figure or a vehicle where each other browser is, eased between updates
+src/scene/baked-colours.js a part's own paint kept when its material is baked in. No three
+src/scene/waves.js         the sea's height and wavelength from the reading, and what the mesh can carry. No three
+src/scene/rain.js          whether rain is drawn. No three
+src/scene/between-fixes.js an aircraft slid between its last real positions, eight seconds behind. No three
+src/scene/aircraft-height.js  what to call the height an aircraft is drawn at. No three
+src/scene/shore-at.js      a place between two of the shore's points, for the orcas. No three
+src/scene/golf-play.js     where each golfer stands through a hole, and on what. No three
+src/scene/standing.js      how much of a figure's pose is the walk. No three
+scripts/run-tests.mjs      runs every page test. npm test
 assets/                    everything baked. Do not edit by hand.
 ```
 
